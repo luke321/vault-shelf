@@ -100,13 +100,22 @@ your branch  ->  develop  ->  main
 `main` is what the Obsidian directory installs from and what a release is tagged on, so
 nothing should reach it that has not already been through `develop`, where the invariant suite
 runs on every push. The rule is enforced twice, because there are two ways to move a commit
-and neither mechanism can see the other:
+and neither mechanism can see the other -- three, once the ruleset is armed:
 
 | | |
 |---|---|
-| `.github/workflows/branch-policy.yml` | a pull request into `main` fails unless its head is `develop` in this repository — GitHub has no branch-protection setting for "the PR must come from X", so it is a required check |
+| `.github/workflows/branch-policy.yml` | a pull request into `main` fails unless its head is `develop` in this repository — GitHub has no branch-protection setting for "the PR must come from X", so it is a check the ruleset requires |
 | `.githooks/pre-push` | a `git push` to `main` is refused unless `develop` is already an ancestor of it — a merge of `develop` passes, a commit made straight on `main` does not |
 | `.github/workflows/release.yml` | a release tag whose commit is not in `origin/main`'s history is refused before anything is built, signed or published — the same rule again, at the one moment it still matters, since a published tag cannot be moved |
+
+**One of those three is not armed yet.** GitHub does not offer repository rulesets on a
+private repository outside a paid plan, so `main` currently has no rule *requiring* the
+branch-policy check to pass, forbidding a force push, or forbidding deletion. The workflow
+still runs on every pull request into `main` and still reports; it just cannot block on its
+own. The hook and the release workflow are unaffected and enforce the same rule from the two
+other directions. **When this repository goes public, add the ruleset** — pull request
+required, `main only accepts develop` required, no force pushes, no deletion — which is what
+the sister repo carries.
 
 ## Comments are pointers
 
