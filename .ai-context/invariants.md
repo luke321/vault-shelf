@@ -1,0 +1,267 @@
+# Invariants
+
+Properties that must not regress, and the command that checks each one. **Every number here
+was measured, not reasoned about.** If a check fails because behaviour changed on purpose,
+update this file and the check in the same commit — a check quietly relaxed is worse than one
+that fails.
+
+Run one: `node scripts/smoke.mjs --only "<substring>"`. Run all of them: the pre-push hook does.
+
+Measured 2026-09-09 on the three fixture vaults: demo 394 notes / 11 folders / 8 people /
+15 tags / 18 undated, sparse 756 notes / 6 folders, library 10,000 notes / 15 folders. The
+demo vault draws **182 spines** across the six default shelves.
+
+---
+
+## The library renders, and it renders quietly
+
+The page mounts, the core is on `window`, and spines are on screen before any check reads a
+number. `"__vs is present and the library rendered"` is the gate the harness waits on before it
+starts, so a failure here means every other number would have been measured against nothing.
+
+`"the page loads with no console errors"` reads `Runtime.exceptionThrown` over CDP and asserts
+zero. It is the cheapest check here and it has caught more than its share.
+
+## The six default shelves are the six default shelves
+
+`"the six default shelves are there, in order"` — `encyclopedia`, `years`, `months`, `weeks`,
+`people`, `tags`, in that order, by id. The order is the argument the product makes on first
+open (`design/0002`), so it is asserted rather than assumed.
+
+## A shelf's note count is unique notes, never the sum of its books
+
+This is the central law. A note with three people belongs in three books; the shelf still holds
+one note. `"a shelf's note count is unique notes"` walks every shelf, collects note ids across
+every book into a set, and asserts the set's size equals the shelf's own `noteCount`.
+
+It also reports how many shelves have `sum > unique` — that is, how many genuinely place a
+note in more than one book. Measured on the demo vault: **2 of 6** do, People at 478/394 and
+Tags at 516/394. On the sparse vault that also covers notes naming five people and six tags at
+once, which is eleven books for one note. A run where **no** shelf overlaps means the fixture
+stopped exercising the law and the check has gone quiet without failing.
+
+## Every note has at least one address
+
+`"every note reachable from the vault is on at least one shelf"` collects every note id in
+every book of every shelf and asserts nothing in `data.notes` is missing. With the six defaults
+this is guaranteed by the Encyclopedia alone — every note has a title — and it is checked
+anyway, because the day somebody adds a filter to a default shelf is the day notes start
+disappearing quietly.
+
+## Undated is a book, not a guess
+
+`"an undated note lands in Undated"` counts notes with `date === null` and asserts the Years
+shelf's `-undated` book holds exactly that many, and that it sorts **last**. Measured on the
+demo vault: **18 undated notes, 18 in the book**, which sorts last of four. `decisions/0003` is
+why there is an Undated book at all rather than a file-stamp fallback.
+
+The sparse fixture puts about a fifth of its notes there on purpose. A run where the count is
+zero on that vault means the fixture or the date resolution changed.
+
+**This is the check that caught the `DEL` byte.** It reported "18 undated notes, 0 in the
+Undated book, which sorts at -undated" -- a sentence that disagrees with itself, because the
+key printed as `-undated` and compared unequal to it. See `changelog-detail.md`.
+
+## The ISO week keeps its week-year
+
+`"an ISO week keeps its week-year across a January boundary"` asserts four things against
+`core`, not against the page: `2027-01-01` is `2026-W53`, `2026-12-31` is `2026-W53`,
+`2027-01-04` is `2027-W01`, and `weekRange("2026-W53")` spans `2026-12-28` to `2027-01-03`.
+
+Keying week books on the calendar year splits that week across two shelves. This is the one
+date rule that is wrong in most hand-written implementations.
+
+## The Encyclopedia opens with 0-9
+
+`"the Encyclopedia opens with a 0-9 volume"` asserts **zero** books whose key is a single
+digit. A vault whose titles start with dates would otherwise open with ten one-note books
+before it reached A. Measured on the demo vault: 0 single-digit books, and the `0-9` volume
+holds **187 of 394** notes, because its daily and meeting notes are titled with an ISO date.
+
+## Plaques are date-only and asked for
+
+`"year plaques only appear on date classifiers, and only when asked for"` compares, per shelf,
+whether it *wants* plaques (`shelf.plaques`) against whether any of its books *has* one. The
+two booleans must be equal on every shelf. A "year" plaque over a People shelf would be a year
+taken from nowhere.
+
+`"a plaque sits under the books it names, in the same scroller"` is the geometric half: the
+plaque's top is at or below its books' bottom, and one `.shelfrail` contains both. Measured on
+the demo vault: the plaque sits **5px** below its run of books and matches their width to
+**0px**. `design/0003` is why being in the same scroller is structural rather than
+positional.
+
+**This check is in the serial lane.** It reads a laid-out box, and four browsers contending for
+one GPU report a geometry that has more to do with the other three windows.
+
+## Book addresses are stable across a rebuild
+
+`"book addresses are stable across a rebuild"` records every book id in order, filters the
+library to a search that matches nothing, clears it, and asserts the address list is identical
+element for element. `decisions/0002` is the reasoning; this is the assertion.
+
+## Filters change membership and nothing else
+
+`"a filter changes membership without moving a shelf"` applies the biggest folder as a filter
+and asserts three things: the filtered note count went down, the shelf **order** is unchanged,
+and clearing returns to exactly the starting count. Measured on the demo vault: 394 -> **112**
+under `04 - Daily Notes`, back to 394.
+
+`"a search narrows every shelf and clears back to the whole vault"` is the same shape for the
+search box.
+
+A filter that reorders shelves would break the one thing the product promises about
+orientation: a shelf lives at a stable address in the room.
+
+## Hiding a shelf hides it, and never deletes it
+
+`"a hidden shelf keeps its definition and its books"` hides the Tags shelf, asserts the
+visible count went down by exactly one, asserts the hidden shelf **still has its books built**
+— it holds reading places and answers "also shelved in" — then restores it and asserts the
+visible count came back. Measured: 6 visible → 5 → 6, and the hidden shelf still held **16**
+books.
+
+`"hiding every shelf offers a way back rather than an empty room"` hides all six and asserts a
+recovery card with a working button is on screen and zero spines are drawn, then restores.
+An empty room with no way out is the worst reachable state in this product.
+
+## The reader
+
+`"clicking a spine opens a book on the note it names"` clicks a real spine on the Years shelf
+and asserts the reader opened on the book that spine addressed, with a non-empty contents list.
+
+`"the reader's index tabs stay countable on the biggest book"` finds the largest book in the
+vault and asserts its tab count is between 1 and 26. Measured on the demo vault: the biggest
+book is `people/-unfiled` at **228 notes behind 20 tabs**. On the library fixture the biggest
+Encyclopedia volume runs to hundreds of notes and the tabs collapse to twelve ranges;
+`design/0004` says why a tab you cannot hit is not navigation.
+
+`"previous and next walk the book and stop at its ends"` opens a book with at least three
+notes, asserts it opens at index 0 with **previous** disabled, that next moves to 1, and that
+clicking next past the end stops at the last note with **next** disabled.
+
+`"also shelved in moves to another book and keeps the note"` finds a note that genuinely
+appears in two books, follows the first offered link, and asserts the book changed and the note
+did not.
+
+`"previous collection walks back, and Alt+Left does the same"` opens two books in sequence and
+asserts both the button and the keyboard shortcut return to the first.
+
+`"escape closes the reader and leaves the shelf where it was"` scrolls the library to 80px,
+opens a book from a focused spine, presses Escape, and asserts the reader closed, the scroll
+offset is **identical** (measured 80 -> 80), and focus is back on that spine.
+
+## The reading table survives
+
+`"the reading table survives a shelf being hidden"` bookmarks a note from a Tags book, hides the
+Tags shelf, and asserts the row is still present **and still enabled** — because
+`core.resolveReading` re-resolved it through another visible shelf.
+
+`"a saved reading place re-resolves after its own book is gone"` calls `resolveReading` with a
+book id that has never existed and asserts it falls back to a book that genuinely holds the
+note; and that a bookmark for a note that no longer exists resolves to `null` rather than to
+something plausible.
+
+## The builder previews the truth
+
+`"the builder previews the shelf it would actually save"` opens the builder, switches the
+classifier to Person, and asserts the previewed book count equals the **real** People shelf's
+book count, that spines were drawn, and that Cancel left the shelf list untouched.
+
+`"a saved shelf gets a stable id and joins the library"` adds a property shelf on `status`,
+asserts it built books, that the number of spines drawn equals the number of books, that its
+addresses are prefixed with its id, and that removing it returns the shelf count to where it
+started.
+
+## Metadata is declared, never inferred
+
+`"parent tag inclusion is a setting, and it changes the answer"` builds the same tag-sourced
+shelf twice, with `includeSubtags` on and off, and asserts the first collects at least as many
+notes as the second. Measured on the demo vault: `#garden` collects **78** notes with its
+`garden/seeds` and `garden/soil` children and **38** without -- a difference of 40.
+
+`"people come from the property alone, never from prose"` asserts that a name the fixtures
+put **only** in note bodies — never in a people property — reaches **zero** people lists and
+earns **no book of its own**. It also asserts the name really is in some bodies, so the check
+cannot pass by finding nothing. `decisions/0003` is why an invented person is worse than a
+missing one.
+
+## The skins are paint
+
+`"the two skins change nothing but the paint"` asserts identical counts and an identical
+number of spines drawn under both, and a **different** computed background colour. Measured on
+the demo vault: **182 spines** either way, ground `rgb(23, 24, 26)` against
+`rgb(231, 224, 210)`. `design/0005` is why "just a theme" is a claim that has to be checked
+rather than stated.
+
+## Accessibility and scale
+
+`"plain list mode keeps every book reachable"` asserts the book count is identical in list mode
+and that a spine's title is laid out horizontally there.
+
+`"every control the keyboard can reach has a name"` walks every `button`, `input` and
+`select` under the root and asserts each has an accessible name from `aria-label`, its own
+text, a `<label for>`, a wrapping `<label>`, a `title` or a placeholder. Measured on the demo
+vault: **647 controls, all named**.
+
+## Nothing reaches the network
+
+`"nothing on the page reaches the network"` counts `performance.getEntriesByType("resource")`
+entries with an `http` scheme after the page has loaded and been driven, and asserts zero. The
+static half is `scripts/check-network.mjs`, which is unskippable in the pre-push hook.
+`decisions/0006`.
+
+## The activity calendar paints real days
+
+`"the activity calendar paints the days the vault actually has"` asserts the selected year's
+grid has at least 365 day cells and that the number of lit cells equals the number of distinct
+days in that year that hold a note. Measured on the demo vault: 2026, **365 cells, 104 lit
+against 104 days** that hold a note. A calendar that lights a day with nothing on it is a
+calendar nobody can use to navigate.
+
+## A spine holds its size
+
+`"a spine lifts on hover and holds its size"` measures a spine's box at rest and focused and
+asserts both dimensions are unchanged — the lift is a `transform`, so a hovered spine cannot
+reflow its neighbours. Measured: **38×132 either way**. Also in the serial lane, for the same
+reason as the plaque check.
+
+## Hidden means hidden
+
+`"the reader and the sheets are not painted until they are opened"` reads the **computed
+style** of the reader, the builder and the manage sheet at rest and asserts none of them is
+painted.
+
+It exists because reading the `hidden` **attribute** is not the same thing, and the difference
+cost a real bug: `.vault-shelf .reader` sets `display: flex` at specificity 0-2-0, which beats
+the user agent's `[hidden] { display: none }` at 0-1-0, so all three painted over the library
+at all times while every attribute-reading check passed. One screenshot showed two dialogs
+stacked over the shelves. `changelog-detail.md` has the whole story.
+
+---
+
+## The plugin behaves inside a real Obsidian
+
+`scripts/obsidian-smoke.mjs`, opt-in, 8 checks. Measured 2026-09-09 on the demo fixture:
+
+| Check | Measured |
+|---|---|
+| the plugin loads | 394 markdown files; ready 0–1,600 ms after enabling |
+| the bookshelf icon is in the ribbon | 4 shapes at 18×18px, rail stroked |
+| the view opens and the library renders | 6 shelves, 182 spines, 6 year plaques, 1,250 ms |
+| the tab carries the same icon | 4 shapes in the tab header |
+| people and tags came from the metadata cache | 9 people books, 16 tag books |
+| the debug surface is not shipped | `window.__vs` is `undefined` inside Obsidian |
+| three close-and-reopen cycles | 1 mounted root; DOM nodes 2,675 → 2,675 |
+| the settings tab renders on both paths | 4 declarative definitions, 4 rows from `display()` |
+
+## Not covered here
+
+- **Anything about how it looks.** Every check above asserts a number; none of them can see
+  that something is ugly, misaligned or the wrong colour. **Both** of the bugs in
+  `changelog-detail.md` were found by looking at a screenshot while the suite was green.
+  `node scripts/obsidian-smoke.mjs --shot out.png` takes it.
+- **Popout windows and the theme switch.** The page takes its document from
+  `root.ownerDocument` and `check-scope` enforces that, but nothing yet drives a popout.
+- **Performance at scale.** The library fixture proves 10,000 notes *render*; nothing yet
+  measures how long they take to, or what a virtualised rail would save.

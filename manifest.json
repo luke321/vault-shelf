@@ -1,0 +1,10 @@
+{
+  "id": "vault-shelf",
+  "name": "Vault Shelf",
+  "version": "0.1.0",
+  "minAppVersion": "1.7.2",
+  "description": "Your vault as a browsable library: shelves of books built from titles, dates, people, tags, folders or any note property, read as a two-page spread. One note can sit on six shelves at once - the files never move.",
+  "author": "Lukas Proprentner",
+  "authorUrl": "https://github.com/luke321",
+  "isDesktopOnly": false
+}

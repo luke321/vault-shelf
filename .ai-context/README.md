@@ -1,0 +1,89 @@
+# .ai-context
+
+Context for whoever picks this up next — human or model. Read this folder **before**
+changing what a shelf contains or how a book is addressed.
+
+| File | What it is |
+|---|---|
+| `architecture.md` | The pipeline, the data shapes, and where each decision is enforced |
+| `invariants.md` | Properties that must not regress, and the command that checks each one |
+| `changelog-detail.md` | What was measured, per change. The regression suite in prose |
+| `releasing.md` | The two halves of a release, and what has to be finished before the tag exists |
+| `original-brief.md` | The founding brief, verbatim, with a table saying where each of its six open decisions was settled |
+| `decisions/` | **ADRs** — structural choices, what they cost, and what was rejected |
+| `design/` | **DDRs** — the as-built design of each part of the library |
+| `code-map.md` | **Generated** (`node scripts/code-map.mjs`): sections and functions of `src/page.js` and `scripts/smoke.mjs` with line numbers. Open the range, not the file |
+| `code-index.md` | **Generated**: issue → code sites, ADR/DDR → code sites, invariant → check, `__vs.*` → callers |
+
+### ADRs — `decisions/`
+
+| | |
+|---|---|
+| `0001-settings-are-the-hosts-and-schema-is-migrated` | Where a shelf definition lives, and why the page stores nothing |
+| `0002-a-book-has-a-stable-address` | `shelfId/key`, and why not an index or a generated id |
+| `0003-metadata-is-declared-never-inferred` | Dates, people and tags come from properties; nothing is guessed from prose |
+| `0004-declared-fixtures-not-a-real-vault` | Three generated vaults, keyed by generator digest, day-independent |
+| `0005-the-plugin-reads-the-metadata-cache` | Not the filesystem, and what that costs |
+| `0006-zero-network-calls` | Both artifacts are offline objects, and the check that keeps them so |
+| `0007-comments-are-pointers` | Why the reasoning lives here and not in the code |
+| `0008-one-browser-per-run` | Why the suite takes a free port per run |
+
+### DDRs — `design/`
+
+| | |
+|---|---|
+| `0001-the-note-record` | What a note is reduced to before anything shelves it |
+| `0002-shelves-books-and-the-builder` | Two questions, eight classifiers, and the live preview |
+| `0003-year-plaques` | Why the plaque is inside the scroller, and when it is not drawn at all |
+| `0004-the-reading-spread` | The two pages, the index tabs, the reading table, and cross-shelf history |
+| `0005-colour-and-the-two-skins` | Twelve slots shared with Vault Graph; Graphite and Paper & cloth as one feature set |
+| `0006-the-harness` | Where a driven browser goes, and the mutex two of them share |
+
+**ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
+it explains *why not the other thing*. A DDR describes how a part actually works and the
+measurements that shaped it. If you are about to change behaviour, the ADR tells you what
+you would be giving up; the DDR tells you what you would be breaking.
+
+## Why this folder exists
+
+Vault Shelf is the sister of [Vault Graph](https://github.com/luke321/vault-graph), and it
+inherits that repo's expensive lesson: **the recurring failure mode is reasoning about the
+code instead of measuring it.** Every hard bug there had the same shape — a plausible
+explanation that was wrong, fixed confidently, then a new symptom, because the real cause was
+a number nobody had looked at.
+
+The habit that works: **build the standalone page, drive it, and read the numbers.** Most of
+that is one command — `node scripts/smoke.mjs` runs every invariant that can be checked
+automatically and prints what it measured. What it cannot cover, it says so.
+
+It runs itself before every push, once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`SKIP_SMOKE=1 git push` when you mean to skip it — there are honest reasons to, and the
+alternative habit (`--no-verify`) silently disables every other hook too.
+
+By hand, for the rest — build a page and open its console:
+
+```bash
+node scripts/make-demo-vault.mjs
+node src/build-shelf.mjs --vault ./demo-vault --out ./vault-shelf.html
+```
+
+```javascript
+__vs.counts()             // notes, shelves, books, spines and plaques on screen
+__vs.checkMembership()    // unique notes per shelf vs what the shelf claims
+__vs.addresses()          // every book's stable address, in order
+__vs.setFilters({ search: "garden" })
+__vs.openBook("months/2026-09", null)
+__vs.setSkin("paper")
+__vs.setListMode(true)    // the assistive-technology view
+```
+
+## The rule
+
+If a change is about **what a shelf contains or where a book lives**, it needs a number
+before and after. The entries in `changelog-detail.md` carry those numbers on purpose — they
+are the regression suite.

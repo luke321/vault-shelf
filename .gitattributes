@@ -1,0 +1,16 @@
+# LF in the repository, everywhere, for every text file.
+#
+# Without this, the big files here -- src/page.js, scripts/smoke.mjs, scripts/cdp.mjs -- drift
+# to CRLF on a Windows checkout and get committed that way, which turns any later diff of them
+# into a whole-file rewrite: a merge reports thousands of insertions where the real change was
+# a few dozen lines, and `git blame` on this project's main source files then points at that
+# one merge for every line. The sister repo learned this the expensive way.
+#
+# text=auto lets git decide what is text; eol=lf fixes what it writes for the files it decides
+# are. The binary lines below are belt and braces -- detection already gets these right, but
+# these are the files where a wrong guess would corrupt the artefact rather than annoy a
+# reviewer, and the hero webp and the screenshots are what a release ships.
+* text=auto eol=lf
+
+*.png binary
+*.webp binary

@@ -1,0 +1,1107 @@
+import { attach, json } from "./cdp.mjs";
+import { leftmostScreen, leftWindowPos } from "./screen.mjs";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync,
+         renameSync, mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
+import { createServer } from "node:net";
+import { join, dirname } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = dirname(HERE);
+const argv = process.argv.slice(2);
+const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
+const argAll = (n) => {
+  const out = [];
+  argv.forEach((a, i) => {
+    if (a === "--" + n && argv[i + 1]) out.push(...argv[i + 1].split(",").map((s) => s.trim()).filter(Boolean));
+  });
+  return out;
+};
+const PINNED_PORT = arg("port", "") ? Number(arg("port", "")) : 0;
+const HEADED = argv.includes("--headed");
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function freePorts(k) {
+  const held = [];
+  try {
+    for (let i = 0; i < k; i++) {
+      held.push(await new Promise((res, rej) => {
+        const srv = createServer();
+        srv.listen(0, "127.0.0.1", () => res(srv));
+        srv.on("error", rej);
+      }));
+    }
+    return held.map((srv) => srv.address().port);
+  } finally {
+    for (const srv of held) { try { srv.close(); } catch { } }
+  }
+}
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const srv = createServer();
+    srv.on("error", reject);
+    srv.listen(0, "127.0.0.1", () => {
+      const { port } = srv.address();
+      srv.close(() => resolve(port));
+    });
+  });
+}
+
+/* ------------------------------------------------------------------ chrome */
+
+function findChrome() {
+  const named = arg("chrome", "");
+  if (named) return named;
+  const guesses = [
+    process.env.PROGRAMFILES + "\\Google\\Chrome\\Application\\chrome.exe",
+    process.env["PROGRAMFILES(X86)"] + "\\Google\\Chrome\\Application\\chrome.exe",
+    process.env.LOCALAPPDATA + "\\Google\\Chrome\\Application\\chrome.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/usr/bin/google-chrome", "/usr/bin/chromium"
+  ];
+  for (const g of guesses) if (g && existsSync(g)) return g;
+  throw new Error("Chrome not found; pass --chrome <path>");
+}
+
+/* -------------------------------------------------------------- the checks */
+
+const all = [];
+const check = (name, fn) => all.push({ name, fn });
+
+const ONLY = argAll("only").map((v) => v.toLowerCase());
+const selected = () => (ONLY.length
+  ? all.filter((c) => ONLY.some((q) => c.name.toLowerCase().includes(q)))
+  : all);
+
+const JOBS = Math.max(1, Number(arg("jobs", "4")) || 4);
+const GRID = argv.includes("--no-grid") ? false
+          : argv.includes("--grid") ? true
+          : JOBS > 1;
+
+let SCREEN = null;
+
+function gridSlot(i, k) {
+  if (!SCREEN) SCREEN = leftmostScreen();
+  const cols = Math.ceil(Math.sqrt(Math.max(1, k)));
+  const w = Math.floor(SCREEN.w / cols), h = Math.floor(SCREEN.h / Math.ceil(Math.max(1, k) / cols));
+  return { x: SCREEN.x + (i % cols) * w, y: SCREEN.y + Math.floor(i / cols) * h, w, h };
+}
+
+/* Checks that click, scroll or read a laid-out box run alone: a contended browser reports a
+ * geometry that has more to do with the other three windows than with the code. */
+const POINTER_DRIVEN = [
+  "opens a book",
+  "spine lifts",
+  "reading table",
+  "escape",
+  "keyboard",
+  "plaque sits",
+  "tabs",
+];
+const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
+
+/* =========================================================== the invariants ==
+ * Every check here prints the number it measured, and every one has a section in
+ * .ai-context/invariants.md. A check quietly relaxed is worse than one that fails.
+ */
+
+check("the page loads with no console errors", async (p, ctx) => {
+  await sleep(200);
+  return { ok: ctx.errors.length === 0,
+           detail: ctx.errors.length ? ctx.errors.slice(0, 3).join(" | ") : "0 errors" };
+});
+
+check("__vs is present and the library rendered", async (p) => {
+  const c = await p.j("__vs.counts()");
+  return { ok: c.notes > 0 && c.shelves > 0 && c.spines > 0,
+           detail: `${c.notes} notes, ${c.shelves} shelves, ${c.books} books, ${c.spines} spines drawn` };
+});
+
+check("the six default shelves are there, in order", async (p) => {
+  const ids = await p.j("__vs.views().map(function(v){return v.shelf.id})");
+  const want = ["encyclopedia", "years", "months", "weeks", "people", "tags"];
+  const ok = JSON.stringify(ids) === JSON.stringify(want);
+  return { ok, detail: ok ? want.join(" -> ") : `got ${ids.join(" -> ")}` };
+});
+
+check("a shelf's note count is unique notes, never the sum of its books", async (p) => {
+  const report = await p.j("__vs.checkMembership()");
+  const bad = report.filter((r) => !r.ok);
+  const overlap = report.filter((r) => r.sum > r.unique);
+  return {
+    ok: bad.length === 0,
+    detail: bad.length
+      ? bad.map((r) => `${r.shelf}: ${r.unique} unique vs ${r.claimed} claimed`).join("; ")
+      : `${report.length} shelves agree; ${overlap.length} of them place a note in more than ` +
+        `one book (${overlap.map((r) => r.shelf + " " + r.sum + "/" + r.unique).join(", ") || "none"})`
+  };
+});
+
+check("every note reachable from the vault is on at least one shelf", async (p) => {
+  const missing = await p.j(`(function(){
+    var seen = {};
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { b.notes.forEach(function (n) { seen[n.id] = 1; }); });
+    });
+    return __vs.data().notes.filter(function (n) { return !seen[n.id]; }).map(function (n) { return n.id; });
+  })()`);
+  return { ok: missing.length === 0,
+           detail: missing.length ? `${missing.length} orphaned: ${missing.slice(0, 3).join(", ")}`
+                                  : "every note has an address" };
+});
+
+check("an undated note lands in Undated, not in a guessed year", async (p) => {
+  const r = await p.j(`(function(){
+    var undated = __vs.data().notes.filter(function (n) { return n.date === null; }).length;
+    var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0];
+    var book = years.books.filter(function (b) { return b.key === "-undated"; })[0];
+    return { undated: undated, inBook: book ? book.notes.length : 0, last: years.books.length ? years.books[years.books.length - 1].key : "" };
+  })()`);
+  const ok = r.undated === r.inBook && (r.undated === 0 || r.last === "-undated");
+  return { ok, detail: `${r.undated} undated notes, ${r.inBook} in the Undated book, ` +
+                       `which sorts ${r.last === "-undated" ? "last" : "at " + r.last}` };
+});
+
+check("an ISO week keeps its week-year across a January boundary", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    return {
+      jan1_2027: core.isoWeekOf("2027-01-01"),
+      dec31_2026: core.isoWeekOf("2026-12-31"),
+      jan4_2027: core.isoWeekOf("2027-01-04"),
+      range: core.weekRange("2026-W53")
+    };
+  })()`);
+  const ok = r.jan1_2027 === "2026-W53" && r.dec31_2026 === "2026-W53" &&
+             r.jan4_2027 === "2027-W01" && r.range.from === "2026-12-28" && r.range.to === "2027-01-03";
+  return { ok, detail: `2027-01-01 -> ${r.jan1_2027}, 2027-01-04 -> ${r.jan4_2027}, ` +
+                       `2026-W53 spans ${r.range.from}..${r.range.to}` };
+});
+
+check("the Encyclopedia opens with a 0-9 volume, not ten one-note books", async (p) => {
+  const r = await p.j(`(function(){
+    var enc = __vs.views().filter(function (v) { return v.shelf.id === "encyclopedia"; })[0];
+    var digits = enc.books.filter(function (b) { return /^[0-9]$/.test(b.key); });
+    var volume = enc.books.filter(function (b) { return b.key === "0-9"; })[0];
+    return { digits: digits.length, volume: volume ? volume.notes.length : 0, first: enc.books[0].key };
+  })()`);
+  return { ok: r.digits === 0,
+           detail: `${r.digits} single-digit books, 0-9 volume holds ${r.volume}, shelf opens at ${r.first}` };
+});
+
+check("year plaques only appear on date classifiers, and only when asked for", async (p) => {
+  const r = await p.j(`(function(){
+    var out = {};
+    __vs.views().forEach(function (v) {
+      out[v.shelf.id] = {
+        wants: !!v.shelf.plaques,
+        has: v.books.filter(function (b) { return b.plaque !== null; }).length
+      };
+    });
+    return out;
+  })()`);
+  const wrong = Object.entries(r).filter(([, v]) => (v.has > 0) !== v.wants);
+  return { ok: wrong.length === 0,
+           detail: wrong.length ? wrong.map(([k, v]) => `${k}: wants ${v.wants}, has ${v.has}`).join("; ")
+                                : Object.entries(r).map(([k, v]) => `${k} ${v.has}`).join(", ") };
+});
+
+check("a plaque sits under the books it names, in the same scroller", async (p) => {
+  const r = await p.j(`(function(){
+    var group = document.querySelector('[data-shelf="months"] .group');
+    if (!group) return { found: false };
+    var plaque = group.querySelector(".plaque");
+    var books = group.querySelector(".books");
+    if (!plaque || !books) return { found: false };
+    var pb = plaque.getBoundingClientRect(), bb = books.getBoundingClientRect();
+    var rail = group.closest(".shelfrail");
+    return { found: true, below: Math.round(pb.top - bb.bottom),
+             sameRail: rail !== null && rail.contains(plaque) && rail.contains(books),
+             widthDiff: Math.round(Math.abs(pb.width - bb.width)) };
+  })()`);
+  if (!r.found) return { ok: false, detail: "no plaqued group on the Months shelf" };
+  return { ok: r.below >= 0 && r.sameRail,
+           detail: `plaque ${r.below}px below its books, same scroller: ${r.sameRail}, ` +
+                   `width differs by ${r.widthDiff}px` };
+});
+
+check("book addresses are stable across a rebuild", async (p) => {
+  const before = await p.j("__vs.addresses()");
+  await p.eval("__vs.setFilters({ search: 'zzz-nothing-matches-this' })");
+  await p.eval("__vs.setFilters({ search: '' })");
+  const after = await p.j("__vs.addresses()");
+  const ok = JSON.stringify(before) === JSON.stringify(after);
+  return { ok, detail: ok ? `${before.length} addresses unchanged`
+                          : `${before.length} -> ${after.length}, first difference at ` +
+                            before.findIndex((v, i) => v !== after[i]) };
+});
+
+check("a filter changes membership without moving a shelf", async (p) => {
+  const r = await p.j(`(function(){
+    var before = __vs.counts();
+    var order = __vs.views().map(function (v) { return v.shelf.id; });
+    return { before: before, order: order };
+  })()`);
+  const folder = await p.eval("__vs.data().folders[0].path");
+  await p.eval(`__vs.setFilters({ folders: [${JSON.stringify(folder)}] })`);
+  const after = await p.j(`(function(){
+    return { counts: __vs.counts(), order: __vs.views().map(function (v) { return v.shelf.id; }) };
+  })()`);
+  await p.eval("__vs.setFilters({ folders: [] })");
+  const back = await p.j("__vs.counts()");
+  const ok = after.counts.filtered < r.before.filtered &&
+             JSON.stringify(after.order) === JSON.stringify(r.order) &&
+             back.filtered === r.before.filtered;
+  return { ok, detail: `${r.before.filtered} -> ${after.counts.filtered} notes under "${folder}", ` +
+                       `back to ${back.filtered}; shelf order unchanged: ` +
+                       `${JSON.stringify(after.order) === JSON.stringify(r.order)}` };
+});
+
+check("a search narrows every shelf and clears back to the whole vault", async (p) => {
+  const before = await p.j("__vs.counts()");
+  await p.eval("__vs.setFilters({ search: 'a' })");
+  const during = await p.j("__vs.counts()");
+  await p.eval("__vs.setFilters({ search: '' })");
+  const after = await p.j("__vs.counts()");
+  return { ok: during.filtered <= before.filtered && after.filtered === before.filtered,
+           detail: `${before.filtered} -> ${during.filtered} on "a" -> ${after.filtered} cleared` };
+});
+
+check("a hidden shelf keeps its definition and its books", async (p) => {
+  const r = await p.j(`(function(){
+    var before = __vs.counts();
+    var shelf = __vs.settings().shelves.filter(function (s) { return s.id === "tags"; })[0];
+    shelf.hidden = true;
+    __vs.setFilters({});
+    var during = __vs.counts();
+    var stillBuilt = __vs.views().filter(function (v) { return v.shelf.id === "tags"; })[0].books.length;
+    shelf.hidden = false;
+    __vs.setFilters({});
+    return { before: before, during: during, stillBuilt: stillBuilt, after: __vs.counts() };
+  })()`);
+  const ok = r.during.visible === r.before.visible - 1 && r.stillBuilt > 0 &&
+             r.after.visible === r.before.visible;
+  return { ok, detail: `${r.before.visible} visible -> ${r.during.visible} hidden -> ` +
+                       `${r.after.visible} restored; the hidden shelf still held ${r.stillBuilt} books` };
+});
+
+check("hiding every shelf offers a way back rather than an empty room", async (p) => {
+  const r = await p.j(`(function(){
+    __vs.settings().shelves.forEach(function (s) { s.hidden = true; });
+    __vs.setFilters({});
+    var card = document.querySelector("#vs-shelves .endcard");
+    var out = { card: !!card, button: card ? !!card.querySelector("button") : false,
+                spines: document.querySelectorAll("#vs-shelves .spine").length };
+    __vs.settings().shelves.forEach(function (s) { s.hidden = false; });
+    __vs.setFilters({});
+    out.restored = document.querySelectorAll("#vs-shelves .spine").length;
+    return out;
+  })()`);
+  return { ok: r.card && r.button && r.spines === 0 && r.restored > 0,
+           detail: `recovery card: ${r.card}, its button: ${r.button}, ${r.spines} spines while ` +
+                   `hidden, ${r.restored} after restoring` };
+});
+
+/* A check that reads the `hidden` ATTRIBUTE is not a check that anything is hidden. The
+ * reader and both sheets are laid out by a class, which outranks the user agent's
+ * `[hidden] { display: none }`, so all three painted over the library while every
+ * attribute-reading check passed. This reads the computed style instead. */
+check("the reader and the sheets are not painted until they are opened", async (p) => {
+  const r = await p.j(`(function(){
+    __vs.closeReader();
+    return ["reader", "builder", "manage"].map(function (id) {
+      var node = document.getElementById("vs-" + id);
+      var box = node.getBoundingClientRect();
+      return { id: id, attr: node.hidden, display: getComputedStyle(node).display,
+               painted: node.offsetParent !== null || box.width > 0 || box.height > 0 };
+    });
+  })()`);
+  const painted = r.filter((x) => x.painted);
+  return { ok: painted.length === 0,
+           detail: painted.length
+             ? painted.map((x) => `${x.id} is still painted (hidden=${x.attr}, display=${x.display})`).join("; ")
+             : r.map((x) => `${x.id} display:${x.display}`).join(", ") };
+});
+
+check("clicking a spine opens a book on the note it names", async (p) => {
+  await p.eval("__vs.closeReader()");
+  const r = await p.j(`(function(){
+    var spine = document.querySelector('#vs-shelves [data-shelf="years"] .spine');
+    if (!spine) return { found: false };
+    var id = spine.getAttribute("data-book");
+    spine.click();
+    var open = !document.getElementById("vs-reader").hidden;
+    var state = __vs.reader();
+    var contents = document.querySelectorAll("#vs-contents li").length;
+    return { found: true, wanted: id, open: open, got: state ? state.book : null, contents: contents };
+  })()`);
+  if (!r.found) return { ok: false, detail: "no spine on the Years shelf to click" };
+  return { ok: r.open && r.got === r.wanted && r.contents > 0,
+           detail: `opened ${r.got} (wanted ${r.wanted}), ${r.contents} entries in its contents` };
+});
+
+check("the reader's index tabs stay countable on the biggest book", async (p) => {
+  const r = await p.j(`(function(){
+    var biggest = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { if (!biggest || b.notes.length > biggest.notes.length) biggest = b; });
+    });
+    __vs.openBook(biggest.id, null);
+    return { book: biggest.id, notes: biggest.notes.length,
+             tabs: document.querySelectorAll("#vs-tabs button").length };
+  })()`);
+  return { ok: r.tabs > 0 && r.tabs <= 26,
+           detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} tabs (cap 26)` };
+});
+
+check("previous and next walk the book and stop at its ends", async (p) => {
+  const r = await p.j(`(function(){
+    var book = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { if (!book && b.notes.length >= 3) book = b; });
+    });
+    if (!book) return { found: false };
+    __vs.openBook(book.id, null);
+    var first = __vs.reader().index;
+    var prevDisabled = document.getElementById("vs-prevnote").disabled;
+    document.getElementById("vs-nextnote").click();
+    var second = __vs.reader().index;
+    for (var i = 0; i < book.notes.length + 4; i++) document.getElementById("vs-nextnote").click();
+    var last = __vs.reader().index;
+    return { found: true, first: first, prevDisabled: prevDisabled, second: second,
+             last: last, size: book.notes.length,
+             nextDisabled: document.getElementById("vs-nextnote").disabled };
+  })()`);
+  if (!r.found) return { ok: false, detail: "no book with three notes in this vault" };
+  return { ok: r.first === 0 && r.prevDisabled && r.second === 1 &&
+               r.last === r.size - 1 && r.nextDisabled,
+           detail: `opened at ${r.first} (previous disabled: ${r.prevDisabled}), next -> ${r.second}, ` +
+                   `ran to ${r.last} of ${r.size - 1} and stopped (next disabled: ${r.nextDisabled})` };
+});
+
+check("also shelved in moves to another book and keeps the note", async (p) => {
+  const r = await p.j(`(function(){
+    var found = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) {
+        if (found) return;
+        b.notes.forEach(function (n) {
+          if (found) return;
+          if (__vs.views().reduce(function (k, vv) {
+                return k + vv.books.filter(function (bb) {
+                  return bb.notes.some(function (nn) { return nn.id === n.id; });
+                }).length;
+              }, 0) >= 2) found = { book: b.id, note: n.id };
+        });
+      });
+    });
+    if (!found) return { found: false };
+    __vs.openBook(found.book, found.note);
+    var links = document.querySelectorAll("#vs-alsoin button");
+    if (!links.length) return { found: true, links: 0 };
+    var from = __vs.reader().book;
+    links[0].click();
+    var to = __vs.reader();
+    return { found: true, links: links.length, from: from, to: to.book, note: to.note, wanted: found.note };
+  })()`);
+  if (!r.found) return { ok: false, detail: "no note appears in two books in this vault" };
+  return { ok: r.links > 0 && r.to !== r.from && r.note === r.wanted,
+           detail: `${r.links} other shelves offered; ${r.from} -> ${r.to}, still on the same note: ` +
+                   `${r.note === r.wanted}` };
+});
+
+check("previous collection walks back, and Alt+Left does the same", async (p) => {
+  const r = await p.j(`(function(){
+    var books = [];
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) { if (b.notes.length) books.push(b.id); }); });
+    __vs.openBook(books[0], null);
+    __vs.openBook(books[1], null);
+    var atSecond = __vs.reader().book;
+    document.getElementById("vs-prevcollection").click();
+    var afterButton = __vs.reader().book;
+    __vs.openBook(books[1], null);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", altKey: true, bubbles: true }));
+    return { first: books[0], second: books[1], atSecond: atSecond,
+             afterButton: afterButton, afterKey: __vs.reader().book };
+  })()`);
+  return { ok: r.afterButton === r.first && r.afterKey === r.first,
+           detail: `${r.first} -> ${r.second}; the button came back to ${r.afterButton}, ` +
+                   `Alt+Left to ${r.afterKey}` };
+});
+
+check("escape closes the reader and leaves the shelf where it was", async (p) => {
+  const r = await p.j(`(function(){
+    var library = document.getElementById("vs-library");
+    library.scrollTop = 80;
+    var before = library.scrollTop;
+    var spine = document.querySelector("#vs-shelves .spine");
+    spine.focus();
+    spine.click();
+    var open = !document.getElementById("vs-reader").hidden;
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    return { open: open, closed: document.getElementById("vs-reader").hidden,
+             before: before, after: library.scrollTop,
+             refocused: document.activeElement === spine };
+  })()`);
+  return { ok: r.open && r.closed && r.before === r.after && r.refocused,
+           detail: `opened, closed on Escape; shelf scroll ${r.before} -> ${r.after}, ` +
+                   `focus back on the spine: ${r.refocused}` };
+});
+
+check("the reading table survives a shelf being hidden", async (p) => {
+  const r = await p.j(`(function(){
+    var book = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { if (!book && b.notes.length && v.shelf.id === "tags") book = b; });
+    });
+    if (!book) return { found: false };
+    __vs.openBook(book.id, null);
+    document.getElementById("vs-ribbon").click();
+    var saved = __vs.settings().reading.length;
+    var noteId = __vs.reader().note;
+    __vs.closeReader();
+    __vs.settings().shelves.filter(function (s) { return s.id === "tags"; })[0].hidden = true;
+    __vs.setFilters({});
+    var rows = document.querySelectorAll("#vs-reading .readingrow");
+    var enabled = 0;
+    rows.forEach(function (r) { if (!r.disabled) enabled++; });
+    __vs.settings().shelves.filter(function (s) { return s.id === "tags"; })[0].hidden = false;
+    __vs.settings().reading.length = 0;
+    __vs.setFilters({});
+    return { found: true, saved: saved, noteId: noteId, rows: rows.length, enabled: enabled };
+  })()`);
+  if (!r.found) return { ok: false, detail: "no tag book to bookmark from" };
+  return { ok: r.saved === 1 && r.rows === 1 && r.enabled === 1,
+           detail: `bookmarked ${r.noteId}; with its shelf hidden the row is still there ` +
+                   `(${r.rows}) and still opens (${r.enabled}) via another shelf` };
+});
+
+check("a saved reading place re-resolves after its own book is gone", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var note = __vs.data().notes[0];
+    var resolved = core.resolveReading(note.id, "no-such-shelf/no-such-book", __vs.views());
+    var holdsIt = resolved ? resolved.notes.some(function (n) { return n.id === note.id; }) : false;
+    var missing = core.resolveReading("no-such-note", "no-such-book", __vs.views());
+    return { note: note.id, fellBackTo: resolved ? resolved.id : null, holdsIt: holdsIt,
+             missing: missing };
+  })()`);
+  return { ok: r.fellBackTo !== null && r.holdsIt && r.missing === null,
+           detail: `a bookmark naming a book that no longer exists fell back to ${r.fellBackTo}, ` +
+                   `which holds the note: ${r.holdsIt}; a bookmark for a deleted note resolves to null` };
+});
+
+check("the builder previews the shelf it would actually save", async (p) => {
+  const r = await p.j(`(function(){
+    document.getElementById("vs-newshelf").click();
+    document.getElementById("vs-bclassifier").value = "person";
+    document.getElementById("vs-bclassifier").dispatchEvent(new Event("change", { bubbles: true }));
+    var text = document.getElementById("vs-previewcount").textContent;
+    var spines = document.querySelectorAll("#vs-preview .spine").length;
+    var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
+    document.getElementById("vs-bcancel").click();
+    return { text: text, spines: spines, real: people.books.length,
+             cancelled: document.getElementById("vs-builder").hidden,
+             shelves: __vs.settings().shelves.length };
+  })()`);
+  const previewed = Number((/(\d+) books?/.exec(r.text) || [0, 0])[1]);
+  return { ok: previewed === r.real && r.spines > 0 && r.cancelled,
+           detail: `preview said "${r.text}" against a real People shelf of ${r.real} books; ` +
+                   `${r.spines} spines drawn; cancel left ${r.shelves} shelves` };
+});
+
+check("a saved shelf gets a stable id and joins the library", async (p) => {
+  const r = await p.j(`(function(){
+    var before = __vs.settings().shelves.length;
+    __vs.addShelf({ id: "smoke-status", name: "By status", source: { kind: "all" },
+                    classifier: "property", property: "status",
+                    direction: "alphabetical", hidden: false, plaques: false });
+    var view = __vs.views().filter(function (v) { return v.shelf.id === "smoke-status"; })[0];
+    var addresses = __vs.addresses().filter(function (a) { return a.indexOf("smoke-status/") === 0; });
+    var drawn = document.querySelectorAll('[data-shelf="smoke-status"] .spine').length;
+    var settings = __vs.settings();
+    settings.shelves.splice(settings.shelves.findIndex(function (s) { return s.id === "smoke-status"; }), 1);
+    __vs.setFilters({});
+    return { before: before, books: view ? view.books.length : 0, notes: view ? view.noteCount : 0,
+             addresses: addresses.slice(0, 3), drawn: drawn,
+             after: __vs.settings().shelves.length };
+  })()`);
+  return { ok: r.books > 0 && r.drawn === r.books && r.after === r.before,
+           detail: `a property shelf on "status" built ${r.books} books over ${r.notes} notes ` +
+                   `and drew ${r.drawn} spines; addresses like ${r.addresses.join(", ")}` };
+});
+
+check("parent tag inclusion is a setting, and it changes the answer", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var notes = __vs.data().notes;
+    var base = { id: "t", name: "t", source: { kind: "tag", value: "garden" },
+                 classifier: "tag", direction: "alphabetical", hidden: false, position: 0,
+                 plaques: false };
+    var withKids = core.buildShelf(Object.assign({}, base, { includeSubtags: true }), notes);
+    var without = core.buildShelf(Object.assign({}, base, { includeSubtags: false }), notes);
+    return { withKids: withKids.noteCount, without: without.noteCount };
+  })()`);
+  return { ok: r.withKids >= r.without,
+           detail: `#garden collects ${r.withKids} notes with its children, ${r.without} without ` +
+                   `-- a difference of ${r.withKids - r.without}` };
+});
+
+/* The fixtures name PROSE_ONLY in note bodies and never in a people property. If it ever
+ * reaches a note's people list, or earns a book of its own, something started reading prose. */
+const PROSE_ONLY = "Dagny Halvorsen";
+
+check("people come from the property alone, never from prose", async (p) => {
+  const r = await p.j(`(function(){
+    var sentinel = ${JSON.stringify(PROSE_ONLY)};
+    var notes = __vs.data().notes;
+    var named = notes.filter(function (n) { return n.people.length; });
+    var inProse = notes.filter(function (n) { return (n.body || "").indexOf(sentinel) >= 0; });
+    var leaked = notes.filter(function (n) { return n.people.indexOf(sentinel) >= 0; });
+    var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
+    var book = people.books.filter(function (b) { return b.key === sentinel; })[0];
+    var unfiled = people.books.filter(function (b) { return b.key === "-unfiled"; })[0];
+    return { named: named.length, inProse: inProse.length, leaked: leaked.length,
+             book: !!book, books: people.books.length,
+             unfiled: unfiled ? unfiled.notes.length : 0 };
+  })()`);
+  return { ok: r.leaked === 0 && !r.book && r.inProse > 0,
+           detail: `${r.named} notes name someone in their property; "${PROSE_ONLY}" appears in ` +
+                   `${r.inProse} note bodies and in ${r.leaked} people lists, with ` +
+                   `${r.book ? "a book of its own" : "no book of its own"}; the People shelf has ` +
+                   `${r.books} books and ${r.unfiled} notes name no one` };
+});
+
+check("the two skins change nothing but the paint", async (p) => {
+  const r = await p.j(`(function(){
+    __vs.setSkin("graphite");
+    var a = __vs.counts();
+    var aSpines = document.querySelectorAll("#vs-shelves .spine").length;
+    var aBg = getComputedStyle(document.getElementById("vs-app")).backgroundColor;
+    __vs.setSkin("paper");
+    var b = __vs.counts();
+    var bSpines = document.querySelectorAll("#vs-shelves .spine").length;
+    var bBg = getComputedStyle(document.getElementById("vs-app")).backgroundColor;
+    __vs.setSkin("graphite");
+    return { a: a, b: b, aSpines: aSpines, bSpines: bSpines, aBg: aBg, bBg: bBg };
+  })()`);
+  return { ok: JSON.stringify(r.a) === JSON.stringify(r.b) && r.aSpines === r.bSpines && r.aBg !== r.bBg,
+           detail: `both skins draw ${r.aSpines} spines over the same counts; ground ` +
+                   `${r.aBg} vs ${r.bBg}` };
+});
+
+check("plain list mode keeps every book reachable", async (p) => {
+  const r = await p.j(`(function(){
+    var before = document.querySelectorAll("#vs-shelves .spine").length;
+    __vs.setListMode(true);
+    var after = document.querySelectorAll("#vs-shelves .spine").length;
+    var spine = document.querySelector("#vs-shelves .spine");
+    var box = spine.getBoundingClientRect();
+    var horizontal = getComputedStyle(spine.querySelector(".title")).writingMode;
+    __vs.setListMode(false);
+    return { before: before, after: after, width: Math.round(box.width),
+             height: Math.round(box.height), writingMode: horizontal };
+  })()`);
+  return { ok: r.before === r.after && r.writingMode.indexOf("horizontal") === 0,
+           detail: `${r.after} of ${r.before} books still present; a row is ${r.width}x${r.height} ` +
+                   `with ${r.writingMode} text` };
+});
+
+check("every control the keyboard can reach has a name", async (p) => {
+  const r = await p.j(`(function(){
+    var nameless = [];
+    document.querySelectorAll("#vs-app button, #vs-app input, #vs-app select").forEach(function (node) {
+      var name = (node.getAttribute("aria-label") || node.textContent || "").trim();
+      if (!name && node.id) {
+        var label = document.querySelector('label[for="' + node.id + '"]');
+        if (label) name = label.textContent.trim();
+      }
+      if (!name && node.closest("label")) name = node.closest("label").textContent.trim();
+      if (!name && node.title) name = node.title;
+      if (!name && node.placeholder) name = node.placeholder;
+      if (!name) nameless.push(node.id || node.className || node.tagName);
+    });
+    return { total: document.querySelectorAll("#vs-app button, #vs-app input, #vs-app select").length,
+             nameless: nameless };
+  })()`);
+  return { ok: r.nameless.length === 0,
+           detail: r.nameless.length ? `${r.nameless.length} unnamed: ${r.nameless.slice(0, 5).join(", ")}`
+                                     : `${r.total} controls, all named` };
+});
+
+check("nothing on the page reaches the network", async (p) => {
+  const r = await p.j(`(function(){
+    return { fetches: window.__vsFetches || 0,
+             requests: performance.getEntriesByType("resource")
+               .filter(function (e) { return /^https?:/.test(e.name); }).length };
+  })()`);
+  return { ok: r.requests === 0,
+           detail: `${r.requests} remote resource(s) requested by the loaded page` };
+});
+
+check("the activity calendar paints the days the vault actually has", async (p) => {
+  const r = await p.j(`(function(){
+    var year = document.querySelector("#vs-years button[aria-pressed='true']");
+    var key = year ? year.textContent : null;
+    var cells = document.querySelectorAll("#vs-calendar .day[data-day]");
+    var lit = 0;
+    cells.forEach(function (c) { if (c.getAttribute("data-level") !== "0") lit++; });
+    var real = {};
+    __vs.data().notes.forEach(function (n) {
+      if (n.date && n.date.slice(0, 4) === key) real[n.date] = 1;
+    });
+    return { year: key, cells: cells.length, lit: lit, real: Object.keys(real).length };
+  })()`);
+  return { ok: r.year !== null && r.lit === r.real && r.cells >= 365,
+           detail: `${r.year}: ${r.cells} day cells, ${r.lit} lit against ${r.real} days that ` +
+                   `hold a note` };
+});
+
+check("a spine lifts on hover and holds its size", async (p) => {
+  const r = await p.j(`(function(){
+    var spine = document.querySelector("#vs-shelves .spine");
+    var before = spine.getBoundingClientRect();
+    spine.focus();
+    var after = spine.getBoundingClientRect();
+    return { w: Math.round(before.width), h: Math.round(before.height),
+             w2: Math.round(after.width), h2: Math.round(after.height),
+             lift: Math.round(before.top - after.top) };
+  })()`);
+  return { ok: r.w === r.w2 && r.h === r.h2,
+           detail: `${r.w}x${r.h} at rest, ${r.w2}x${r.h2} focused, lifted ${r.lift}px` };
+});
+
+/* ---------------------------------------------------- which vaults, and why
+ *
+ * THREE SHAPES, BY DEFAULT, and none of them needs a vault of yours.
+ *
+ *   demo vault     ~700 notes across ten declared folders, two years of dates, every
+ *                  classifier populated: eight people, thirteen tags including a three-level
+ *                  hierarchy and two non-Latin ones, a status property, and a handful of
+ *                  deliberately undated notes. The shape the plugin is meant for.
+ *   sparse vault   ~756 notes where ONE FOLDER HOLDS 82%, a FIFTH ARE UNDATED, the dates sit
+ *                  in two clusters five years apart with a hole between them, titles open
+ *                  with digits, punctuation and four scripts, and a few notes name five
+ *                  people and six tags at once -- eleven books for one note. Every edge the
+ *                  demo vault rounds off.
+ *   library vault  10,000 notes over ten years: ~520 week books on one rail, and an
+ *                  Encyclopedia volume large enough that the reader's index has to fall back
+ *                  to ranges.
+ *
+ * ALL THREE LIVE IN ONE SHARED STORE, beside the main repo, and invalidate themselves.
+ * A fixture lives at <main repo>/.fixtures/<name>-<digest8>, where the digest is sha256 over
+ * the CONTENTS of all three generator scripts plus this fixture's args -- content, not mtime,
+ * because a branch switch rewrites mtimes without changing a byte. Every worktree resolves
+ * the same store through git's common dir, so the gate sees one fixture set no matter where
+ * the push runs. Editing a generator changes the digest and the next run regenerates; nothing
+ * needs to remember to delete anything.
+ *
+ * A fixture also AGES BY DESIGN: --end defaults to today so the activity calendar's live year
+ * stays exercised, which means the newest note recedes from the real clock from the moment it
+ * is written. The stamp in each fixture carries its generation day, and anything older than
+ * FIXTURE_MAX_AGE_DAYS regenerates -- the first run each week pays the cost, everyone else
+ * reuses. A leftover fixture directory in a checkout root is ignored with a one-line notice;
+ * --vault remains the explicit override for pointing the suite at any vault on purpose.
+ */
+function resolveVaults() {
+  const explicit = argAll("vault");
+  if (explicit.length) return explicit.map((v) => ({ path: v, label: v }));
+  if (arg("url", "")) return [{ path: "", label: "the page passed with --url" }];
+
+  const out = [];
+  const FIXTURE_MAX_AGE_DAYS = 7;
+  const GENERATORS = ["make-demo-vault.mjs", "make-sparse-vault.mjs", "make-library-vault.mjs"];
+  const FIXTURE_FORMAT = 1;
+
+  const storeRoot = (() => {
+    const g = spawnSync("git", ["-C", ROOT, "rev-parse", "--git-common-dir"], { encoding: "utf8" });
+    if (g.status === 0 && g.stdout.trim()) {
+      const common = g.stdout.trim();
+      const abs = /^[A-Za-z]:[\\/]|^\//.test(common) ? common : join(ROOT, common);
+      return join(dirname(abs), ".fixtures");
+    }
+    return join(ROOT, ".fixtures");
+  })();
+
+  const digestOf = (args) => {
+    const h = createHash("sha256");
+    h.update("format:" + FIXTURE_FORMAT);
+    for (const g of GENERATORS) h.update(readFileSync(join(HERE, g)));
+    h.update(JSON.stringify(args));
+    return h.digest("hex").slice(0, 8);
+  };
+
+  const todayDay = () => new Date().toISOString().slice(0, 10);
+  const ageDays = (day) => Math.floor((Date.parse(todayDay()) - Date.parse(day)) / 86400000);
+
+  const gen = (script, args, name, label) => {
+    const digest = digestOf(args);
+    const dir = join(storeRoot, `${name}-${digest}`);
+    const stampPath = join(dir, ".stamp.json");
+    let fresh = false;
+    if (existsSync(stampPath)) {
+      try {
+        const st = JSON.parse(readFileSync(stampPath, "utf8"));
+        const pinned = args.indexOf("--end") >= 0;
+        fresh = st.digest === digest &&
+                (pinned || (typeof st.day === "string" && ageDays(st.day) <= FIXTURE_MAX_AGE_DAYS));
+      } catch { fresh = false; }
+    }
+    if (!fresh) {
+      console.log(`generating ${label} ...`);
+      const building = join(storeRoot, `.building-${name}-${process.pid}`);
+      rmSync(building, { recursive: true, force: true });
+      mkdirSync(storeRoot, { recursive: true });
+      const r = spawnSync(process.execPath, [join(HERE, script), "--out", building, ...args],
+                          { encoding: "utf8" });
+      if (r.status !== 0) {
+        console.log(`  cannot generate ${label}: ${(r.stderr || "").trim().split("\n")[0]}`);
+        rmSync(building, { recursive: true, force: true });
+        return;
+      }
+      writeFileSync(join(building, ".stamp.json"),
+                    JSON.stringify({ digest, day: todayDay(), script, args }, null, 2) + "\n");
+      for (const d of readdirSync(storeRoot)) {
+        if (d.startsWith(`${name}-`) ||
+            (d.startsWith(`.building-${name}-`) && d !== `.building-${name}-${process.pid}`)) {
+          rmSync(join(storeRoot, d), { recursive: true, force: true });
+        }
+      }
+      renameSync(building, dir);
+    }
+    if (existsSync(join(ROOT, name))) {
+      console.log(`  note: ${name}/ exists in this checkout and is IGNORED -- the suite uses ` +
+                  `the shared store (${dir}); pass --vault to use a specific vault on purpose`);
+    }
+    out.push({ path: dir, label });
+  };
+
+  gen("make-demo-vault.mjs", [], "demo-vault", "the demo vault (every classifier populated)");
+  gen("make-sparse-vault.mjs", [], "sparse-vault", "the sparse vault (undated, lopsided, multiscript)");
+  gen("make-library-vault.mjs", ["--notes", "10000", "--years", "10"], "library-vault",
+      "the 10k library vault (10 years)");
+
+  if (!out.length) throw new Error("no vault to check, and none could be generated");
+  return out;
+}
+
+async function buildFor(v) {
+  if (arg("url", "")) return "";
+  const scratch = join(mkdtempSync(join(tmpdir(), "vs-smoke-build-")), "vault-shelf.html");
+  const b = spawnSync(process.execPath,
+                      [join(HERE, "..", "src", "build-shelf.mjs"), "--out", scratch]
+                        .concat(v.path ? ["--vault", v.path] : []),
+                      { encoding: "utf8" });
+  if (b.status !== 0) return "";
+  const m = /^wrote (.+) \(/m.exec(b.stdout || "");
+  if (!m) return "";
+  console.log((b.stdout || "").trimEnd());
+  return pathToFileURL(m[1].trim()).href;
+}
+
+/* --------------------------------------------------------------- one run -- */
+
+async function runOne(vault, work) {
+  const mine = work && work.checks ? work.checks : selected();
+  const slot = GRID && work && work.slot !== undefined ? gridSlot(work.slot, work.slots) : null;
+  const lines = [];
+  const log = (m) => lines.push(m === undefined ? "" : String(m));
+  let url = (work && work.url) || arg("url", "");
+  let scratch = null;
+  if (!url) {
+    scratch = join(mkdtempSync(join(tmpdir(), "vs-smoke-build-")), "vault-shelf.html");
+    const b = spawnSync(process.execPath,
+                        [join(HERE, "..", "src", "build-shelf.mjs"), "--out", scratch]
+                          .concat(vault ? ["--vault", vault] : []),
+                        { encoding: "utf8" });
+    log((b.stdout || "").trimEnd());
+    if (b.status !== 0) throw new Error("build-shelf.mjs failed:\n" + (b.stderr || ""));
+    const m = /^wrote (.+) \(/m.exec(b.stdout || "");
+    if (!m) throw new Error("could not tell where the build landed; pass --url");
+    url = pathToFileURL(m[1].trim()).href;
+  }
+  log(`checking ${url}\n`);
+
+  const PORT = PINNED_PORT || (work && work.port) || (await freePort());
+
+  /* decisions/0008 -- ONE BROWSER PER RUN. Attaching to a leaked browser from an earlier run
+   * silently measures the wrong page, and every check then reports a number that has nothing
+   * to do with the code under it. */
+  if (PINNED_PORT) {
+    let alive = false;
+    try { await json(PORT, "/json/version"); alive = true; } catch { alive = false; }
+    if (alive) {
+      throw new Error(
+        `something is already serving CDP on port ${PORT}.\n` +
+        "A previous run leaked its browser, and attaching to it would silently measure the\n" +
+        "wrong page. Close it and re-run, or kill whatever is holding the port."
+      );
+    }
+  }
+
+  const profile = mkdtempSync(join(tmpdir(), "vs-smoke-"));
+  const chrome = spawn(findChrome(), [
+    `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`,
+    "--no-first-run", "--no-default-browser-check",
+    "--disable-extensions", "--disable-component-update", "--disable-client-side-phishing-detection",
+    "--disable-sync", "--no-service-autorun", "--disable-domain-reliability",
+    "--metrics-recording-only", "--no-pings", "--mute-audio",
+    "--disable-breakpad", "--disable-crash-reporter",
+    "--disable-features=Translate,TranslateUI,CalculateNativeWinOcclusion",
+    "--disable-backgrounding-occluded-windows",
+    "--disable-renderer-backgrounding",
+    "--disable-background-timer-throttling",
+    ...(slot ? [`--window-position=${slot.x},${slot.y}`]
+             : HEADED ? [] : [leftWindowPos()]),
+    slot ? `--window-size=${slot.w},${slot.h}` : "--window-size=1600,1000", `--app=${url}`
+  ], { stdio: ["ignore", "ignore", "pipe"], detached: false });
+
+  const chromeSaid = [];
+  if (chrome.stderr) {
+    chrome.stderr.setEncoding("utf8");
+    chrome.stderr.on("data", (d) => {
+      for (const line of String(d).split("\n")) {
+        const t = line.trim();
+        if (t) chromeSaid.push(t);
+      }
+      while (chromeSaid.length > 40) chromeSaid.shift();
+    });
+  }
+  let chromeGone = null;
+  chrome.on("exit", (code, sig) => { chromeGone = "exit " + code + (sig ? " " + sig : ""); });
+
+  let page = null;
+  try {
+    const want = url.split("/").slice(-2)[0] || url;
+    const deadline = Date.now() + 25000;
+    for (;;) {
+      try { page = await attach(PORT, want); break; }
+      catch (e) { if (Date.now() > deadline) throw e; await sleep(400); }
+    }
+    const errors = [];
+    await page.send("Runtime.enable").catch(() => {});
+    page.on((msg) => {
+      if (msg.method === "Runtime.exceptionThrown") {
+        const d = msg.params && msg.params.exceptionDetails;
+        errors.push((d && d.exception && d.exception.description) || (d && d.text) || "exception");
+      }
+    });
+
+    let at = "";
+    for (const wait = Date.now() + 8000; ;) {
+      at = await page.eval("location.href").catch(() => "");
+      if (!at || at === url || Date.now() > wait) break;
+      await sleep(250);
+    }
+    if (at && at !== url) {
+      throw new Error(
+        `attached to the wrong page.\n  wanted ${url}\n  got    ${at}\n` +
+        "That is a leaked browser from an earlier run, not a defect in the page."
+      );
+    }
+
+    const ready = Date.now() + 30000;
+    for (;;) {
+      const ok = await page.eval("!!(window.__vs && window.VaultShelfCore && __vs.counts().spines > 0)")
+        .catch(() => false);
+      if (ok) break;
+      if (Date.now() > ready) throw new Error("the library never finished rendering");
+      await sleep(300);
+    }
+
+    page.j = async (expr) => JSON.parse(await page.eval(`JSON.stringify(${expr})`));
+    const ctx = { errors };
+
+    let failed = 0;
+    const timings = [];
+    for (const c of mine) {
+      if (page.lost) {
+        log(`\n  !! CDP connection lost (${page.lost}) -- ${mine.length - timings.length} check(s) not run`);
+        if (chromeGone) log(`     chrome process: ${chromeGone}`);
+        for (const l of chromeSaid.slice(-12)) log("       " + l);
+        failed += mine.length - timings.length;
+        break;
+      }
+      try {
+        await page.eval("1");
+      } catch (e) {
+        const last = timings.length ? timings[timings.length - 1].name : "(before the first check)";
+        log(`\n  !! the page stopped answering after "${last}" -- ${e.message}`);
+        if (chromeGone) log(`     chrome process: ${chromeGone}`);
+        for (const l of chromeSaid.slice(-12)) log("       " + l);
+        log(`     ${mine.length - timings.length} check(s) not run`);
+        failed += mine.length - timings.length;
+        break;
+      }
+      let r;
+      const t0 = Date.now();
+      try { r = await c.fn(page, ctx); }
+      catch (e) { r = { ok: false, detail: "threw: " + e.message }; }
+      const ms = Date.now() - t0;
+      timings.push({ name: c.name, ms });
+      if (!r.ok) failed++;
+      const secs = ms >= 1000 ? ` ${(ms / 1000).toFixed(1)}s` : "";
+      log(`${r.ok ? "  ok  " : " FAIL "} ${c.name}${secs}\n         ${r.detail}`);
+    }
+
+    const total = timings.reduce((a, t) => a + t.ms, 0);
+    const slow = timings.slice().sort((a, b) => b.ms - a.ms).slice(0, 5);
+    log(`\n${mine.length - failed}/${mine.length} passed in ${(total / 1000).toFixed(0)}s`);
+    log("slowest: " + slow.map((t) => `${t.name} ${(t.ms / 1000).toFixed(1)}s`).join(", "));
+    return { failed, ran: mine.length, lines, timings };
+  } finally {
+    try { if (page) await page.send("Browser.close"); } catch { }
+    if (page) page.close();
+    await killBrowser(chrome, PORT);
+    try { rmSync(profile, { recursive: true, force: true }); } catch {}
+    if (scratch) { try { rmSync(dirname(scratch), { recursive: true, force: true }); } catch {} }
+  }
+}
+
+async function killBrowser(child, PORT) {
+  const gone = async () => {
+    try { await json(PORT, "/json/version"); return false; } catch { return true; }
+  };
+
+  try {
+    const b = await attach(PORT, "");
+    await b.send("Browser.close").catch(() => {});
+    b.close();
+  } catch {}
+  for (let i = 0; i < 20; i++) {
+    if (await gone()) return;
+    await sleep(100);
+  }
+
+  if (process.platform === "win32" && child.pid) {
+    spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+  }
+  try { child.kill(); } catch {}
+  for (let i = 0; i < 20; i++) {
+    if (await gone()) return;
+    await sleep(100);
+  }
+
+  if (process.platform === "win32") {
+    const out = spawnSync("netstat", ["-ano", "-p", "tcp"], { encoding: "utf8" }).stdout || "";
+    const owners = new Set();
+    for (const line of out.split(/\r?\n/)) {
+      if (!line.includes("127.0.0.1:" + PORT) && !line.includes("[::1]:" + PORT)) continue;
+      const pid = line.trim().split(/\s+/).pop();
+      if (/^\d+$/.test(pid) && pid !== "0") owners.add(pid);
+    }
+    for (const pid of owners) spawnSync("taskkill", ["/PID", pid, "/T", "/F"], { stdio: "ignore" });
+    for (let i = 0; i < 20; i++) {
+      if (await gone()) return;
+      await sleep(100);
+    }
+  }
+
+  console.log(`  !! a browser is still holding port ${PORT} after teardown`);
+}
+
+/* ------------------------------------------------------------------- main -- */
+
+async function main() {
+  const picked = selected();
+  if (ONLY.length && !picked.length) {
+    throw new Error(`--only ${ONLY.join(", ")} matched none of the ${all.length} checks`);
+  }
+  if (ONLY.length) {
+    console.log(`--only: ${picked.length} of ${all.length} checks -- ` +
+                picked.map((c) => c.name).join("; "));
+    console.log("");
+  }
+  const vaults = resolveVaults();
+  console.log(`checking ${vaults.length} vault(s): ${vaults.map((v) => v.label).join(", ")}`);
+
+  const shaky = picked.filter(isSerial);
+  const steady = picked.filter((c) => !isSerial(c));
+  const shard = (list, k) => {
+    const out = Array.from({ length: k }, () => []);
+    list.forEach((c, i) => out[i % k].push(c));
+    return out.filter((g) => g.length);
+  };
+
+  const lanePorts = PINNED_PORT ? [] : await freePorts(Math.max(JOBS, 1));
+
+  const parallel = [], serial = [];
+  for (const v of vaults) {
+    const url = await buildFor(v);
+    for (const g of shard(steady, JOBS)) {
+      parallel.push({ vault: v, checks: g, tag: v.label, url });
+    }
+    if (shaky.length) {
+      serial.push({ vault: v, checks: shaky, tag: v.label + " (layout-reading, serial)", url });
+    }
+  }
+  if (JOBS > 1) {
+    console.log(`${JOBS} jobs: ${parallel.length} parallel shard(s) of ${steady.length} checks, ` +
+                `then ${serial.length} serial job(s) of ${shaky.length} layout-reading one(s)`);
+  }
+  console.log("");
+
+  const failures = new Map();
+  const ran = new Map();
+  const bump = (label, r) => {
+    failures.set(label, (failures.get(label) || 0) + r.failed);
+    ran.set(label, (ran.get(label) || 0) + r.ran);
+  };
+  const report = (work, r) => {
+    console.log("=".repeat(72));
+    console.log("== " + work.tag);
+    console.log("=".repeat(72));
+    for (const l of r.lines) console.log(l);
+    console.log("");
+  };
+
+  const pool = async (list, width) => {
+    let next = 0;
+    const worker = async (lane) => {
+      for (;;) {
+        const i = next++;
+        if (i >= list.length) return;
+        const w = { ...list[i], slot: lane, slots: Math.min(width, list.length),
+                    port: lanePorts[lane] || 0 };
+        let r;
+        try { r = await runOne(w.vault.path, w); }
+        catch (e) {
+          r = { failed: w.checks.length, ran: w.checks.length,
+                lines: ["  !! this job did not run: " + e.message], timings: [] };
+        }
+        report(w, r);
+        bump(w.vault.label, r);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(width, list.length) }, (_, lane) => worker(lane)));
+  };
+
+  await pool(parallel, JOBS);
+  await pool(serial, 1);
+
+  let worst = 0;
+  for (const v of vaults) worst = Math.max(worst, failures.get(v.label) || 0);
+
+  if (vaults.length > 1 || JOBS > 1) {
+    console.log("=".repeat(72));
+    for (const v of vaults) {
+      const f = failures.get(v.label) || 0, t = ran.get(v.label) || 0;
+      console.log(`  ${f ? "FAIL" : " ok "}  ${t - f}/${t}  ${v.label}`);
+    }
+  }
+  if (worst) {
+    console.log("");
+    console.log("Not covered here, check by hand: anything about how it looks, and the plugin");
+    console.log("inside a real Obsidian (node scripts/obsidian-smoke.mjs).");
+  }
+  return worst ? 1 : 0;
+}
+
+main().then((code) => process.exit(code)).catch((e) => {
+  console.error("smoke failed to run:", e.message);
+  process.exit(1);
+});

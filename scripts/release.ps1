@@ -1,0 +1,292 @@
+<#
+.SYNOPSIS
+  The local half of a release: check, gate, tag, push. The publishing half is
+  .github/workflows/release.yml, which the tag push triggers.
+
+.DESCRIPTION
+  Refuses a v-prefixed or non-semver version, a version the manifest does not claim, a
+  version with no CHANGELOG section, a branch other than main, a dirty tree and a main behind
+  origin; prints the hero and feature-clip warnings; runs lint and the invariant suite; builds
+  the plugin once as a pre-flight; then writes the annotated tag and pushes the branch and the
+  tag. Everything after that -- build, provenance attestation, Release, assets -- is the
+  workflow's. .ai-context/releasing.md is the authority on the two halves.
+
+.PARAMETER Version
+  Bare semver, e.g. 2.0.0. No v.
+
+.PARAMETER DryRun
+  Stop after the suite, before the tag and the push.
+
+.PARAMETER AllowDirty
+  Tag a dirty tree anyway.
+
+.PARAMETER AllowAnyBranch
+  Tag off main anyway; the workflow's main-ancestry guard will then refuse to publish.
+
+.EXAMPLE
+  .\scripts\release.ps1 2.0.0 -DryRun
+#>
+[CmdletBinding()]
+param(
+  [Parameter(Mandatory = $true)][string] $Version,
+  # -Notes AND -Title ARE GONE, and their jobs did not disappear -- they moved.
+  #
+  # -Notes prepended a one-line summary to the release body. The body is now drafted by
+  # the workflow from the `## <version>` CHANGELOG section -- the same text this script
+  # writes into the tag message, so `git show <tag>` and the Release page still agree --
+  # and then rewritten by hand: a highlight reel on top, the CHANGELOG section verbatim
+  # underneath. See .ai-context/releasing.md for that shape. A one-liner passed at tag
+  # time has nowhere useful to land in it.
+  #
+  # -Title named the release ("1.8.0 - The Hub"). The workflow reads that name out of the
+  # CHANGELOG heading instead -- `## 1.9.0 -- "Belonging" -- 2026-09-02` -- so the title
+  # and the changelog section it sits above can no longer disagree, which a hand-typed
+  # argument allowed. The ASCII-hyphen decision survives in the workflow: the original
+  # reason was that PowerShell 5.1 re-encodes a native command-line argument on the way
+  # out and this repo published mojibake that way once, and although a UTF-8 runner has no
+  # such problem, every published title uses a hyphen and a title cannot be quietly fixed
+  # after it has been seen.
+  [switch] $DryRun,
+  [switch] $AllowDirty,
+  # Cut the release from wherever HEAD is standing, instead of requiring main. The escape
+  # hatch for the branch guard below, shaped like -AllowDirty: there is a legitimate case
+  # (a hotfix line that never reaches main, say), and the guard exists to stop the ACCIDENT,
+  # not to make the deliberate thing impossible.
+  [switch] $AllowAnyBranch
+)
+
+$ErrorActionPreference = 'Stop'
+
+# PowerShell 5.1 turns ANYTHING a native exe writes to stderr into a NativeCommandError,
+# and with $ErrorActionPreference = 'Stop' that terminates the script. `git push` reports
+# progress on stderr, so a SUCCESSFUL push killed this script half-way through its first
+# real run -- after the push had landed, before the release was created. Native calls go
+# through here: stderr stays visible, and the exit code is what decides.
+# Arguments as an explicit ARRAY, not ValueFromRemainingArguments: a parameter cannot be
+# called $Args -- that is an automatic variable -- and binding silently broke, so
+# `Invoke-Native git tag -a ...` came back as "no positional parameter accepts 'tag'".
+function Invoke-Native {
+  param([Parameter(Mandatory)][string] $Exe, [Parameter(Mandatory)][string[]] $Arguments)
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try { & $Exe @Arguments } finally { $ErrorActionPreference = $prev }
+  if ($LASTEXITCODE -ne 0) { throw "$Exe $($Arguments -join ' ') exited $LASTEXITCODE" }
+}
+
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repo = Split-Path -Parent $here
+Push-Location $repo
+try {
+  # BARE SEMVER. This said `^v\d+...` until 1.5.3 and would have rejected every version
+  # released since 1.5.0 -- it predates the decision to drop the prefix and was never
+  # updated, so the last three releases were cut by hand. A `v` gets its own message rather
+  # than a format error, because passing one is the obvious mistake and the reason it is
+  # wrong is not obvious at all.
+  if ($Version -match '^v\d') {
+    throw ("Drop the 'v': the tag must be bare semver ($($Version.Substring(1))). Obsidian " +
+           "matches the release tag against manifest.json's version, which cannot carry a " +
+           "prefix -- a v-tagged release is one nobody can install.")
+  }
+  if ($Version -notmatch '^\d+\.\d+\.\d+$') {
+    throw "Version must look like 1.5.3 (bare semver -- see CHANGELOG.md's versioning section)"
+  }
+
+  # AND IT HAS TO BE THE VERSION THE MANIFEST CLAIMS. Same rule, the other half: Obsidian
+  # matches the tag against manifest.json, so a tag that disagrees with it installs nothing.
+  # Cheap to check here, invisible until a user reports the plugin will not update.
+  $manifest = ConvertFrom-Json ([IO.File]::ReadAllText((Join-Path $repo 'manifest.json'), [Text.Encoding]::UTF8))
+  if ($manifest.version -ne $Version) {
+    throw "manifest.json says $($manifest.version), you asked for $Version. Bump the manifest first."
+  }
+
+  # THE TAG BELONGS ON MAIN. main is what the Obsidian directory installs from and what a
+  # release is tagged on -- CONTRIBUTING states it -- and a script that tags wherever HEAD
+  # happens to be will eventually tag a develop commit. The sister repo did exactly that once:
+  # the tag sits three commits back from main's own history, `git log main` does not show
+  # where that release was cut, and a published tag cannot be moved afterwards without
+  # breaking every link to it. So this is a class of mistake that has to be caught BEFORE the
+  # tag exists, which is the one moment it is still free to fix.
+  $branch = (& git rev-parse --abbrev-ref HEAD).Trim()
+  if ($branch -ne 'main' -and -not $AllowAnyBranch) {
+    throw ("On '$branch', not main. main is what the Obsidian directory installs from and " +
+           "what a release is tagged on, and a tag cut elsewhere sits off main's history " +
+           "permanently. Merge into main first, or pass -AllowAnyBranch if you know why.")
+  }
+
+  # ...AND ON THE MAIN EVERYONE ELSE CAN SEE. Being AHEAD of origin/main is the normal case
+  # and not checked -- this script pushes HEAD itself a few steps down. Being BEHIND is the
+  # problem: it means tagging a main that is missing commits somebody else has already
+  # published, and the `git push origin HEAD` below would be rejected anyway, after the tag
+  # had been made. Better to say so now than to leave a local tag behind a failed push.
+  #
+  # Fetch first, because "behind" measured against a stale remote ref is not measured at all.
+  #
+  # AN EXPLICIT REFSPEC, not `git fetch origin main`. That form opportunistically
+  # fast-forwards the LOCAL main as well, which this observed doing while the guard was
+  # being written -- a check that silently moves a branch is not a check. This updates the
+  # remote-tracking ref and nothing else.
+  if ($branch -eq 'main') {
+    & git fetch origin 'refs/heads/main:refs/remotes/origin/main' --quiet
+    $behind = (& git rev-list --count 'HEAD..origin/main').Trim()
+    if ($behind -ne '0') {
+      throw ("main is $behind commit(s) behind origin/main. Pull first -- tagging here " +
+             "would tag a main that is missing what is already published.")
+    }
+  }
+
+  # A release has to be reproducible from its tag, and it cannot be if the tree it was
+  # built from is not the tree the tag points at.
+  $dirty = (& git status --porcelain) | Where-Object { $_ }
+  if ($dirty -and -not $AllowDirty) {
+    Write-Host ($dirty -join "`n") -ForegroundColor DarkGray
+    throw "Working tree is dirty. Commit first, or pass -AllowDirty if you know why."
+  }
+
+  # A tag already ON THIS COMMIT is a resumed run, not a mistake -- the first version of
+  # this script died between pushing and publishing, and refusing to continue would have
+  # meant deleting a good tag to re-make it identically. A tag pointing anywhere else is
+  # still a hard stop.
+  $tagExists = [bool] (& git tag -l $Version)
+  if ($tagExists) {
+    $at = (& git rev-parse ($Version + '^{commit}')).Trim()
+    $head = (& git rev-parse HEAD).Trim()
+    if ($at -ne $head) { throw "$Version already exists and points at $($at.Substring(0,7)), not HEAD. Bump, or delete the tag." }
+    Write-Host "$Version already tags HEAD -- resuming." -ForegroundColor Yellow
+  }
+
+  # The CHANGELOG is the release notes. A version with no section is a version whose
+  # changes nobody wrote down, which is worth stopping for.
+  # ReadAllText with an EXPLICIT encoding, not Get-Content: PowerShell 5.1 decodes a
+  # BOM-less UTF-8 file as cp1252, so an em-dash arrives as three mojibake characters and
+  # a later -Encoding utf8 write persists them -- into the tag message and the published
+  # release notes, where they are permanent.
+  $changelog = [IO.File]::ReadAllText((Join-Path $repo 'CHANGELOG.md'), [Text.Encoding]::UTF8)
+  if ($changelog -notmatch [regex]::Escape("## $Version")) {
+    throw "CHANGELOG.md has no '## $Version' section. Write the release notes first."
+  }
+  # Everything from this version's heading to the next one.
+  $section = [regex]::Match($changelog, "(?s)##\s+" + [regex]::Escape($Version) + ".*?(?=\r?\n## |\z)").Value.Trim()
+
+  Write-Host "`n=== release notes ===" -ForegroundColor Cyan
+  Write-Host $section -ForegroundColor DarkGray
+
+  # THE README HERO IS A RECORDING, AND IT GOES STALE SILENTLY. Nothing about a build fails
+  # when assets/demo.webp shows a library three releases old -- it just keeps advertising the
+  # wrong thing to everyone who lands on the repo. Re-recording is part of cutting a
+  # release:
+  #
+  #   .\scripts\record-demo.ps1     then     .\scripts\make-hero.ps1
+  #
+  # A WARNING, NOT A GATE, and deliberately: only a person can say whether anything
+  # visible actually changed, so a hard stop on a docs-only patch would be wrong often
+  # enough to get trained away, and then it would not be read at all.
+  #
+  # IT COMPARES COMMIT DATES, WHICH IS A PROXY AND NOT THE TRUTH. Encoding an old take and
+  # committing it today makes a stale hero look fresh. Silence here means "no evidence of
+  # staleness", not "the hero is current".
+  $heroAt = (& git log -1 --format=%ct -- assets/demo.webp) | Select-Object -First 1
+  $srcAt  = (& git log -1 --format=%ct -- src) | Select-Object -First 1
+  if ($heroAt -and $srcAt -and ([int64]$srcAt -gt [int64]$heroAt)) {
+    $heroOn = (& git log -1 --format=%cs -- assets/demo.webp) | Select-Object -First 1
+    $srcOn  = (& git log -1 --format=%cs -- src) | Select-Object -First 1
+    Write-Host "`n=== hero ===" -ForegroundColor Cyan
+    Write-Host ("assets/demo.webp was last committed $heroOn; src/ has changed since ($srcOn). " +
+                "Re-record and re-encode, or carry it knowingly.") -ForegroundColor Yellow
+  }
+
+  # THE SAME PROXY, PER FEATURE -- see docs/features/_template.md and .ai-context/releasing.md's
+  # "Feature clips are different from the hero" section. Unlike the hero, a feature clip is NOT
+  # expected to be re-recorded every release, so this never blocks and does not claim to know
+  # which act a change actually touched -- it warns against the whole of src/page.js (where every
+  # act lives), same as the hero warns against the whole of src/, and leaves "does this actually
+  # need re-recording" to whoever reads CHANGELOG.md and decides.
+  $pageAt = (& git log -1 --format=%ct -- src/page.js) | Select-Object -First 1
+  $pageOn = (& git log -1 --format=%cs -- src/page.js) | Select-Object -First 1
+  $featureDocs = Get-ChildItem (Join-Path $repo 'docs/features') -Filter '*.md' -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -ne '_template.md' }
+  $staleFeatures = @()
+  foreach ($doc in $featureDocs) {
+    $name = $doc.BaseName
+    $clip = "assets/features/$name.webp"
+    $clipAt = (& git log -1 --format=%ct -- $clip) | Select-Object -First 1
+    if (-not $clipAt) { continue }   # no clip recorded yet -- not staleness, just not done yet
+    if ($pageAt -and ([int64]$pageAt -gt [int64]$clipAt)) {
+      $clipOn = (& git log -1 --format=%cs -- $clip) | Select-Object -First 1
+      $staleFeatures += "  $name`: clip committed $clipOn, src/page.js changed since ($pageOn)"
+    }
+  }
+  if ($staleFeatures.Count) {
+    Write-Host "`n=== features ===" -ForegroundColor Cyan
+    Write-Host "src/page.js has changed since these feature clips were last recorded:" -ForegroundColor Yellow
+    $staleFeatures | ForEach-Object { Write-Host $_ -ForegroundColor Yellow }
+    Write-Host ("Re-record whichever ones this release actually changed visibly -- see " +
+                "`".ai-context/releasing.md`". Not every one; that call is yours.") -ForegroundColor Yellow
+  }
+
+  # THE PLUGIN BUILD IS A PRE-FLIGHT, not an artifact. Nothing local consumes main.js at
+  # release time -- the workflow builds its own copy from the tagged commit and attests that
+  # -- but a build that fails in CI leaves a TAG WITH NO RELEASE, and a published tag cannot
+  # be re-cut. Ten seconds here buys the one failure mode that split introduces. Both outputs
+  # are gitignored, so this cannot dirty the tree.
+  Write-Host "`n=== lint ===" -ForegroundColor Cyan
+  try { Invoke-Native npm @('run', 'lint', '--silent') }
+  catch { throw "lint failed -- not releasing (npm ci first, if this is a fresh clone)" }
+
+  Write-Host "`n=== build (pre-flight) ===" -ForegroundColor Cyan
+  try { Invoke-Native node @((Join-Path $here 'build-plugin.mjs')) }
+  catch {
+    throw ("the plugin build failed -- the workflow would fail the same way and leave a tag " +
+           "with no release. Fix it first (npm ci, if this is a fresh clone).")
+  }
+
+  Write-Host "`n=== invariants ===" -ForegroundColor Cyan
+  try { Invoke-Native node @((Join-Path $here 'smoke.mjs')) }
+  catch { throw "the invariant suite failed -- not releasing" }
+
+  if ($DryRun) { Write-Host "`n-DryRun: stopping before the tag and the push." -ForegroundColor Yellow; return }
+
+  Write-Host "`n=== tag ===" -ForegroundColor Cyan
+  # Annotated, with the notes as the message, so `git show <tag>` tells the same story as
+  # the Release page.
+  $msgFile = Join-Path $env:TEMP "vs-tag-$Version.txt"
+  # No BOM -- git and gh both read these as bytes, and a BOM ends up in the tag message.
+  $utf8 = New-Object System.Text.UTF8Encoding($false)
+  [IO.File]::WriteAllText($msgFile, $section, $utf8)
+  if (-not $tagExists) { Invoke-Native git @('tag', '-a', $Version, '-F', $msgFile) }
+  Remove-Item $msgFile -ErrorAction SilentlyContinue
+
+  # THE BRANCH FIRST, THEN THE TAG, and the order is load-bearing in a way it was not when
+  # this script published on its own. The workflow refuses to publish a tag that is not in
+  # origin/main's history (, server-side this time), and it starts the moment the
+  # tag lands -- so a tag pushed before its commit is on origin/main can race its own
+  # guard. Pushing HEAD first closes the window. If it fails anyway, main has caught up by
+  # then and re-running the workflow is the whole fix.
+  Write-Host "`n=== push ===" -ForegroundColor Cyan
+  Invoke-Native git @('push', 'origin', 'HEAD')
+  Invoke-Native git @('push', 'origin', $Version)
+
+  # AND STOP. .github/workflows/release.yml takes it from here: it builds main.js and
+  # styles.css from the tagged commit, attests the three files with build provenance, and
+  # creates the Release with the CHANGELOG section as a first-draft body. That draft still
+  # has to be rewritten by hand -- see .ai-context/releasing.md -- and nothing fails if it
+  # is not, which is why it is the last thing printed here.
+  Write-Host "`npushed $Version. The release is the workflow's now." -ForegroundColor Green
+  Write-Host @"
+
+  Watch it:      gh run watch
+  Or open it:    gh run list --workflow=release.yml --limit 1
+
+  When it is green, the Release exists with main.js, manifest.json and styles.css
+  attached -- the three files Obsidian installs -- each with a build-provenance attestation:
+
+    gh attestation verify main.js --repo luke321/vault-shelf
+
+  STILL YOURS TO DO: the release body is the raw CHANGELOG section. Write the highlight
+  reel on top of it (.ai-context/releasing.md has the shape and the reasoning) and edit
+  it in place:
+
+    gh release edit $Version --notes-file <file>
+"@ -ForegroundColor Cyan
+} finally {
+  Pop-Location
+}

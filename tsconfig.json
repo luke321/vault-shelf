@@ -1,0 +1,46 @@
+{
+  // THE TYPE PROGRAM -- never an emit. Nothing here produces a file: esbuild bundles the
+  // plugin and the exporter's core, compiling TypeScript on the way with no help from tsc.
+  // This config exists for typescript-eslint, which builds a program from it for the
+  // type-aware rules -- the ones in Obsidian's recommended preset that refuse to load without
+  // one, and the five no-unsafe-* rules eslint.config.mjs makes errors.
+  //
+  // INCLUDE NAMES EVERY FILE THOSE RULES LINT, so the program is stated rather than inherited.
+  // A file that is only in the program because something else imports it drops out the day
+  // that import moves, silently. Named, it stays true by construction.
+  //
+  // src/core/**/*.ts is the membership engine -- classifiers, predicates, date keys, stable
+  // ids: the only TypeScript here, and the part where a wrong type is a wrong shelf rather
+  // than a wrong pixel. It is in THIS program so the lint rules read it with the same types
+  // the page is read with, and in tsconfig.core.json so tsc checks it under strict.
+  //
+  // strict IS OFF HERE, ON PURPOSE. esbuild reads `strict` from this file by name and injects
+  // "use strict" directives into the bundle from it, so the core's strictness lives in
+  // tsconfig.core.json, which extends this one and which esbuild never looks at.
+  //
+  // allowJs with checkJs off: give the rules a type graph to read, without turning every
+  // loose annotation in the page into a lint error.
+  //
+  // strictFunctionTypes IS ON, alone of the strict family, so this program and the core's
+  // agree on what a cast means. Two programs reading one file cannot disagree about that, or
+  // every fix for one fails the other. It reports nothing on the JavaScript (checkJs is off)
+  // and esbuild does not read it.
+  //
+  // plugin/**/*.d.ts is the one thing here that is not linted: declarations for the bundler's
+  // own `raw:` and `b64:` modules (plugin/bundler-modules.d.ts), which the program needs or
+  // every import from them is an error type. eslint.config.mjs ignores them for the same
+  // reason -- nothing in one for a rule to read.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "strictFunctionTypes": true,
+    "types": []
+  },
+  "include": ["plugin/**/*.js", "plugin/**/*.d.ts", "src/page.js", "src/core/**/*.ts"]
+}

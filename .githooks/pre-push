@@ -1,0 +1,313 @@
+#!/bin/sh
+# Run the gate checks and the invariant suite before letting a push through -- to develop or
+# main only.
+#
+# Enable it in a fresh clone with:
+#
+#   git config core.hooksPath .githooks
+#
+# Tracked in the repo rather than written into .git/hooks, because .git/hooks is not
+# version controlled -- a hook that lives only there is a hook the next clone does not
+# have, and the whole point is that it should not depend on anyone remembering.
+#
+# WHY pre-push AND NOT pre-commit: the suite builds the standalone page and drives a real
+# Chrome, and does it THREE TIMES -- against the demo vault, the sparse one and a
+# 10,000-note library -- because a change that is right on 394 notes can still be wrong on a
+# shelf carrying 520 week books. Call it a minute or two. A fine price per push to develop or main, an
+# intolerable one per commit -- and an unearned one on a feature branch nobody has asked to
+# merge yet, which is why the gate checks below are scoped to gated_push and skip entirely
+# on any other branch. The main-ancestry policy just below stays unconditional regardless
+# -- it only ever fires for a push whose remote ref IS main, so scoping it further would be
+# scoping a no-op.
+#
+# Skipping the gate checks on a develop/main push is still deliberate and cheap, because
+# there are honest reasons to (a docs-only change, no Chrome on the machine, a hurry):
+#
+#   SKIP_SMOKE=1 git push
+#
+# There is no --no-verify advice here on purpose: that also disables every other hook,
+# silently, and is the habit that makes hooks worthless.
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-push: node not found, skipping every check" >&2
+  exit 0
+fi
+
+root=$(git rev-parse --show-toplevel)
+
+# MAIN ONLY EVER RECEIVES DEVELOP, and this is the command-line half of that rule -- the
+# other half is .github/workflows/branch-policy.yml, which governs the button on the
+# website. Neither substitutes for the other: a ruleset cannot say "the pull request must
+# come from develop", and a workflow never sees a `git push`.
+#
+# The test is not "which branch am I on" -- that is trivially wrong for a merge made
+# locally and pushed. It is: IS DEVELOP ALREADY AN ANCESTOR OF WHAT I AM PUSHING TO MAIN?
+# A merge of develop into main passes, because develop's tip is a parent. A fast-forward
+# of main to develop passes, because ancestry includes equality. A commit made straight on
+# main does not, which is the case worth catching -- work that never went through develop
+# is work the invariant suite never gated.
+#
+# stdin is the ref list git hands a pre-push hook: "<local ref> <local sha> <remote ref>
+# <remote sha>" per line. It is read here and NOT consumed for anything else, which is why
+# the checks below get their own </dev/null -- a child inheriting a half-read stdin is a
+# fine way to lose a line of it.
+#
+# ONE PASS OVER STDIN DOES TWO JOBS, because stdin can only be read once: the main-ancestry
+# policy below, and deciding whether this push touches develop or main at all. gated_push
+# is what the gate block further down reads (PII, scope, network, determinism, lint, smoke)
+# -- those checks build the page and drive real Chrome, twice, and paying that on every
+# push to a feature branch nobody has asked to merge yet is the wrong price for the wrong
+# moment. develop and main are where the checks earn their keep: that is what everything
+# else eventually merges into, so that is where a regression has to be caught.
+policy_fail=""
+gated_push=""
+while read -r _local_ref local_sha remote_ref _remote_sha; do
+  case "$remote_ref" in
+    refs/heads/develop|refs/heads/main) gated_push=1 ;;
+  esac
+
+  [ "$remote_ref" = "refs/heads/main" ] || continue
+  # A deletion pushes the all-zero sha. Nothing to check, and the ruleset forbids it anyway.
+  case "$local_sha" in *[!0]*) ;; *) continue ;; esac
+
+  # Prefer the remote's idea of develop, since that is what main will be compared against;
+  # fall back to the local branch on a machine that has not fetched.
+  dev=""
+  for ref in refs/remotes/origin/develop refs/heads/develop; do
+    if git rev-parse --verify --quiet "$ref" >/dev/null; then dev=$ref; break; fi
+  done
+  if [ -z "$dev" ]; then
+    policy_fail="no develop branch to check against -- fetch first"
+    break
+  fi
+  if ! git merge-base --is-ancestor "$dev" "$local_sha"; then
+    policy_fail="$dev is not an ancestor of the commit being pushed to main"
+    break
+  fi
+done
+
+if [ -n "$policy_fail" ]; then
+  cat >&2 <<EOF
+
+pre-push: push to main refused -- $policy_fail.
+
+main only ever receives develop. Merge into develop, push that, and open a
+develop -> main pull request; the same rule is enforced on the website by
+.github/workflows/branch-policy.yml.
+
+If you are releasing, the merge into main is the release step -- it should
+already contain develop.
+EOF
+  exit 1
+fi
+
+# NOTHING BELOW THIS LINE RUNS ON A FEATURE BRANCH. gated_push is set above from the SAME
+# stdin read the main-ancestry policy already consumed -- develop and main only, matching
+# what "feature branches don't get gated" actually means: a branch push still gets the
+# main-ancestry check above for free (it only ever fires for a push to main anyway), just
+# not the gate checks (PII, scope, network, determinism, lint, smoke), which is the part
+# that costs real time.
+if [ -z "$gated_push" ]; then
+  echo "pre-push: not pushing to develop or main -- skipping the gate checks"
+  exit 0
+fi
+
+# THE PII CHECK RUNS FIRST ON A GATED PUSH, AND HAS NO SKIP.
+#
+# Everything else here is about correctness and can honestly be skipped in a hurry. This one
+# is about other people. The sister repo published a colleague's full name and seven
+# colleagues' first names for weeks before anyone noticed, and had to rewrite history to
+# take them out -- and this plugin shelves notes BY PERSON, so a person is a first-class
+# object here in a way it was not next door. A gate with an escape hatch is a gate that gets
+# opened on exactly the day it matters, so SKIP_SMOKE deliberately does not reach it -- and
+# it is cheap enough (~50ms, no Chrome, no build) that there is no reason to want one.
+echo "pre-push: checking for names and identifiers..."
+if ! node "$root/scripts/check-pii.mjs" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: PII check failed -- push blocked.
+
+This repository is PUBLIC. Fix the text above before pushing. If a hit is
+legitimate, add the file to ALLOW_FILES in scripts/check-pii.mjs with a comment
+saying why -- do not remove the name from the deny list to make it pass.
+
+There is no skip flag for this check.
+EOF
+  exit 1
+fi
+
+# SCOPE NEXT, and also unskippable, for the same kind of reason as the PII check: it costs
+# nothing (a static read of a handful of files, no browser) and what it prevents is damage to
+# somebody else's software. page.css ships as the plugin's stylesheet, so one unscoped
+# selector styles the whole of Obsidian, and the failure would look like an Obsidian bug.
+# The same check refuses an invisible control character in anything that ships, after one
+# spent an afternoon making every Undated book unreachable by its own name.
+echo "pre-push: checking the page is scoped..."
+if ! node "$root/scripts/check-scope.mjs" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: scope check failed -- push blocked.
+
+page.css is loaded into Obsidian itself. An unscoped rule styles the app, not the
+page. Scope it under .vault-shelf, or prefix the id and reach it through $().
+EOF
+  exit 1
+fi
+
+# NETWORK NEXT, also unskippable, and cheapest of the three. Both artifacts are offline
+# objects -- one HTML file that works off a USB stick, and a plugin that reads a private
+# vault -- and the Obsidian directory's automated review counts the network calls in the
+# shipped main.js and reports the number to users. A static read of thirteen files and two
+# bundles, no browser, so there is nothing to skip for. decisions/0006.
+echo "pre-push: checking nothing reaches the network..."
+if ! node "$root/scripts/check-network.mjs" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: network check failed -- push blocked.
+
+This plugin promises to make no network requests, and the directory's review checks
+that promise on every submission. If a request is genuinely needed it must be
+disclosed to users, not slipped in -- the reasoning and the record are in
+.ai-context/decisions/0006-zero-network-calls.md.
+
+There is no skip flag for this check.
+EOF
+  exit 1
+fi
+
+# COMMENTS ARE POINTERS NEXT (decisions/0007), unskippable and a ratchet: scripts/check-comments.mjs
+# counts comment lines in plugin/, src/ and scripts/ that are neither a bare github#N /
+# decisions/NNNN / design/NNNN pointer nor a JSDoc type annotation, and holds the count at
+# exactly its baseline -- over fails, and under fails until the baseline is lowered to match,
+# so the number can only go down. decisions/0007.
+echo "pre-push: checking comments are pointers..."
+if ! node "$root/scripts/check-comments.mjs" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: comment check failed -- push blocked.
+
+Read the counts above. A comment in plugin/, src/ or scripts/ is a pointer; the reasoning
+goes to .ai-context/ (CONTRIBUTING.md, "Comments are pointers"). If the count went DOWN,
+lower BASELINE in scripts/check-comments.mjs to the number printed, in this commit.
+There is no skip flag for this check.
+EOF
+  exit 1
+fi
+
+# GENERATOR DETERMINISM NEXT, same "cheap enough there's no reason to skip" bar as the ones
+# above -- two Node subprocess runs per generator, no Chrome, a few seconds total. Unlike
+# those, this one is not about damage to someone else; it is about the fixtures lying to
+# whoever reads them. All three generators default their --end date to today, and a number
+# measured off one of their builds is worthless if the SAME seed can quietly produce
+# different per-folder note counts depending on which day it was generated. decisions/0004.
+echo "pre-push: checking vault generators are day-independent..."
+if ! node "$root/scripts/check-generator-determinism.mjs" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: generator determinism check failed -- push blocked.
+
+A synthetic vault generator's per-folder note counts changed between two --end dates on
+the same seed. That means a number measured off one of its builds depends on which day it
+happened to be generated -- read the FAIL lines above for which folder(s) moved, and fix
+the generator so note placement never consults the calendar, only the seeded PRNG.
+
+There is no skip flag for this check.
+EOF
+  exit 1
+fi
+
+# BUILD ORDER DETERMINISM NEXT, same bar again -- two subprocess builds of a handful of
+# notes, no Chrome, under a second. The other half of the same story: Node documents
+# readdirSync's order as filesystem-dependent, and note order flows straight into the
+# contents of every book and into every golden shelf snapshot. walk() in
+# src/build-shelf.mjs sorts each directory before recursing; this keeps it sorted.
+# decisions/0004.
+echo "pre-push: checking build order is filesystem-independent..."
+if ! node "$root/scripts/check-build-order-determinism.mjs" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: build order determinism check failed -- push blocked.
+
+build-shelf.mjs's note order depended on filesystem enumeration order again -- read the
+FAIL lines above. walk() in src/build-shelf.mjs must sort each directory's entries
+(readdirSync(dir).sort()) before recursing or collecting files.
+
+There is no skip flag for this check.
+EOF
+  exit 1
+fi
+
+# THE GENERATED NAVIGATION FILES NEXT, same bar -- a read of the tree, well under a second.
+# .ai-context/code-map.md and code-index.md are written from the source by
+# scripts/code-map.mjs (decisions/0007) and are only worth having while they agree with it; a
+# stale map sends the next reader to the wrong line range, which is worse than no map.
+echo "pre-push: checking the code map and index are current..."
+if ! node "$root/scripts/code-map.mjs" --check </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: the generated code map or index is stale -- push blocked.
+
+Run: node scripts/code-map.mjs   and commit .ai-context/code-map.md and code-index.md.
+`npm run build` regenerates them too. There is no skip flag for this check.
+EOF
+  exit 1
+fi
+
+# LINT NEXT, same bar again -- about ten seconds, no Chrome -- and no skip flag, for a
+# different reason: a lint that runs when someone remembers is already deep in findings by
+# the time anyone looks. The same run carries tsc --noEmit over src/core under strict, and
+# the five type-aware no-unsafe-* rules the Obsidian directory's review applies to every
+# published version. They are ERRORS here from the first commit, so a new one is caught here
+# rather than on the directory's board.
+#
+# FAILS CLOSED WITHOUT node_modules. eslint is the one gate here that is not a Node built-in,
+# and a fresh clone or worktree has not run `npm ci` yet. Skipping in that case would be the
+# runs-when-someone-remembers gate again, with a different excuse; npm ci takes twenty seconds.
+echo "pre-push: linting..."
+if [ ! -e "$root/node_modules/.bin/eslint" ] || ! command -v npm >/dev/null 2>&1; then
+  cat >&2 <<'EOF'
+
+pre-push: lint cannot run -- push blocked.
+
+node_modules/.bin/eslint is missing (or npm is not on PATH), so this checkout has not run
+`npm ci`. Run it, then push again. There is no skip flag for this check.
+EOF
+  exit 1
+fi
+if ! (cd "$root" && npm run lint --silent </dev/null); then
+  cat >&2 <<'EOF'
+
+pre-push: lint failed -- push blocked.
+
+Read the findings above. Every finding in this repo's own code is held at zero, errors and
+warnings alike -- including the five type-aware no-unsafe-* rules, which means a value that
+lost its type. Type it rather than suppressing it.
+
+There is no skip flag for this check.
+EOF
+  exit 1
+fi
+
+if [ -n "$SKIP_SMOKE" ]; then
+  echo "pre-push: SKIP_SMOKE set, skipping the invariant suite"
+  exit 0
+fi
+
+echo "pre-push: running the invariant suite over three vault shapes (SKIP_SMOKE=1 to skip)..."
+if node "$root/scripts/smoke.mjs" </dev/null; then
+  exit 0
+fi
+
+cat >&2 <<'EOF'
+
+pre-push: the invariant suite failed -- push blocked.
+
+Read the FAIL lines above: each prints the number it measured, which is usually
+enough to say what moved. If the failure is expected because the behaviour changed
+on purpose, update .ai-context/invariants.md and the check together -- the numbers
+in that file are the regression suite, so a check quietly relaxed is worse than one
+that fails.
+
+To push anyway:  SKIP_SMOKE=1 git push
+EOF
+exit 1

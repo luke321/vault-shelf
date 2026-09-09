@@ -1,0 +1,97 @@
+# Vault Shelf — read this first
+
+An Obsidian plugin (and a standalone exporter used for testing) that turns one vault into a
+browsable library: shelves of books built from titles, dates, people, tags, folders or any
+note property, read as a two-page spread. **The notes never move.** Shelves and books are
+views, so one note can sit on six shelves at once.
+
+Sister repo to [Vault Graph](https://github.com/luke321/vault-graph), and it inherits that
+project's expensive lesson: **the recurring failure mode is reasoning about the code instead
+of measuring it.** Build the page, drive it, read the numbers.
+
+## Laws — every one has a check in `scripts/smoke.mjs` and a section in `.ai-context/invariants.md`
+
+- **A shelf's note count is unique notes, never the sum of its books.** A note with three
+  people is in three books and is still one note.
+- **Every note has at least one address.** Nothing a predicate admits may fall off a shelf.
+- **A book's address is `shelfId/classifierKey`** and survives a rebuild. A saved reading
+  place re-resolves rather than breaking: the named book, else the first visible book that
+  still holds the note.
+- **Metadata is declared, never inferred.** A date comes from a property or a title, never
+  from the file stamp unless asked. People come from the people property and never from prose.
+  A missing value gets its own book (`-undated`, `-unfiled`), never an exclusion.
+- **The ISO week keeps its week-year.** 2027-01-01 is 2026-W53.
+- **Plaques are date classifiers only, and only when asked for**, and a plaque lives inside
+  the same horizontal scroller as the books it names.
+- **A filter changes membership and nothing else.** Shelf order and book addresses do not move.
+- **A hidden shelf keeps its definition and its books.** Hiding never deletes; hiding
+  everything still offers a way back.
+- **The page is scoped**: every CSS rule under `.vault-shelf`, every id through `$()`, every
+  document through `root.ownerDocument`; nothing shipped reaches the network.
+- **The two skins change nothing but the paint.**
+
+## How to work here
+
+- `node scripts/smoke.mjs --only "<substring>"` is the iteration loop. The full suite runs on
+  the push to `develop` (the pre-push hook); do not run it by hand unless asked.
+- **Numbers cannot see.** Every check in the suite asserts a number, and none of them can see
+  that something looks wrong. Two real bugs here were found only by taking a screenshot: a
+  stray `DEL` byte inside `"-undated"` (printed identically, compared unequal, emptied every
+  Undated book) and `[hidden]` losing to a class selector (the reader and both sheets painted
+  over the library while every attribute-reading check passed). **Look at it.**
+  `node scripts/obsidian-smoke.mjs --shot out.png` is the fastest way.
+- **Two things may not run twice at once, and `scripts/lock.mjs` is how you know.** A **screen
+  recording** grabs a display region, so a second take captures the first one's window; the
+  **full suite** drives Chrome over CDP, so two runs fight for ports and each blames the code.
+  Take the lock, do the thing, release it — always release, even on failure:
+
+  ```bash
+  node scripts/lock.mjs acquire suite --owner "#12 plaques"   # blocks; exit 1 = give up
+  node scripts/lock.mjs release suite --owner "#12 plaques"
+  node scripts/lock.mjs status
+  ```
+
+  The lock lives in the OS temp dir, not the worktree, so **every worktree shares one**.
+  Screenshots need no lock — `obsidian-smoke.mjs` captures over CDP — but it takes its own port.
+- `git push` and merging into `develop` are separate asks, every time. `main` only ever
+  receives `develop`.
+- **A release is the range, not the work in hand.** Everything it needs — a `CHANGELOG.md`
+  section accounting for every merge since the last tag, every clip it embeds, every doc naming
+  the version, the release body itself — is finished on `release/<version>` and read there
+  before anything merges down. **Once the tag exists nothing changes**: a fix is the next patch
+  version. `.ai-context/releasing.md` opens with the commands that enumerate a range.
+- Measure before and after; the numbers go into `.ai-context/changelog-detail.md`, which is
+  the regression suite. A changed constant means `invariants.md` changes in the same commit.
+- **Obsidian does not load the plugin in a vault it has not been told to trust.** Open any
+  vault that is not the daily one and Obsidian asks *Trust author and enable plugins?* the
+  first time, behind a Settings window. Until that is confirmed the plugin does not load **at
+  all**, so skipping it leaves you staring at a plugin that looks broken for a reason that is
+  nowhere in the code. `scripts/obsidian-smoke.mjs` handles this itself; a hand-launched
+  Obsidian does not.
+- Fixtures: three generated vaults (`scripts/make-*-vault.mjs`) in the shared store; never a
+  real vault, never a built `vault-shelf.html`, in anything that reaches the repo.
+- `npm run lint` holds every finding at zero, and typechecks `src/core` under `strict` first.
+  `check-pii`, `check-scope`, `check-network`, `check-comments` and the two determinism checks
+  gate every push and have no skip flag.
+- Commit messages are sentences; `Closes #n` on its own line closes the issue when the work
+  reaches `main`.
+
+## Where things are
+
+| | |
+|---|---|
+| `src/core/` | the membership engine (TypeScript, `strict`): eight classifiers, source predicates, ISO-week and month keys, stable addresses, filters, settings migration. Notes in, books out; no DOM |
+| `src/page.js` | the page: directory, shelf rails, builder, manage sheet, reading spread — one `mountVaultShelf()`. **Do not read it top to bottom**; open `.ai-context/code-map.md` and go to the line range |
+| `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
+| `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 33 checks over three vault shapes |
+| `scripts/obsidian-smoke.mjs` | the same plugin inside a real Obsidian: ribbon icon, view lifecycle, settings tab, `--shot` for a picture |
+| `.ai-context/code-map.md` | **generated**: sections and functions of the two big files, with line numbers |
+| `.ai-context/code-index.md` | **generated**: issue → code sites, ADR/DDR → code sites, invariant → check, `__vs.*` → callers |
+| `.ai-context/README.md` | the map of the design records: `decisions/` (ADRs, why not the other thing), `design/` (DDRs, how a part works), `invariants.md`, `changelog-detail.md` |
+| `CONTRIBUTING.md` | the gates and the branch policy |
+
+Both generated files come from `node scripts/code-map.mjs`; `--check` fails when they are
+stale, and the pre-push hook runs it. Comments in the code are pointers (`github#N`,
+`decisions/NNNN`, `design/NNNN`); the reasoning behind them is in `.ai-context/`, reached
+through the index.

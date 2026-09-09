@@ -1,0 +1,28 @@
+vault-shelf*.html
+*.bak
+demo-*.mp4
+*.stackdump
+# Any generated fixture, not just the default name: --out picks the directory and the
+# generator is the artefact, so none of them belongs in a commit.
+library-vault*/
+sparse-vault*/
+# The shared fixture store -- generated vaults keyed by generator digest, one copy for every
+# worktree, self-invalidating. Never committed for the same reason the fixtures above never
+# were: the generator is the artefact.
+.fixtures/
+dist/
+
+# Generated demo vault -- a declared structure, not a mirror of anyone's notes. Regenerate
+# with scripts/make-demo-vault.mjs; never commit one, since the generator is the artefact.
+demo-vault/
+
+# The PII deny list itself. The whole point is that these names are not in a commit;
+# .pii-names.example explains the file and carries no names.
+.pii-names
+
+node_modules/
+
+# Built plugin artifacts. Obsidian gets these from the release, not from the repo;
+# main.js is a bundle and would churn on every template edit.
+/main.js
+/styles.css

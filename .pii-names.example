@@ -1,0 +1,26 @@
+# Deny list for scripts/check-pii.mjs. Copy to `.pii-names`, which is gitignored.
+#
+#   cp .pii-names.example .pii-names
+#
+# One name per line. `#` starts a comment. Matching is case-sensitive and on word
+# boundaries, so a capitalised name in prose is caught while a lowercase identifier that
+# happens to contain it is not.
+#
+# WHY THIS FILE IS NOT THE LIST. The obvious shortcut is to keep the names inline in
+# check-pii.mjs, reasoning that anyone who can read the list can already read the
+# repository. That is true of the access and false of the goal: the point is that these
+# names are not in a commit at all, and a checker that carries them republishes every one
+# of them, permanently, in the file doing the purging. The sister repo made exactly that
+# mistake and had to rewrite history to undo it.
+#
+# So the names live on the machines that push, and never in a commit. If you clone this
+# repository the check still runs its identifier patterns and tells you, loudly, that it
+# has no name list.
+#
+# Put first names in as well as full ones. Next to a repository about somebody's personal
+# notes -- and Vault Shelf shelves notes BY PERSON, so a person is a first-class object
+# here in a way it was not next door -- a first name plus a note count is identifying.
+
+# Colleagues, family, anyone who appears in the vault:
+# Firstname
+# Firstname Lastname

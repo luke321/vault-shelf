@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vault Shelf</title>
+<!--ASSETS-->
+<style>
+/* THE STANDALONE'S OWN CHROME, and the only CSS here that is not page.css.
+ *
+ * page.css is scoped entirely under `.vault-shelf` so it can be dropped into somebody else's
+ * document without styling it. That leaves the document itself unstyled -- and the container
+ * asks for `height: 100%`, which against an auto-height body resolves to zero and draws
+ * nothing at all. In a plugin the host has already sized the view; here nobody has, so the
+ * shell does it.
+ *
+ * No custom properties are used: they live on `.vault-shelf` now, so they do not exist out
+ * here. The container paints the full viewport anyway, so nothing shows through.
+ */
+html, body { height: 100%; margin: 0; }
+</style>
+<style>
+<!--CSS-->
+</style>
+</head>
+<body>
+<!--MARKUP-->
+
+<!--LIBS-->
+<!--DATA-->
+
+<script>
+<!--SCRIPT-->
+</script>
+
+<script>
+var SETTINGS_KEY = "vault-shelf:settings:" +
+  ((window.VAULT_DATA && window.VAULT_DATA.vault) || "default");
+
+function loadSettings() {
+  try {
+    var raw = window.localStorage.getItem(SETTINGS_KEY);
+    var v = raw ? JSON.parse(raw) : null;
+    return v && typeof v === "object" ? v : null;
+  } catch (e) { return null; }
+}
+
+function saveSettings(next) {
+  try { window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch (e) { }
+}
+
+mountVaultShelf(
+  document.getElementById("vs-app"),
+  window.VAULT_DATA,
+  {
+    core: window.VaultShelfCore,
+    settings: loadSettings(),
+    onSettings: saveSettings
+  }
+);
+</script>
+</body>
+</html>
