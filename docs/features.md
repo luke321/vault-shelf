@@ -156,10 +156,18 @@ January 2027 — otherwise one week hangs under two plaques.
 
 ### A spine tells you where its notes came from
 
-The band at the head of a spine is the book's **source-folder mix**, computed from the book's
-own notes; the number at the foot is the count. Hover it and the peek says the same thing in
-words: the label, the note count, how many ribbons are in it, how many times you have opened
+A spine is **dyed** with its dominant source folder's colour — one of twelve — so a book from the
+meetings folder and one from the journal are different colours because they are different
+kinds of book. The number at the foot is the count. Hover it and the peek says the same thing
+in words: the label, the note count, how many ribbons are in it, how many times you have opened
 it, the folders its notes came from, and the first three titles.
+
+Three people can have an opinion about a book's colour, and they are ranked. **You**, by
+right-clicking the spine: twelve swatches and *Automatic*, kept by the book's address so a
+rebuild keeps it. **The shelf**, if it *varies* its books — a colour of its own per book,
+hashed from the address so it never changes as notes arrive; per shelf, on its row in Manage,
+Encyclopedia included. **The folder**, otherwise. And the twelve themselves are yours to edit in
+Manage, along with the ribbon's colour; a chosen palette is written over every look.
 
 `design/0002`, `design/0005`
 
@@ -235,8 +243,10 @@ says otherwise, in the bar rather than in a settings sheet, because it is a read
 and you change it while reading — and the button says what it **is**, not what pressing it
 would do.
 
-It applies to books ordered by date. An Encyclopedia volume stays alphabetical under both,
-because "the oldest of the As" is not a thing anybody wants.
+It turns the **shelf** as well as the books on it: a Years shelf reads 2011 → 2026 under
+*Oldest first* and back under *Newest first*, and so do its months and weeks. It applies to
+what is ordered by date. An Encyclopedia volume stays alphabetical under both, because "the
+oldest of the As" is not a thing anybody wants, and a People or Tags shelf keeps its own A to Z.
 
 `design/0015`
 
@@ -268,8 +278,14 @@ is a gimmick; yes to the second is decoration.
 ### Ribbons that hang out of the book
 
 A bookmarked note leaves a ribbon hanging out of the bottom of the book, below the shelf board.
-You can see every place you saved without opening anything. A book holding more than one marked
-note gets a wider ribbon rather than several.
+You can see every place you saved without opening anything. A book holding two or three marked
+notes shows two or three ribbons side by side; beyond that the count is on the peek.
+
+**And from inside the book.** Open one and its ribbons hang out of the top edge of the cover,
+over the right-hand page, named with their notes: click one to turn to it, click the one in the
+page you are on to take it out. At the end of the row is the edge of a ribbon you have not
+pushed in yet — pushing it in leaves one in the page you are reading. Three at most, and always
+the one you are on.
 
 **What no real shelf does, twice over.** A ribbon marks a *note*, and a note is in six books at
 once, so **one ribbon appears in six places** — leave one in a note in September 2026 and it is

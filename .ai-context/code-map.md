@@ -118,7 +118,7 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1704 | `applyLook` |
 | 1711 | `refresh` |
 
-## `scripts/smoke.mjs` — 2358 lines, 6 sections, 23 functions, 55 checks
+## `scripts/smoke.mjs` — 2368 lines, 6 sections, 23 functions, 55 checks
 
 ### Sections
 
@@ -128,8 +128,8 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 73–124 | the checks |
 | 125–1842 | the invariants |
 | 1843–1970 | which vaults, and why |
-| 1971–2256 | one run |
-| 2257–2358 | main |
+| 1971–2266 | one run |
+| 2267–2368 | main |
 
 ### Functions
 
@@ -156,8 +156,8 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1973 | `runOne` |
 | 2157 | `tagged` |
 | 2163 | `capture` |
-| 2215 | `killBrowser` |
-| 2259 | `main` |
+| 2225 | `killBrowser` |
+| 2269 | `main` |
 
 ### Checks
 

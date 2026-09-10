@@ -770,3 +770,8 @@ learned the one block it was missing. The demo fixture carries a 12-row table wi
 **1,981-character** cell, and the check opens it: the spread stays **1180px** in a 1180px
 measure, the page scrolls **0px** sideways, 72 cells render.
 
+The picture caught what the numbers had passed: squeezed to the article's 66ch, the table
+gave every column a sliver and broke words down the middle — "wher/e", "Harad/a". It is
+`width: max-content` now, cells wrap at 40ch and never mid-word, and the article scrolls to
+the columns that do not fit. `--shot-note "<title>"` is how that picture was taken.
+

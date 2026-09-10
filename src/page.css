@@ -832,6 +832,11 @@
   border-collapse: collapse;
   margin: 12px 0;
   font-size: 0.95em;
+  /* AS WIDE AS IT NEEDS, then the article scrolls. Squeezed to the article's 66ch a table
+   * gave every column a sliver and broke words down the middle -- "wher/e", "Harad/a" --
+   * which is the second way a table can render strangely. Cells wrap at 40ch, words do not
+   * break, and a six-column table of long cells is as wide as that makes it. */
+  width: max-content;
   max-width: none;
 }
 .vault-shelf .vs-prose th, .vault-shelf .vs-prose td {
@@ -839,8 +844,10 @@
   padding: 5px 9px;
   text-align: left;
   vertical-align: top;
-  overflow-wrap: anywhere;
-  min-width: 6ch;
+  overflow-wrap: normal;
+  white-space: normal;
+  min-width: 8ch;
+  max-width: 40ch;
 }
 .vault-shelf .vs-prose th { background: var(--surface-2); font-weight: 600; }
 .vault-shelf .vs-prose td code, .vault-shelf .vs-prose th code { white-space: pre-wrap; }

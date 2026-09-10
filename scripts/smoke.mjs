@@ -2199,6 +2199,16 @@ async function capture(page, out) {
       __vs.openBook(book.book, notes.notes[1].id);
       return ids.length;
     })()`);
+    /* The ribbons are set for the picture; the note asked for is still the note the picture
+     * is of, so it is opened again after the marking moved the reader off it. */
+    if (SHOT_NOTE) {
+      await page.j(`(function(){
+        var want = ${JSON.stringify(SHOT_NOTE)};
+        var note = __vs.data().notes.filter(function (n) { return n.title === want; })[0];
+        var here = __vs.reader();
+        return note && here ? __vs.openBook(here.book, note.id) : false;
+      })()`);
+    }
     await sleep(400);
     await shoot(out.replace(/(\.png)?$/i, "-reader.png"));
     if (marked) {

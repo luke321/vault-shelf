@@ -27,10 +27,10 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `design/0002` | src/core/defaults.ts:4, src/core/defaults.ts:49, src/core/shelves.ts:23, src/core/shelves.ts:38, src/core/shelves.ts:195, src/core/types.ts:35, src/page.js:259, src/page.js:1311, scripts/smoke.mjs:1609 |
 | `design/0003` | src/core/defaults.ts:250, src/core/defaults.ts:265, src/core/shelves.ts:162, src/core/types.ts:60, src/core/types.ts:80, src/cyber.css:377, src/cyber.css:423, src/page.css:429, src/page.js:78, src/page.js:583, scripts/smoke.mjs:376, scripts/smoke.mjs:440 |
 | `design/0004` | src/core/shelves.ts:292, src/core/shelves.ts:347, src/core/types.ts:101, src/page.js:820 |
-| `design/0005` | src/core/defaults.ts:141, src/core/defaults.ts:149, src/core/defaults.ts:277, src/core/types.ts:65, src/cyber.css:7, src/cyber.css:13, src/cyber.css:26, src/cyber.css:78, src/cyber.css:446, src/cyber.css:538, src/cyber.css:851, src/page.css:4, src/page.css:8, src/page.css:111, src/page.css:478, src/page.css:665, src/page.css:971, src/page.js:62, src/page.js:232, src/page.js:237, src/page.js:641, src/page.js:681, src/page.js:691, src/page.js:712, src/page.js:1543, src/page.js:1567, src/page.js:1850, plugin/main.js:10, plugin/main.js:253, scripts/check-scope.mjs:72, scripts/smoke.mjs:694, scripts/smoke.mjs:715, scripts/smoke.mjs:759, scripts/smoke.mjs:791 |
+| `design/0005` | src/core/defaults.ts:141, src/core/defaults.ts:149, src/core/defaults.ts:277, src/core/types.ts:65, src/cyber.css:7, src/cyber.css:13, src/cyber.css:26, src/cyber.css:78, src/cyber.css:446, src/cyber.css:538, src/cyber.css:851, src/page.css:4, src/page.css:8, src/page.css:111, src/page.css:478, src/page.css:665, src/page.css:978, src/page.js:62, src/page.js:232, src/page.js:237, src/page.js:641, src/page.js:681, src/page.js:691, src/page.js:712, src/page.js:1543, src/page.js:1567, src/page.js:1850, plugin/main.js:10, plugin/main.js:253, scripts/check-scope.mjs:72, scripts/smoke.mjs:694, scripts/smoke.mjs:715, scripts/smoke.mjs:759, scripts/smoke.mjs:791 |
 | `design/0006` | scripts/screen.mjs:1, scripts/screen.mjs:42, scripts/smoke.mjs:25, scripts/smoke.mjs:2023, scripts/smoke.mjs:2151 |
 | `design/0007` | scripts/record-demo.mjs:2, scripts/record-demo.mjs:23, scripts/record-demo.mjs:139, scripts/record-demo.mjs:172, scripts/record-demo.mjs:419, scripts/record-demo.mjs:442, scripts/record-demo.mjs:451, scripts/record-demo.mjs:580 |
-| `design/0008` | src/core/defaults.ts:99, src/core/defaults.ts:146, src/core/defaults.ts:350, src/core/shelves.ts:307, src/core/types.ts:86, src/core/types.ts:112, src/cyber.css:558, src/cyber.css:586, src/cyber.css:601, src/cyber.css:879, src/leather.css:325, src/page.css:107, src/page.css:549, src/page.css:577, src/page.css:602, src/page.css:1076, src/page.js:83, src/page.js:208, src/page.js:303, src/page.js:627, src/page.js:782, src/page.js:834, src/page.js:881, src/page.js:1268, src/page.js:1854, scripts/smoke.mjs:858, scripts/smoke.mjs:1054, scripts/smoke.mjs:1105, scripts/smoke.mjs:1120, scripts/smoke.mjs:1173 |
+| `design/0008` | src/core/defaults.ts:99, src/core/defaults.ts:146, src/core/defaults.ts:350, src/core/shelves.ts:307, src/core/types.ts:86, src/core/types.ts:112, src/cyber.css:558, src/cyber.css:586, src/cyber.css:601, src/cyber.css:879, src/leather.css:325, src/page.css:107, src/page.css:549, src/page.css:577, src/page.css:602, src/page.css:1083, src/page.js:83, src/page.js:208, src/page.js:303, src/page.js:627, src/page.js:782, src/page.js:834, src/page.js:881, src/page.js:1268, src/page.js:1854, scripts/smoke.mjs:858, scripts/smoke.mjs:1054, scripts/smoke.mjs:1105, scripts/smoke.mjs:1120, scripts/smoke.mjs:1173 |
 | `design/0009` | src/cyber.css:655, src/page.css:91, src/page.css:101, src/page.css:329, src/page.js:281, scripts/smoke.mjs:669, scripts/smoke.mjs:1204 |
 | `design/0010` | src/page.css:792, src/page.css:801, src/page.css:824, src/page.js:55, src/page.js:1130, plugin/main.js:265, plugin/main.js:283, scripts/make-demo-vault.mjs:211 |
 | `design/0011` | src/cyber.css:18, src/leather.css:13, src/page.css:95, src/page.js:71, src/page.js:669, scripts/make-demo-vault.mjs:179, scripts/smoke.mjs:833 |
@@ -88,10 +88,10 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `__vs.checkMembership` | scripts/smoke.mjs ×1 |
 | `__vs.closeReader` | scripts/record-demo.mjs ×1, scripts/smoke.mjs ×15 |
 | `__vs.counts` | scripts/record-demo.mjs ×1, scripts/smoke.mjs ×15 |
-| `__vs.data` | scripts/record-demo.mjs ×1, scripts/smoke.mjs ×14 |
+| `__vs.data` | scripts/record-demo.mjs ×1, scripts/smoke.mjs ×15 |
 | `__vs.magic` | scripts/smoke.mjs ×5 |
-| `__vs.openBook` | scripts/record-demo.mjs ×2, scripts/smoke.mjs ×23 |
-| `__vs.reader` | scripts/smoke.mjs ×15 |
+| `__vs.openBook` | scripts/record-demo.mjs ×2, scripts/smoke.mjs ×24 |
+| `__vs.reader` | scripts/smoke.mjs ×16 |
 | `__vs.room` | scripts/smoke.mjs ×1 |
 | `__vs.setFilters` | scripts/smoke.mjs ×17 |
 | `__vs.setListMode` | scripts/smoke.mjs ×2 |
