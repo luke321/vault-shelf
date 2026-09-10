@@ -849,6 +849,11 @@
 .vault-shelf .vs-prose ul, .vault-shelf .vs-prose ol { padding-left: 20px; }
 .vault-shelf .vs-prose img { max-width: 100%; height: auto; }
 
+/* A wikilink the library can follow, and one it cannot. */
+.vault-shelf .vs-prose .vs-link { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; cursor: pointer; }
+.vault-shelf .vs-prose .vs-link:hover { text-decoration-thickness: 2px; }
+.vault-shelf .vs-prose .vs-deadlink { color: var(--text-3); text-decoration: underline dotted; }
+
 /* A table, for the standalone -- inside Obsidian the host's own `markdown-rendered` rules
  * dress it, and the container now carries that class (design/0010). Wide ones scroll rather
  * than widening the page, the same rule every other block in here follows. */
@@ -927,7 +932,16 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  max-height: calc(100% - 32px);
+  overflow: hidden;
 }
+
+/* design/0015 -- THE LAYERS OF THE INDEX. A year tab is the widest and boldest, a month tab
+ * steps in, a day tab steps in again: read down the edge and the shape says which is which
+ * before the label does. */
+.vault-shelf .vs-tabs button[data-level="0"] { font-weight: 600; }
+.vault-shelf .vs-tabs button[data-level="1"] { margin-left: 8px; min-width: 36px; }
+.vault-shelf .vs-tabs button[data-level="2"] { margin-left: 16px; min-width: 30px; font-size: 10px; opacity: 0.85; }
 
 /* Protruding tabs, cut from the page rather than stuck on it. */
 .vault-shelf .vs-tabs button {
@@ -1128,6 +1142,40 @@
   transform: none;
   max-height: none;
 }
+
+/* A label of a letter or three stands upright: an Encyclopedia's A is read as A, not tilted. */
+.vault-shelf .vs-spine[data-upright="1"] .vs-title {
+  writing-mode: horizontal-tb;
+  transform: none;
+  max-height: none;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* design/0005 -- THE PEEK, sized to be read. A long tag name or a person's full name wraps
+ * here instead of being clipped, and the numbers a spine is too narrow to spell out are in
+ * words. Positioned by the page, above the spine it describes. */
+.vault-shelf .vs-peek {
+  position: absolute;
+  z-index: 45;
+  max-width: 340px;
+  min-width: 180px;
+  padding: 9px 12px 10px;
+  background: var(--surface-1);
+  color: var(--text-1);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 30%, transparent);
+  font-size: 13px;
+  line-height: 1.4;
+  pointer-events: none;
+  overflow-wrap: anywhere;
+}
+.vault-shelf .vs-peekname { font-weight: 600; font-size: 14px; }
+.vault-shelf .vs-peekmeta { color: var(--text-2); margin-top: 2px; }
+.vault-shelf .vs-peeknotes { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 12px; }
+.vault-shelf .vs-peeknotes div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .vault-shelf[data-list="1"] .vs-spine .vs-n { position: static; text-align: left; margin-left: auto; }
 .vault-shelf[data-list="1"] .vs-spine .vs-ribbon { position: static; width: 7px; height: 12px; margin: 0 0 0 8px; }

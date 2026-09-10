@@ -1722,6 +1722,62 @@ check("clicking a spine opens a book on the note it names", async (p) => {
            detail: `opened ${r.got} (wanted ${r.wanted}), ${r.contents} entries in its contents` };
 });
 
+check("the date index is layered: years over months over days, each only where it separates",
+      async (p) => {
+  const r = await p.j(`(function(){
+    var tabsOf = function (id) {
+      __vs.openBook(id, null);
+      var t = [].slice.call(document.querySelectorAll("#vs-tabs button")).map(function (b) {
+        return { label: b.textContent, level: Number(b.getAttribute("data-level") || 0) };
+      });
+      __vs.closeReader();
+      return t;
+    };
+    var pick = function (shelfId, test) {
+      var v = __vs.views().filter(function (v) { return v.shelf.id === shelfId; })[0];
+      return v.books.filter(test)[0];
+    };
+    var years = function (b) {
+      return new Set(b.notes.map(function (n) { return n.date ? n.date.slice(0, 4) : ""; })
+        .filter(Boolean)).size;
+    };
+    /* A tag book spanning several years: years on the top layer, months under them. */
+    var tag = pick("tags", function (b) { return b.key !== "-unfiled" && years(b) > 1 && b.notes.length > 6; });
+    var tagTabs = tag ? tabsOf(tag.id) : [];
+    var top = tagTabs.filter(function (t) { return t.level === 0; });
+    var yearsShown = top.every(function (t) { return /^\\d{4}$/.test(t.label); });
+    var months = tagTabs.filter(function (t) { return t.level === 1; });
+    var monthsLook = months.every(function (t) { return /^[A-Z][a-z]{2}$/.test(t.label); });
+    /* A month book: one year, one month -- neither is drawn; days are, if there are more than three notes. */
+    var month = pick("months", function (b) { return b.key !== "-undated" && b.notes.length > 3; });
+    var monthTabs = month ? tabsOf(month.id) : [];
+    var daysOnly = monthTabs.length > 0 && monthTabs.every(function (t) { return t.level === 0 && /^\\d{2}$/.test(t.label); });
+    /* A book of three or fewer notes has no index at all. */
+    var small = null;
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+      if (!small && b.notes.length >= 2 && b.notes.length <= 3 && v.shelf.classifier !== "initial" &&
+          years(b) === 1) small = b;
+    }); });
+    var smallTabs = small ? tabsOf(small.id) : null;
+    return { tag: tag ? tag.key : null, tagYears: tag ? years(tag) : 0, tagTabs: tagTabs.length,
+             top: top.length, yearsShown: yearsShown, months: months.length, monthsLook: monthsLook,
+             month: month ? month.key : null, monthTabs: monthTabs.map(function (t) { return t.label; }),
+             daysOnly: daysOnly, small: small ? small.key : null,
+             smallTabs: smallTabs ? smallTabs.length : -1 };
+  })()`);
+  const ok = (!r.tag || (r.top === r.tagYears && r.yearsShown && r.monthsLook)) &&
+             (!r.month || r.daysOnly) && (!r.small || r.smallTabs === 0) && r.tagTabs <= 30;
+  return {
+    ok,
+    detail: (r.tag ? `#${r.tag} spans ${r.tagYears} years and gets ${r.top} year tabs ` +
+                     `(${r.yearsShown}) with ${r.months} month tabs stepped in under them ` +
+                     `(${r.monthsLook}), ${r.tagTabs} in all; ` : "no multi-year tag book here; ") +
+            (r.month ? `${r.month} is one month, so only days: ${r.monthTabs.slice(0, 6).join(" ")}` +
+                       `${r.monthTabs.length > 6 ? " ..." : ""} (${r.daysOnly}); ` : "") +
+            (r.small ? `${r.small} holds three notes or fewer and has ${r.smallTabs} tabs` : "")
+  };
+});
+
 check("the reader's index tabs stay countable on the biggest book", async (p) => {
   const r = await p.j(`(function(){
     var biggest = null;
@@ -1759,6 +1815,66 @@ check("previous and next walk the book and stop at its ends", async (p) => {
                r.last === r.size - 1 && r.nextDisabled,
            detail: `opened at ${r.first} (previous disabled: ${r.prevDisabled}), next -> ${r.second}, ` +
                    `ran to ${r.last} of ${r.size - 1} and stopped (next disabled: ${r.nextDisabled})` };
+});
+
+check("a wikilink in a book goes to that note in this book, this shelf, or the nearest", async (p) => {
+  const r = await p.j(`(function(){
+    var notes = __vs.data().notes;
+    var target = notes.filter(function (n) { return n.title === "Halvor Estrin"; })[0];
+    if (!target) return null;
+    var linking = notes.filter(function (n) {
+      return n.id !== target.id && (n.body || "").indexOf("[[Halvor Estrin") >= 0;
+    });
+    if (!linking.length) return null;
+    var books = function (shelfId) {
+      return __vs.views().filter(function (v) { return v.shelf.id === shelfId; })[0].books;
+    };
+    var holds = function (b, id) { return b.notes.some(function (n) { return n.id === id; }); };
+
+    /* Same shelf: a Months book that links to the person, whose own note sits in another month. */
+    var monthBook = books("months").filter(function (b) {
+      return linking.some(function (n) { return holds(b, n.id); }) && !holds(b, target.id);
+    })[0];
+    var linker = monthBook.notes.filter(function (n) { return linking.indexOf(n) >= 0; })[0];
+    __vs.openBook(monthBook.id, linker.id);
+    var link = document.querySelector("#vs-note a.vs-link");
+    var rendered = !!link && link.getAttribute("data-note") === target.id;
+    link.click();
+    var after = __vs.reader();
+    var sameShelf = after && after.note === target.id && after.book.indexOf("months/") === 0;
+
+    /* Same book: a book that holds both the linker and the target. */
+    var both = null;
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+      if (!both && holds(b, target.id) && linking.some(function (n) { return holds(b, n.id); })) both = b;
+    }); });
+    var sameBook = null;
+    if (both) {
+      var from = both.notes.filter(function (n) { return linking.indexOf(n) >= 0; })[0];
+      __vs.openBook(both.id, from.id);
+      document.querySelector("#vs-note a.vs-link").click();
+      var r2 = __vs.reader();
+      sameBook = r2 && r2.book === both.id && r2.note === target.id;
+    }
+
+    /* A link to nothing the library holds is not a link. */
+    var dead = document.querySelectorAll("#vs-note .vs-deadlink").length;
+    var where = __vs.openNote("no/such/note.md");
+    __vs.closeReader();
+    return { linking: linking.length, rendered: rendered, sameShelf: sameShelf,
+             sameBook: sameBook, both: !!both, dead: dead, missing: where };
+  })()`);
+  if (r === null) return { ok: true, detail: "this vault has no linked note to follow" };
+  const ok = r.rendered && r.sameShelf && (r.sameBook !== false) && r.missing === null;
+  return {
+    ok,
+    detail: `${r.linking} notes link to a person's note; the link renders as a link to it ` +
+            `(${r.rendered}); from a Months book that does not hold it, the click lands on ` +
+            `it in another Months book (${r.sameShelf}); ` +
+            (r.both ? `from a book that holds both, it stays in that book (${r.sameBook}); `
+                    : "no single book holds both, so the same-book case has no fixture here; ") +
+            `a note the library does not hold is left to the host (${r.missing === null})`
+  };
 });
 
 check("also shelved in moves to another book and keeps the note", async (p) => {
@@ -2120,6 +2236,49 @@ check("nothing on the page reaches the network", async (p) => {
   })()`);
   return { ok: r.requests === 0,
            detail: `${r.requests} remote resource(s) requested by the loaded page` };
+});
+
+check("a hovered spine shows one peek, big enough to read, and short labels stand upright",
+      async (p) => {
+  const r = await p.j(`(function(){
+    var spines = [].slice.call(document.querySelectorAll("#vs-shelves .vs-spine"));
+    var titled = spines.filter(function (b) { return b.hasAttribute("title") || b.hasAttribute("aria-label"); }).length;
+    var longest = spines.slice().sort(function (a, b) {
+      return (b.getAttribute("data-peek") || "").split("\\n")[0].length -
+             (a.getAttribute("data-peek") || "").split("\\n")[0].length;
+    })[0];
+    longest.dispatchEvent(new MouseEvent("mouseenter", { bubbles: false }));
+    var peek = document.getElementById("vs-peek");
+    var shown = !peek.hidden;
+    var box = peek.getBoundingClientRect();
+    var name = peek.querySelector(".vs-peekname");
+    var nameBox = name.getBoundingClientRect();
+    var fontPx = parseFloat(getComputedStyle(name).fontSize);
+    var clipped = name.scrollWidth > name.clientWidth + 1;
+    var spineBox = longest.getBoundingClientRect();
+    var above = box.bottom <= spineBox.top + 1 || box.top >= spineBox.bottom - 1;
+    longest.dispatchEvent(new MouseEvent("mouseleave", { bubbles: false }));
+    var hidden = peek.hidden;
+    var upright = spines.filter(function (b) { return b.getAttribute("data-upright") === "1"; });
+    var enc = spines.filter(function (b) { return b.getAttribute("data-book").indexOf("encyclopedia/") === 0; });
+    var uprightEnc = enc.filter(function (b) { return b.getAttribute("data-upright") === "1"; });
+    var mode = uprightEnc.length ? getComputedStyle(uprightEnc[0].querySelector(".vs-title")).writingMode : "";
+    var wide = spines.filter(function (b) { return b.querySelector(".vs-title").textContent.length > 3 && b.getAttribute("data-upright") === "1"; }).length;
+    return { titled: titled, label: (longest.getAttribute("data-peek") || "").split(" -- ")[0],
+             shown: shown, width: Math.round(box.width), fontPx: fontPx, clipped: clipped,
+             above: above, hidden: hidden, enc: enc.length, uprightEnc: uprightEnc.length,
+             mode: mode, wide: wide, nameLines: Math.round(nameBox.height / (fontPx * 1.4)) };
+  })()`);
+  const ok = r.titled === 0 && r.shown && r.fontPx >= 13 && !r.clipped && r.above && r.hidden &&
+             r.uprightEnc === r.enc && r.mode === "horizontal-tb" && r.wide === 0;
+  return {
+    ok,
+    detail: `${r.titled} spines carry a title or aria-label (two overlays otherwise); hovering ` +
+            `"${r.label}" shows one ${r.width}px peek at ${r.fontPx}px, the name in full ` +
+            `(${!r.clipped}, ${r.nameLines} line(s)), clear of the spine (${r.above}), gone on ` +
+            `leave (${r.hidden}); ${r.uprightEnc}/${r.enc} Encyclopedia labels stand upright ` +
+            `(${r.mode}) and no label over three characters does (${r.wide === 0})`
+  };
 });
 
 check("a spine lifts on hover and holds its size", async (p) => {

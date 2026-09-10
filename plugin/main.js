@@ -297,7 +297,15 @@ export class ShelfView extends ItemView {
       const href = anchor.getAttribute("data-href") || anchor.getAttribute("href");
       if (!href) return;
       evt.preventDefault();
-      void this.app.workspace.openLinkText(href, note.path, evt.ctrlKey || evt.metaKey);
+      /* design/0004 -- IN THE LIBRARY FIRST. A link followed from a book goes to that note in
+       * this book, this shelf or the nearest one; only a note the library does not hold --
+       * or a Ctrl/Cmd-click, which is the ask for a real pane -- goes to Obsidian's editor. */
+      const wantsPane = evt.ctrlKey || evt.metaKey;
+      if (!wantsPane && this.handle) {
+        const target = this.app.metadataCache.getFirstLinkpathDest(href.split("#")[0], note.path);
+        if (target && this.handle.openNote(target.path)) return;
+      }
+      void this.app.workspace.openLinkText(href, note.path, wantsPane);
     });
 
     /* The hover preview every other view gives you, through the same event the app listens

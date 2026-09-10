@@ -92,3 +92,21 @@ second form).
 horizontal labels: the same books, the same buttons, the same addresses, in a shape a screen
 reader and a narrow phone can both work through. *plain list mode keeps every book reachable*
 asserts the book count is identical in both modes.
+
+## A link in a book stays in the library (2026-09-11)
+
+> "wikilinks in the shelf should move to the same note in the same shelf or nearest shelf —
+> not to normal obsidian"
+
+Following `[[a note]]` from the spread used to hand the note to Obsidian's editor, which is
+leaving the library to look something up that is on the next shelf. `openNote` keeps it in
+the room: the target is opened **in this book** if the book holds it, else **in another book
+on this shelf**, else **in a book on the nearest shelf** — nearest by position, since the
+shelves a person keeps side by side are the ones they think of together. Only a note the
+library does not hold at all is left to the host; the plugin tries the library first and
+falls through to `openLinkText` for exactly that case, and a Ctrl/Cmd-click is the ask for a
+real pane and always goes to Obsidian.
+
+The standalone's fallback renderer turns `[[wikilinks]]` into links of its own for the same
+reason; a link to a note the library does not hold is drawn as a dead link rather than as a
+promise.

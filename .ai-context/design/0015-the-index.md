@@ -104,3 +104,24 @@ control, and the builder disables its own direction control for those shelves an
 shelf classified by a person, a tag, a folder or a property keeps its `direction`, because
 A-to-Z is not something a reading order has an opinion about.
 
+## The date index is layered (2026-09-11)
+
+> "the right side indexes are not consistent in tag books, sometimes only the day 22,
+> sometimes the month as number, sometimes month as three letters … for 3 notes on following
+> days I don't need an index, notes in different months yes but also show the year"
+
+A year book, a month book and a tag book were cut three different ways — months, then days,
+then whichever single unit happened to split the book — so the same kind of tab read `Jul` in
+one book, `07` in another and `2024` in a third. Every date-ordered book is cut the same way
+now: **years, then the months inside a year, then the days inside a month**, each layer drawn
+only where it separates something.
+
+- A layer with one group is not drawn: a book that is all 2026 does not need a 2026 tab.
+- A group of three notes or fewer is not cut further: three notes on following days are three
+  rows on the left, not an index.
+- The whole thing is capped at about thirty tabs, dropping days first and then months.
+
+The layers step in from the edge — a year tab is bold and widest, a month tab steps in, a day
+tab steps in again — so the shape says which is which before the label does. The Encyclopedia
+keeps its letters; the letter cut and the date cut are the two orders a book can have, and the
+tabs follow whichever the book is in.

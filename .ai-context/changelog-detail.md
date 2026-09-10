@@ -842,3 +842,22 @@ which beats the two-class swatch rule. Three classes deep now, and the check ass
 
 *Vary colours* in Manage is a switch, since it is a state and not an action. 62 checks.
 
+## A link stays in the library, one peek, upright letters, a layered index
+
+**Wikilinks** followed from the spread go to that note in this book, this shelf or the nearest
+shelf; only a note the library does not hold falls through to Obsidian, and Ctrl/Cmd-click
+always does. The standalone renderer makes links of `[[wikilinks]]` too. Measured: from a
+Months book, the click lands in another Months book; from a book holding both, it stays.
+
+**The peek.** A spine carried a `title` (the browser's tooltip) and an `aria-label` (in
+Obsidian, the app's), so two overlays opened, both too small for a long tag name. One
+`#vs-peek` element now, 14px, up to 340px wide: **0** spines carry either attribute.
+
+**Upright letters.** A label of three characters or fewer stands upright: **23/23**
+Encyclopedia labels on the demo vault, `0-9` included.
+
+**The layered index.** A year book, a month book and a tag book were cut three different ways.
+Every date-ordered book is cut years → months → days now, each layer only where it separates
+something, none for three notes or fewer, capped near thirty. `#archive`: 4 years, 26 months,
+30 tabs; a month book: days only; a three-note book: no tabs. 65 checks.
+

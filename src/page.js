@@ -667,8 +667,18 @@ function mountVaultShelf(root, data, options) {
     if (book.notes.length) {
       peek += "\n" + book.notes.slice(0, 3).map(function (n) { return n.title; }).join("\n");
     }
-    b.title = peek;
-    b.setAttribute("aria-label", shelf.name + ": " + peek.split("\n")[0]);
+    /* design/0005 -- ONE PEEK, OURS. A `title` is the browser's tooltip and an `aria-label`
+     * is, inside Obsidian, the app's -- so a hovered spine grew two overlays, both too small
+     * to read a long tag name in. The spine has its own text for a name, so neither attribute
+     * is needed; the peek is an element of the page, sized to be read. */
+    b.setAttribute("data-peek", peek);
+    b.setAttribute("data-shelfname", shelf.name);
+    on(b, "mouseenter", function () { showPeek(b); });
+    on(b, "focus", function () { showPeek(b); });
+    on(b, "mouseleave", hidePeek);
+    on(b, "blur", hidePeek);
+    /* A one-letter label reads better upright than turned on its side: A, K, 0-9, Ü. */
+    if (book.label.length <= 3) b.setAttribute("data-upright", "1");
 
     on(b, "click", function () { openBook(book, null); });
     if (hand && shelf.direction === "manual") handleOf(b, book, shelf);
@@ -691,8 +701,9 @@ function mountVaultShelf(root, data, options) {
   function handleOf(b, book, shelf) {
     b.draggable = true;
     b.setAttribute("data-hand", "1");
-    b.title = b.title + "\n\nDrag to move it along the shelf; Alt+Left and Alt+Right do the " +
-              "same from the keyboard.";
+    b.setAttribute("data-peek", b.getAttribute("data-peek") +
+      "\n\nDrag to move it along the shelf; Alt+Left and Alt+Right do the " +
+      "same from the keyboard.");
     on(b, "dragstart", function (e) {
       var de = /** @type {DragEvent} */ (e);
       dragging = { shelfId: shelf.id, key: book.key };
@@ -848,6 +859,44 @@ function mountVaultShelf(root, data, options) {
     if (shelf.varyColors) return SLOTS[hashSlot(book.id)];
     if (book.bands.length && book.bands[0].slot) return String(book.bands[0].slot);
     return SLOTS[0];
+  }
+
+  /* ---- the peek ----------------------------------------------------------------
+   * design/0005 -- what a spine says when you hover it: its label, in full and readable
+   * however long, and the numbers a spine is too narrow to carry in words. One element,
+   * moved to whichever spine is under the pointer, above the shelf so it never covers the
+   * book it describes.
+   */
+  /** @param {HTMLElement} spine */
+  function showPeek(spine) {
+    var card = node("peek");
+    clear(card);
+    var text = spine.getAttribute("data-peek") || "";
+    var lines = text.split("\n");
+    var head = lines[0].split(" -- ");
+    card.appendChild(el("div", "vs-peekname", head[0]));
+    if (head[1]) card.appendChild(el("div", "vs-peekmeta", head[1]));
+    var rest = lines.slice(1).filter(function (l) { return l.trim(); });
+    if (rest.length) {
+      var list = el("div", "vs-peeknotes");
+      rest.forEach(function (l) { list.appendChild(el("div", "", l)); });
+      card.appendChild(list);
+    }
+    card.hidden = false;
+    var host = root.getBoundingClientRect();
+    var box = spine.getBoundingClientRect();
+    var w = card.offsetWidth, h = card.offsetHeight;
+    var left = box.left - host.left + box.width / 2 - w / 2;
+    left = Math.max(8, Math.min(left, host.width - w - 8));
+    var top = box.top - host.top - h - 10;
+    if (top < 8) top = box.bottom - host.top + 10;
+    card.style.left = left + "px";
+    card.style.top = top + "px";
+    spine.setAttribute("aria-describedby", "vs-peek");
+  }
+
+  function hidePeek() {
+    node("peek").hidden = true;
   }
 
   /** FNV-1a over the address, folded into a slot. @param {string} id @returns {number} */
@@ -1149,14 +1198,13 @@ function mountVaultShelf(root, data, options) {
     var out = [];
     if (kind === "initial") {
       out = letterTabs(book.notes);
-    } else if (kind === "year") {
-      out = cutBy(book.notes, function (n) { return n.date ? n.date.slice(0, 7) : ""; },
-                  function (key) { return core.monthLabel(key).slice(0, 3); });
-    } else if (kind === "month" || kind === "week") {
-      out = cutBy(book.notes, function (n) { return n.date || ""; },
-                  function (key) { return key.slice(8); });
     } else {
-      out = spanTabs(book.notes);
+      /* design/0015 -- ONE INDEX FOR EVERY DATE-ORDERED BOOK, however it was classified. A
+       * year book, a month book and a tag book used to be cut three different ways -- months,
+       * then days, then whichever single unit happened to split the book -- so the same kind
+       * of tab read "Jul" in one book, "07" in another and "2024" in a third. The layered cut
+       * reads the book instead of the shelf. */
+      return dateTabs(book.notes);
     }
     if (out.length <= 26) return out;
     /** @type {{ label: string, at: number }[]} */
@@ -1235,20 +1283,72 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * A book that is in date order but is not a date book -- a person, a tag, a folder, a
-   * property value. It is indexed by the biggest unit that gives it more than one tab: years
-   * for a decade of meetings, months for a busy year, days for a fortnight.
-   * @param {ShelfNote[]} notes @returns {{ label: string, at: number }[]}
+   * design/0015 -- THE LAYERED DATE INDEX. Years, then the months inside a year, then the days
+   * inside a month -- each layer only where it separates something:
+   *
+   *   - a layer with ONE group is not drawn: a book that is all 2026 does not need a 2026 tab
+   *     to tell you so, and a book that is all July needs no July;
+   *   - a group of THREE notes or fewer is not cut further: three notes on following days are
+   *     three rows on the left, not an index;
+   *   - the whole thing is capped at about thirty tabs, dropping days first and then months,
+   *     because a tab you cannot hit is decoration.
+   *
+   * The result is the same shape for a year book, a tag book and a person's book, which is
+   * what an index is for: you learn to read it once.
+   * @param {ShelfNote[]} notes @returns {{ label: string, at: number, level?: number }[]}
    */
-  function spanTabs(notes) {
-    var byYear = cutBy(notes, function (n) { return n.date ? n.date.slice(0, 4) : ""; },
-                       function (key) { return key; });
-    if (byYear.length > 1) return byYear;
-    var byMonth = cutBy(notes, function (n) { return n.date ? n.date.slice(0, 7) : ""; },
-                        function (key) { return core.monthLabel(key).slice(0, 3); });
-    if (byMonth.length > 1) return byMonth;
-    return cutBy(notes, function (n) { return n.date || ""; },
-                 function (key) { return key.slice(8); });
+  function dateTabs(notes) {
+    /** @type {{ label: string, at: number, level?: number }[]} */
+    var out = [];
+    var years = runsOf(notes, function (n) { return n.date ? n.date.slice(0, 4) : ""; });
+    var showYears = years.length > 1;
+    years.forEach(function (y) {
+      if (showYears) out.push({ label: y.key, at: y.at, level: 0 });
+      if (y.size <= 3) return;
+      var months = runsOf(y.notes, function (n) { return n.date ? n.date.slice(0, 7) : ""; });
+      var showMonths = months.length > 1;
+      months.forEach(function (m) {
+        if (showMonths) {
+          out.push({ label: core.monthLabel(m.key).slice(0, 3), at: y.at + m.at,
+                     level: showYears ? 1 : 0 });
+        }
+        if (m.size <= 3) return;
+        var days = runsOf(m.notes, function (n) { return n.date || ""; });
+        if (days.length <= 1) return;
+        days.forEach(function (d) {
+          out.push({ label: d.key.slice(8), at: y.at + m.at + d.at,
+                     level: (showYears ? 1 : 0) + (showMonths ? 1 : 0) });
+        });
+      });
+    });
+    var deepest = out.reduce(function (max, t) { return Math.max(max, t.level || 0); }, 0);
+    while (out.length > 30 && deepest > 0) {
+      var drop = deepest;
+      out = out.filter(function (t) { return (t.level || 0) < drop; });
+      deepest--;
+    }
+    return out;
+  }
+
+  /**
+   * Consecutive runs of notes sharing a key, in the order they stand; a note with no key
+   * (undated) belongs to no run and is skipped.
+   * @param {ShelfNote[]} notes @param {function(ShelfNote): string} keyOf
+   * @returns {{ key: string, at: number, size: number, notes: ShelfNote[] }[]}
+   */
+  function runsOf(notes, keyOf) {
+    /** @type {{ key: string, at: number, size: number, notes: ShelfNote[] }[]} */
+    var runs = [];
+    notes.forEach(function (n, i) {
+      var key = keyOf(n);
+      if (!key) return;
+      var last = runs[runs.length - 1];
+      if (last && last.key === key) { last.size++; last.notes.push(n); return; }
+      runs.push({ key: key, at: i, size: 1, notes: [n] });
+    });
+    /* `at` inside a run's own notes has to be relative to that run, which is what the
+     * nested cuts add up from. The notes array is a copy, so its indices start at zero. */
+    return runs;
   }
 
   function renderTabs() {
@@ -1257,6 +1357,7 @@ function mountVaultShelf(root, data, options) {
     indexSections(reader.book).forEach(function (section) {
       var b = el("button", "", section.label);
       b.type = "button";
+      b.setAttribute("data-level", String(section.level || 0));
       if (section.at <= reader.index) b.setAttribute("aria-current", "true");
       on(b, "click", function () { goTo(section.at); });
       box.appendChild(b);
@@ -1331,6 +1432,36 @@ function mountVaultShelf(root, data, options) {
     if (meta.length) box.appendChild(el("span", "", "  " + meta.join(" \u00b7 ")));
   }
 
+  /**
+   * A line of the fallback renderer's text with its `[[wikilinks]]` made into links the
+   * library can follow (design/0004). Inside Obsidian the app's renderer does this; here it
+   * is the one thing a standalone page needed to make a note more than a dead end.
+   * @param {string} tag @param {string} text @returns {HTMLElement}
+   */
+  function linked(tag, text) {
+    var out = el(tag);
+    var re = /\[\[([^\]|#^]+)(?:[#^][^\]|]*)?(?:\|([^\]]*))?\]\]/g;
+    var at = 0;
+    var m = re.exec(text);
+    while (m !== null) {
+      if (m.index > at) out.appendChild(DOC.createTextNode(text.slice(at, m.index)));
+      var target = noteByLink(m[1]);
+      var label = (m[2] || m[1]).trim();
+      if (target) {
+        var a = el("a", "vs-link", label);
+        a.setAttribute("href", "#");
+        a.setAttribute("data-note", target.id);
+        out.appendChild(a);
+      } else {
+        out.appendChild(el("span", "vs-deadlink", label));
+      }
+      at = m.index + m[0].length;
+      m = re.exec(text);
+    }
+    if (at < text.length) out.appendChild(DOC.createTextNode(text.slice(at)));
+    return out;
+  }
+
   /** @param {HTMLElement} box @param {ShelfNote} note */
   function renderMarkdownInto(box, note) {
     var lines = String(note.body || note.excerpt || "").split("\n");
@@ -1366,15 +1497,15 @@ function mountVaultShelf(root, data, options) {
       var item = /^\s*[-*]\s+(.*)$/.exec(line);
       var quote = /^>\s?(.*)$/.exec(line);
       if (!item && list) list = null;
-      if (head) { box.appendChild(el("h" + (head[1].length + 1), "", head[2])); return; }
+      if (head) { box.appendChild(linked("h" + (head[1].length + 1), head[2])); return; }
       if (item) {
         var into = list;
         if (!into) { into = el("ul"); box.appendChild(into); list = into; }
-        into.appendChild(el("li", "", item[1]));
+        into.appendChild(linked("li", item[1]));
         return;
       }
-      if (quote) { box.appendChild(el("blockquote", "", quote[1])); return; }
-      if (line.trim()) box.appendChild(el("p", "", line));
+      if (quote) { box.appendChild(linked("blockquote", quote[1])); return; }
+      if (line.trim()) box.appendChild(linked("p", line));
     });
     if (!box.firstChild) {
       box.appendChild(el("p", "vs-hint",
@@ -1401,6 +1532,57 @@ function mountVaultShelf(root, data, options) {
     renderMarks();
     renderTabs();
     renderNote();
+  }
+
+  /**
+   * design/0004 -- A LINK IN A BOOK STAYS IN THE LIBRARY. Following `[[a note]]` from the
+   * reading spread goes to that note in this library rather than to Obsidian's own editor:
+   * in THIS book if the book holds it, else in another book on THIS shelf, else in a book on
+   * the nearest shelf -- nearest by position, since the shelves a person keeps side by side
+   * are the ones they think of together. Only a note the library does not hold at all is left
+   * to the host, and the plugin falls through to Obsidian for exactly that case.
+   * @param {string} noteId @returns {"book"|"shelf"|"near"|null}
+   */
+  function openNote(noteId) {
+    if (!reader) return null;
+    var here = reader.book;
+    for (var i = 0; i < here.notes.length; i++) {
+      if (here.notes[i].id === noteId) { goTo(i); return "book"; }
+    }
+    /** @type {{ book: Book, distance: number }|null} */
+    var best = null;
+    var from = shelfById(here.shelfId);
+    var fromAt = from ? from.position : 0;
+    views.forEach(function (v) {
+      if (v.shelf.hidden) return;
+      v.books.forEach(function (b) {
+        if (!b.notes.some(function (n) { return n.id === noteId; })) return;
+        var distance = v.shelf.id === here.shelfId ? -1 : Math.abs(v.shelf.position - fromAt);
+        if (!best || distance < best.distance) best = { book: b, distance: distance };
+      });
+    });
+    if (!best) return null;
+    openBook(best.book, noteId);
+    return best.distance < 0 ? "shelf" : "near";
+  }
+
+  /**
+   * The note a wikilink names, if this library holds it. Obsidian resolves a link by the
+   * shortest unique path; here the exporter has already given every note a vault-relative id,
+   * so a target is matched on its full path, then on its title -- which is what a link that
+   * is only a title means when the title is unique.
+   * @param {string} target @returns {ShelfNote|null}
+   */
+  function noteByLink(target) {
+    var want = target.replace(/\.md$/i, "").trim().toLowerCase();
+    if (!want) return null;
+    var byPath = null, byTitle = null;
+    notes.forEach(function (n) {
+      var id = n.id.replace(/\.md$/i, "").toLowerCase();
+      if (id === want) byPath = n;
+      else if (!byTitle && n.title.toLowerCase() === want) byTitle = n;
+    });
+    return byPath || byTitle;
   }
 
   /** @param {string} id @returns {Shelf|null} */
@@ -1990,6 +2172,15 @@ function mountVaultShelf(root, data, options) {
     pressedOffBook = false;
   });
 
+  on($("note"), "click", function (e) {
+    var t = e.target;
+    if (!(t instanceof Element)) return;
+    var a = t.closest("a.vs-link");
+    if (!(a instanceof HTMLElement)) return;
+    e.preventDefault();
+    openNote(a.getAttribute("data-note") || "");
+  });
+
   on($("prevnote"), "click", function () { goTo(reader.index - 1); });
   on($("nextnote"), "click", function () { goTo(reader.index + 1); });
   on($("within"), "input", function () {
@@ -2040,6 +2231,8 @@ function mountVaultShelf(root, data, options) {
       return !!book;
     },
     closeReader: closeReader,
+    /** design/0004 -- where a link went: "book", "shelf", "near" or null. */
+    openNote: openNote,
     /** @param {string} skin */
     /** @param {string} theme */
     setTheme: function (theme) {
@@ -2177,6 +2370,13 @@ function mountVaultShelf(root, data, options) {
     },
     /** The host says the theme changed; re-read the twelve slots and repaint. */
     readTheme: function () { readTheme(); refresh(); },
+    /**
+     * design/0004 -- the host's renderer emits links it cannot follow itself; it hands the
+     * target here first, and only when the library does not hold that note does it fall
+     * through to opening it in the host.
+     * @param {string} noteId @returns {boolean}
+     */
+    openNote: function (noteId) { return openNote(noteId) !== null; },
     destroy: function () {
       for (var i = onDestroy.length - 1; i >= 0; i--) attempt(onDestroy[i]);
       onDestroy.length = 0;

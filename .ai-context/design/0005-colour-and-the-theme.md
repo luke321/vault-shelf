@@ -167,3 +167,16 @@ clears it. The ribbon has its own input for the same reason.
 apart. A book with three ribbons looks like a book with three ribbons, not like one with a
 wider ribbon.
 
+## The peek is ours, and there is one of it (2026-09-11)
+
+> "there are 2 different hover overlays when hovering a book, they need to be bigger"
+
+A spine carried a `title`, which is the browser's tooltip, and an `aria-label`, which inside
+Obsidian is the app's — so a hovered spine grew two overlays, both too small to read a long tag
+name in. The spine has its own text for a name, so neither attribute is needed. The peek is an
+element of the page now, one `#vs-peek` moved to whichever spine is under the pointer or has
+focus, 13px type up to 340px wide so a name wraps rather than clips, placed above the spine so
+it never covers the book it describes.
+
+**A label of three characters or fewer stands upright.** An Encyclopedia's A is read as A,
+not tilted; so is `0-9`, and so is Ü.

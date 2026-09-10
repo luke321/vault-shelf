@@ -251,6 +251,27 @@ An empty room with no way out is the worst reachable state in this product.
 
 ## The reader
 
+`"a wikilink in a book goes to that note in this book, this shelf, or the nearest"` opens a
+Months book holding a note that links to a person's note but not the person's note itself,
+clicks the link, and asserts the reader is now on that note **in another Months book**; opens a
+book that holds both and asserts the click **stays in that book**; and asserts a note the
+library does not hold is left to the host (`openNote` returns null). Measured on the demo
+vault: **38** linking notes; both cases hold. Vaults with no linked person report so and pass.
+
+`"a hovered spine shows one peek, big enough to read, and short labels stand upright"` asserts
+**0** spines carry a `title` or `aria-label` (two overlays otherwise), hovers the spine with
+the longest label and asserts one `#vs-peek` shows at **14px** with the name unclipped
+(`"Sanne de Vries"` in a **264px** card; `"Jun 2021"` in 340px), clear of the spine, and gone
+on leave; and that every Encyclopedia label of three characters or fewer is `horizontal-tb`
+(**23/23**, 20/20) while no longer label is.
+
+`"the date index is layered: years over months over days, each only where it separates"`
+opens a multi-year tag book and asserts one level-0 tab per year (**`#archive`: 4 years, 4
+tabs, 26 month tabs stepped in, 30 in all**; on the 10k vault `#attention` spans 15 years, 15
+tabs, 9 months, 24 in all), a month book and asserts only day tabs (`02 04 08 11 12 13 …`), and
+a book of three notes or fewer and asserts **0** tabs. `design/0015`.
+
+
 `"a click off the book puts it down, and a click on it does not"` opens a book, clicks the note's
 own text and asserts the reader stays open; clicks the desk **42px** to the left of the cover
 and asserts it closed; then presses on the page and releases on the desk — a text selection
