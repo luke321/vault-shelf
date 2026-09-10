@@ -371,7 +371,26 @@
   font-size: 12px;
 }
 
-.vault-shelf .vs-shelf { margin-bottom: 26px; }
+/* design/0014 -- PAINT ONLY WHAT IS ON SCREEN. Measured before this, scrolling the whole
+ * library: the modern look at a flat 16.7ms a frame, leather at 117ms at the 95th percentile,
+ * cyberpunk at 400ms -- a look paints a spine as several layers of gradient and texture, and
+ * without containment every one of them, on every shelf, is rasterised again on every scroll
+ * step. `content-visibility` skips the shelves that are not in view, `contain` keeps a row's
+ * paint from invalidating its neighbours, and the intrinsic size is a row of books plus its
+ * head and plaques so the scrollbar does not jump as shelves come into view. */
+.vault-shelf .vs-shelf {
+  margin-bottom: 26px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+.vault-shelf .vs-track { contain: layout paint; }
+.vault-shelf .vs-shelfrail { contain: layout; }
+
+/* AND SCROLL A TEXTURE, NOT A PAINT. With the library's contents on a compositor layer of
+ * their own, a scroll step moves tiles that are already rasterised and paints only the strip
+ * that just came into view; without it every visible spine was rasterised again per step,
+ * which is where the leather look's 117ms frames went. */
+.vault-shelf #vs-shelves { will-change: transform; }
 
 .vault-shelf .vs-shelfhead {
   display: flex;

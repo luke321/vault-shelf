@@ -373,6 +373,21 @@ to ghosts, and that the room came back exactly. It takes its search term from th
 running against: hard-coding one passed on the demo vault and, on the sparse one, asserted
 that a query finding nothing still drew something forward.
 
+## Scrolling stays smooth
+
+`"scrolling the library stays smooth in every look"` scripts a 1.4-second scroll through the
+whole room in each look and records the interval between animation frames; the **95th
+percentile** is asserted under **34ms** — two frames at 60Hz, since one dropped frame in
+twenty is where a scroll starts to read as jerky. The median hides a stutter and the worst
+frame is the one-off paint of a shelf entering view, so neither is the number.
+
+Measured before, p50/p95/worst in ms: modern **16.7/16.8/17**, leather **50/117/150**,
+cyberpunk **83/400/400** — the looks paint a spine as several layers of gradient and texture,
+and every visible one was rasterised again per scroll step. After `content-visibility` on a
+shelf, `contain: layout paint` on a row and a compositor layer under the library: leather
+**17.6/18.7/105**, cyberpunk **17.6/18.5/35**, modern unchanged. The worst frame is now the
+first paint of a shelf as it enters, which is once per shelf rather than once per step.
+
 ## The room
 
 `"the room has a width, however wide the window is"` overrides the viewport to **2560px** and

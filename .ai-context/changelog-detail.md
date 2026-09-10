@@ -701,3 +701,22 @@ them by the target's own name, so an aliased link and a plain one are one book.
 The plugin resolves links through `metadataCache.getFirstLinkpathDest`, the same way the app
 does; the exporter indexes person notes by path and by title. 51 checks.
 
+## Scrolling under a look was painting every spine every step
+
+> "performance is not good for what we are showing when scrolling"
+
+Measured with a scripted scroll and frame timing, p50 / p95 / worst in ms:
+
+| look | before | after |
+|---|---|---|
+| modern | 16.7 / 16.8 / 17 | 17.7 / 18.6 / 19 |
+| leather | 50 / **117** / 150 | 17.6 / **18.7** / 105 |
+| cyberpunk | 83 / **400** / 400 | 17.6 / **18.5** / 35 |
+
+Three lines of CSS: `content-visibility: auto` on a shelf, so the ones off screen are not
+painted at all; `contain: layout paint` on a row, so one row's paint cannot invalidate the
+next; and `will-change: transform` on the library's contents, so a scroll moves tiles that are
+already rasterised and paints only the strip that just came into view. The looks' spine paint
+is untouched — it was never too expensive to paint once, only too expensive to paint sixty
+times a second. 52 checks.
+

@@ -134,12 +134,13 @@
 .vault-shelf[data-look="leather"] :focus-visible { outline-color: var(--accent); }
 
 .vault-shelf[data-look="leather"] .vs-newshelf {
-  justify-content: flex-start;
+  /* Centred, like the card it is in the other two looks. The rework left-aligned it under a
+   * rule, which read as a heading that had lost its section. */
+  justify-content: center;
   background: transparent;
   border: 0;
   border-bottom: 1px solid var(--border);
   border-radius: 0;
-  padding-left: 0;
   margin-top: 0;
   margin-bottom: 24px;
   color: var(--text-2);

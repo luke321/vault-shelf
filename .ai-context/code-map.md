@@ -108,7 +108,7 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1488 | `applyLook` |
 | 1495 | `refresh` |
 
-## `scripts/smoke.mjs` — 2138 lines, 6 sections, 19 functions, 51 checks
+## `scripts/smoke.mjs` — 2199 lines, 6 sections, 20 functions, 52 checks
 
 ### Sections
 
@@ -116,10 +116,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 |---|---|
 | 57–72 | chrome |
 | 73–116 | the checks |
-| 117–1633 | the invariants |
-| 1634–1761 | which vaults, and why |
-| 1762–2036 | one run |
-| 2037–2138 | main |
+| 117–1694 | the invariants |
+| 1695–1822 | which vaults, and why |
+| 1823–2097 | one run |
+| 2098–2199 | main |
 
 ### Functions
 
@@ -136,14 +136,15 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 847 | · `read` |
 | 874 | · `pick` |
 | 960 | · `row` |
-| 1174 | · `box` |
-| 1666 | `resolveVaults` |
-| 1748 | `buildFor` |
-| 1764 | `runOne` |
-| 1948 | `tagged` |
-| 1954 | `capture` |
-| 1995 | `killBrowser` |
-| 2039 | `main` |
+| 1189 | · · · `step` |
+| 1235 | · `box` |
+| 1727 | `resolveVaults` |
+| 1809 | `buildFor` |
+| 1825 | `runOne` |
+| 2009 | `tagged` |
+| 2015 | `capture` |
+| 2056 | `killBrowser` |
+| 2100 | `main` |
 
 ### Checks
 
@@ -180,23 +181,24 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1047 | a ribbon hangs from every book that holds a marked note |
 | 1073 | the shelf parts as you type, and no book leaves the room |
 | 1106 | a narrower window grows rows, and a wide one centres the shelf |
-| 1167 | the room has a width, however wide the window is |
-| 1230 | the reader and the sheets are not painted until they are opened |
-| 1247 | clicking a spine opens a book on the note it names |
-| 1264 | the reader's index tabs stay countable on the biggest book |
-| 1278 | previous and next walk the book and stop at its ends |
-| 1303 | also shelved in moves to another book and keeps the note |
-| 1334 | previous collection walks back, and Alt+Left does the same |
-| 1353 | escape closes the reader and leaves the shelf where it was |
-| 1372 | the reading shelf survives its own shelf being hidden |
-| 1408 | a saved reading place re-resolves after its own book is gone |
-| 1423 | the builder previews the shelf it would actually save |
-| 1442 | a saved shelf gets a stable id and joins the library |
-| 1463 | parent tag inclusion is a setting, and it changes the answer |
-| 1483 | a person is read from every people property, and out of a wikilink |
-| 1517 | a link to a person's note names that person, once, by the note's name |
-| 1550 | people come from the property alone, never from prose |
-| 1571 | plain list mode keeps every book reachable |
-| 1588 | every control the keyboard can reach has a name |
-| 1610 | nothing on the page reaches the network |
-| 1620 | a spine lifts on hover and holds its size |
+| 1167 | scrolling the library stays smooth in every look |
+| 1228 | the room has a width, however wide the window is |
+| 1291 | the reader and the sheets are not painted until they are opened |
+| 1308 | clicking a spine opens a book on the note it names |
+| 1325 | the reader's index tabs stay countable on the biggest book |
+| 1339 | previous and next walk the book and stop at its ends |
+| 1364 | also shelved in moves to another book and keeps the note |
+| 1395 | previous collection walks back, and Alt+Left does the same |
+| 1414 | escape closes the reader and leaves the shelf where it was |
+| 1433 | the reading shelf survives its own shelf being hidden |
+| 1469 | a saved reading place re-resolves after its own book is gone |
+| 1484 | the builder previews the shelf it would actually save |
+| 1503 | a saved shelf gets a stable id and joins the library |
+| 1524 | parent tag inclusion is a setting, and it changes the answer |
+| 1544 | a person is read from every people property, and out of a wikilink |
+| 1578 | a link to a person's note names that person, once, by the note's name |
+| 1611 | people come from the property alone, never from prose |
+| 1632 | plain list mode keeps every book reachable |
+| 1649 | every control the keyboard can reach has a name |
+| 1671 | nothing on the page reaches the network |
+| 1681 | a spine lifts on hover and holds its size |

@@ -1164,6 +1164,67 @@ check("a narrower window grows rows, and a wide one centres the shelf", async (p
   };
 });
 
+check("scrolling the library stays smooth in every look", async (p) => {
+  /* MEASURED, NOT ASSUMED. The library is every spine of every shelf, and each look paints a
+   * spine with its own layers of gradient and texture; what that costs is only knowable by
+   * scrolling it and timing the frames. A scripted scroll of the whole room, in each look,
+   * with the interval between animation frames recorded -- the 95th percentile is the number
+   * a person feels, since a single long frame is a stutter and the median hides it. */
+  /* p.eval, not p.j: this one is a promise, and eval awaits it while j would stringify it. */
+  const r = await p.eval(`(async function(){
+    var lib = document.getElementById("vs-library");
+    var sel = document.getElementById("vs-look");
+    var looks = [].slice.call(sel.options).map(function (o) { return o.value; });
+    var out = {};
+    for (var i = 0; i < looks.length; i++) {
+      sel.value = looks[i];
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise(function (r) { setTimeout(r, 120); });
+      lib.scrollTop = 0;
+      var span = lib.scrollHeight - lib.clientHeight;
+      var frames = [];
+      var last = performance.now();
+      var start = last;
+      await new Promise(function (done) {
+        function step(now) {
+          frames.push(now - last);
+          last = now;
+          var t = Math.min(1, (now - start) / 1400);
+          lib.scrollTop = span * t;
+          if (t < 1) requestAnimationFrame(step); else done();
+        }
+        requestAnimationFrame(step);
+      });
+      frames.shift();
+      frames.sort(function (a, b) { return a - b; });
+      out[looks[i] || "modern"] = {
+        p50: frames[Math.floor(frames.length * 0.5)],
+        p95: frames[Math.floor(frames.length * 0.95)],
+        worst: frames[frames.length - 1],
+        frames: frames.length,
+        span: Math.round(span)
+      };
+      lib.scrollTop = 0;
+    }
+    sel.value = looks[0];
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    return { looks: out, spines: document.querySelectorAll("#vs-shelves .vs-spine").length };
+  })()`);
+  const names = Object.keys(r.looks);
+  /* Two frames at 60Hz is the budget for the 95th percentile: one dropped frame in twenty is
+   * where a scroll starts to read as jerky rather than as scrolling. */
+  const BUDGET = 34;
+  const over = names.filter((n) => r.looks[n].p95 > BUDGET);
+  return {
+    ok: over.length === 0,
+    detail: `${r.spines} spines scrolled through ${r.looks[names[0]].span}px; p50/p95/worst ` +
+            `frame in ms -- ` + names.map((n) =>
+              `${n} ${r.looks[n].p50.toFixed(1)}/${r.looks[n].p95.toFixed(1)}/` +
+              `${r.looks[n].worst.toFixed(0)}`).join(", ") +
+            ` (budget: p95 under ${BUDGET}ms${over.length ? "; over in " + over.join(", ") : ""})`
+  };
+});
+
 check("the room has a width, however wide the window is", async (p) => {
   await p.send("Emulation.setDeviceMetricsOverride",
                { width: 2560, height: 1400, deviceScaleFactor: 1, mobile: false });
