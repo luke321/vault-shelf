@@ -184,3 +184,65 @@ screenshot of the plugin in Obsidian showed two dialogs stacked over the shelves
 
 `.vault-shelf [hidden] { display: none !important; }` settles it, and a new check reads the
 **computed style** of all three rather than the attribute.
+
+## Books got a thickness, and plaques went under the floor
+
+**Thickness.** A spine's width used to be one constant, `--spine-w: 38px`, and the note count
+was printed on the spine in 10px type. `design/0011` makes the width the count: log-scaled
+between **22px and 58px**, against the largest book in the whole library rather than in the
+shelf.
+
+| Vault | Thinnest | Fullest |
+|---|---|---|
+| demo | 1 note → **26px** | 227 notes → **53px** |
+| sparse | 20 notes → **42px** | 189 notes → **57px** |
+| library | 309 notes → **45px** | 1,020 notes → **50px** |
+
+The library figures are the argument for the log: on a linear scale its 12 year-books would
+span **45px to 50px**… which is what they do anyway, because that vault is deliberately even.
+The demo vault's 1-to-227 spread is the case a linear scale ruins, and there it spends the
+whole range.
+
+**Plaques.** The shelf floor was the track's `border-bottom`, which made it the last thing in
+the box: a plaque could only ever sit *above* it, resting on the books. It is now a background
+line painted at `var(--spine-h)`, so the plaque row hangs beneath it the way an engraved plate
+is screwed to a shelf edge. Measured on the demo vault: **12px below the books, clearing the
+3px floor, width matching to 0px** (was: 5px above, same width).
+
+**The room's width check had to change with them.** It asserted that every `.vs-track` fitted
+inside `--measure`, which was true only while books were 38px wide. With real thicknesses the
+10k library's first shelf runs to **1321px** — a long shelf, which is not a bug — so the check
+now asserts the **scroller** fits (1180px) and clips, and reports the track width it is
+clipping.
+
+## A fifteenth month, found by filming a real vault
+
+`scripts/make-mirror-vault.mjs` rebuilds a real vault's *shape* with invented words
+(`design/0013`), and `record-demo.mjs` now shoots there by default. The first film made in one
+had a Months shelf with a book labelled **"15 2024"**.
+
+The note behind it is real and its frontmatter says `date: 2024-15-01` — a day typed where a
+month goes, in a file already named `2024-01-15 …`. Two implementations disagreed about it:
+
+| | `2024-15-01` |
+|---|---|
+| `core.isIsoDay` (the plugin) | rejected — falls through to the filename, **2024-01-15** |
+| `ISO_DAY` in `src/build-shelf.mjs` (the exporter) | accepted — month key **`2024-15`** |
+
+The exporter's regex was `/^\d{4}-\d{2}-\d{2}$/` with no range check. It now evaluates the same
+core bundle it inlines into the page and calls `core.resolveDate`, so there is one
+implementation of the precedence and one of the validity test. Measured on the mirror: **543
+notes, 0 with a month outside 01-12** (was 1).
+
+The sparse fixture gained the two notes that make this checkable — one impossible header with a
+date in its filename, one without — and `"an impossible date is not a date, and never a
+fifteenth month"` asserts **1 falls through to the filename, 1 is Undated, 0 land anywhere
+else**. The suite is 39 checks over three shapes.
+
+### What the mirror preserves
+
+543 real notes in, 543 out, same tree and same dates: **60 folders mapped, 125 people, 142 tag
+words, 402 property values, 44 property keys**, and **829 real strings** grepped back out of
+every written file with a word-boundary match. A structural folder name (`01 - Projects`) and
+the keys this project writes itself are excused by name — **91 words** — because they are kept
+on purpose; everything else is a hard failure with no mirror written.

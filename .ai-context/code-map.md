@@ -4,91 +4,92 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 1268 lines, 16 sections, 56 functions
+## `src/page.js` — 1296 lines, 16 sections, 57 functions
 
 ### Sections
 
 | lines | section |
 |---|---|
 | 1–60 | types |
-| 61–171 | palette |
-| 172–218 | state |
-| 219–238 | membership |
-| 239–260 | the rail |
-| 261–281 | the reading shelf |
-| 282–451 | library |
-| 452–489 | the shelf parts as you type |
-| 490–785 | reader |
-| 786–951 | builder |
-| 952–1018 | manage |
-| 1019–1040 | filters |
-| 1041–1061 | refresh |
-| 1062–1114 | the wiring |
-| 1115–1235 | debug api — stripped from the plugin build |
-| 1236–1268 | the wiring (continued) |
+| 61–179 | palette |
+| 180–228 | state |
+| 229–250 | membership |
+| 251–272 | the rail |
+| 273–293 | the reading shelf |
+| 294–476 | library |
+| 477–514 | the shelf parts as you type |
+| 515–813 | reader |
+| 814–979 | builder |
+| 980–1046 | manage |
+| 1047–1068 | filters |
+| 1069–1089 | refresh |
+| 1090–1142 | the wiring |
+| 1143–1263 | debug api — stripped from the plugin build |
+| 1264–1296 | the wiring (continued) |
 
 ### Functions
 
 | line | function |
 |---|---|
-| 80 | `mountVaultShelf` |
-| 87 | `$` |
-| 97 | `attempt` |
-| 107 | `on` |
-| 118 | `el` |
-| 126 | `clear` |
-| 134 | `node` |
-| 144 | `field` |
-| 152 | `flat` |
-| 163 | `uniqueSorted` |
-| 201 | `persist` |
-| 210 | `readTheme` |
-| 224 | `rebuild` |
-| 244 | `renderRail` |
-| 268 | `readingBooks` |
-| 284 | `renderLibrary` |
-| 316 | `renderReadingShelf` |
-| 338 | `renderShelf` |
-| 375 | `renderTrack` |
-| 399 | `renderSpine` |
-| 444 | `ribbonsIn` |
-| 457 | `applyQuery` |
-| 477 | `scrollToShelf` |
-| 486 | `cssEscape` |
-| 495 | `openBook` |
-| 515 | `markWear` |
-| 524 | `closeReader` |
-| 534 | `renderReader` |
-| 550 | `renderContents` |
-| 581 | `indexSections` |
-| 617 | `renderTabs` |
-| 629 | `renderNote` |
-| 687 | `renderMeta` |
-| 701 | `renderMarkdownInto` |
-| 728 | `goTo` |
-| 737 | `shelfById` |
-| 745 | `isBookmarked` |
-| 749 | `toggleBookmark` |
-| 764 | `previousCollection` |
-| 777 | `findBook` |
-| 792 | `openBuilder` |
-| 812 | `closeBuilder` |
-| 818 | `writeBuilderFields` |
-| 834 | `readBuilderFields` |
-| 853 | `fillSourceValues` |
-| 872 | `fillProperties` |
-| 891 | `fillRecipes` |
-| 910 | `previewBuilder` |
-| 928 | `saveBuilder` |
-| 946 | `uniqueId` |
-| 954 | `openManage` |
-| 960 | `renderManage` |
-| 1005 | `reorder` |
-| 1021 | `renderActiveFilters` |
-| 1034 | `clearFilters` |
-| 1043 | `refresh` |
+| 88 | `mountVaultShelf` |
+| 95 | `$` |
+| 105 | `attempt` |
+| 115 | `on` |
+| 126 | `el` |
+| 134 | `clear` |
+| 142 | `node` |
+| 152 | `field` |
+| 160 | `flat` |
+| 171 | `uniqueSorted` |
+| 211 | `persist` |
+| 220 | `readTheme` |
+| 234 | `rebuild` |
+| 256 | `renderRail` |
+| 280 | `readingBooks` |
+| 296 | `renderLibrary` |
+| 328 | `renderReadingShelf` |
+| 350 | `renderShelf` |
+| 387 | `renderTrack` |
+| 411 | `renderSpine` |
+| 462 | `thicknessOf` |
+| 469 | `ribbonsIn` |
+| 482 | `applyQuery` |
+| 502 | `scrollToShelf` |
+| 511 | `cssEscape` |
+| 520 | `openBook` |
+| 540 | `markWear` |
+| 549 | `closeReader` |
+| 559 | `renderReader` |
+| 575 | `renderContents` |
+| 609 | `indexSections` |
+| 645 | `renderTabs` |
+| 657 | `renderNote` |
+| 715 | `renderMeta` |
+| 729 | `renderMarkdownInto` |
+| 756 | `goTo` |
+| 765 | `shelfById` |
+| 773 | `isBookmarked` |
+| 777 | `toggleBookmark` |
+| 792 | `previousCollection` |
+| 805 | `findBook` |
+| 820 | `openBuilder` |
+| 840 | `closeBuilder` |
+| 846 | `writeBuilderFields` |
+| 862 | `readBuilderFields` |
+| 881 | `fillSourceValues` |
+| 900 | `fillProperties` |
+| 919 | `fillRecipes` |
+| 938 | `previewBuilder` |
+| 956 | `saveBuilder` |
+| 974 | `uniqueId` |
+| 982 | `openManage` |
+| 988 | `renderManage` |
+| 1033 | `reorder` |
+| 1049 | `renderActiveFilters` |
+| 1062 | `clearFilters` |
+| 1071 | `refresh` |
 
-## `scripts/smoke.mjs` — 1279 lines, 6 sections, 10 functions, 38 checks
+## `scripts/smoke.mjs` — 1370 lines, 6 sections, 10 functions, 40 checks
 
 ### Sections
 
@@ -96,10 +97,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 |---|---|
 | 54–69 | chrome |
 | 70–107 | the checks |
-| 108–848 | the invariants |
-| 849–976 | which vaults, and why |
-| 977–1177 | one run |
-| 1178–1279 | main |
+| 108–939 | the invariants |
+| 940–1067 | which vaults, and why |
+| 1068–1268 | one run |
+| 1269–1370 | main |
 
 ### Functions
 
@@ -109,12 +110,12 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 43 | `freePort` |
 | 56 | `findChrome` |
 | 87 | `gridSlot` |
-| 472 | · `box` |
-| 881 | `resolveVaults` |
-| 963 | `buildFor` |
-| 979 | `runOne` |
-| 1136 | `killBrowser` |
-| 1180 | `main` |
+| 552 | · `box` |
+| 972 | `resolveVaults` |
+| 1054 | `buildFor` |
+| 1070 | `runOne` |
+| 1227 | `killBrowser` |
+| 1271 | `main` |
 
 ### Checks
 
@@ -126,35 +127,37 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 132 | a shelf's note count is unique notes, never the sum of its books |
 | 145 | every note reachable from the vault is on at least one shelf |
 | 158 | an undated note lands in Undated, not in a guessed year |
-| 170 | an ISO week keeps its week-year across a January boundary |
-| 186 | the Encyclopedia opens with a 0-9 volume, not ten one-note books |
-| 197 | year plaques only appear on date classifiers, and only when asked for |
-| 214 | a plaque sits under the books it names, in the same scroller |
-| 233 | book addresses are stable across a rebuild |
-| 244 | a filter changes membership without moving a shelf |
-| 265 | a hidden shelf keeps its definition and its books |
-| 283 | hiding every shelf offers a way back rather than an empty room |
-| 307 | the library is the whole surface, with no sidebar |
-| 334 | the twelve colour slots are Vault Graph's own |
-| 363 | the theme follows the host, and the slots are re-read when it changes |
-| 383 | shelf wear is recorded and drawn, and survives a rebuild |
-| 406 | a ribbon hangs from every book that holds a marked note |
-| 432 | the shelf parts as you type, and no book leaves the room |
-| 465 | the room has a width, however wide the window is |
-| 512 | the reader and the sheets are not painted until they are opened |
-| 529 | clicking a spine opens a book on the note it names |
-| 546 | the reader's index tabs stay countable on the biggest book |
-| 560 | previous and next walk the book and stop at its ends |
-| 585 | also shelved in moves to another book and keeps the note |
-| 616 | previous collection walks back, and Alt+Left does the same |
-| 635 | escape closes the reader and leaves the shelf where it was |
-| 654 | the reading shelf survives its own shelf being hidden |
-| 690 | a saved reading place re-resolves after its own book is gone |
-| 705 | the builder previews the shelf it would actually save |
-| 724 | a saved shelf gets a stable id and joins the library |
-| 745 | parent tag inclusion is a setting, and it changes the answer |
-| 765 | people come from the property alone, never from prose |
-| 786 | plain list mode keeps every book reachable |
-| 803 | every control the keyboard can reach has a name |
-| 825 | nothing on the page reaches the network |
-| 835 | a spine lifts on hover and holds its size |
+| 170 | an impossible date is not a date, and never a fifteenth month |
+| 210 | an ISO week keeps its week-year across a January boundary |
+| 226 | the Encyclopedia opens with a 0-9 volume, not ten one-note books |
+| 237 | year plaques only appear on date classifiers, and only when asked for |
+| 254 | a plaque sits under the books it names, in the same scroller |
+| 279 | a spine's thickness is its note count |
+| 313 | book addresses are stable across a rebuild |
+| 324 | a filter changes membership without moving a shelf |
+| 345 | a hidden shelf keeps its definition and its books |
+| 363 | hiding every shelf offers a way back rather than an empty room |
+| 387 | the library is the whole surface, with no sidebar |
+| 414 | the twelve colour slots are Vault Graph's own |
+| 443 | the theme follows the host, and the slots are re-read when it changes |
+| 463 | shelf wear is recorded and drawn, and survives a rebuild |
+| 486 | a ribbon hangs from every book that holds a marked note |
+| 512 | the shelf parts as you type, and no book leaves the room |
+| 545 | the room has a width, however wide the window is |
+| 603 | the reader and the sheets are not painted until they are opened |
+| 620 | clicking a spine opens a book on the note it names |
+| 637 | the reader's index tabs stay countable on the biggest book |
+| 651 | previous and next walk the book and stop at its ends |
+| 676 | also shelved in moves to another book and keeps the note |
+| 707 | previous collection walks back, and Alt+Left does the same |
+| 726 | escape closes the reader and leaves the shelf where it was |
+| 745 | the reading shelf survives its own shelf being hidden |
+| 781 | a saved reading place re-resolves after its own book is gone |
+| 796 | the builder previews the shelf it would actually save |
+| 815 | a saved shelf gets a stable id and joins the library |
+| 836 | parent tag inclusion is a setting, and it changes the answer |
+| 856 | people come from the property alone, never from prose |
+| 877 | plain list mode keeps every book reachable |
+| 894 | every control the keyboard can reach has a name |
+| 916 | nothing on the page reaches the network |
+| 926 | a spine lifts on hover and holds its size |

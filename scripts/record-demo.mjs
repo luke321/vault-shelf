@@ -3,7 +3,7 @@
 
 import { attach } from "./cdp.mjs";
 import { spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -74,9 +74,50 @@ function fixtureStore() {
   return join(dirname(abs), ".fixtures");
 }
 
+/* design/0013 -- WHERE THE FILM IS SHOT.
+ *
+ * A fixture vault is built to exercise the classifiers, and it shows: even people, smooth tag
+ * counts, folders called `alpha`. The uneven shelf is the whole point of the product and a
+ * fixture is the one vault that is not uneven, so the film is shot in a MIRROR of a real
+ * vault -- same tree, same dates, same distributions, no real words.
+ *
+ * The source path is read from `.mirror-source` (gitignored, written once) or the environment,
+ * never from a commit: `check-pii` refuses a vault path in a tracked file, and it is right to.
+ */
+function mirrorSource() {
+  const explicit = arg("mirror-of", "");
+  if (explicit) return resolve(explicit);
+  const f = join(ROOT, ".mirror-source");
+  if (existsSync(f)) {
+    const line = readFileSync(f, "utf8").split(/\r?\n/).map((l) => l.replace(/#.*$/, "").trim())
+      .find(Boolean);
+    if (line) return resolve(line);
+  }
+  const env = process.env.VAULT_SHELF_VAULT || process.env.OBSIDIAN_VAULT || "";
+  return env ? resolve(env) : "";
+}
+
 function sourceVault() {
   const explicit = arg("vault", "");
   if (explicit) return resolve(explicit);
+
+  const source = argv.includes("--no-mirror") ? "" : mirrorSource();
+  if (source) {
+    if (!existsSync(source)) throw new Error("mirror source does not exist: " + source);
+    const out = join(ROOT, "mirror-vault");
+    say("mirroring a real vault (its shape only) -> " + out);
+    const made = spawnSync(process.execPath,
+      [join(ROOT, "scripts", "make-mirror-vault.mjs"), "--vault", source, "--out", out],
+      { encoding: "utf8" });
+    process.stdout.write(made.stdout || "");
+    if (made.status !== 0) {
+      // A failed mirror does NOT fall through to the fixture: the reason it failed is the
+      // reason it exists, and a silent downgrade would hide it behind a film that still works.
+      throw new Error("make-mirror-vault failed:\n" + (made.stderr || made.stdout));
+    }
+    return out;
+  }
+
   const store = fixtureStore();
   const hit = existsSync(store)
     ? readdirSync(store).find((d) => d.startsWith("demo-vault-") && statSync(join(store, d)).isDirectory())
@@ -85,6 +126,7 @@ function sourceVault() {
     throw new Error("no demo-vault-* fixture in " + store +
       ' -- run `node scripts/smoke.mjs --only "no console errors"` once to generate the store');
   }
+  say("no mirror source (.mirror-source / VAULT_SHELF_VAULT): shooting in a fixture vault");
   return join(store, hit);
 }
 
@@ -132,7 +174,8 @@ html, body { background: #0b0c0d; }
  * else needs to know the frame rate.
  */
 function storyboard(P) {
-  const { go, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once } = P;
+  const { go, j, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once } = P;
+  let parted = "note";   // the search the parting act types, taken from the vault itself
 
   return [
     {
@@ -171,10 +214,13 @@ function storyboard(P) {
     {
       name: "peek",
       seconds: 5,
-      async at(t) {
+      async at(t, first) {
         await caption(t, 0.08, 0.9,
           "A spine is a book: its title, its size, where its notes came from.",
           "The band at the head is the folder mix. The number at the foot is the count.");
+        // The plaques act left this rail 900px along. The fourth spine is only at a coordinate
+        // worth aiming at from the start of it.
+        if (first) await railTo(await railOf("months"), 0);
         const spine = await spineIn("months", 3);
         if (t > 0.2) await hover(spine);
       },
@@ -184,8 +230,15 @@ function storyboard(P) {
       seconds: 8,
       async at(t, first) {
         if (first) {
+          await railTo(await railOf("months"), 0);
           const spine = await spineIn("months", 3);
-          await click(spine);
+          const hit = await click(spine);
+          const open = await j(`!document.getElementById("vs-reader").hidden`);
+          if (!hit || !open) {
+            throw new Error("read: the click " + (hit ? "hit a spine but no reader opened" :
+              "found no spine at " + JSON.stringify(spine)) +
+              " -- every act after this one films a shelf and talks about a book");
+          }
         }
         await caption(t, 0.1, 0.88,
           "Open it and <b>read</b>.",
@@ -251,9 +304,26 @@ function storyboard(P) {
           "Search, and the shelf <b>parts</b>.",
           "Nothing is removed. Matches draw forward, the rest thin to ghosts, and clearing " +
           "the box puts the room back exactly.");
-        if (first) await scrollTo(await shelfTop("encyclopedia", -20));
+        if (first) {
+          await scrollTo(await shelfTop("encyclopedia", -20));
+          /* THE NEEDLE COMES OUT OF THE VAULT. It used to be the literal "garden", which is a
+           * tag in the demo fixture and in no other vault on earth: filmed anywhere else the
+           * shelf parted around nothing and the act argued for a feature it had just failed to
+           * show. The vault's most-used tag is a word this vault is certainly about. */
+          parted = await j(`(function(){
+            var count = {};
+            __vs.data().notes.forEach(function (n) {
+              (n.tags || []).forEach(function (tag) {
+                var head = String(tag).split("/")[0];
+                if (head.length >= 4) count[head] = (count[head] || 0) + 1;
+              });
+            });
+            var best = Object.keys(count).sort(function (a, b) { return count[b] - count[a]; })[0];
+            return best || "note";
+          })()`);
+        }
         /* Typed a letter at a time, because the whole point is what happens WHILE you type. */
-        const word = "garden";
+        const word = parted;
         if (t < 0.62) {
           const n = Math.min(word.length, Math.floor(((t - 0.12) / 0.38) * word.length) + 1);
           await go(`__vs.setQuery(${JSON.stringify(word)}.slice(0, ${Math.max(0, n)})); void 0`);
@@ -449,14 +519,20 @@ try {
     await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: p.x, y: p.y, buttons: 0 });
   };
 
+  /* RETURNS WHETHER IT HIT A SPINE. `elementFromPoint` on a spine that has scrolled out of its
+   * rail finds the page, or nothing, and clicks neither -- so the act films a shelf while its
+   * caption talks about a reader, and the take looks fine until somebody watches it. Four acts
+   * of one film went out that way. Callers assert on the answer. */
   const click = async (p) => {
-    if (!p) return;
+    if (!p) return false;
     await hover(p);
-    await go(`(function(){
+    return j(`(function(){
       var el = document.elementFromPoint(${p.x}, ${p.y});
       while (el && !el.classList.contains("vs-spine")) el = el.parentElement;
-      if (el) el.click();
-    })(); void 0`);
+      if (!el) return false;
+      el.click();
+      return true;
+    })()`);
   };
 
   /* THE CAPTION FADES ON A CURVE OF ITS OWN, so a caption is never mid-fade while the thing
@@ -497,7 +573,7 @@ try {
     await fn();
   };
 
-  const P = { go, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once };
+  const P = { go, j, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once };
   const acts = storyboard(P).filter((a) => !ONLY.length || ONLY.some((q) => a.name.toLowerCase().includes(q)));
   if (!acts.length) throw new Error("--act " + ONLY.join(",") + " matched no act");
 

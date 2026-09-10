@@ -68,6 +68,14 @@
 var SLOT_KEYS = ["--g1", "--g2", "--g3", "--g4", "--g5", "--g6",
                  "--g7", "--g8", "--g9", "--g10", "--g11", "--g12"];
 
+/* design/0011 -- A BOOK'S THICKNESS IS ITS NOTE COUNT, on a log scale between these two.
+ * Linear would give the Encyclopedia's 0-9 volume (184 notes on the demo vault) a spine
+ * fourteen times the width of a one-note book, which is not a shelf, it is a bar chart lying
+ * down. Log compresses the tail so a big book is visibly big and a small one is still a book
+ * you can read the title of. */
+var SPINE_MIN = 22;
+var SPINE_MAX = 58;
+
 var ID = "vs-";
 
 /**
@@ -187,6 +195,8 @@ function mountVaultShelf(root, data, options) {
   var views = [];
   /** @type {Record<string, Book>} */
   var bookIndex = {};
+  /** The biggest book in the library, which every thickness is scaled against. */
+  var thickest = 1;
   /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
@@ -225,11 +235,13 @@ function mountVaultShelf(root, data, options) {
     var visible = core.applyFilters(notes, filters);
     var ordered = settings.shelves.slice().sort(function (a, b) { return a.position - b.position; });
     bookIndex = {};
+    thickest = 1;
     views = ordered.map(function (shelf) {
       var view = core.buildShelf(shelf, visible);
       view.books.forEach(function (book) {
         book.bands.forEach(function (band) { band.slot = slotOf[band.folder] || "#6f6e67"; });
         bookIndex[book.id] = book;
+        if (book.notes.length > thickest) thickest = book.notes.length;
       });
       return view;
     });
@@ -401,6 +413,7 @@ function mountVaultShelf(root, data, options) {
     b.type = "button";
     b.setAttribute("data-book", book.id);
     if (!book.notes.length) b.setAttribute("data-empty", "1");
+    b.style.setProperty("--spine-w", thicknessOf(book.notes.length) + "px");
 
     /* design/0005 -- THE BOARD IS THE COLOUR. A book's binding is dyed; it does not carry a
      * stacked bar chart on its head. The dominant folder's slot tints the whole spine, and the
@@ -438,6 +451,18 @@ function mountVaultShelf(root, data, options) {
 
     on(b, "click", function () { openBook(book, null); });
     return b;
+  }
+
+  /**
+   * design/0011 -- scaled against the whole LIBRARY, not against the shelf, so a book that is
+   * thick on the Months shelf is the same thickness in the Encyclopedia. A shelf whose books
+   * are all small therefore looks like a shelf of small books, which is true.
+   * @param {number} n @returns {number}
+   */
+  function thicknessOf(n) {
+    if (thickest <= 1) return SPINE_MIN;
+    var t = Math.log(1 + n) / Math.log(1 + thickest);
+    return Math.round(SPINE_MIN + (SPINE_MAX - SPINE_MIN) * t);
   }
 
   /** @param {Book} book @returns {number} */
@@ -558,7 +583,10 @@ function mountVaultShelf(root, data, options) {
       b.type = "button";
       if (note.id === reader.noteId) b.setAttribute("aria-current", "true");
       b.appendChild(el("span", "vs-t", note.title));
+      /* design/0012 -- a leader exists because there is something at the end of it. A row with
+       * no date to lead to just stops, the way a printed index does. */
       if (note.date && note.title.indexOf(note.date) !== 0) {
+        b.appendChild(el("span", "vs-leader"));
         b.appendChild(el("span", "vs-when", note.date));
       }
       on(b, "click", function () { goTo(i); });

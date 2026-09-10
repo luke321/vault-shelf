@@ -167,6 +167,46 @@ check("an undated note lands in Undated, not in a guessed year", async (p) => {
                        `which sorts ${r.last === "-undated" ? "last" : "at " + r.last}` };
 });
 
+check("an impossible date is not a date, and never a fifteenth month", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var notes = __vs.data().notes;
+    var unreal = notes.filter(function (n) { return n.date !== null && !core.isIsoDay(n.date); });
+    var months = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0];
+    var badKeys = months ? months.books.filter(function (b) {
+      return b.key !== "-undated" && !/^\\d{4}-(0[1-9]|1[0-2])$/.test(b.key);
+    }).map(function (b) { return b.key; }) : [];
+    var typos = notes.filter(function (n) {
+      var raw = n.props && n.props.date;
+      return !!raw && !core.isIsoDay(String(raw).slice(0, 10));
+    });
+    var misdated = typos.filter(function (n) {
+      if (n.date === null) return false;                      // Undated is the honest answer
+      if (n.title.slice(0, 10) === n.date) return false;      // fell through to the filename
+      for (var k in n.props) {                                // or to another date field
+        if (String(n.props[k]).slice(0, 10) === n.date && core.isIsoDay(n.date)) return false;
+      }
+      return true;
+    });
+    return { notes: notes.length, unreal: unreal.length, badKeys: badKeys,
+             typos: typos.length, misdated: misdated.map(function (n) { return n.title; }),
+             fellThrough: typos.filter(function (n) {
+               return n.date !== null && n.title.slice(0, 10) === n.date;
+             }).length,
+             undated: typos.filter(function (n) { return n.date === null; }).length };
+  })()`);
+  const ok = r.unreal === 0 && r.badKeys.length === 0 && r.misdated.length === 0;
+  return {
+    ok,
+    detail: r.typos === 0
+      ? `no impossible headers in this vault; ${r.notes} notes, every resolved date a real day, ` +
+        `every month key inside 01-12`
+      : `${r.typos} note(s) with an impossible date header: ${r.fellThrough} fell through to ` +
+        `the filename, ${r.undated} are Undated, ${r.misdated.length} landed somewhere else ` +
+        `(${r.badKeys.length} out-of-range month keys)`
+  };
+});
+
 check("an ISO week keeps its week-year across a January boundary", async (p) => {
   const r = await p.j(`(function(){
     var core = window.VaultShelfCore;
@@ -220,14 +260,54 @@ check("a plaque sits under the books it names, in the same scroller", async (p) 
     if (!plaque || !books) return { found: false };
     var pb = plaque.getBoundingClientRect(), bb = books.getBoundingClientRect();
     var rail = group.closest(".vs-shelfrail");
-    return { found: true, below: Math.round(pb.top - bb.bottom),
+    var app = document.getElementById("vs-app");
+    var board = parseFloat(getComputedStyle(app).getPropertyValue("--board")) || 0;
+    return { found: true, below: Math.round(pb.top - bb.bottom), board: board,
              sameRail: rail !== null && rail.contains(plaque) && rail.contains(books),
              widthDiff: Math.round(Math.abs(pb.width - bb.width)) };
   })()`);
   if (!r.found) return { ok: false, detail: "no plaqued group on the Months shelf" };
-  return { ok: r.below >= 0 && r.sameRail,
-           detail: `plaque ${r.below}px below its books, same scroller: ${r.sameRail}, ` +
-                   `width differs by ${r.widthDiff}px` };
+  /* design/0003 -- BELOW THE FLOOR, not merely below the books: the plate is screwed to the
+   * front edge of the shelf, not propped against the volumes. The floor is drawn as a
+   * background line --board tall directly under the books, so clearing the books by at least
+   * that much is the plaque clearing the floor. */
+  return { ok: r.below >= r.board && r.sameRail,
+           detail: `plaque hangs ${r.below}px below its books, clearing the ${r.board}px ` +
+                   `floor; same scroller: ${r.sameRail}; width differs by ${r.widthDiff}px` };
+});
+
+check("a spine's thickness is its note count", async (p) => {
+  const r = await p.j(`(function(){
+    var rail = document.querySelector('[data-shelf="years"] .vs-track') ||
+               document.querySelector(".vs-track");
+    var spines = [].slice.call(rail.querySelectorAll(".vs-spine"));
+    var read = spines.map(function (b) {
+      var n = b.querySelector(".vs-n");
+      return { w: parseFloat(getComputedStyle(b).getPropertyValue("--spine-w")),
+               n: n ? Number(n.textContent) : 0,
+               id: b.getAttribute("data-book") };
+    }).filter(function (x) { return x.n > 0 && isFinite(x.w); });
+    var byCount = read.slice().sort(function (a, b) { return a.n - b.n; });
+    var monotonic = byCount.every(function (x, i) { return i === 0 || x.w >= byCount[i - 1].w; });
+    var widest = read.slice().sort(function (a, b) { return b.w - a.w; })[0];
+    var fullest = byCount[byCount.length - 1];
+    var thinnest = byCount[0];
+    return { count: read.length, monotonic: monotonic,
+             min: Math.min.apply(null, read.map(function (x) { return x.w; })),
+             max: Math.max.apply(null, read.map(function (x) { return x.w; })),
+             widest: widest, fullest: fullest, thinnest: thinnest };
+  })()`);
+  const inBounds = r.min >= 22 && r.max <= 58;
+  // The fullest book is AS WIDE AS ANY, not necessarily the unique widest: two counts a few
+  // notes apart round to the same pixel, and a tie is not a violation of anything.
+  const ok = r.count > 1 && r.monotonic && inBounds && r.fullest.w === r.max;
+  return {
+    ok,
+    detail: `${r.count} spines: ${r.thinnest.n} notes -> ${r.thinnest.w}px, ` +
+            `${r.fullest.n} notes -> ${r.fullest.w}px; widths rise with counts: ${r.monotonic}, ` +
+            `the fullest book is as wide as any: ${r.fullest.w === r.max}, ` +
+            `all within 22-58px: ${inBounds}`
+  };
 });
 
 check("book addresses are stable across a rebuild", async (p) => {
@@ -480,12 +560,17 @@ check("the room has a width, however wide the window is", async (p) => {
     __vs.closeReader();
     var shelves = box(document.getElementById("vs-shelves"));
     var rail = box(document.querySelector("#vs-rail .vs-inner"));
-    var track = box(document.querySelector("#vs-shelves .vs-track"));
+    var trackEl = document.querySelector("#vs-shelves .vs-track");
+    var scrollerEl = trackEl ? trackEl.parentElement : null;
+    var track = box(trackEl);
+    var scroller = box(scrollerEl);
+    var clipped = scrollerEl ? getComputedStyle(scrollerEl).overflowX !== "visible" : false;
     __vs.openBook(__vs.addresses()[0], null);
     var spread = box(document.querySelector("#vs-reader .vs-spread"));
     __vs.closeReader();
     return { measure: measure, app: Math.round(app.getBoundingClientRect().width),
-             shelves: shelves, rail: rail, track: track, spread: spread };
+             shelves: shelves, rail: rail, track: track, scroller: scroller,
+             clipped: clipped, spread: spread };
   })()`);
   await p.send("Emulation.clearDeviceMetricsOverride");
   await sleep(250);
@@ -496,16 +581,22 @@ check("the room has a width, however wide the window is", async (p) => {
    * 0 on an overlay scrollbar. The tolerance is for that, not for sloppiness: 20px cannot
    * hide a genuinely left- or right-aligned column, which would be off by hundreds. */
   const centred = (b) => b && Math.abs(b.left - b.right) <= 20;
+  /* A TRACK IS ALLOWED TO BE WIDER THAN THE ROOM -- that is a shelf with more books on it
+   * than fit, which is the normal case and the reason the rail scrolls at all. Since
+   * design/0011 gave every book its own thickness, a 10k library's first shelf runs past
+   * 1180px, and asserting otherwise asserted that no shelf may be long. What the room's width
+   * actually promises is that the SCROLLER stays inside the measure and clips. */
   const wide = r.app > r.measure + 400;
   const ok = wide && fits(r.shelves) && fits(r.rail) && fits(r.spread) &&
-             fits(r.track) && centred(r.shelves) && centred(r.spread);
+             fits(r.scroller) && r.clipped && centred(r.shelves) && centred(r.spread);
   return {
     ok,
     detail: !wide
       ? `the viewport override did not take: the app is only ${r.app}px wide`
       : `in a ${r.app}px view with --measure ${r.measure}: shelves ${r.shelves.w} ` +
-        `(${r.shelves.left}/${r.shelves.right}), rail ${r.rail.w}, board ${r.track.w}, ` +
-        `spread ${r.spread.w} (${r.spread.left}/${r.spread.right}) -- nothing runs to the edge`
+        `(${r.shelves.left}/${r.shelves.right}), rail ${r.rail.w}, a ${r.scroller.w}px ` +
+        `scroller clipping ${r.track.w}px of books (clips: ${r.clipped}), spread ` +
+        `${r.spread.w} (${r.spread.left}/${r.spread.right}) -- nothing runs to the edge`
   };
 });
 

@@ -146,5 +146,20 @@ for (const folder of FOLDERS) {
   }
 }
 
+/* THE TYPO THAT IS NOT A DATE. `date: 2024-15-01` is what a real vault contains after
+ * somebody types a day where a month goes, and it is not a fifteenth month: the note falls
+ * through to the filename, which is a date and is right. Declared here rather than left to
+ * chance, because it is the case that separates "declared, never inferred" from "parsed
+ * loosely" -- and it is the one an exporter with its own regex got wrong (design/0013). */
+write("journal", "2024-01-15 A day with an impossible header",
+      { date: "2024-15-01", people: [], tags: ["misfiled"], status: "" },
+      "The header says a fifteenth month. The filename does not.");
+
+/* ...and one with nothing to fall through TO, which has to be Undated rather than anything
+ * clever. */
+write("journal", "A note with an impossible header and no date in its name",
+      { date: "2023-02-30", people: [], tags: ["misfiled"], status: "" },
+      "The thirtieth of February is not a date either.");
+
 console.log(`wrote ${count} notes to ${OUT} (seed ${SEED}, end ${END}); ` +
-            `${undated} undated, ${crowded} in eleven books at once`);
+            `${undated} undated, ${crowded} in eleven books at once, 2 with impossible dates`);

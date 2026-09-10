@@ -92,7 +92,10 @@
  * the top, and it is the width of a shelf label rather than a panel.
  */
 .vault-shelf {
-  --spine-w: 38px;
+  /* design/0011 -- a book's THICKNESS is its note count. --spine-w is the fallback for a
+   * spine nobody has sized (the builder's preview draws before the library has a maximum to
+   * scale against); src/page.js sets the real one per book. */
+  --spine-w: 34px;
   --spine-h: 132px;
   --board: 3px;
   /* design/0009 -- A ROOM HAS A WIDTH. On a WQHD screen the leaf is ~2,200px after Obsidian's
@@ -365,23 +368,37 @@
   padding-bottom: 6px;
 }
 
-/* THE BOARD IS INSIDE THE SCROLLER, for the same reason the plaque is (design/0003): a rule
- * drawn outside the rail drifts out from under its books the moment the rail scrolls. */
+/* THE FLOOR IS INSIDE THE SCROLLER, for the same reason the plaque is (design/0003): a rule
+ * drawn outside the rail drifts out from under its books the moment the rail scrolls.
+ *
+ * IT IS A BACKGROUND, NOT A BORDER, and that is what lets the plaque hang BELOW it. As a
+ * bottom border the floor was the last thing in the track, so a plaque could only ever sit
+ * above it -- a year label resting on the books rather than screwed to the shelf edge. Drawn
+ * as a background line the floor sits at a known height, because a spine's height is a
+ * constant, and the plaque row lives underneath it. */
 .vault-shelf .vs-track {
+  display: flex;
+  align-items: flex-start;
+  gap: 3px;
+  min-height: calc(var(--spine-h) + 34px);
+  width: max-content;
+  min-width: 100%;
+  background-image: linear-gradient(var(--border-strong), var(--border-strong));
+  background-repeat: no-repeat;
+  background-size: 100% var(--board);
+  background-position: 0 var(--spine-h);
+}
+
+.vault-shelf .vs-group { display: flex; flex-direction: column; align-self: flex-start; }
+.vault-shelf .vs-group .vs-books {
   display: flex;
   align-items: flex-end;
   gap: 3px;
-  min-height: calc(var(--spine-h) + 30px);
-  padding-bottom: 5px;
-  border-bottom: var(--board) solid var(--border-strong);
-  border-radius: 0 0 2px 2px;
-  width: max-content;
-  min-width: 100%;
+  height: var(--spine-h);
 }
 
-.vault-shelf .vs-group { display: flex; flex-direction: column; gap: 5px; align-self: flex-end; }
-.vault-shelf .vs-group .vs-books { display: flex; align-items: flex-end; gap: 3px; }
-
+/* Hanging under the shelf edge, the way an engraved plate is screwed to the front of a
+ * library shelf rather than propped against the books. */
 .vault-shelf .vs-plaque {
   align-self: stretch;
   text-align: center;
@@ -390,9 +407,10 @@
   color: var(--text-3);
   background: var(--surface-1);
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-top: 0;
+  border-radius: 0 0 3px 3px;
   padding: 2px 6px;
-  margin-bottom: -5px;
+  margin: calc(var(--board) + 9px) 0 0;
 }
 
 /* ---- a spine -------------------------------------------------------------
@@ -579,43 +597,134 @@
  * `min-width: auto`, which means "never shrink below your content" -- so a single long
  * paragraph in the note pushed the spread wider than the view and grew a horizontal
  * scrollbar across the whole reader. Fixing only the page left the spread doing it. */
+/* design/0012 -- AN OPEN BOOK, NOT TWO PANES.
+ *
+ * The first spread was a split view with a divider: correct, and it read as an email client.
+ * Four things make it a book, and none of them is a texture or a page-turn -- the animation
+ * budget is still 5px of hover lift (design/0005):
+ *
+ *   the GUTTER   both inner edges darken toward the fold, so the two pages belong to one
+ *                object rather than sitting side by side;
+ *   the EDGES    a few hairlines down the outer edges: the stack of leaves you would see
+ *                looking at a book from the front;
+ *   the OBJECT   rounded outer corners and a shadow, so it lies ON the surface;
+ *   the SETTING  the book's title and its contents are set in the reading face, because a
+ *                book's index is printed in the same type as its text.
+ */
 .vault-shelf .vs-spread {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
   width: 100%;
   max-width: var(--measure);
-  margin: 0 auto;
+  margin: 10px auto 14px;
   display: grid;
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   position: relative;
-  border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  box-shadow: 0 2px 10px color-mix(in srgb, #000 22%, transparent);
+  overflow: hidden;
 }
 
-.vault-shelf .vs-page { overflow-y: auto; padding: 18px 22px 40px; min-height: 0; min-width: 0; }
-.vault-shelf .vs-page.vs-left { border-right: 1px solid var(--border); background: var(--surface-1); }
-.vault-shelf .vs-page.vs-right { padding-right: 56px; background: var(--surface-2); }
+/* the stack of leaves, on both outer edges */
+.vault-shelf .vs-spread::before,
+.vault-shelf .vs-spread::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  pointer-events: none;
+  z-index: 3;
+  background: repeating-linear-gradient(90deg,
+    color-mix(in srgb, var(--text-1) 9%, transparent) 0 1px,
+    transparent 1px 3px);
+}
+.vault-shelf .vs-spread::before { left: 0; }
+.vault-shelf .vs-spread::after { right: 0; }
 
-.vault-shelf .vs-page h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
+.vault-shelf .vs-page {
+  overflow-y: auto;
+  padding: 20px 24px 40px;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+}
 
-.vault-shelf .vs-contents { list-style: none; margin: 12px 0 0; padding: 0; }
+/* the gutter: both inner edges fall away toward the fold */
+.vault-shelf .vs-page::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 22px;
+  pointer-events: none;
+}
 
+.vault-shelf .vs-page.vs-left {
+  background: var(--surface-1);
+  padding-right: 30px;
+}
+.vault-shelf .vs-page.vs-left::after {
+  right: 0;
+  background: linear-gradient(90deg, transparent,
+    color-mix(in srgb, var(--text-1) 11%, transparent));
+}
+
+.vault-shelf .vs-page.vs-right {
+  background: var(--surface-2);
+  padding-left: 32px;
+  padding-right: 56px;
+}
+.vault-shelf .vs-page.vs-right::after {
+  left: 0;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--text-1) 11%, transparent), transparent);
+}
+
+.vault-shelf .vs-page h2 {
+  font: 600 19px/1.25 var(--prose);
+  margin: 0 0 4px;
+  letter-spacing: 0.01em;
+}
+
+.vault-shelf .vs-contents { list-style: none; margin: 14px 0 0; padding: 0; }
+
+/* A table of contents, with leader dots -- the one piece of typography that says "book"
+ * without a texture anywhere near it. The rows have no rules between them: a printed index
+ * separates entries with space and a leader, not with a border per line. */
 .vault-shelf .vs-contents button {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
   width: 100%;
   text-align: left;
   background: none;
   border: 0;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  padding: 6px 4px;
+  border-radius: 2px;
+  padding: 3px 5px;
+  min-height: 0;
   color: var(--text-2);
+  font: 13.5px/1.45 var(--prose);
 }
 
-.vault-shelf .vs-contents button:hover { color: var(--text-1); background: var(--surface-2); }
-.vault-shelf .vs-contents button[aria-current="true"] { color: var(--text-1); box-shadow: inset 2px 0 0 var(--accent); }
-.vault-shelf .vs-contents .vs-when { float: right; color: var(--text-3); font-size: 10.5px; }
+.vault-shelf .vs-contents button:hover { color: var(--text-1); background: color-mix(in srgb, var(--text-1) 5%, transparent); }
+.vault-shelf .vs-contents button[aria-current="true"] { color: var(--text-1); font-weight: 600; }
+.vault-shelf .vs-contents .vs-t { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vault-shelf .vs-contents .vs-leader {
+  flex: 1 1 auto;
+  min-width: 12px;
+  align-self: baseline;
+  height: 4px;
+  position: relative;
+  top: -1px;
+  background-image: radial-gradient(circle at 1px 50%, var(--text-3) 1px, transparent 1.2px);
+  background-size: 5px 4px;
+  background-repeat: repeat-x;
+  opacity: 0.5;
+}
+.vault-shelf .vs-contents .vs-when { flex: 0 0 auto; color: var(--text-3); font-size: 10.5px; font-family: var(--ui); }
 
 /* ---- the note ------------------------------------------------------------
  * design/0010 -- inside Obsidian this is filled by MarkdownRenderer, so what lands here is
@@ -684,19 +793,23 @@
 
 .vault-shelf .vs-tabs {
   position: absolute;
-  top: 14px;
+  top: 16px;
   right: 0;
+  z-index: 4;
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
 
+/* Protruding tabs, cut from the page rather than stuck on it. */
 .vault-shelf .vs-tabs button {
-  border-radius: 3px 0 0 3px;
-  border-right: 0;
-  min-width: 44px;
+  border-radius: 0 3px 3px 0;
+  border-left: 0;
+  min-width: 42px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+  background: var(--surface-1);
+  box-shadow: 1px 1px 2px color-mix(in srgb, #000 14%, transparent);
 }
 
 .vault-shelf .vs-tabs button[aria-current="true"] {

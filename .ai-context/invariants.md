@@ -86,13 +86,46 @@ two booleans must be equal on every shelf. A "year" plaque over a People shelf w
 taken from nowhere.
 
 `"a plaque sits under the books it names, in the same scroller"` is the geometric half: the
-plaque's top is at or below its books' bottom, and one `.shelfrail` contains both. Measured on
-the demo vault: the plaque sits **5px** below its run of books and matches their width to
-**0px**. `design/0003` is why being in the same scroller is structural rather than
-positional.
+plaque hangs **below the shelf floor**, not on top of the books — its top clears the board by
+at least the board's own thickness — and one scroller contains both. Measured on the demo
+vault: the plaque hangs **12px** below its books, clearing the **3px** floor, and matches
+their width to **0px**. The floor is drawn as a background line on the track rather than as
+its bottom border, which is what leaves room underneath for a plate to hang; `design/0003`
+is why being in the same scroller is structural rather than positional.
 
 **This check is in the serial lane.** It reads a laid-out box, and four browsers contending for
 one GPU report a geometry that has more to do with the other three windows.
+
+## A book is as thick as it is full
+
+`"a spine's thickness is its note count"` reads `--spine-w` off every spine on the Years shelf
+and asserts that widths rise with note counts, that the fullest book is as wide as any book on
+the shelf, and that every width falls between **22px and 58px**. Measured on the demo vault:
+**26px for a 1-note book, 53px for the 227-note one**; on the 10k library vault **45px at 309
+notes and 50px at 1020**. It is a tie, not an identity: two counts a few notes apart round to
+the same pixel. The scale is logarithmic and it is taken against the largest book in the whole
+**library**, never in the shelf, so the same thickness means the same size everywhere on the
+page. `design/0011`.
+
+Both bounds and the scale are constants in `src/page.js` (`SPINE_MIN`, `SPINE_MAX`,
+`thicknessOf`). Changing one changes this section in the same commit.
+
+## An impossible date is not a date
+
+`"an impossible date is not a date, and never a fifteenth month"` asserts three things at once:
+every resolved date passes `core.isIsoDay`, no month book has a key outside `01`-`12`, and any
+note whose `date` header is not a real day is either **Undated** or dated from its filename —
+never from the broken header. Measured on the sparse vault: **2 impossible headers, 1 fell
+through to the filename, 1 Undated, 0 landed anywhere else**.
+
+The demo and library fixtures have no such note, and the check still runs there: it says so in
+its own words, and the two structural halves still hold.
+
+**This check exists because the exporter and the plugin disagreed about the same note.**
+`src/build-shelf.mjs` had its own `ISO_DAY` regex, which accepted `2024-15-01`, so a real
+vault's ordinary typo became a month book labelled "15 2024" — visible in a demo film, and
+only there. `core.isIsoDay` had always rejected it. The exporter now evaluates the core bundle
+and calls `core.resolveDate`, so there is one implementation. See `changelog-detail.md`.
 
 ## Book addresses are stable across a rebuild
 
@@ -217,6 +250,17 @@ that a query finding nothing still drew something forward.
 
 ## The room
 
+`"the room has a width, however wide the window is"` overrides the viewport to **2560px** and
+asserts the library, the rail, the reading spread and every shelf's scroller all fit inside
+`--measure` (**1180px**), and that the library and the spread are centred within 20px — the
+tolerance is a scrollbar, not slack. Measured: shelves **1180 (683/698)**, a **1180px**
+scroller clipping **1321px** of books, spread **1180 (690/690)**.
+
+A **track** may be wider than the room and usually is: that is a shelf with more books on it
+than fit, which is the reason the rail scrolls at all. What the room promises is that the
+scroller stays inside the measure and clips. Asserting the track itself fit was asserting that
+no shelf may be long, and it started failing the moment `design/0011` gave books real widths.
+
 `"the library is the whole surface, with no sidebar"` asserts **zero** `<aside>` elements,
 exactly **two** New shelf buttons, and that they bracket the shelves in document order — the
 affordance is at both ends of the scroll, which is the point `design/0009` makes.
@@ -242,8 +286,10 @@ static half is `scripts/check-network.mjs`, which is unskippable in the pre-push
 
 `"a spine lifts on hover and holds its size"` measures a spine's box at rest and focused and
 asserts both dimensions are unchanged — the lift is a `transform`, so a hovered spine cannot
-reflow its neighbours. Measured: **38×132 either way**. Also in the serial lane, for the same
-reason as the plaque check.
+reflow its neighbours. Measured on the library fixture: **47×132 either way**. The width is
+whatever that book's note count earns it (`design/0011`); what is invariant is that it does
+not change when the spine is touched. Also in the serial lane, for the same reason as the
+plaque check.
 
 ## Hidden means hidden
 

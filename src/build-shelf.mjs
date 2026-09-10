@@ -3,6 +3,7 @@
 import { buildSync } from "esbuild";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
+import { runInNewContext } from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -89,9 +90,39 @@ function unquote(value) {
   return value.replace(/^["']|["']$/g, "").replace(/^\[\[|\]\]$/g, "").trim();
 }
 
-/* ---- the data ------------------------------------------------------------ */
+const core = (() => {
+  try {
+    return buildSync({
+      absWorkingDir: ROOT,
+      entryPoints: [join(ROOT, "src", "core", "index.ts")],
+      bundle: true,
+      write: false,
+      format: "iife",
+      globalName: "VaultShelfCore",
+      platform: "browser",
+      target: "es2020",
+      minify: false,
+      logLevel: "silent",
+    }).outputFiles[0].text;
+  } catch (e) {
+    const messages = Array.isArray(e.errors)
+      ? e.errors.map((m) => m.text + (m.location ? ` (${m.location.file}:${m.location.line})` : ""))
+      : [String(e.message || e)];
+    console.error("build-shelf: the core did not bundle:\n  " + messages.join("\n  "));
+    process.exit(1);
+  }
+})();
 
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+/* THE EXPORTER RESOLVES DATES WITH THE SAME CODE THE PAGE DOES. It used to have its own
+ * `ISO_DAY` regex, and that regex accepted `2024-15-01` -- a real, ordinary frontmatter typo
+ * in a real vault, which the exporter then shelved as a fifteenth month called "15 2024".
+ * `core.isIsoDay` had always rejected it and fallen through to the filename, so the plugin was
+ * right and the exporter was wrong about the same note. One implementation, evaluated rather
+ * than re-typed. (Found by shooting a demo film in a mirror of a real vault -- design/0013.)
+ */
+const CORE = runInNewContext(core + ";VaultShelfCore", {});
+
+/* ---- the data ------------------------------------------------------------ */
 
 const files = walk(VAULT, []);
 const notes = [];
@@ -104,17 +135,14 @@ for (const file of files) {
   const title = file.rel.split("/").pop().replace(/\.md$/i, "");
   const folder = file.rel.indexOf("/") < 0 ? "(vault root)" : file.rel.slice(0, file.rel.indexOf("/"));
 
-  let date = null;
-  for (const field of DATE_FIELDS) {
-    const raw = props[field];
-    if (raw && ISO_DAY.test(raw.slice(0, 10))) { date = raw.slice(0, 10); sources.field++; break; }
-  }
-  if (!date && ISO_DAY.test(title.slice(0, 10))) { date = title.slice(0, 10); sources.title++; }
-  if (!date && USE_FILE_STAMP) {
-    const fromStamp = file.mtime.toISOString().slice(0, 10);
-    if (ISO_DAY.test(fromStamp)) { date = fromStamp; sources.stamp++; }
-  }
-  if (!date) sources.none++;
+  const stamp = USE_FILE_STAMP ? file.mtime.toISOString().slice(0, 10) : null;
+  const date = CORE.resolveDate(props, title, stamp, DATE_FIELDS);
+  // Where it came from, read back off the answer: the log below is the only consumer, and a
+  // second copy of the precedence order is a second place for it to drift.
+  if (date === null) sources.none++;
+  else if (DATE_FIELDS.some((f) => props[f] && props[f].trim().slice(0, 10) === date)) sources.field++;
+  else if (title.trim().slice(0, 10) === date) sources.title++;
+  else sources.stamp++;
 
   const people = (lists[PEOPLE_PROP] || []).slice();
   if (props[PEOPLE_PROP]) people.push(props[PEOPLE_PROP]);
@@ -163,28 +191,6 @@ const data = {
 
 /* ---- the page ------------------------------------------------------------ */
 
-const core = (() => {
-  try {
-    return buildSync({
-      absWorkingDir: ROOT,
-      entryPoints: [join(ROOT, "src", "core", "index.ts")],
-      bundle: true,
-      write: false,
-      format: "iife",
-      globalName: "VaultShelfCore",
-      platform: "browser",
-      target: "es2020",
-      minify: false,
-      logLevel: "silent",
-    }).outputFiles[0].text;
-  } catch (e) {
-    const messages = Array.isArray(e.errors)
-      ? e.errors.map((m) => m.text + (m.location ? ` (${m.location.file}:${m.location.line})` : ""))
-      : [String(e.message || e)];
-    console.error("build-shelf: the core did not bundle:\n  " + messages.join("\n  "));
-    process.exit(1);
-  }
-})();
 
 const part = (f) => readFileSync(join(HERE, f), "utf8");
 const asScript = (js) => js.replace(/^export \{[^}]*\};?\s*$/m, "").trimEnd();
