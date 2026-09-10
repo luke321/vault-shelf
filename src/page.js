@@ -583,10 +583,16 @@ function mountVaultShelf(root, data, options) {
     if (!book.notes.length) b.setAttribute("data-empty", "1");
     b.style.setProperty("--spine-w", thicknessOf(book.notes.length) + "px");
 
-    /* design/0005 -- THE BOARD IS THE COLOUR. A book's binding is dyed; it does not carry a
-     * stacked bar chart on its head. The dominant folder's slot tints the whole spine, and the
-     * exact mix stays in the hover peek, in words. */
-    if (book.bands.length) b.style.setProperty("--spine-tint", book.bands[0].slot);
+    /* design/0005 -- fixed palette slots follow addresses; encyclopedia volumes match. */
+    var colorSlot = 0;
+    if (settings.varyBookColors && shelf.classifier !== "initial") {
+      var hash = 2166136261;
+      for (var i = 0; i < book.id.length; i++) {
+        hash = Math.imul(hash ^ book.id.charCodeAt(i), 16777619) >>> 0;
+      }
+      colorSlot = hash % SLOTS.length;
+    }
+    b.style.setProperty("--spine-tint", SLOTS[colorSlot]);
     b.appendChild(el("span", "vs-title", book.label));
     b.appendChild(el("span", "vs-n", String(book.notes.length)));
 
@@ -1249,6 +1255,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   function renderManage() {
+    field("mvarycolors").checked = settings.varyBookColors;
     var box = $("managelist");
     clear(box);
     var ordered = settings.shelves.slice().sort(function (a, b) { return a.position - b.position; });
@@ -1372,6 +1379,11 @@ function mountVaultShelf(root, data, options) {
   on($("newshelf"), "click", function () { openBuilder(null); });
   on($("newshelf2"), "click", function () { openBuilder(null); });
   on($("manageopen"), "click", openManage);
+  on($("mvarycolors"), "change", function () {
+    settings.varyBookColors = field("mvarycolors").checked;
+    persist();
+    refresh();
+  });
   on($("mnew"), "click", newShelfFromManage);
   on($("mclose"), "click", function () { $("manage").hidden = true; node("library").focus(); });
   on($("mrestore"), "click", function () {

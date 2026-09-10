@@ -1,5 +1,33 @@
 # Changelog detail
 
+## 2026-09-10 — Rework the leather binding
+
+The room changes from brown panelling to charcoal, the shelves from bright stained planks
+to restrained walnut, and the books from four bands crossing upper-case titles to two bands
+framing mixed-case gilt type. The reader changes from marbled surroundings and yellow paper
+to an oxblood cover and ivory pages. `design/0016` records the current materials and review.
+
+Measured before and after with `smoke.mjs --only "a look is opt-in" --only "room has a width"`:
+**419 demo / 194 sparse / 709 library addresses**, unchanged when switching looks, with the
+default palette restored on switching back. At 2560px the default room remains **1180px**,
+with **zero row overflow** in all three fixtures. The final targeted run also covers hidden
+sheets, named keyboard controls and spine geometry: **5/5 in each fixture (15/15 total)**.
+
+Direct CDP measurements in leather at **390 / 768 / 1440px**: all **419 demo books** remain
+present, and toolbar, shelf rows and reader pages have **zero horizontal overflow**. Reader
+widths are **358 / 736 / 1180px**. A **57 × 132px** spine stays that size on hover and lifts
+**5px**; reduced motion sets its transform to `none`. Search retains **419 books**, with
+**177 matches / 242 ghosts**, and list mode retains **419**.
+
+Visual inspection found a builder preview extending beyond the paper sheet. It now wraps:
+at 1440px the preview is **566px client / 566px scroll**, and at 390px it is **289 / 289px**.
+The preview keeps leather backgrounds and gilt labels inside the paper dialog.
+
+Obsidian screenshots checked the library and spread before and after. Its markdown renderer
+produced **246 characters in 4 elements**, without fallback text or horizontal overflow.
+Review artifacts and the temporary inspection script are in ignored `dist/leather-review/`.
+Build, lint/typecheck, scope, network and comments checks pass. No full-suite run or recording.
+
 `CHANGELOG.md` says what changed. **This file says what it was before and after, with the
 number.** Those numbers are the regression suite: if a later change moves one of them, the
 question is which, and by how much, not whether it feels the same.
@@ -425,3 +453,37 @@ legacy root — checked **before** the new directory is claimed, since a legacy 
 somewhere else and creating this one would otherwise succeed. Verified: with Vault Graph
 holding `suite`, `node scripts/lock.mjs acquire suite` in Vault Shelf reports
 `WAITING … held in a legacy root` and then `BUSY`, exit 1.
+
+## Matching encyclopedia bindings, stable optional colors, and book typography
+
+The leather preview showed **six colors across 20 encyclopedia volumes**. Those volumes
+now share one oxblood binding. Manage's **Vary book colors** is off by default; when enabled,
+other books choose a palette slot from their stable address instead of their dominant
+folder. New notes cannot recolor an existing book. The additive setting survives migration
+and reload; encyclopedia volumes match in either mode and both looks.
+
+`node scripts/smoke.mjs --only "book colors" --jobs 1` passed on all three fixtures.
+Adding enough notes from a new folder to change a monthly book's dominant folder, and
+reversing folder ranks, left **419 / 194 / 709 existing colors unchanged** in light, dark
+and leather. Toggling the option preserved counts and addresses; reloading retained the
+choice. The targeted palette, look-switch and schema-migration checks also passed on all
+three fixtures. No full-suite run was performed.
+
+Leather now uses local Georgia typography throughout the library and paper dialogs,
+with traditional serif fallbacks, 13px spine titles and 11px counts. Month labels are
+`Jan` through `Dec` plus the year;
+the `YYYY-MM` addresses are unchanged. The demo still has **394 notes and 419 books**.
+Chrome screenshots at 1440 × 1000 were inspected for matching and varied bindings and the
+Manage dialog. All 20 encyclopedia volumes match; month names such as `Sep 2026` fit the
+title panel. Review images are local temporary artifacts under
+`vault-shelf-leather-oWY351/{matching,manage,varied}.png`.
+
+The follow-up review requested larger, more readable text. Georgia replaces the delicate
+Baskerville trial, and **120% layout zoom** enlarges the whole leather interface, including
+the available space for its fonts. Measured spine height is **158.39px**, up from **132px**;
+13px titles render at **15.6px**. At **390 / 768 / 1000 / 1440px**, the root fills the
+viewport, every shelf row fits, and reader pages, reader toolbar and Manage dialog have
+**zero horizontal overflow**. Narrow Manage rows wrap their controls. The look-switch check
+now verifies 120% spine height and compares semantic counts separately from repeated plaques,
+since larger bindings can produce more rows. Inspected screenshots are
+`vault-shelf-leather-oWY351/scaled-{1440,390,manage}.png`.

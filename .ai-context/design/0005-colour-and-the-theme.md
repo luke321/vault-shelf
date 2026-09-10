@@ -23,7 +23,7 @@ looking at it: **"does not remind me of vault graph yet, completely different co
 
 Every token in `src/page.css` — surfaces, borders, the three-step text ramp, the twelve group
 slots, the accent — is copied out of Vault Graph's stylesheet, value for value, in both
-themes. A folder that is `#2a78d6` on the disc is `#2a78d6` on a spine.
+themes. These slots supply the book bindings; their assignment is described below.
 
 **And the page does not keep its own copy.** `SLOT_KEYS` names `--g1`..`--g12`; `readTheme()`
 asks the cascade what they currently resolve to. A copy of a palette is a palette that drifts,
@@ -71,8 +71,22 @@ least analog thing that was in the room. It also said less than it looked like i
 shelf where most books draw from the same few folders it is the same rainbow over and over,
 and the eye cannot compare two rainbows anyway.
 
-What is left is a **dyed board**: the dominant folder's slot mixed into the surface, with a
-light-to-dark fall down the spine. A book's binding is dyed; it does not wear a legend.
+What is left is a **dyed board**, with a light-to-dark fall down the spine. A book's binding
+is dyed; it does not wear a legend.
+
+**Changed on 2026-09-10 after reviewing the leather preview:** encyclopedia volumes are a
+matching set, not a folder chart. All `initial` classifier volumes use the first palette
+slot. By default every other book uses that slot too. **Manage → Vary book colors** opts
+the other classifiers into varied bindings in both looks. The additive `varyBookColors`
+setting defaults to false for new and migrated settings; only literal true enables it.
+
+With variation enabled, the stable `shelfId/classifierKey` address chooses the slot using
+32-bit FNV-1a over its UTF-16 code units, modulo twelve. No note count, folder rank, dominant
+folder, shelf position or visible-book index participates. Adding notes, new books or
+folders, filtering and reordering therefore cannot recolor an existing address. Palette
+values still follow the selected look and host theme. Twelve slots can be shared by many
+books; color does not claim to encode a folder. Width, wear and ribbons retain their own
+meanings, including on encyclopedia volumes.
 
 The exact mix is not lost. It is in the **hover peek, in words** — `01 - Projects 14,
 04 - Daily Notes 9` — which is where anything nobody should have to read a colour for belongs.
@@ -85,8 +99,12 @@ pulled up for. Rendered at 4/9/14/20 in dark and 18/26/34/44 in light and looked
 **`--tint: 14%` dark, `20%` light**, which is where the two shelves read equally understated.
 
 `"the twelve colour slots are Vault Graph's own"` reads the slot off a **spine**, not off a
-swatch: what has to be true is that a folder's colour reaches the thing a person looks at, and
-that it is one of the twelve.
+swatch: what has to be true is that the binding uses one of the twelve.
+
+`"book colors are optional, encyclopedia volumes match and new notes never recolor books"`
+drives the Manage checkbox, verifies reload persistence and compares rendered colors before
+and after incoming notes change a book's dominant folder and the folder ranks. It checks
+light, dark and leather, and verifies that the toggle changes neither counts nor addresses.
 
 ## The host cannot style us either
 

@@ -259,6 +259,26 @@ ground colour in each theme, that the twelve slots came back **different** after
 a hardcoded array could only ever be one of them — and that the library is otherwise
 identical.
 
+## Binding colors belong to stable books
+
+The leather look renders at **120% scale**: logical 132px spines are **158.4px** on screen,
+13px Georgia titles render at **15.6px**, and spacing and controls grow with them. Row
+wrapping may repeat more plaques, but note/book counts, order and addresses remain intact.
+
+Month display labels use **Jan–Dec plus the four-digit year** (for example `Sep 2026`).
+Their keys remain `YYYY-MM`; addresses, date ordering and year plaques are unchanged.
+
+Encyclopedia (`initial`) volumes always share palette slot 1. **Manage → Vary book colors**
+is off by default, including when older settings are migrated. When enabled, other books
+choose one of the twelve slots by their stable address, never by changing folder counts or
+membership. A theme/look switch may repaint the palette; incoming notes may not reassign it.
+
+`node scripts/smoke.mjs --only "book colors"` drives the checkbox and reloads its saved
+setting, changes the dominant folder by adding notes, and reverses folder ranks. Measured
+in light, dark and leather: **419 / 194 / 709** existing book colors unchanged on demo,
+sparse and 10k fixtures; encyclopedia volumes use **one** color in every case. Turning
+variation on/off preserves all addresses and counts.
+
 ## A look is paint, and nothing else
 
 `design/0016`. The leather binding is a second stylesheet (`src/leather.css`) and one setting;
@@ -275,7 +295,15 @@ The default look is the one every other check in this file measures, and it is u
 the setting off, not one selector in `leather.css` matches. `scripts/check-scope.mjs` reads
 **both** stylesheets — an unscoped rule in the second would style the whole of Obsidian
 exactly as one in the first — and `scripts/check-network.mjs` reads the second one too, so the
-leather grain, the wood and the marbling stay CSS gradients and inline SVG data URIs.
+leather grain and wood stay CSS gradients and inline SVG data URIs.
+
+The reworked leather look keeps spines at **22–58px × 132px**, with a **5px vertical hover
+lift** and no rotation. Reduced motion removes transforms, including worn and matching books.
+Its walnut board is **10px** deep. The reading cover has an **11px** outer ring, with **24px
+side gutters** on desktop and **16px** below 860px, so the cover stays inside the view.
+The page remains capped at **1180px**. These are paint dimensions, not membership constants.
+Measured in leather at **390, 768 and 1440px**: zero row or page overflow; **419** demo books
+at each width and in list mode. `design/0016` records the visual review.
 
 ## The magic
 

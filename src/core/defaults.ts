@@ -107,6 +107,8 @@ export interface Persisted {
    * no shelf, no book and no address depends on it.
    */
   look: Look;
+  /** design/0005 -- stable book colours are opt-in; encyclopedia volumes always match. */
+  varyBookColors: boolean;
 }
 
 /** design/0016 -- the looks that exist. A blob naming any other one falls back to "". */
@@ -131,6 +133,7 @@ export function emptySettings(): Persisted {
     peopleProperty: "people",
     useFileStamp: false,
     look: "",
+    varyBookColors: false,
   };
 }
 
@@ -160,6 +163,7 @@ export function migrate(raw: unknown): Persisted {
       ? data.peopleProperty : base.peopleProperty,
     useFileStamp: data.useFileStamp === true,
     look: data.look === "leather" ? "leather" : "",
+    varyBookColors: data.varyBookColors === true,
   };
 }
 

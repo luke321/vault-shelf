@@ -342,10 +342,9 @@ const SETTINGS = [
           "date property and no date in its title goes to Undated instead." },
   { key: "look", kind: "toggle",
     name: "Leather binding",
-    desc: "Off by default. Binds the library in leather and gilt instead of following your " +
-          "Obsidian theme: dyed spines with raised bands, a stained plank, brass plaques and " +
-          "an open book on marbled endpapers. It changes paint only -- the same shelves, the " +
-          "same books, the same addresses." },
+    desc: "A quiet library with leather bindings, walnut shelves and brass labels. " +
+          "Open a book to read on ivory pages inside an oxblood cover. Off by default; " +
+          "turn it off to follow your Obsidian theme." },
 ];
 
 class ShelfSettingTab extends PluginSettingTab {
