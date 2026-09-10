@@ -1,5 +1,6 @@
 import type { Book, ClassifierKind, Filters, Note, Shelf, ShelfView, Source } from "./types";
 import { isoWeekOf, monthLabel, monthOf, weekLabel, yearOf } from "./dates";
+import type { NoteOrder } from "./defaults";
 
 /* ---- stable addresses ----------------------------------------------------
  * decisions/0002
@@ -125,7 +126,7 @@ export function decadeOf(year: string): string | null {
  * design/0002
  */
 
-export function buildShelf(shelf: Shelf, notes: Note[]): ShelfView {
+export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "oldest"): ShelfView {
   const includeSubtags = shelf.includeSubtags !== false;
   const members = notes.filter((n) => matchesSource(n, shelf.source, includeSubtags));
   const byKey = new Map<string, Note[]>();
@@ -148,7 +149,9 @@ export function buildShelf(shelf: Shelf, notes: Note[]): ShelfView {
       key,
       label: labelFor(key, shelf.classifier),
       plaque: plaqueFor(key, shelf),
-      notes: list.slice().sort(alphabetical(shelf) ? byTitleThenDate : byDateThenTitle),
+      notes: list.slice().sort(alphabetical(shelf)
+        ? byTitleThenDate
+        : (a, b) => (order === "newest" ? 1 : -1) * byDateThenTitle(a, b)),
       bands: bandsOf(list),
       matches: 0,
     });
@@ -189,6 +192,8 @@ function byTitleThenDate(a: Note, b: Note): number {
   return ad === bd ? 0 : ad < bd ? 1 : -1;
 }
 
+/** Newest first. `buildShelf` flips it for the oldest-first reading order, which is the
+ * default: a notebook that opens on its last page reads as if it were written backwards. */
 function byDateThenTitle(a: Note, b: Note): number {
   const ad = a.date === null ? "" : a.date;
   const bd = b.date === null ? "" : b.date;

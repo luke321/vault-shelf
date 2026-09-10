@@ -44,7 +44,9 @@ function walk(dir, acc) {
     if (EXCLUDE.some((x) => rel === x || rel.startsWith(x + "/"))) continue;
     const st = statSync(abs);
     if (st.isDirectory()) walk(abs, acc);
-    else if (entry.toLowerCase().endsWith(".md")) acc.push({ abs, rel, mtime: st.mtime });
+    else if (entry.toLowerCase().endsWith(".md")) {
+      acc.push({ abs, rel, ctimeMs: st.birthtimeMs, mtimeMs: st.mtimeMs });
+    }
   }
   return acc;
 }
@@ -135,7 +137,7 @@ for (const file of files) {
   const title = file.rel.split("/").pop().replace(/\.md$/i, "");
   const folder = file.rel.indexOf("/") < 0 ? "(vault root)" : file.rel.slice(0, file.rel.indexOf("/"));
 
-  const stamp = USE_FILE_STAMP ? file.mtime.toISOString().slice(0, 10) : null;
+  const stamp = USE_FILE_STAMP ? CORE.stampOf(file.ctimeMs, file.mtimeMs) : null;
   const date = CORE.resolveDate(props, title, stamp, DATE_FIELDS);
   // Where it came from, read back off the answer: the log below is the only consumer, and a
   // second copy of the precedence order is a second place for it to drift.

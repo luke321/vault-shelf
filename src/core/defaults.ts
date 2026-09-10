@@ -85,7 +85,7 @@ export function recipes(): Recipe[] {
  * decisions/0001
  */
 
-export const SETTINGS_SCHEMA = 2;
+export const SETTINGS_SCHEMA = 3;
 
 export interface Persisted {
   schema: number;
@@ -99,8 +99,21 @@ export interface Persisted {
   wear: Record<string, number>;
   dateFields: string[];
   peopleProperty: string;
-  /** decisions/0003 -- off by default; a file's mtime is almost never the note's date. */
+  /**
+   * decisions/0003 -- ON since schema 3: a note with no declared date takes the earliest stamp
+   * the filesystem has for it rather than going to Undated. `dates.stampOf` is what makes that
+   * defensible; turning it off is still how you find out how many notes have no date of their
+   * own.
+   */
   useFileStamp: boolean;
+  /**
+   * design/0015 -- WHICH END OF A BOOK YOU OPEN. Newest-first is what a feed does and what a
+   * notebook never does: it reads as if the thing were written backwards. So a book runs
+   * oldest first, and this is the one setting that says otherwise. It applies to books that
+   * are ordered by DATE; an Encyclopedia volume stays alphabetical either way, because "the
+   * oldest of the As" is not a thing anybody wants.
+   */
+  noteOrder: NoteOrder;
   /**
    * design/0016 -- which LOOK the page paints in. "" is the default look, which follows the
    * host's theme; "leather" is the opt-in binding. It is a paint setting and nothing else:
@@ -111,6 +124,9 @@ export interface Persisted {
 
 /** design/0016 -- the looks that exist. A blob naming any other one falls back to "". */
 export type Look = "" | "leather";
+
+/** design/0015 -- the order the notes inside a date-ordered book are read in. */
+export type NoteOrder = "oldest" | "newest";
 
 /**
  * A deep copy that keeps its type. The page edits drafts of shelves and hands settings back
@@ -129,7 +145,8 @@ export function emptySettings(): Persisted {
     wear: {},
     dateFields: ["date", "created"],
     peopleProperty: "people",
-    useFileStamp: false,
+    useFileStamp: true,
+    noteOrder: "oldest",
     look: "",
   };
 }
@@ -158,7 +175,11 @@ export function migrate(raw: unknown): Persisted {
       : base.dateFields,
     peopleProperty: typeof data.peopleProperty === "string" && data.peopleProperty
       ? data.peopleProperty : base.peopleProperty,
-    useFileStamp: data.useFileStamp === true,
+    /* Schema 3 turned the file-stamp fallback on. A file written under it says `false`,
+     * which was the default rather than a decision -- the same argument `decadesOn` makes
+     * about plaques -- so it comes up on, and a file that already says 3 means what it says. */
+    useFileStamp: from >= 3 ? data.useFileStamp === true : true,
+    noteOrder: data.noteOrder === "newest" ? "newest" : "oldest",
     look: data.look === "leather" ? "leather" : "",
   };
 }

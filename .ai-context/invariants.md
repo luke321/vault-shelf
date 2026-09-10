@@ -48,6 +48,31 @@ this is guaranteed by the Encyclopedia alone — every note has a title — and 
 anyway, because the day somebody adds a filter to a default shelf is the day notes start
 disappearing quietly.
 
+## A book opens on its oldest note
+
+`"a book opens on its oldest note, and the top bar says which end"` asserts that a date-ordered
+book's notes run **oldest first**, that the top-bar button reads `Oldest first` with
+`aria-pressed="false"`, that clicking it reorders the same book newest-first and the label
+becomes `Newest first`, and that an Encyclopedia volume stays **alphabetical under both**.
+Measured on the demo vault: `2026-09` holds 41 notes, opening on the earliest of them.
+
+The button says what it is rather than what pressing it would do; `design/0015` says why, and
+why the Encyclopedia is exempt.
+
+## A note with no date of its own
+
+`"a note with no date of its own takes the earliest stamp the file has"` drives `core.stampOf`
+and `core.resolveDate` directly. A file created 2019-05-17 and edited 800 days later stamps
+**2019-05-17**, and so does the same pair the other way round — the earlier of the two, because
+a bulk reformat moves the modification time forward and copying a vault moves the creation time
+forward. Nothing usable gives **null**. The precedence is unchanged and checked in the same
+breath: a declared `date` wins (2021-03-04), then a date in the title (2020-08-08), then the
+stamp (2019-05-17), and with the fallback off it is **Undated**.
+
+`decisions/0003` was amended for this, and it carries the measurement that says when the
+fallback is worthless: all 545 files of the author's own vault stamped inside `2026-06` to
+`2026-09`, because the vault was moved onto that machine in June.
+
 ## Undated is a book, not a guess
 
 `"an undated note lands in Undated"` counts notes with `date === null` and asserts the Years

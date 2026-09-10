@@ -1,6 +1,6 @@
 # 0003 — Metadata is declared, never inferred
 
-**Date** 2026-09-09 · **Status** accepted
+**Date** 2026-09-09 · **Status** accepted, amended 2026-09-10
 
 ## Context
 
@@ -12,14 +12,44 @@ visibly incomplete, because nobody goes looking for it.
 ## Decision
 
 **A date comes from a configured frontmatter field, then from a date at the start of the
-title, and then from nothing.** The file's own modification time is available for every note
-and is almost never the date the note is about: a sync, a bulk reformat or a `git checkout`
-restamps the whole vault at once, and a Months shelf built on that reads as a decade of notes
-filed under one month. So the file stamp is opt-in — `--use-file-stamp` on the exporter, a
-toggle in the plugin, **off by default** — and a note with no date says so by landing in
-**Undated**.
+title, and then from the file's own stamp.** The file's own modification time is available for
+every note and is almost never the date the note is about: a sync, a bulk reformat or a
+`git checkout` restamps the whole vault at once, and a Months shelf built on that reads as a
+decade of notes filed under one month.
 
 An Undated book that is large is a diagnosis. A Months shelf that is quietly wrong is not.
+
+### Revised 2026-09-10 — the stamp is the last resort, not a forbidden one
+
+The stamp was opt-in and **off by default**, and the person this is built for asked for the
+opposite:
+
+> "if created frontmatter is not available in a note, fall back to the notes system created
+> date stamp"
+
+That is a fair reading of what an Undated book of a few hundred notes is worth. The decision
+above still holds for the *order* — declared beats derived, always — and what changes is only
+the floor: the stamp is now the last step of `core.resolveDate` rather than a step nobody
+takes, and `useFileStamp` is **on** from settings schema 3.
+
+Two things make it defensible rather than a surrender:
+
+**`dates.stampOf` takes the EARLIER of the creation and modification times**, never one of
+them. A modification time alone is what this record warned about. A creation time alone is
+worse than it sounds, because copying a vault — a new machine, a restore, a move between sync
+services — gives every file today's creation time while leaving the modification times intact.
+The earlier of the two survives both.
+
+**It is still visible and still reversible.** The exporter prints how many notes were dated
+from each source, and the toggle (now "Fall back to the file's creation date") is how you find
+out how many notes have no date of their own: turn it off and count the Undated book.
+
+**And it can still be worthless, which the numbers will tell you.** Measured on the author's
+own vault the same day this changed: all 545 files stamped inside a four-month window,
+`2026-06` to `2026-09`, because the vault was moved onto that machine in June. The 23 notes
+with no date of their own take a 2026 date that means "when this vault arrived here", not
+when they were written. That is the failure mode this record was written about, and the
+answer to it is the same as it always was: **declare the date**.
 
 **People come from the people property and nowhere else.** Scanning prose for capitalised
 words finds every place name, product and sentence opener in the vault, and the failure is

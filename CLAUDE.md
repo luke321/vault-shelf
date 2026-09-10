@@ -17,9 +17,11 @@ of measuring it.** Build the page, drive it, read the numbers.
 - **A book's address is `shelfId/classifierKey`** and survives a rebuild. A saved reading
   place re-resolves rather than breaking: the named book, else the first visible book that
   still holds the note.
-- **Metadata is declared, never inferred.** A date comes from a property or a title, never
-  from the file stamp unless asked. People come from the people property and never from prose.
-  A missing value gets its own book (`-undated`, `-unfiled`), never an exclusion.
+- **Metadata is declared, never inferred, and the file stamp is the floor.** A date comes from
+  a property, then a title, then the earliest stamp the filesystem has (`dates.stampOf` — the
+  earlier of creation and modification, since a bulk edit moves one and a copied vault moves
+  the other). People come from the people property and never from prose. A missing value gets
+  its own book (`-undated`, `-unfiled`), never an exclusion. `decisions/0003`, amended.
 - **The ISO week keeps its week-year.** 2027-01-01 is 2026-W53.
 - **Plaques are date classifiers only, and only when asked for**: months and weeks under their
   year, years under their decade. A plaque lives in the same row as the books it names, and a
@@ -39,6 +41,8 @@ of measuring it.** Build the page, drive it, read the numbers.
 - **A tab is a position in the contents**, so the index is cut the way the book is ordered: an
   Encyclopedia volume is alphabetical inside and gets letters, everything else is in date order
   and gets dates.
+- **A book opens on its oldest note.** A notebook that starts on its last page reads as if it
+  were written backwards; the top bar carries the one toggle that says otherwise.
 - **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` the
   opt-in binding — and it may repaint anything and move nothing: not a shelf's order, not a
   book's address, not a count. `design/0016`.
@@ -107,10 +111,10 @@ of measuring it.** Build the page, drive it, read the numbers.
 |---|---|
 | `src/core/` | the membership engine (TypeScript, `strict`): eight classifiers, source predicates, ISO-week and month keys, stable addresses, filters, settings migration. Notes in, books out; no DOM |
 | `src/page.js` | the page: directory, shelf rails, builder, manage sheet, reading spread — one `mountVaultShelf()`. **Do not read it top to bottom**; open `.ai-context/code-map.md` and go to the line range |
-| `src/leather.css` | the opt-in second look (`design/0014`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
+| `src/leather.css` | the opt-in second look (`design/0016`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 45 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 47 checks over three vault shapes |
 | `scripts/obsidian-smoke.mjs` | the same plugin inside a real Obsidian: ribbon icon, view lifecycle, settings tab, Obsidian's markdown renderer, `--shot` for two pictures |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
 | `.ai-context/code-map.md` | **generated**: sections and functions of the two big files, with line numbers |

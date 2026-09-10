@@ -247,7 +247,7 @@ function mountVaultShelf(root, data, options) {
     bookIndex = {};
     thickest = 1;
     views = ordered.map(function (shelf) {
-      var view = core.buildShelf(shelf, visible);
+      var view = core.buildShelf(shelf, visible, settings.noteOrder);
       view.books.forEach(function (book) {
         book.bands.forEach(function (band) { band.slot = slotOf[band.folder] || "#6f6e67"; });
         bookIndex[book.id] = book;
@@ -1194,7 +1194,7 @@ function mountVaultShelf(root, data, options) {
     if (!builder) return;
     var draft = core.clone(builder.draft);
     draft.id = draft.id || "preview";
-    var view = core.buildShelf(draft, core.applyFilters(notes, filters));
+    var view = core.buildShelf(draft, core.applyFilters(notes, filters), settings.noteOrder);
     view.books.forEach(function (book) {
       book.bands.forEach(function (band) { band.slot = slotOf[band.folder] || "#6f6c66"; });
     });
@@ -1333,6 +1333,35 @@ function mountVaultShelf(root, data, options) {
 
   /* design/0016 -- the LOOK is one attribute, and the twelve slots resolve differently under
    * it, so a look that has just changed has to re-read them before anything is dyed. */
+  /**
+   * design/0015 -- WHICH END OF A BOOK YOU OPEN, in the top bar rather than in a settings
+   * sheet, because it is a reading preference and you change it while reading. Oldest first
+   * is the default: a notebook that opens on its last page reads as if it were written
+   * backwards, which is what a feed does and a book does not.
+   *
+   * It says what it IS, not what pressing it would do -- a button labelled "Newest first"
+   * that gives you oldest-first is a coin toss every time.
+   */
+  function paintOrder() {
+    var newest = settings.noteOrder === "newest";
+    var b = node("order");
+    b.textContent = newest ? "Newest first" : "Oldest first";
+    b.setAttribute("aria-pressed", newest ? "true" : "false");
+    b.title = newest
+      ? "Books open on their most recent note. Click for oldest first."
+      : "Books open on their earliest note, the way a notebook is written. " +
+        "Click for newest first.";
+  }
+
+  function toggleOrder() {
+    settings.noteOrder = settings.noteOrder === "newest" ? "oldest" : "newest";
+    persist();
+    paintOrder();
+    /* A book's notes are sorted where it is built, so this is a rebuild and not a repaint --
+     * and the reading place re-resolves through it the way it does after any rebuild. */
+    refresh();
+  }
+
   function applyLook() {
     var want = settings.look === "leather" ? "leather" : "";
     if (root.getAttribute("data-look") === want) return;
@@ -1363,6 +1392,8 @@ function mountVaultShelf(root, data, options) {
   /* ============================================================ the wiring == */
 
   watchRoom();
+  paintOrder();
+  on($("order"), "click", toggleOrder);
 
   on($("q"), "input", function () {
     query = field("q").value;

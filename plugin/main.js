@@ -84,7 +84,7 @@ export function buildData(app, settings) {
     }
 
     const stamp = settings.useFileStamp
-      ? new Date(file.stat.mtime).toISOString().slice(0, 10)
+      ? core.stampOf(file.stat.ctime, file.stat.mtime)
       : null;
     const date = core.resolveDate(props, file.basename, stamp, settings.dateFields);
 
@@ -336,10 +336,11 @@ const SETTINGS = [
     desc: "The frontmatter property that names people. People are never inferred from a " +
           "note's prose." },
   { key: "useFileStamp", kind: "toggle",
-    name: "Fall back to the file's own date",
-    desc: "Off by default. A file's modification time is almost never the date the note is " +
-          "about -- a sync or a bulk reformat restamps the whole vault -- so a note with no " +
-          "date property and no date in its title goes to Undated instead." },
+    name: "Fall back to the file's creation date",
+    desc: "On by default. A note with no date property and no date in its title takes the " +
+          "earliest stamp the filesystem has for it -- which survives a bulk reformat and a " +
+          "copied vault better than either stamp alone. Turn it off to send those notes to " +
+          "Undated instead, where you can see how many there are." },
   { key: "look", kind: "toggle",
     name: "Leather binding",
     desc: "Off by default. Binds the library in leather and gilt instead of following your " +

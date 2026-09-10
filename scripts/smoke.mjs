@@ -207,6 +207,94 @@ check("an impossible date is not a date, and never a fifteenth month", async (p)
   };
 });
 
+check("a book opens on its oldest note, and the top bar says which end", async (p) => {
+  const r = await p.j(`(function(){
+    function firstLast(id) {
+      __vs.openBook(id, null);
+      var t = [].slice.call(document.querySelectorAll("#vs-contents .vs-t"))
+        .map(function (e) { return e.textContent; });
+      __vs.closeReader();
+      return t;
+    }
+    var months = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0];
+    var book = months.books.filter(function (b) {
+      return b.key !== "-undated" && b.notes.length > 3;
+    })[0];
+    var dates = book.notes.map(function (n) { return n.date || ""; });
+    var rising = dates.every(function (d, i) { return i === 0 || dates[i - 1] <= d; });
+    var button = document.getElementById("vs-order");
+    var before = { label: button.textContent, pressed: button.getAttribute("aria-pressed") };
+    var titles = firstLast(book.id);
+
+    button.click();
+    var after = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0]
+      .books.filter(function (b) { return b.id === book.id; })[0];
+    var flipped = after.notes.map(function (n) { return n.date || ""; });
+    var falling = flipped.every(function (d, i) { return i === 0 || flipped[i - 1] >= d; });
+    var swapped = { label: document.getElementById("vs-order").textContent,
+                    pressed: document.getElementById("vs-order").getAttribute("aria-pressed") };
+    document.getElementById("vs-order").click();
+
+    /* An Encyclopedia volume is alphabetical either way: "the oldest of the As" is not a
+     * thing anybody wants, and design/0015 cuts its tabs by letter on that assumption. */
+    var enc = __vs.views().filter(function (v) { return v.shelf.id === "encyclopedia"; })[0];
+    var vol = enc.books.filter(function (b) { return b.notes.length > 3; })[0];
+    var volTitles = vol.notes.map(function (n) { return n.title.toLowerCase(); });
+    var alphabetical = volTitles.every(function (t, i) { return i === 0 || volTitles[i - 1] <= t; });
+
+    return { book: book.key, notes: book.notes.length, rising: rising, falling: falling,
+             before: before, swapped: swapped, first: titles[0] || "",
+             alphabetical: alphabetical, volume: vol.key };
+  })()`);
+  const ok = r.rising && r.falling && r.alphabetical &&
+             r.before.label === "Oldest first" && r.before.pressed === "false" &&
+             r.swapped.label === "Newest first" && r.swapped.pressed === "true";
+  return {
+    ok,
+    detail: `${r.book} holds ${r.notes} notes oldest first (${r.rising}), opening on ` +
+            `"${r.first}"; the button reads "${r.before.label}" and flips to ` +
+            `"${r.swapped.label}", which reorders the same book newest first (${r.falling}). ` +
+            `The ${r.volume} volume stays alphabetical either way: ${r.alphabetical}`
+  };
+});
+
+check("a note with no date of its own takes the earliest stamp the file has", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var day = 86400000;
+    var made = Date.UTC(2019, 4, 17, 9, 0, 0);
+    var edited = made + 800 * day;
+    return {
+      /* The EARLIER of the two: a bulk reformat moves mtime forward, and copying a vault
+       * moves ctime forward, so neither alone survives the other. */
+      both: core.stampOf(made, edited),
+      copied: core.stampOf(edited, made),
+      noCreation: core.stampOf(0, edited),
+      neither: core.stampOf(0, 0),
+      rubbish: core.stampOf(NaN, -1),
+      /* And it is still second to anything the note declares. */
+      declared: core.resolveDate({ date: "2021-03-04" }, "untitled",
+                                 core.stampOf(made, edited), ["date"]),
+      fromTitle: core.resolveDate({}, "2020-08-08 a day",
+                                  core.stampOf(made, edited), ["date"]),
+      fallback: core.resolveDate({}, "untitled", core.stampOf(made, edited), ["date"]),
+      off: core.resolveDate({}, "untitled", null, ["date"])
+    };
+  })()`);
+  const ok = r.both === "2019-05-17" && r.copied === "2019-05-17" &&
+             r.noCreation !== null && r.neither === null && r.rubbish === null &&
+             r.declared === "2021-03-04" && r.fromTitle === "2020-08-08" &&
+             r.fallback === "2019-05-17" && r.off === null;
+  return {
+    ok,
+    detail: `created 2019-05-17, edited 800 days later -> ${r.both}, and the same pair the ` +
+            `other way round -> ${r.copied}; no creation stamp -> ${r.noCreation}; nothing ` +
+            `usable -> ${r.neither}/${r.rubbish}. A declared date still wins ` +
+            `(${r.declared}), then the title (${r.fromTitle}), then the stamp ` +
+            `(${r.fallback}); with the fallback off it is Undated (${r.off})`
+  };
+});
+
 check("an ISO week keeps its week-year across a January boundary", async (p) => {
   const r = await p.j(`(function(){
     var core = window.VaultShelfCore;
@@ -276,7 +364,7 @@ check("a plaque sits under the books it names, in the same scroller", async (p) 
                    `floor; same scroller: ${r.sameRail}; width differs by ${r.widthDiff}px` };
 });
 
-check("a settings file from schema 1 comes up with its decades on", async (p) => {
+check("a settings file from an older schema comes up with the newer defaults", async (p) => {
   const r = await p.j(`(function(){
     var core = window.VaultShelfCore;
     var old = {
@@ -302,17 +390,28 @@ check("a settings file from schema 1 comes up with its decades on", async (p) =>
     var kept = core.migrate(chosen);
     var keptYears = kept.shelves.filter(function (s) { return s.id === "years"; })[0];
 
+    /* Schema 3 turned the file-stamp fallback on the same way, and for the same reason. A
+     * blob that already says 3 keeps whatever it says. */
+    var atThree = core.clone(old);
+    atThree.schema = 3;
+    atThree.useFileStamp = false;
+
     return { schema: up.schema, years: byId.years.plaques, months: byId.months.plaques,
              people: byId.people.plaques, wear: up.wear["years/2026"],
-             fields: up.dateFields.join(","), keptOff: keptYears.plaques };
+             fields: up.dateFields.join(","), keptOff: keptYears.plaques,
+             stamp: up.useFileStamp, keptStampOff: core.migrate(atThree).useFileStamp,
+             order: up.noteOrder };
   })()`);
-  const ok = r.schema === 2 && r.years === true && r.months === true && r.people === false &&
-             r.wear === 3 && r.fields === "date" && r.keptOff === false;
+  const ok = r.schema === 3 && r.years === true && r.months === true && r.people === false &&
+             r.wear === 3 && r.fields === "date" && r.keptOff === false &&
+             r.stamp === true && r.keptStampOff === false && r.order === "oldest";
   return {
     ok,
     detail: `schema 1 -> ${r.schema}: Years plaques ${r.years}, Months ${r.months}, People ` +
-            `${r.people}; wear and date fields survive (${r.wear} opens, "${r.fields}"). ` +
-            `A file already at schema 2 keeps its Years plaques off: ${r.keptOff === false}`
+            `${r.people}; the file-stamp fallback comes up ${r.stamp} and the reading order ` +
+            `"${r.order}"; wear and date fields survive (${r.wear} opens, "${r.fields}"). ` +
+            `A file already at schema 2 keeps its Years plaques off: ${r.keptOff === false}; ` +
+            `one at 3 keeps its stamp fallback off: ${r.keptStampOff === false}`
   };
 });
 

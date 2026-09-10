@@ -425,3 +425,47 @@ legacy root — checked **before** the new directory is claimed, since a legacy 
 somewhere else and creating this one would otherwise succeed. Verified: with Vault Graph
 holding `suite`, `node scripts/lock.mjs acquire suite` in Vault Shelf reports
 `WAITING … held in a legacy root` and then `BUSY`, exit 1.
+
+## A note with no date of its own now takes the file's
+
+`useFileStamp` was off by default and is on from settings schema 3, because an Undated book of
+a few hundred notes is not worth what it costs. The order is unchanged — a declared date, then
+a date in the title, then the stamp — and only the floor moved.
+
+**The stamp is the earlier of creation and modification**, via the new `core.stampOf`, called
+by both the plugin and the exporter. Neither one alone survives: a bulk reformat moves the
+modification time forward, and copying a vault moves the creation time forward while leaving
+the modification times intact. The exporter had been using `mtime` alone.
+
+Measured on the mirror of a real vault, with the fallback on:
+
+| | before | after |
+|---|---|---|
+| dated from frontmatter | 525 | 525 |
+| dated from the file stamp | 0 | **18** |
+| Undated | 18 | **0** |
+| Years shelf books | 12 | **11** (Undated gone) |
+
+**And measured on the real vault it mirrors, the fallback is nearly worthless**: all 545 files
+stamped inside `2026-06` to `2026-09`, because the vault was moved onto that machine in June.
+The 23 notes with no date of their own take a date meaning "when this vault arrived here". The
+toggle is how you see that — turn it off and count the Undated book. `decisions/0003` carries
+the amendment and the numbers.
+
+`make-mirror-vault.mjs` now copies each source file's stamp onto its mirror (`utimesSync`,
+never forward of now), because a mirror written today would give every undated note today and
+make the fallback look far worse than it is.
+
+## A book opens on its oldest note
+
+Every book ran newest-first — a feed's order, not a notebook's:
+
+> "it's weird to see a notebook starting with the newest note as if written backwards"
+
+Date-ordered books now run **oldest first**, with one toggle in the top bar. An Encyclopedia
+volume stays alphabetical under both, because "the oldest of the As" is not a thing and its
+tabs are cut by letter (`design/0015`).
+
+`core.buildShelf` takes the order as a third argument and flips the comparator; nothing
+downstream knows, the tabs follow because they are positions in the list, and the saved reading
+place re-resolves through the rebuild the way it does after any other one. 47 checks.

@@ -69,3 +69,24 @@ has no leader (design/0012) -- floated to the middle of the column. Rows with a 
 the width and hid it. `justify-content: flex-start` settles it, and it is the same lesson as
 `.spread`: the host styles the elements we build.
 
+## Which end you open
+
+> "it's weird to see a notebook starting with the newest note as if written backwards"
+
+A book ran newest-first, which is what a feed does and a notebook never does. It now runs
+**oldest first**, and the top bar carries the one control that says otherwise — in the bar
+rather than in a settings sheet, because it is a reading preference and you change it while
+reading.
+
+The button says what it **is**, not what pressing it would do. A button labelled "Newest
+first" that gives you oldest-first is a coin toss every time.
+
+It applies to books ordered by **date**. An Encyclopedia volume stays alphabetical under both
+settings, because "the oldest of the As" is not a thing anybody wants — and because this
+record's whole argument is that the tabs are cut the way the book is ordered, so a volume that
+flipped would need letter tabs that ran Z to A.
+
+`core.buildShelf` takes the order as its third argument and flips the comparator; nothing
+downstream knows. The tabs follow because they are positions in the list, and a saved reading
+place re-resolves through the rebuild the way it does after any other one.
+

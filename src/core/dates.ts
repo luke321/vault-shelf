@@ -40,6 +40,32 @@ export function resolveDate(
   return null;
 }
 
+/**
+ * decisions/0003 -- THE FILESYSTEM'S BEST GUESS AT WHEN A NOTE CAME INTO BEING, as an ISO day,
+ * or null when it has none worth having.
+ *
+ * The EARLIEST of the two stamps, not the creation one and not the modification one:
+ *
+ *   - a modification time alone is the thing this project spent a decision record warning
+ *     about, because a sync or a bulk reformat restamps a whole vault at once;
+ *   - a creation time alone is worse than it sounds, because copying a vault -- a new machine,
+ *     a restore, a move between sync services -- gives every file today's creation time while
+ *     leaving the modification times intact.
+ *
+ * Taking the earlier of the two survives both: a bulk edit cannot move it forward, and a copy
+ * that preserved mtimes cannot either. It is still a guess, and it is still second to anything
+ * the note actually declares.
+ *
+ * One implementation, called by the plugin and the exporter, because the last time those two
+ * each had their own the exporter invented a fifteenth month (design/0013).
+ */
+export function stampOf(createdMs: number, modifiedMs: number): string | null {
+  const times = [createdMs, modifiedMs].filter((n) => typeof n === "number" && n > 0 && isFinite(n));
+  if (!times.length) return null;
+  const day = new Date(Math.min(...times)).toISOString().slice(0, 10);
+  return isIsoDay(day) ? day : null;
+}
+
 export function yearOf(day: string): string {
   return day.slice(0, 4);
 }

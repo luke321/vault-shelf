@@ -12,7 +12,7 @@ const DIRS = ["plugin", "src", "scripts"];
 const EXT = /\.(m?js|ts)$/;
 
 // decisions/0007
-const BASELINE = 683;
+const BASELINE = 725;
 
 const VERBOSE = argv.includes("--verbose");
 const LIST = argv.includes("--list");

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // decisions/0004, design/0013
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, utimesSync,
+         writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -95,6 +96,15 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_VALUE = /^(\d{4}|\d{1,2})([-/.](\d{1,2}|Q[1-4]|W\d{1,2})){0,2}([ T][\d:.+Z-]*)?$/i;
 const DATEISH = /^\d{4}(?:[-_ ]?(?:\d{2}|Q[1-4]|W\d{1,2}))?$/i;
 
+/** The earliest stamp the source file has, as milliseconds -- the same rule core.stampOf uses. */
+function stampOf(abs) {
+  try {
+    const st = statSync(abs);
+    const times = [st.birthtimeMs, st.mtimeMs].filter((n) => n > 0 && isFinite(n));
+    return times.length ? Math.min(...times) : 0;
+  } catch { return 0; }
+}
+
 function walk(dir, acc = []) {
   for (const entry of readdirSync(dir)) {
     const p = join(dir, entry);
@@ -184,6 +194,11 @@ for (const abs of files) {
     tags: [...new Set(tags)].filter(Boolean),
     props,
     words: body.split(/\s+/).filter(Boolean).length,
+    /* design/0013 -- THE FILE'S OWN DATES ARE PART OF THE SHAPE, now that a note with no
+     * declared date takes the earliest stamp it has (decisions/0003). A mirror written
+     * today would give every one of them today, piling the whole Undated run into this
+     * month and making the fallback look far worse than it is. */
+    stamp: stampOf(abs),
   });
 }
 
@@ -413,6 +428,12 @@ for (const n of notes) {
   fm.push("---", "");
   writeFileSync(abs, fm.join("\n") + "# " + n.mBase + "\n\n" +
                 filler(Math.max(14, Math.min(n.words, 320))) + "\n", "utf8");
+  /* A creation time cannot be set from here on Windows, and does not need to be: `stampOf`
+   * takes the EARLIER of the two, so a real modification time older than this moment is the
+   * one that wins. A stamp newer than now is left alone rather than forged forward. */
+  if (n.stamp > 0 && n.stamp < Date.now()) {
+    try { utimesSync(abs, n.stamp / 1000, n.stamp / 1000); } catch { void 0; }
+  }
   written++;
 }
 
