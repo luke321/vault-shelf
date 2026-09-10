@@ -246,3 +246,80 @@ words, 402 property values, 44 property keys**, and **829 real strings** grepped
 every written file with a word-boundary match. A structural folder name (`01 - Projects`) and
 the keys this project writes itself are excused by name — **91 words** — because they are kept
 on purpose; everything else is a hard failure with no mirror written.
+
+## The shelf became a bookcase, and the fixture grew fifteen years
+
+**Rows.** A shelf was one row in a horizontal scroller; it is now as many full-width rows as it
+takes, and nothing scrolls sideways (`design/0014`). Measured in a 2560px view at
+`--measure: 1180`:
+
+| Vault | Rows in the library | Longest shelf | Worst row overflow |
+|---|---|---|---|
+| demo (394 notes) | 15 | Weeks, 7 rows | 0px |
+| sparse (758 notes) | 10 | Weeks, 4 rows | 0px |
+| library (10,000 notes) | 27 | Weeks, 17 rows | 0px |
+
+The packing is arithmetic, not layout: `thicknessOf` already knows every width. The one thing
+it did not know was that **a plaque is part of its run's width** — `align-self: stretch` makes
+a run of one thin book under `2010-2019` as wide as the words — which showed up as a **13px**
+overflow on the sparse vault and is now costed by `plaqueWidth()`.
+
+`room()` is measured off a `.vs-track`, which is `width: 100%` by definition. The first render
+of a fresh view has no track to measure, so it packs against the container — too generous by
+the width of the vertical scrollbar that does not exist yet — and `settleRoom()` corrects it
+with exactly one redraw.
+
+**Decade plaques.** `core.plaqueFor` now groups the `year` classifier under its decade, and the
+default Years shelf asks for plaques. Demo vault: **16 dated year books under 2 plates**
+(`2010-2019`, `2020-2029`); across the whole library **40 plates, 0 orphaned**.
+
+**Fifteen years of fixture.** `make-demo-vault.mjs` went from `--days 760` to `--days 5480`,
+and the offset is now `pow(rand(), 2.6)` rather than uniform — a real vault is thick at the
+recent end and thin at the old one, and a uniform draw over fifteen years gives every year the
+same twenty-six notes, which is a vault nobody has.
+
+| | before | after |
+|---|---|---|
+| span | 2.1 years | **15.0 years** |
+| Years books | 4 | **17** (16 dated + Undated) |
+| Months books | 27 | **125** |
+| Weeks books | 106 | **234** |
+| notes in 2026 | 190 | **129** |
+| notes in the oldest year | — | **1** (2011) |
+
+Notes, folders, people and tags are unchanged at 394 / 11 / 8 / 15: the same vault, spread over
+a life rather than a project.
+
+## The index was cut against the grain
+
+Every book's notes were sorted newest-first, and a book from an alphabetical classifier was
+then given **letter** tabs — so `A`, `C`, `F` pointed into a list ordered by date, and the tab
+marked C landed on the first note that happened to begin with C, somewhere in the middle of the
+Cs. Reported as:
+
+> "the index tabs are often only M for the M book for example but should go Ma Mb Mc etc"
+
+Both halves are the same bug. `core.buildShelf` now sorts an `initial` book **by title** and
+everything else by date, and `indexSections` cuts each book the way it is ordered
+(`design/0015`). Measured:
+
+| Book | before | after |
+|---|---|---|
+| mirror `A`, 56 notes | `A` | `A Aft` |
+| library `U`, 404 notes | `U` | `Ub Uc Uf Ug Ui Ul Um Up …` (12 ranges) |
+| mirror, Mira Vance's 62 notes | 8 letters over a date-ordered list | `2026 2025 2021 2020` |
+| demo `G`, 25 notes | `G` | `Gre` — one tab, and correct: all 25 are "Greenhouse Rebuild — …" |
+
+The prefix is the first **word**, not the first characters: "A note on ferries" cut at three
+characters is `A n`, a tab with a space in it that sorts nowhere.
+
+## Two smaller things
+
+**Manage offers the builder.** The sheet listed every shelf and had no way to make another;
+the only two doors to the builder were a card at the end of the library and a row menu that
+appears on hover.
+
+**The sort order says what it does.** The two values have always been ascending and descending;
+the labels said "Alphabetical" and "Newest first", so a Years shelf appeared to offer no way to
+read oldest-first. They now read "Oldest first / Newest first" on a date classifier and
+"A to Z / Z to A" on any other.

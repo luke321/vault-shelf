@@ -30,7 +30,11 @@ const arg = (name, fallback) => {
 const OUT = resolve(arg("out", join(ROOT, "demo-vault")));
 const SEED = Number(arg("seed", "20260909"));
 const END = arg("end", new Date().toISOString().slice(0, 10));
-const DAYS = Number(arg("days", "760"));
+/* FIFTEEN YEARS, NOT TWO. Two years of notes is a Years shelf with three books on it, which
+ * demonstrates nothing about the shelf that exists to make a long span readable -- and no
+ * decade plaque has anything to span. A real vault that has been going a while is what the
+ * product is for, so the fixture is one. */
+const DAYS = Number(arg("days", "5480"));
 
 /* ---- the PRNG ------------------------------------------------------------
  * mulberry32: one 32-bit state, no dependencies, and identical across Node versions. The
@@ -156,7 +160,11 @@ for (const folder of FOLDERS) {
   if (folder.kind === "person") continue;
   const notes = folder.weight * 4;
   for (let i = 0; i < notes; i++) {
-    const offset = Math.floor(rand() * DAYS);
+    /* AGED, NOT SPREAD. A uniform draw over fifteen years gives every year the same twenty-six
+     * notes, which is a vault nobody has: the recent years are thick and the old ones are a
+     * handful of things worth keeping. The exponent is what makes the Years shelf uneven, and
+     * uneven is the thing a spine's thickness is there to show (design/0011). */
+    const offset = Math.floor(Math.pow(rand(), 2.6) * DAYS);
     const day = dayAt(offset);
     const people = rand() < 0.35 ? pickN(PEOPLE, 1 + Math.floor(rand() * 2)) : [];
     const tags = pickN(TAGS, Math.floor(rand() * 3));
@@ -190,4 +198,5 @@ for (const folder of FOLDERS) {
 write("", "Dashboard", { tags: ["map"] }, "# Dashboard\n\n" + paragraph(1));
 write("", "Home", { tags: ["map"] }, "# Home\n\n" + paragraph(1));
 
-console.log(`wrote ${count} notes to ${OUT} (seed ${SEED}, end ${END}, ${DAYS} days)`);
+console.log(`wrote ${count} notes to ${OUT} (seed ${SEED}, end ${END}, ${DAYS} days, ` +
+            `${(DAYS / 365.25).toFixed(1)} years)`);

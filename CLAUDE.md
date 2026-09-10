@@ -21,8 +21,11 @@ of measuring it.** Build the page, drive it, read the numbers.
   from the file stamp unless asked. People come from the people property and never from prose.
   A missing value gets its own book (`-undated`, `-unfiled`), never an exclusion.
 - **The ISO week keeps its week-year.** 2027-01-01 is 2026-W53.
-- **Plaques are date classifiers only, and only when asked for**, and a plaque lives inside
-  the same horizontal scroller as the books it names.
+- **Plaques are date classifiers only, and only when asked for**: months and weeks under their
+  year, years under their decade. A plaque lives in the same row as the books it names, and a
+  run that wraps is named on every row it reaches.
+- **A shelf is a bookcase, not a conveyor belt.** Nothing scrolls sideways; a run too long for
+  the room continues on the next row down.
 - **A filter narrows; the query marks.** A filter removes notes before books are built. The
   search query never does: every book stays on the shelf and draws forward or thins to a ghost.
 - **A filter changes membership and nothing else.** Shelf order and book addresses do not move.
@@ -33,6 +36,9 @@ of measuring it.** Build the page, drive it, read the numbers.
   shipped reaches the network. Obsidian's own `app.css` claims `.spread`, and it claimed ours.
 - **The twelve colour slots are Vault Graph's**, read from the cascade rather than copied, and
   the theme is whatever the host says it is.
+- **A tab is a position in the contents**, so the index is cut the way the book is ordered: an
+  Encyclopedia volume is alphabetical inside and gets letters, everything else is in date order
+  and gets dates.
 
 ## How to work here
 
@@ -96,7 +102,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/page.js` | the page: directory, shelf rails, builder, manage sheet, reading spread — one `mountVaultShelf()`. **Do not read it top to bottom**; open `.ai-context/code-map.md` and go to the line range |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 39 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 42 checks over three vault shapes |
 | `scripts/obsidian-smoke.mjs` | the same plugin inside a real Obsidian: ribbon icon, view lifecycle, settings tab, Obsidian's markdown renderer, `--shot` for two pictures |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
 | `.ai-context/code-map.md` | **generated**: sections and functions of the two big files, with line numbers |

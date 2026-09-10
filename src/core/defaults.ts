@@ -16,7 +16,7 @@ export function defaultShelves(): Shelf[] {
     {
       id: "years", name: "Years", source: { kind: "all" },
       classifier: "year", direction: "chronological", hidden: false, position: 1,
-      plaques: false,
+      plaques: true,
     },
     {
       id: "months", name: "Months", source: { kind: "all" },

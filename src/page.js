@@ -73,6 +73,13 @@ var SLOT_KEYS = ["--g1", "--g2", "--g3", "--g4", "--g5", "--g6",
  * fourteen times the width of a one-note book, which is not a shelf, it is a bar chart lying
  * down. Log compresses the tail so a big book is visibly big and a small one is still a book
  * you can read the title of. */
+/* design/0014 -- the packing in rowsOf() and the `gap` on .vs-books are the same number, and
+ * a row is mispacked by exactly their difference. */
+/* design/0003 -- the classifiers that group under a bigger date: months and weeks under a
+ * year, years under a decade. core.plaqueFor is the other half and the two agree by test. */
+var PLAQUABLE = { month: true, week: true, year: true };
+
+var SPINE_GAP = 3;
 var SPINE_MIN = 22;
 var SPINE_MAX = 58;
 
@@ -182,6 +189,9 @@ function mountVaultShelf(root, data, options) {
   var settings = core.migrate(opts.settings || null);
   var notes = data.notes.slice();
   var folders = data.folders.slice();
+  /** design/0014 -- the measured inner width of a shelf row; 0 until the first render lands. */
+  var roomWidth = 0;
+
   /** @type {string[]} */
   var SLOTS = [];
   /** @type {Record<string, string>} */
@@ -293,7 +303,14 @@ function mountVaultShelf(root, data, options) {
 
   /* ================================================================= library == */
 
+  /* design/0014 -- draw, then check the room you drew into, and draw once more if it was not
+   * the room you assumed. `settleRoom` can only say yes once per width. */
   function renderLibrary() {
+    drawLibrary();
+    if (settleRoom()) drawLibrary();
+  }
+
+  function drawLibrary() {
     var box = $("shelves");
     clear(box);
     var anyVisible = false;
@@ -334,14 +351,18 @@ function mountVaultShelf(root, data, options) {
       books.length + (books.length === 1 ? " book" : " books") + " with a ribbon in it"));
     wrap.appendChild(head);
     var rail = el("div", "vs-shelfrail");
-    var track = el("div", "vs-track");
-    var row = el("div", "vs-books");
-    books.forEach(function (book) {
-      var shelf = shelfById(book.shelfId);
-      row.appendChild(renderSpine(book, shelf || { name: "Reading" }));
+    /* It packs into rows like any other shelf (design/0014): one ribbon can put a book on it
+     * from each of six shelves, so it is not as short as it sounds. */
+    rowsOf(books).forEach(function (row) {
+      var track = el("div", "vs-track");
+      var line = el("div", "vs-books");
+      row.forEach(function (book) {
+        var shelf = shelfById(book.shelfId);
+        line.appendChild(renderSpine(book, shelf || { name: "Reading" }));
+      });
+      track.appendChild(line);
+      rail.appendChild(track);
     });
-    track.appendChild(row);
-    rail.appendChild(track);
     wrap.appendChild(rail);
     return wrap;
   }
@@ -373,15 +394,130 @@ function mountVaultShelf(root, data, options) {
     wrap.appendChild(head);
 
     var rail = el("div", "vs-shelfrail");
-    rail.appendChild(renderTrack(view.books, view.shelf));
+    rowsOf(view.books).forEach(function (row) {
+      rail.appendChild(renderTrack(row, view.shelf));
+    });
     wrap.appendChild(rail);
     return wrap;
   }
 
   /**
-   * design/0003 -- the plaque sits in the SAME horizontal scroller as the books it names, so
-   * the two cannot drift apart while the rail scrolls. A shelf with no plaques renders one
-   * anonymous group, which keeps the DOM shape identical in both cases.
+   * design/0014 -- A BOOKCASE, NOT A CONVEYOR BELT. A shelf used to be one row in a horizontal
+   * scroller, so a vault with 126 people had 126 books on a rail four screens long and no way
+   * to see them at once. A run that outgrows the room now continues on the next shelf down,
+   * which is what a bookcase does and what makes the Encyclopedia readable at 543 notes.
+   *
+   * THE PACKING IS DONE HERE, NOT BY `flex-wrap`, because the plaques are the reason the rows
+   * exist: a wrapped flex row cannot tell you where it broke, and a plaque has to be drawn
+   * under the part of its run that landed on THIS shelf. Every width is already known --
+   * `thicknessOf` is arithmetic on the note count -- so the packing needs no layout pass.
+   *
+   * @param {Book[]} books @returns {Book[][]}
+   */
+  function rowsOf(books) {
+    var avail = room();
+    /** @type {Book[][]} */
+    var rows = [];
+    /** @type {Book[]} */
+    var row = [];
+    var used = 0;
+    var plaque = false;      // whether a run is open, and what it is labelled
+    /** @type {string|null} */
+    var label = null;
+    var runStart = 0;        // where in this row the open run began
+
+    /* THE PLATE IS PART OF THE RUN'S WIDTH. A plaque is `align-self: stretch`, so a run of one
+     * thin book under `2010-2019` is as wide as the words, not as wide as the book -- and a
+     * row packed on the books alone then overflowed by exactly that difference. Every run is
+     * given room for its own plate before it is allowed to start. */
+    function closeRun() {
+      if (label !== null) used = Math.max(used, runStart + plaqueWidth(label));
+      label = null;
+      plaque = false;
+    }
+    function flush() {
+      closeRun();
+      if (row.length) { rows.push(row); row = []; used = 0; }
+      runStart = 0;
+    }
+
+    books.forEach(function (book) {
+      var w = thicknessOf(book.notes.length) + SPINE_GAP;
+      var mine = book.plaque;
+      if (!plaque || mine !== label) {
+        closeRun();
+        if (row.length && used + Math.max(w, plaqueWidth(mine)) > avail) flush();
+        label = mine;
+        plaque = true;
+        runStart = used;
+      } else if (row.length && used + w > avail) {
+        flush();
+        label = mine;
+        plaque = true;
+        runStart = 0;
+      }
+      row.push(book);
+      used += w;
+    });
+    closeRun();
+    if (row.length || !rows.length) rows.push(row);
+    return rows;
+  }
+
+  /**
+   * How wide a plaque insists on being, without asking the document. The label is a year or a
+   * decade in a known face at a known size, so an upper bound is arithmetic; measuring would
+   * mean a layout pass per shelf per render, to learn the width of eleven characters.
+   * @param {string|null} label @returns {number}
+   */
+  function plaqueWidth(label) {
+    return label === null ? 0 : label.length * 7.6 + 18;
+  }
+
+  /**
+   * The room's inner width. `--measure` caps it, the Obsidian sidebar takes from it, a phone
+   * has neither, and a vertical scrollbar appears the moment the library is long enough to
+   * need one -- so it is MEASURED, and measured off the one element whose width is the answer
+   * by definition: a `.vs-track` is `width: 100%` of the row it fills.
+   *
+   * `roomWidth` is that measurement, taken by `settleRoom()` once the library is in the
+   * document. Before there is anything to measure the container is asked instead and the
+   * constant is the last resort; either way the next frame corrects it.
+   * @returns {number}
+   */
+  function room() {
+    if (roomWidth > 80) return roomWidth;
+    var box = $("shelves");
+    var w = box ? box.clientWidth : 0;
+    return w > 80 ? w : 900;
+  }
+
+  /**
+   * ONE CORRECTION, NOT A LOOP. The first render of a fresh view packs against a guess -- the
+   * container before its scrollbar exists, or nothing at all -- and a guess that is too
+   * generous puts the end of a row past the right edge, where it is clipped and simply gone.
+   * So: measure a real row, and if the truth differs from what was packed, pack again. The
+   * second measurement always agrees with the second packing, and a render that can schedule
+   * another render is a render that can spin.
+   * @returns {boolean} whether the library has to be drawn again
+   */
+  function settleRoom() {
+    var track = $("shelves").querySelector(".vs-track");
+    if (!track) return false;
+    var w = track.clientWidth;
+    if (w <= 80 || w === roomWidth) return false;
+    roomWidth = w;
+    return true;
+  }
+
+  /**
+   * design/0003 -- the plaque sits in the SAME row as the books it names, so the two cannot
+   * drift apart. A shelf with no plaques renders one anonymous group, which keeps the DOM
+   * shape identical in both cases.
+   *
+   * design/0014 -- one call is ONE SHELF ROW. A run that spans two rows gets a plaque on each
+   * of them, naming the same year twice, because each plate says what is on the board it is
+   * screwed to.
    */
   /** @param {Book[]} books @param {Shelf} shelf @returns {HTMLElement} */
   function renderTrack(books, shelf) {
@@ -602,8 +738,14 @@ function mountVaultShelf(root, data, options) {
 
   /**
    * The index tabs are the book's own shape: months for a year, days for a month or a week,
-   * initial ranges for anything alphabetical. A vault with thousands of entries gets ranges
-   * rather than thousands of tabs -- a tab you cannot hit is decoration.
+   * letters for a volume of the Encyclopedia, and the span it covers for a person's or a
+   * tag's book. A vault with thousands of entries gets ranges rather than thousands of tabs --
+   * a tab you cannot hit is decoration.
+   *
+   * design/0015 -- A TAB IS A POSITION IN THE CONTENTS, so the tabs have to be cut the same
+   * way the contents are ordered. The M volume of an Encyclopedia is in alphabetical order and
+   * gets letters; a person's book is in date order and gets dates. Cutting letters over a
+   * date-ordered list is what produced tabs that jumped backwards.
    */
   /** @param {Book} book @returns {{ label: string, at: number }[]} */
   function indexSections(book) {
@@ -611,25 +753,16 @@ function mountVaultShelf(root, data, options) {
     var kind = shelf ? shelf.classifier : "initial";
     /** @type {{ label: string, at: number }[]} */
     var out = [];
-    /** @type {Record<string, number>} */
-    var seen = {};
-    if (kind === "year") {
-      book.notes.forEach(function (n, i) {
-        if (!n.date) return;
-        var key = n.date.slice(0, 7);
-        if (seen[key] === undefined) { seen[key] = i; out.push({ label: core.monthLabel(key).slice(0, 3), at: i }); }
-      });
+    if (kind === "initial") {
+      out = letterTabs(book.notes);
+    } else if (kind === "year") {
+      out = cutBy(book.notes, function (n) { return n.date ? n.date.slice(0, 7) : ""; },
+                  function (key) { return core.monthLabel(key).slice(0, 3); });
     } else if (kind === "month" || kind === "week") {
-      book.notes.forEach(function (n, i) {
-        if (!n.date) return;
-        var key = n.date;
-        if (seen[key] === undefined) { seen[key] = i; out.push({ label: key.slice(8), at: i }); }
-      });
+      out = cutBy(book.notes, function (n) { return n.date || ""; },
+                  function (key) { return key.slice(8); });
     } else {
-      book.notes.forEach(function (n, i) {
-        var key = core.firstLetter(n.title);
-        if (seen[key] === undefined) { seen[key] = i; out.push({ label: key, at: i }); }
-      });
+      out = spanTabs(book.notes);
     }
     if (out.length <= 26) return out;
     /** @type {{ label: string, at: number }[]} */
@@ -640,6 +773,84 @@ function mountVaultShelf(root, data, options) {
                    at: out[i].at });
     }
     return parts;
+  }
+
+  /**
+   * One tab per distinct key, at the first note that carries it. A note with no key -- an
+   * undated one in a date-cut book -- is skipped rather than given a tab of its own.
+   * @param {ShelfNote[]} notes
+   * @param {function(ShelfNote): string} keyOf
+   * @param {function(string): string} labelOf
+   * @returns {{ label: string, at: number }[]}
+   */
+  function cutBy(notes, keyOf, labelOf) {
+    /** @type {{ label: string, at: number }[]} */
+    var out = [];
+    /** @type {Record<string, boolean>} */
+    var seen = {};
+    notes.forEach(function (n, i) {
+      var key = keyOf(n);
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      out.push({ label: labelOf(key), at: i });
+    });
+    return out;
+  }
+
+  /**
+   * design/0015 -- AS DEEP AS THE BOOK NEEDS. Every note in the Encyclopedia's M volume starts
+   * with M, so one letter is one tab and one tab is no index at all. So it cuts on two letters
+   * -- Ma, Mc, Mi -- and on three where two is still not enough, which is what the spine
+   * labels of a real multi-volume encyclopedia do for exactly this reason.
+   *
+   * It stops as soon as the tabs are worth having, because deeper is not better: Mar, Mat, Mea
+   * over a book of forty is a wall of tabs that says less than Ma, Me, Mi.
+   * @param {ShelfNote[]} notes @returns {{ label: string, at: number }[]}
+   */
+  function letterTabs(notes) {
+    /** @type {{ label: string, at: number }[]} */
+    var out = [];
+    for (var depth = 1; depth <= 3; depth++) {
+      out = cutBy(notes, function (n) { return titlePrefix(n.title, depth); },
+                  function (key) { return key; });
+      if (out.length >= 4 || out.length >= notes.length) return out;
+    }
+    return out;
+  }
+
+  /**
+   * The first letter as the classifier sees it -- punctuation stripped, digits collapsed to
+   * `0-9` -- and then, at greater depths, more of THE FIRST WORD.
+   *
+   * The first word, not the first characters: "A note on ferries" cut at three characters is
+   * `A n`, a tab with a space in it that claims to be a range and is not. Its first word is
+   * `A`, so its tab is `A`, and it files next to `A dozen` and before `Aft`. That is how a
+   * volume spine is lettered.
+   * @param {string} title @param {number} depth @returns {string}
+   */
+  function titlePrefix(title, depth) {
+    var head = core.firstLetter(title);
+    if (depth <= 1 || head === "0-9" || head === "#") return head;
+    var word = /^[\p{L}\p{N}]+/u.exec(title.replace(/^[^\p{L}\p{N}]+/u, ""));
+    if (!word) return head;
+    return head + word[0].slice(1, depth).toLowerCase();
+  }
+
+  /**
+   * A book that is in date order but is not a date book -- a person, a tag, a folder, a
+   * property value. It is indexed by the biggest unit that gives it more than one tab: years
+   * for a decade of meetings, months for a busy year, days for a fortnight.
+   * @param {ShelfNote[]} notes @returns {{ label: string, at: number }[]}
+   */
+  function spanTabs(notes) {
+    var byYear = cutBy(notes, function (n) { return n.date ? n.date.slice(0, 4) : ""; },
+                       function (key) { return key; });
+    if (byYear.length > 1) return byYear;
+    var byMonth = cutBy(notes, function (n) { return n.date ? n.date.slice(0, 7) : ""; },
+                        function (key) { return core.monthLabel(key).slice(0, 3); });
+    if (byMonth.length > 1) return byMonth;
+    return cutBy(notes, function (n) { return n.date || ""; },
+                 function (key) { return key.slice(8); });
   }
 
   function renderTabs() {
@@ -852,9 +1063,17 @@ function mountVaultShelf(root, data, options) {
     field("bclassifier").value = d.classifier;
     $("bproperty").hidden = d.classifier !== "property";
     if (d.property) field("bproperty").value = d.property;
-    field("bdirection").value = d.direction;
+    /* github#0 -- THE ORDER IS TWO WORDS THAT DEPEND ON THE CLASSIFIER. Under the labels
+     * "Alphabetical" and "Newest first" a Years shelf offered no way to read as oldest-first,
+     * because the option that does it was named after the other kind of shelf. The two values
+     * have always been ascending and descending; only the words were wrong. */
+    var dated = d.classifier === "year" || d.classifier === "month" || d.classifier === "week";
+    var order = /** @type {HTMLSelectElement} */ ($("bdirection"));
+    order.options[0].textContent = dated ? "Oldest first" : "A to Z";
+    order.options[1].textContent = dated ? "Newest first" : "Z to A";
+    order.value = d.direction;
     field("bplaques").checked = !!d.plaques;
-    field("bplaques").disabled = d.classifier !== "month" && d.classifier !== "week";
+    field("bplaques").disabled = !PLAQUABLE[d.classifier];
     field("bsubtags").checked = d.includeSubtags !== false;
     field("bsubtags").disabled = d.classifier !== "tag" && d.source.kind !== "tag";
   }
@@ -873,7 +1092,7 @@ function mountVaultShelf(root, data, options) {
       d.property = field("bproperty").value;
     }
     d.direction = field("bdirection").value === "chronological" ? "chronological" : "alphabetical";
-    d.plaques = (d.classifier === "month" || d.classifier === "week") && field("bplaques").checked;
+    d.plaques = !!PLAQUABLE[d.classifier] && field("bplaques").checked;
     d.includeSubtags = field("bsubtags").checked;
     writeBuilderFields();
   }
@@ -983,6 +1202,14 @@ function mountVaultShelf(root, data, options) {
     renderManage();
     $("manage").hidden = false;
     node("mclose").focus();
+  }
+
+  /* github#0 -- MANAGE IS WHERE PEOPLE LOOK FOR "ADD ONE". The sheet listed every shelf and
+   * offered no way to make another, so the only two doors to the builder were a card at the
+   * end of the library and a row menu that appears on hover. */
+  function newShelfFromManage() {
+    $("manage").hidden = true;
+    openBuilder(null);
   }
 
   function renderManage() {
@@ -1097,6 +1324,7 @@ function mountVaultShelf(root, data, options) {
   on($("newshelf"), "click", function () { openBuilder(null); });
   on($("newshelf2"), "click", function () { openBuilder(null); });
   on($("manageopen"), "click", openManage);
+  on($("mnew"), "click", newShelfFromManage);
   on($("mclose"), "click", function () { $("manage").hidden = true; node("library").focus(); });
   on($("mrestore"), "click", function () {
     settings.shelves.forEach(function (s) { s.hidden = false; });

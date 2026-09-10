@@ -362,27 +362,36 @@
 .vault-shelf .vs-shelf:hover .vs-shelfhead .vs-mini,
 .vault-shelf .vs-shelfhead .vs-mini:focus-within { opacity: 1; }
 
+/* design/0014 -- A BOOKCASE. The rail holds one or more boards, each one a full-width row of
+ * books; a run too long for the room continues on the next one down. Nothing scrolls
+ * sideways, which is the whole point: a horizontal scroller hides the far end of a shelf and
+ * gives no clue how much of it there is. */
 .vault-shelf .vs-shelfrail {
-  overflow-x: auto;
-  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   padding-bottom: 6px;
+  min-width: 0;
 }
 
-/* THE FLOOR IS INSIDE THE SCROLLER, for the same reason the plaque is (design/0003): a rule
- * drawn outside the rail drifts out from under its books the moment the rail scrolls.
+/* THE FLOOR IS INSIDE THE ROW, for the same reason the plaque is (design/0003): a rule drawn
+ * outside would have to be kept in step with a row whose height depends on what is on it.
  *
  * IT IS A BACKGROUND, NOT A BORDER, and that is what lets the plaque hang BELOW it. As a
  * bottom border the floor was the last thing in the track, so a plaque could only ever sit
  * above it -- a year label resting on the books rather than screwed to the shelf edge. Drawn
  * as a background line the floor sits at a known height, because a spine's height is a
- * constant, and the plaque row lives underneath it. */
+ * constant, and the plaque row lives underneath it.
+ *
+ * The board runs the FULL WIDTH of the room even where the books stop, because a shelf does
+ * (design/0014). A half-empty last row with a board ending mid-air reads as a broken rule. */
 .vault-shelf .vs-track {
   display: flex;
   align-items: flex-start;
   gap: 3px;
   min-height: calc(var(--spine-h) + 34px);
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
   background-image: linear-gradient(var(--border-strong), var(--border-strong));
   background-repeat: no-repeat;
   background-size: 100% var(--board);
@@ -886,10 +895,10 @@
 
 /* ---- plain list mode, narrow screens, reduced motion -------------------- */
 
-.vault-shelf[data-list="1"] .vs-track { display: block; min-height: 0; border-bottom: 0; width: auto; }
+.vault-shelf[data-list="1"] .vs-track { display: block; min-height: 0; border-bottom: 0; width: auto; background-image: none; }
 .vault-shelf[data-list="1"] .vs-group { display: block; }
 .vault-shelf[data-list="1"] .vs-group .vs-books { display: block; }
-.vault-shelf[data-list="1"] .vs-shelfrail { overflow-x: visible; }
+.vault-shelf[data-list="1"] .vs-shelfrail { display: block; }
 
 .vault-shelf[data-list="1"] .vs-spine {
   width: 100%;

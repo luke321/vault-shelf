@@ -1,0 +1,56 @@
+# 0015 — The index
+
+The tabs down the edge of the reading spread, and the order of the contents they point into.
+
+## A tab is a position, so the cut must follow the order
+
+The tabs jump to an index in `book.notes`. That is the whole constraint, and it was being
+broken: every book's notes were sorted **newest first**, and a book from an alphabetical
+classifier was then given **letter** tabs. A, C, F over a list ordered by date point at
+nothing in particular; the tab marked C lands on the first note that happens to begin with C,
+somewhere in the middle of the Cs.
+
+So the order comes first, and the tabs are cut to match it:
+
+| Book | Order | Tabs |
+|---|---|---|
+| an Encyclopedia volume (`initial`) | **by title** | letters — `A`, `Aft`, `Al` |
+| a year | by date | months — `Jan`, `Feb` |
+| a month, a week | by date | days — `04`, `09`, `27` |
+| a person, a tag, a folder, a property value | by date | the span it covers |
+
+`core.buildShelf` sorts a book's notes with `byTitleThenDate` when the classifier is
+`initial`, and `byDateThenTitle` otherwise. An encyclopedia volume is alphabetical inside; a
+record of who you met is not.
+
+## As deep as the book needs
+
+> "the index tabs are often only M for the M book for example but should go Ma Mb Mc etc"
+
+Every note in the M volume begins with M, so one letter is one tab and one tab is no index at
+all. `letterTabs()` cuts on one letter, and if that yields fewer than four tabs it cuts on two
+— `Ma`, `Me`, `Mi` — and then on three. It stops as soon as the tabs are worth having, because
+deeper is not better: `Mar`, `Mat`, `Mea` over a book of forty is a wall of tabs that says less
+than `Ma`, `Me`, `Mi`.
+
+**The prefix is the first WORD, not the first characters.** "A note on ferries" cut at three
+characters is `A n` — a tab with a space in it, claiming to be a range and sorting nowhere. Its
+first word is `A`, so its tab is `A`, and it files next to `A dozen` and before `Aft`. That is
+how a volume spine is lettered.
+
+Some books cannot be cut at all: the demo fixture's G volume is 25 notes all titled
+"Greenhouse Rebuild — …", and no prefix separates them. One tab is then the true answer, and
+the check asserts the tabs the titles *admit* rather than a number the data cannot supply.
+
+## The span, for the books that are neither
+
+A person's book of 62 notes over five years is indexed by year. One of 40 notes inside a single
+year is indexed by month. A fortnight of them is indexed by day. `spanTabs()` takes the biggest
+unit that gives more than one tab, which is the same rule a printed index follows and needs no
+setting.
+
+## Twenty-six, still
+
+Above 26 tabs the list is collapsed into twelve ranges (`Ub–Ug`), unchanged from the first
+version: a tab you cannot hit is decoration, and the 10k library's U volume has 404 notes in
+it.

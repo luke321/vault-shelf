@@ -35,3 +35,6 @@ mirror-vault/
 # The path to that real vault, written once so a recording needs no flag. It is a vault path,
 # which is exactly what check-pii refuses in a tracked file.
 .mirror-source
+
+# Agent worktrees. A worktree is a checkout, not a file of this repository.
+.claude/worktrees/

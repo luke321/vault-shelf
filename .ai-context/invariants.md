@@ -87,11 +87,22 @@ taken from nowhere.
 
 `"a plaque sits under the books it names, in the same scroller"` is the geometric half: the
 plaque hangs **below the shelf floor**, not on top of the books — its top clears the board by
-at least the board's own thickness — and one scroller contains both. Measured on the demo
-vault: the plaque hangs **12px** below its books, clearing the **3px** floor, and matches
-their width to **0px**. The floor is drawn as a background line on the track rather than as
-its bottom border, which is what leaves room underneath for a plate to hang; `design/0003`
-is why being in the same scroller is structural rather than positional.
+at least the board's own thickness — and one row contains both. Measured on the demo vault:
+the plaque hangs **12px** below its books, clearing the **3px** floor, and matches their width
+to **0px**. The floor is drawn as a background line on the track rather than as its bottom
+border, which is what leaves room underneath for a plate to hang; `design/0003` is why being
+in the same element is structural rather than positional.
+
+`"years group under decade plaques, and a run that wraps is named on both rows"` asserts that
+every dated year book carries a plaque whose range is a real decade — starts on a multiple of
+ten, spans exactly ten years, and contains that year — that **Undated carries none**, and that
+no plate anywhere in the library is drawn over an empty run. Measured on the demo vault: **16
+dated year books under `2010-2019` and `2020-2029`, 40 plates across every shelf, 0 of them
+orphaned**.
+
+The label is the decade it holds, not `2000-2010`. The friendlier form is a lie: 2010 belongs
+to the next plaque's run, and two plates claiming the same year is worse than an unfamiliar
+label.
 
 **This check is in the serial lane.** It reads a laid-out box, and four browsers contending for
 one GPU report a geometry that has more to do with the other three windows.
@@ -159,6 +170,15 @@ An empty room with no way out is the worst reachable state in this product.
 
 `"clicking a spine opens a book on the note it names"` clicks a real spine on the Years shelf
 and asserts the reader opened on the book that spine addressed, with a non-empty contents list.
+
+`"the index tabs cut the book the way the book is ordered"` opens the largest Encyclopedia
+volume and asserts its contents are in **title** order, that every tab label begins with the
+volume's own letter, that the labels rise, and that there are as many as the titles admit —
+up to four. Then it opens the largest person's book and asserts its tabs are **dates**,
+because its contents are in date order. Measured: on the mirror of a real vault, `A` holds 56
+notes behind `A Aft`; on the 10k library, `U` holds 404 behind `Ub Uc Uf Ug Ui Ul Um Up …`;
+on the demo fixture `G` holds 25 behind one tab, because all 25 are titled "Greenhouse
+Rebuild — …" and no prefix separates them. `design/0015`.
 
 `"the reader's index tabs stay countable on the biggest book"` finds the largest book in the
 vault and asserts its tab count is between 1 and 26. Measured on the demo vault: the biggest
@@ -251,15 +271,16 @@ that a query finding nothing still drew something forward.
 ## The room
 
 `"the room has a width, however wide the window is"` overrides the viewport to **2560px** and
-asserts the library, the rail, the reading spread and every shelf's scroller all fit inside
-`--measure` (**1180px**), and that the library and the spread are centred within 20px — the
-tolerance is a scrollbar, not slack. Measured: shelves **1180 (683/698)**, a **1180px**
-scroller clipping **1321px** of books, spread **1180 (690/690)**.
+asserts the library, the rail, a row and the reading spread all fit inside `--measure`
+(**1180px**), that the library and the spread are centred within 20px — the tolerance is a
+scrollbar, not slack — and that **no row overflows by so much as a pixel**. Measured: shelves
+**1180 (683/698)**, row **1180**, spread **1180 (690/690)**, **worst overflow 0px** across
+15 rows on the demo vault, 10 on the sparse and 27 on the library.
 
-A **track** may be wider than the room and usually is: that is a shelf with more books on it
-than fit, which is the reason the rail scrolls at all. What the room promises is that the
-scroller stays inside the measure and clips. Asserting the track itself fit was asserting that
-no shelf may be long, and it started failing the moment `design/0011` gave books real widths.
+Nothing runs sideways any more (`design/0014`), so the question is no longer whether the
+scroller clips but whether anything overflows at all. **The 13px this check caught was a
+plaque**: a plate is `align-self: stretch`, so a run of one thin book under `2010-2019` is as
+wide as the words, and the packer was costing runs by their books alone.
 
 `"the library is the whole surface, with no sidebar"` asserts **zero** `<aside>` elements,
 exactly **two** New shelf buttons, and that they bracket the shelves in document order — the

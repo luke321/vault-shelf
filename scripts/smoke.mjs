@@ -276,6 +276,110 @@ check("a plaque sits under the books it names, in the same scroller", async (p) 
                    `floor; same scroller: ${r.sameRail}; width differs by ${r.widthDiff}px` };
 });
 
+check("years group under decade plaques, and a run that wraps is named on both rows",
+      async (p) => {
+  const r = await p.j(`(function(){
+    var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0];
+    var dated = years.books.filter(function (b) { return b.key !== "-undated"; });
+    var wrong = dated.filter(function (b) {
+      if (b.plaque === null) return true;
+      var start = Number(b.plaque.split("-")[0]);
+      var end = Number(b.plaque.split("-")[1]);
+      var y = Number(b.key);
+      return !(start <= y && y <= end && end - start === 9 && start % 10 === 0);
+    }).map(function (b) { return b.key + " under " + b.plaque; });
+    var undated = years.books.filter(function (b) { return b.key === "-undated"; });
+
+    // Every row of every shelf: a plaque, if the row has one, names books that are in it.
+    var rows = [].slice.call(document.querySelectorAll("#vs-shelves .vs-track"));
+    var orphans = 0, plates = 0;
+    rows.forEach(function (row) {
+      [].slice.call(row.querySelectorAll(".vs-group")).forEach(function (g) {
+        var plate = g.querySelector(".vs-plaque");
+        if (!plate) return;
+        plates++;
+        if (!g.querySelector(".vs-spine")) orphans++;
+      });
+    });
+    var names = {};
+    [].slice.call(document.querySelectorAll('[data-shelf="years"] .vs-plaque'))
+      .forEach(function (el) { names[el.textContent] = (names[el.textContent] || 0) + 1; });
+    return { decades: dated.length, wrong: wrong, undatedPlaque: undated.length
+               ? undated[0].plaque : null,
+             plates: plates, orphans: orphans, drawn: Object.keys(names).sort() };
+  })()`);
+  const ok = r.wrong.length === 0 && r.undatedPlaque === null && r.orphans === 0;
+  return {
+    ok,
+    detail: `${r.decades} dated year books, all under a decade of their own: ` +
+            `${r.wrong.length === 0} (${r.drawn.join(", ") || "none drawn"}); Undated has ` +
+            `${r.undatedPlaque === null ? "no plaque" : "a plaque, which is wrong"}; ` +
+            `${r.plates} plates across every shelf, ${r.orphans} of them over no books` +
+            (r.wrong.length ? " -- " + r.wrong.slice(0, 3).join("; ") : "")
+  };
+});
+
+check("the index tabs cut the book the way the book is ordered", async (p) => {
+  const r = await p.j(`(function(){
+    function tabsFor(id) {
+      __vs.openBook(id, null);
+      var out = [].slice.call(document.querySelectorAll("#vs-tabs button"))
+        .map(function (b) { return b.textContent; });
+      var titles = [].slice.call(document.querySelectorAll("#vs-contents .vs-t"))
+        .map(function (t) { return t.textContent; });
+      __vs.closeReader();
+      return { tabs: out, titles: titles };
+    }
+    var enc = __vs.views().filter(function (v) { return v.shelf.id === "encyclopedia"; })[0];
+    var biggest = enc.books.filter(function (b) { return b.key !== "0-9" && b.key !== "#"; })
+      .sort(function (a, b) { return b.notes.length - a.notes.length; })[0];
+    var volume = tabsFor(biggest.id);
+
+    // Alphabetical inside: the contents of a volume are in title order.
+    var sorted = volume.titles.slice().sort(function (a, b) {
+      var x = a.toLowerCase(), y = b.toLowerCase();
+      return x < y ? -1 : x > y ? 1 : 0;
+    });
+    var ordered = volume.titles.every(function (t, i) { return t === sorted[i]; });
+
+    // A person's book is in date order, so its tabs are dates, not letters.
+    var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
+    var person = people.books.filter(function (b) { return b.key !== "-unfiled"; })
+      .sort(function (a, b) { return b.notes.length - a.notes.length; })[0];
+    var theirs = person ? tabsFor(person.id) : { tabs: [], titles: [] };
+
+    /* HOW MANY TABS THE TITLES ADMIT. A volume whose notes all begin with the same word --
+     * which generated fixtures do produce -- cannot be cut into more than one, and demanding
+     * that it is would be demanding something of the data rather than of the code. */
+    var firstWords = {};
+    volume.titles.forEach(function (t) {
+      var w = /^[\\p{L}\\p{N}]+/u.exec(t.replace(/^[^\\p{L}\\p{N}]+/u, ""));
+      firstWords[(w ? w[0] : "").slice(0, 3).toLowerCase()] = true;
+    });
+
+    return { key: biggest.key, notes: biggest.notes.length, tabs: volume.tabs,
+             ordered: ordered, person: person ? person.key : null,
+             possible: Object.keys(firstWords).length,
+             personTabs: theirs.tabs, personNotes: person ? person.notes.length : 0 };
+  })()`);
+  const rising = r.tabs.every((t, i) => i === 0 || r.tabs[i - 1].toLowerCase() <= t.toLowerCase());
+  const enough = r.tabs.length >= Math.min(4, r.possible);
+  const deep = enough && rising && r.tabs.every((t) => t.indexOf(r.key) === 0);
+  const dateish = r.personTabs.every((t) => /^[0-9]|^[A-Z][a-z]{2}$/.test(t));
+  const ok = deep && r.ordered && (r.personTabs.length === 0 || dateish);
+  return {
+    ok,
+    detail: `${r.key} holds ${r.notes} notes behind ${r.tabs.length} tabs of the ` +
+            `${r.possible} its titles admit ` +
+            `(${r.tabs.slice(0, 8).join(" ")}${r.tabs.length > 8 ? " ..." : ""}), all inside ` +
+            `${r.key} and in order: ${deep}; its contents are in title order: ${r.ordered}. ` +
+            (r.person
+              ? `${r.person}'s ${r.personNotes} notes are in date order and tabbed by date: ` +
+                `${dateish} (${r.personTabs.slice(0, 6).join(" ")})`
+              : "no person book to check")
+  };
+});
+
 check("a spine's thickness is its note count", async (p) => {
   const r = await p.j(`(function(){
     var rail = document.querySelector('[data-shelf="years"] .vs-track') ||
@@ -560,17 +664,27 @@ check("the room has a width, however wide the window is", async (p) => {
     __vs.closeReader();
     var shelves = box(document.getElementById("vs-shelves"));
     var rail = box(document.querySelector("#vs-rail .vs-inner"));
-    var trackEl = document.querySelector("#vs-shelves .vs-track");
-    var scrollerEl = trackEl ? trackEl.parentElement : null;
-    var track = box(trackEl);
-    var scroller = box(scrollerEl);
-    var clipped = scrollerEl ? getComputedStyle(scrollerEl).overflowX !== "visible" : false;
+    var tracks = [].slice.call(document.querySelectorAll("#vs-shelves .vs-track"));
+    var track = box(tracks[0]);
+    /* design/0014 -- NOTHING RUNS SIDEWAYS ANY MORE. A row is exactly as wide as the room and
+     * a run too long for it continues on the next row down, so the honest question is no
+     * longer "does the scroller clip" but "does anything overflow at all". */
+    var overflow = tracks.reduce(function (worst, t) {
+      return Math.max(worst, t.scrollWidth - t.clientWidth);
+    }, 0);
+    var rows = {};
+    tracks.forEach(function (t) {
+      var id = t.closest("[data-shelf]").getAttribute("data-shelf");
+      rows[id] = (rows[id] || 0) + 1;
+    });
+    var most = Object.keys(rows).reduce(function (a, b) { return rows[a] >= rows[b] ? a : b; },
+                                        Object.keys(rows)[0] || "");
     __vs.openBook(__vs.addresses()[0], null);
     var spread = box(document.querySelector("#vs-reader .vs-spread"));
     __vs.closeReader();
     return { measure: measure, app: Math.round(app.getBoundingClientRect().width),
-             shelves: shelves, rail: rail, track: track, scroller: scroller,
-             clipped: clipped, spread: spread };
+             shelves: shelves, rail: rail, track: track, spread: spread,
+             overflow: overflow, tracks: tracks.length, most: most, mostRows: rows[most] || 0 };
   })()`);
   await p.send("Emulation.clearDeviceMetricsOverride");
   await sleep(250);
@@ -581,22 +695,17 @@ check("the room has a width, however wide the window is", async (p) => {
    * 0 on an overlay scrollbar. The tolerance is for that, not for sloppiness: 20px cannot
    * hide a genuinely left- or right-aligned column, which would be off by hundreds. */
   const centred = (b) => b && Math.abs(b.left - b.right) <= 20;
-  /* A TRACK IS ALLOWED TO BE WIDER THAN THE ROOM -- that is a shelf with more books on it
-   * than fit, which is the normal case and the reason the rail scrolls at all. Since
-   * design/0011 gave every book its own thickness, a 10k library's first shelf runs past
-   * 1180px, and asserting otherwise asserted that no shelf may be long. What the room's width
-   * actually promises is that the SCROLLER stays inside the measure and clips. */
   const wide = r.app > r.measure + 400;
-  const ok = wide && fits(r.shelves) && fits(r.rail) && fits(r.spread) &&
-             fits(r.scroller) && r.clipped && centred(r.shelves) && centred(r.spread);
+  const ok = wide && fits(r.shelves) && fits(r.rail) && fits(r.spread) && fits(r.track) &&
+             r.overflow <= 1 && centred(r.shelves) && centred(r.spread);
   return {
     ok,
     detail: !wide
       ? `the viewport override did not take: the app is only ${r.app}px wide`
       : `in a ${r.app}px view with --measure ${r.measure}: shelves ${r.shelves.w} ` +
-        `(${r.shelves.left}/${r.shelves.right}), rail ${r.rail.w}, a ${r.scroller.w}px ` +
-        `scroller clipping ${r.track.w}px of books (clips: ${r.clipped}), spread ` +
-        `${r.spread.w} (${r.spread.left}/${r.spread.right}) -- nothing runs to the edge`
+        `(${r.shelves.left}/${r.shelves.right}), rail ${r.rail.w}, row ${r.track.w}, spread ` +
+        `${r.spread.w} (${r.spread.left}/${r.spread.right}); ${r.tracks} rows in all, ` +
+        `${r.most} taking ${r.mostRows}, worst overflow ${r.overflow}px`
   };
 });
 

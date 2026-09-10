@@ -93,13 +93,32 @@ export function labelFor(key: string, kind: ClassifierKind): string {
   }
 }
 
-/** design/0003 -- plaques are date classifiers only; anything else groups under nothing. */
+/**
+ * design/0003 -- plaques are date classifiers only; anything else groups under nothing.
+ *
+ * Each date classifier groups under the next unit up: months and weeks under their year,
+ * years under their DECADE. A vault fifteen years deep has sixteen year-books in a row, which
+ * is a row you have to read rather than scan; `2010-2019` over the first seven of them is the
+ * same favour the year plaque does for forty-three months.
+ *
+ * The label is the decade it actually holds. `2000-2010` would read more naturally and would
+ * be a lie: 2010 is in the next plaque's run, and two plaques claiming the same year is worse
+ * than an unfamiliar-looking label.
+ */
 export function plaqueFor(key: string, shelf: Shelf): string | null {
   if (!shelf.plaques) return null;
   if (key === UNDATED) return null;
   if (shelf.classifier === "month") return key.slice(0, 4);
   if (shelf.classifier === "week") return key.slice(0, 4);
+  if (shelf.classifier === "year") return decadeOf(key);
   return null;
+}
+
+/** "2014" -> "2010-2019". The key is a four-digit year; anything else has no decade. */
+export function decadeOf(year: string): string | null {
+  if (!/^\d{4}$/.test(year)) return null;
+  const start = Math.floor(Number(year) / 10) * 10;
+  return start + "-" + (start + 9);
 }
 
 /* ---- building the shelf --------------------------------------------------
@@ -129,7 +148,7 @@ export function buildShelf(shelf: Shelf, notes: Note[]): ShelfView {
       key,
       label: labelFor(key, shelf.classifier),
       plaque: plaqueFor(key, shelf),
-      notes: list.slice().sort(byDateThenTitle),
+      notes: list.slice().sort(alphabetical(shelf) ? byTitleThenDate : byDateThenTitle),
       bands: bandsOf(list),
       matches: 0,
     });
@@ -150,6 +169,24 @@ function compareKeys(a: string, b: string, direction: Shelf["direction"]): numbe
   if (a === b) return 0;
   const sign = direction === "chronological" ? -1 : 1;
   return a < b ? -sign : sign;
+}
+
+/**
+ * design/0015 -- AN ENCYCLOPEDIA VOLUME IS ALPHABETICAL INSIDE, and every other book is a
+ * record of when. The order is not decoration: the reader's index tabs jump to a position in
+ * this list, so tabs that read A, B, C over a list ordered by date point at nothing.
+ */
+function alphabetical(shelf: Shelf): boolean {
+  return shelf.classifier === "initial";
+}
+
+function byTitleThenDate(a: Note, b: Note): number {
+  const at = a.title.toLowerCase();
+  const bt = b.title.toLowerCase();
+  if (at !== bt) return at < bt ? -1 : 1;
+  const ad = a.date === null ? "" : a.date;
+  const bd = b.date === null ? "" : b.date;
+  return ad === bd ? 0 : ad < bd ? 1 : -1;
 }
 
 function byDateThenTitle(a: Note, b: Note): number {
