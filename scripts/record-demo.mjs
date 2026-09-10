@@ -488,8 +488,10 @@ try {
    * takes it the way a person does: through the library's own selector, which is in the top
    * bar and stays in shot, because unlike the switch it replaced it is part of the product.
    */
-  const look = arg("look", "");
-  if (look) {
+  /* `--look modern` names the look whose selector value is the empty string, since an empty
+   * flag is no flag; the page opens in leather now, so modern has to be askable for. */
+  const look = arg("look", "") === "modern" ? "" : arg("look", "");
+  if (look || arg("look", "") === "modern") {
     const applied = await j(`(function(){
       var sel = document.getElementById("vs-look");
       if (!sel) return "no selector";

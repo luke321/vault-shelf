@@ -100,3 +100,13 @@ WebP for the README at 12fps and 1000px wide.
 
 The mp4 is gitignored (`demo-*.mp4`); the WebP is committed, because it is what the README
 shows and `scripts/release.ps1` warns when it has gone stale against `src/`.
+
+## Which look it shoots in (2026-09-11)
+
+`--look leather|modern|cyber` picks the look through the library's own selector, the way a
+person does, and the selector stays in shot because it is part of the product. `modern` is an
+alias for the selector's empty value, since an empty flag is no flag and a fresh library opens
+in leather now (`design/0016`). The recorder throws rather than shooting 98 seconds of the
+wrong look if the attribute does not come back as asked. Three films are kept in the review
+folder, one per look, and the hero is cut from the leather one.
+
