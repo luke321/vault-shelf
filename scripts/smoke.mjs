@@ -226,8 +226,9 @@ check("a book opens on its oldest note, and the top bar says which end", async (
       return t;
     }
     var months = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0];
+    /* Seven at least: five to mark, and a free page past them to turn to. */
     var book = months.books.filter(function (b) {
-      return b.key !== "-undated" && b.notes.length > 3;
+      return b.key !== "-undated" && b.notes.length >= 7;
     })[0];
     var dates = book.notes.map(function (n) { return n.date || ""; });
     var rising = dates.every(function (d, i) { return i === 0 || dates[i - 1] <= d; });
@@ -988,6 +989,17 @@ check("an open book shows the ribbons in it, three at most", async (p) => {
     if (first) first.click();
     var jumped = __vs.reader().index;
 
+    /* TURNING TO A MARKED PAGE, the way six controls do it. The stub is about the page you
+     * are on, so it has to go when you arrive on one that already holds a ribbon -- and the
+     * row was only ever redrawn when a book was opened. */
+    __vs.openBook(book.id, book.notes[3].id);
+    var onFree = row();
+    document.querySelectorAll("#vs-contents button")[1].click();
+    var turnedToMarked = row();
+    var rows = document.querySelectorAll("#vs-contents button");
+    rows[rows.length - 1].click();
+    var turnedToFree = row();
+
     /* Taking one out is its own ribbon's job, not the stub's: the stub is not there once the
      * page you are on already has one (design/0008). */
     for (var k = 0; k < 5; k++) {
@@ -997,7 +1009,8 @@ check("an open book shows the ribbons in it, three at most", async (p) => {
     }
     var cleared = row();
     __vs.closeReader();
-    return { book: book.key, notes: book.notes.length, empty: empty, full: full,
+    return { turned: { onFree: onFree.stub, marked: turnedToMarked.stub, free: turnedToFree.stub },
+             book: book.key, notes: book.notes.length, empty: empty, full: full,
              cleared: cleared, marked: marked, before: before, jumped: jumped };
   })()`);
   const capped = r.full.names.length === 3;
@@ -1014,7 +1027,8 @@ check("an open book shows the ribbons in it, three at most", async (p) => {
    * one shape, one meaning. With five marked the reader sits on a marked note, so there is
    * none; emptied again, it is back. */
   const insertable = r.empty.stub === 1 && r.full.stub === 0 && r.cleared.stub === 1;
-  const ok = capped && counted && named && steady && insertable &&
+  const turns = r.turned.marked === 0 && r.turned.free === 1;
+  const ok = capped && counted && named && steady && insertable && turns &&
              r.jumped !== r.before && r.cleared.names.length === 0;
   return {
     ok,
@@ -1024,7 +1038,9 @@ check("an open book shows the ribbons in it, three at most", async (p) => {
             `${r.jumped}; unmarking all five leaves ${r.cleared.names.length} (${r.cleared.names.join(", ")}). The row is ` +
             `in the ${r.empty.look || "modern"} look, ${r.empty.height.toFixed(0)}/${r.full.height.toFixed(0)}/` +
             `${r.cleared.height.toFixed(0)}px empty, full and emptied again (${steady}), and ` +
-            `carries a stub to push one in exactly when the page has none (${insertable})`
+            `carries a stub to push one in exactly when the page has none (${insertable}); ` +
+            `turning the page keeps that true -- to a marked one ${r.turned.marked} stub, ` +
+            `to a free one ${r.turned.free} (${turns})`
   };
 });
 

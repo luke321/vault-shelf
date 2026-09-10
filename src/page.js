@@ -1091,6 +1091,13 @@ function mountVaultShelf(root, data, options) {
     var going = reader.book.notes[reader.index];
     if (going) reader.noteId = going.id;
     renderContents();
+    /* THE ROW IS ABOUT THE PAGE YOU ARE ON, so moving to another page redraws it. Without
+     * this the stub kept whatever state the previous page put it in: turn to a page that
+     * already holds a ribbon and it still offered to leave one, and the ribbon you were on
+     * stayed marked as the current one. Six controls call this -- the contents, the tabs, the
+     * ribbons themselves, Previous, Next and the arrow keys -- and every one of them showed
+     * it. */
+    renderMarks();
     renderTabs();
     renderNote();
   }
