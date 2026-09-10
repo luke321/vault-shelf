@@ -720,40 +720,78 @@ check("the theme follows the host, and the slots are re-read when it changes", a
 
 const bookCount = (joined) => (joined ? joined.split("|").length : 0);
 
-/* design/0016 -- A LOOK IS PAINT. The leather binding is a second stylesheet and a setting; it
- * may repaint anything and it may move nothing. This drives the standalone's own switch rather
- * than poking the attribute, so what is measured is the path a person actually takes. */
+/* design/0016, design/0017 -- A LOOK IS PAINT. Each look is a stylesheet and a setting; it may
+ * repaint anything and it may move nothing.
+ *
+ * IT WALKS core.LOOKS RATHER THAN A LIST OF ITS OWN, so a fourth look is covered the day it is
+ * added instead of the day somebody remembers to widen this. And it drives the top bar's
+ * `<select>` rather than poking the attribute, so what is measured is the path a person takes:
+ * the selector is the only control either host offers.
+ */
 check("a look is opt-in, repaints everything and moves nothing", async (p) => {
   const r = await p.j(`(function(){
     var root = document.getElementById("vs-app");
+    var sel = document.getElementById("vs-look");
     var spine = function () { return document.querySelector("#vs-shelves .vs-spine"); };
     var read = function () {
+      var cs = getComputedStyle(spine());
+      var tint = (cs.getPropertyValue("--spine-tint") || "").trim();
       return { look: root.getAttribute("data-look"),
                ground: getComputedStyle(root).backgroundColor,
-               dye: getComputedStyle(spine()).backgroundColor,
+               dye: cs.backgroundColor,
+               tint: tint,
+               /* design/0005 -- the dye a person LOOKS AT has to be one of the twelve the
+                * cascade currently resolves. Comparing only the mixed backgroundColor cannot
+                * see a stale one: --tint and --surface-2 move with the look too, so a spine
+                * still carrying the previous look's hex reports a different colour and passes. */
+               tintIsASlot: !tint || __vs.slots().indexOf(tint) >= 0,
                slots: __vs.slots().join(","),
                addresses: __vs.addresses().join("|"),
                counts: JSON.stringify(__vs.counts()) };
     };
-    var off = read();
-    var sw = document.getElementById("vs-lookswitch");
-    sw.click();
-    var on = read();
-    sw.click();
-    var back = read();
-    return { off: off, on: on, back: back, pressed: sw.getAttribute("aria-pressed") };
+    var pick = function (value) {
+      sel.value = value;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      return read();
+    };
+    var offered = [].slice.call(sel.options).map(function (o) { return o.value; });
+    var start = read();
+    var seen = offered.map(function (v) { return { value: v, state: pick(v) }; });
+    var back = pick("");
+    return { offered: offered, start: start, seen: seen, back: back };
   })()`);
-  const moved = r.off.addresses !== r.on.addresses || r.off.counts !== r.on.counts;
-  const repainted = r.off.dye !== r.on.dye && r.off.slots !== r.on.slots &&
-                    r.off.ground !== r.on.ground;
-  const restored = r.back.look === "" && r.back.dye === r.off.dye &&
-                   r.back.slots === r.off.slots;
-  return { ok: r.off.look === "" && r.on.look === "leather" && !moved && repainted && restored,
-           detail: `data-look "${r.off.look}" -> "${r.on.look}" -> "${r.back.look}"; ` +
-                   `the first spine is ${r.off.dye} then ${r.on.dye}; ` +
-                   `${bookCount(r.off.addresses)} book addresses, identical in both ` +
-                   `(${!moved}); the twelve slots changed (${r.off.slots !== r.on.slots}) ` +
-                   `and came back (${restored})` };
+
+  const base = r.seen.find((s) => s.value === "");
+  const looks = r.seen.filter((s) => s.value !== "");
+  /* THE ADDRESSES AND THE COUNTS ARE THE LAW, and they are compared against the default look's
+   * own reading rather than pairwise, so one look drifting is one failure and not two. */
+  const moved = r.seen.filter((s) => s.state.addresses !== base.state.addresses ||
+                                     s.state.counts !== base.state.counts);
+  /* Each look must differ from the DEFAULT and from EVERY OTHER look: two looks that resolve to
+   * the same ground and the same twelve slots are one look shipped twice. */
+  const paint = (s) => s.state.ground + "|" + s.state.slots + "|" + s.state.dye;
+  const flat = looks.filter((s) => paint(s) === paint(base));
+  const twins = looks.filter((s, i) => looks.some((o, j) => j < i && paint(o) === paint(s)));
+  const named = r.seen.every((s) => s.state.look === s.value);
+  const stale = r.seen.filter((s) => !s.state.tintIsASlot);
+  const restored = r.back.look === "" && r.back.dye === base.state.dye &&
+                   r.back.slots === base.state.slots && r.back.ground === base.state.ground;
+  const ok = r.offered.length >= 3 && r.offered[0] === "" && named &&
+             !moved.length && !flat.length && !twins.length && !stale.length && restored;
+  return { ok,
+           detail: `the selector offers ${r.offered.length} looks (${r.offered.map((v) => v || "default").join(", ")}); ` +
+                   `each set data-look to its own value (${named}); ` +
+                   looks.map((s) => `${s.value} dyes the first spine ${s.state.dye}`).join(", ") +
+                   ` against the default's ${base.state.dye}; ` +
+                   `${bookCount(base.state.addresses)} book addresses and every count identical ` +
+                   `in all ${r.seen.length} (${!moved.length}` +
+                   (moved.length ? `; moved under ${moved.map((s) => s.value || "default").join(", ")}` : "") +
+                   `); no look repaints the same as another (${!flat.length && !twins.length}` +
+                   (flat.length ? `; ${flat.map((s) => s.value).join(", ")} painted nothing` : "") +
+                   `); every spine carries one of its own look's twelve slots (${!stale.length}` +
+                   (stale.length ? `; ${stale.map((s) => (s.value || "default") + " still on " +
+                     s.state.tint).join(", ")}` : "") +
+                   `); the default came back exactly (${restored})` };
 });
 
 /* design/0008 -- MAGIC 1. A book you open often looks handled. */

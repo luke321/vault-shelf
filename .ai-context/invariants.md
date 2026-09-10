@@ -286,21 +286,41 @@ identical.
 
 ## A look is paint, and nothing else
 
-`design/0016`. The leather binding is a second stylesheet (`src/leather.css`) and one setting;
-it may repaint anything and it may move nothing.
+`design/0016`, `design/0017`. There are **three** looks — the default, the leather binding
+(`src/leather.css`) and the cyberpunk archive (`src/cyber.css`) — each one a stylesheet and a
+value of one setting. A look may repaint anything and it may move nothing.
 
-`"a look is opt-in, repaints everything and moves nothing"` drives the standalone's **own
-switch** rather than poking the attribute, and asserts that `data-look` goes `"" → "leather"
-→ ""`; that the ground, the first spine's colour and the twelve slots **all** change; that
-every book address and every count is byte-identical across the switch; and that switching
-back restores the colours exactly. Measured: **182 addresses on the demo vault, 194 on the
-sparse, 709 on the 10k library — identical in both looks in all three.**
+`"a look is opt-in, repaints everything and moves nothing"` drives the top bar's
+`<select id="vs-look">` rather than poking the attribute, because that selector is now the
+only control either host offers. It **walks `core.LOOKS`** rather than a list of its own, so a
+fourth look is covered the day it is added, and it asserts:
+
+- the selector offers every look in the list, the default first, and each one sets `data-look`
+  to its own value;
+- each look's ground, twelve slots and first-spine dye differ from the default's **and from
+  every other look's** — two looks that resolve alike are one look shipped twice;
+- every book address and every count is **byte-identical across all three**;
+- the first spine's inline `--spine-tint` is one of the twelve the cascade *currently*
+  resolves. Comparing only the mixed `backgroundColor` cannot see a stale one, because
+  `--tint` and `--surface-2` move with the look too — so a spine still carrying the previous
+  look's hex reports a different colour and passes. `design/0017` records what that caught;
+- switching back to the default restores the ground, the dye and the slots exactly.
+
+Measured: **194 addresses on the demo vault, 419 on the sparse, 709 on the 10k library —
+identical under all three looks in all three.**
 
 The default look is the one every other check in this file measures, and it is unchanged: with
-the setting off, not one selector in `leather.css` matches. `scripts/check-scope.mjs` reads
-**both** stylesheets — an unscoped rule in the second would style the whole of Obsidian
-exactly as one in the first — and `scripts/check-network.mjs` reads the second one too, so the
-leather grain, the wood and the marbling stay CSS gradients and inline SVG data URIs.
+it selected, not one selector in `leather.css` or `cyber.css` matches. `scripts/check-scope.mjs`
+reads **all three** stylesheets — an unscoped rule in any of them would style the whole of
+Obsidian exactly as one in `page.css` — and `scripts/check-network.mjs` reads them too, so the
+leather grain, the wood, the marbling, and cyber's sensor grain, brushed aluminium, rain and
+selector chevron all stay CSS gradients and inline SVG data URIs. No look loads a font.
+
+Two constants move under cyber, both local and neither measured above: `--board: 3px → 7px` on
+the track (still the background line at `var(--spine-h)`, so the plaque still hangs beneath it)
+and the `.vs-spread` margin `10px/14px → 22px/26px` (the frame is a `box-shadow` ring, which
+costs the grid nothing). The hover lift is **6px and no rotation**, one pixel over
+`design/0005`'s budget and still nothing but a transform.
 
 ## The magic
 
@@ -407,9 +427,21 @@ stacked over the shelves. `changelog-detail.md` has the whole story.
 | the note is rendered by Obsidian's own renderer | 238 characters in 7 elements, no fallback text |
 | a long note wraps instead of widening the reader | reader 1,216px, note 495px, nothing scrolls sideways |
 
-`--look leather` writes the plugin's own `data.json` before Obsidian starts, so `--shot` can
-photograph either look as a person would actually have it. Re-measured 2026-09-10 on the
-mirror vault under leather: **10/10, 543 files, 417 spines, 22 plaques, 4 settings rows.**
+`--look <name>` writes the plugin's own `data.json` before Obsidian starts, so `--shot` can
+photograph any look as a person would actually have it. Re-measured 2026-09-10 on the
+mirror vault under leather: **10/10, 543 files, 417 spines, 22 plaques, 4 settings rows**, and
+under cyber: **10/10, 543 files, 323 spines, 13 year plaques, 122 people books and 130 tag
+books** — the spine and plaque counts differ from leather's because the Weeks shelf is hidden
+by default from schema 4 on, not because a look moved anything.
+
+`--host-theme light|dark` drives the host's own switch before the shot — `theme-light` on the
+body plus a `css-change`, the pair the plugin listens for. `design/0017`: a look declares its
+own colours and stops following the theme, so what this catches is everything a look did *not*
+declare, since Obsidian repaints its native controls and its rendered markdown on that class
+and both land inside the page. The vault's own `appearance.json` does not do it — it is
+written, it is copied, and Obsidian starts dark anyway. Measured under cyber with a light host:
+body `theme-light`, the app's ground `rgb(255,255,255)`, the page reading `data-theme="light"`
+under `data-look="cyber"`, note ink `rgb(232,245,255)`.
 
 ## Not covered here
 

@@ -41,6 +41,7 @@ const ONLY = (arg("only", "") || "").toLowerCase();
 const KEEP = argv.includes("--keep");
 const SHOT = arg("shot", "");
 const LOOK = arg("look", "");
+const HOST_THEME = arg("host-theme", "");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const selected = (name) => !ONLY || name.toLowerCase().includes(ONLY);
 
@@ -427,6 +428,31 @@ try {
     await c.eval(`(function(){ document.querySelectorAll(".modal-container .modal-close-button")
       .forEach(function (b) { b.click(); }); })(); void 0`);
     await c.eval("(async function(){ await app.plugins.getPlugin('" + PLUGIN_ID + "').activate(); return true; })()");
+    /* design/0017 -- `--host-theme light` drives the host's OWN switch: `theme-light` on the
+     * body plus a `css-change`, which is the pair the plugin listens for. A look declares its
+     * own colours and stops following the theme (design/0016), so the thing this catches is
+     * everything a look did NOT declare -- Obsidian's app.css repaints its native controls and
+     * its rendered markdown on that class, and both of those land inside the page. The vault's
+     * own appearance.json does not do it: it is written, it is copied, and Obsidian starts
+     * dark anyway. */
+    if (HOST_THEME === "light" || HOST_THEME === "dark") {
+      const themed = await E(`(function(){
+        document.body.classList.toggle("theme-light", ${HOST_THEME === "light"});
+        document.body.classList.toggle("theme-dark", ${HOST_THEME === "dark"});
+        app.workspace.trigger("css-change");
+        var root = document.querySelector(".vault-shelf");
+        var note = document.querySelector(".vault-shelf .vs-prose p, .vault-shelf .vs-prose li");
+        return { body: document.body.className,
+                 chrome: getComputedStyle(document.body).backgroundColor,
+                 dataTheme: root && root.getAttribute("data-theme"),
+                 look: root && root.getAttribute("data-look"),
+                 noteInk: note ? getComputedStyle(note).color : null };
+      })()`);
+      await sleep(700);
+      console.log("--host-theme " + HOST_THEME + ": body is \"" + themed.body + "\", the app's own " +
+                  "ground is " + themed.chrome + ", the page reads data-theme=\"" + themed.dataTheme +
+                  "\" under data-look=\"" + themed.look + "\", note ink " + themed.noteInk);
+    }
     await sleep(1500);
     const shot = await c.send("Page.captureScreenshot", { format: "png" });
     writeFileSync(SHOT, Buffer.from(shot.data, "base64"));
