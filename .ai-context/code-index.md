@@ -28,7 +28,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `design/0004` | src/core/shelves.ts:171, src/core/shelves.ts:226, src/core/types.ts:94, src/page.js:500 |
 | `design/0005` | src/page.css:4, src/page.css:8, src/page.css:368, src/page.css:433, src/page.js:62, src/page.js:206, src/page.js:414, src/page.js:1155, plugin/main.js:10, plugin/main.js:199, scripts/check-scope.mjs:64, scripts/smoke.mjs:329 |
 | `design/0006` | scripts/obsidian-smoke.mjs:3, scripts/screen.mjs:1, scripts/screen.mjs:42 |
-| `design/0007` | scripts/record-demo.mjs:2, scripts/record-demo.mjs:23, scripts/record-demo.mjs:97, scripts/record-demo.mjs:130, scripts/record-demo.mjs:315, scripts/record-demo.mjs:338, scripts/record-demo.mjs:347 |
+| `design/0007` | scripts/record-demo.mjs:2, scripts/record-demo.mjs:23, scripts/record-demo.mjs:97, scripts/record-demo.mjs:130, scripts/record-demo.mjs:349, scripts/record-demo.mjs:372, scripts/record-demo.mjs:381, scripts/record-demo.mjs:486 |
 | `design/0008` | src/core/defaults.ts:95, src/core/defaults.ts:165, src/core/shelves.ts:186, src/core/types.ts:79, src/core/types.ts:105, src/page.css:450, src/page.css:478, src/page.css:498, src/page.js:184, src/page.js:262, src/page.js:421, src/page.js:462, src/page.js:514, src/page.js:1157, scripts/smoke.mjs:374, scripts/smoke.mjs:397, scripts/smoke.mjs:423 |
 | `design/0009` | src/page.css:89, src/page.css:268, src/page.js:240, scripts/smoke.mjs:304 |
 | `design/0010` | src/page.css:597, src/page.js:55, src/page.js:656, plugin/main.js:211 |
@@ -62,7 +62,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | The plugin behaves inside a real Obsidian (262) | — no check named in the section |
 | Not covered here (279) | — no check named in the section |
 
-## `__vs.*` entry points → callers outside page.js — 18
+## `__vs.*` entry points → callers outside page.js — 17
 
 | member | callers |
 |---|---|
@@ -70,17 +70,16 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `__vs.addShelf` | scripts/smoke.mjs ×1 |
 | `__vs.addresses` | scripts/smoke.mjs ×3 |
 | `__vs.checkMembership` | scripts/smoke.mjs ×1 |
-| `__vs.closeReader` | scripts/smoke.mjs ×5 |
+| `__vs.closeReader` | scripts/record-demo.mjs ×1, scripts/smoke.mjs ×5 |
 | `__vs.counts` | scripts/record-demo.mjs ×1, scripts/smoke.mjs ×14 |
 | `__vs.data` | scripts/smoke.mjs ×8 |
 | `__vs.magic` | scripts/smoke.mjs ×5 |
-| `__vs.openBook` | scripts/smoke.mjs ×9 |
+| `__vs.openBook` | scripts/record-demo.mjs ×2, scripts/smoke.mjs ×9 |
 | `__vs.reader` | scripts/smoke.mjs ×11 |
 | `__vs.setFilters` | scripts/smoke.mjs ×14 |
 | `__vs.setListMode` | scripts/smoke.mjs ×2 |
-| `__vs.setQuery` | scripts/smoke.mjs ×3 |
-| `__vs.setSkin` | scripts/record-demo.mjs ×2 |
-| `__vs.setTheme` | scripts/smoke.mjs ×4 |
+| `__vs.setQuery` | scripts/record-demo.mjs ×3, scripts/smoke.mjs ×3 |
+| `__vs.setTheme` | scripts/record-demo.mjs ×2, scripts/smoke.mjs ×4 |
 | `__vs.settings` | scripts/smoke.mjs ×12 |
 | `__vs.slots` | scripts/smoke.mjs ×4 |
-| `__vs.views` | scripts/smoke.mjs ×22 |
+| `__vs.views` | scripts/record-demo.mjs ×2, scripts/smoke.mjs ×22 |

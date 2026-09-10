@@ -76,6 +76,22 @@ The flags that stop it accumulating are `--disable-gpu`, `--disable-dev-shm-usag
 `--disable-software-rasterizer` and a raised `--max-old-space-size`. None of them changes what
 is drawn; they change how long a headless renderer will keep drawing it.
 
+## One step, once, whatever the frame rate
+
+An act is handed `t` on every frame, so `if (t > 0.16 && t < 0.22) click()` fires on **every
+frame inside that window** — three times at 6fps, thirteen at 24. For an idempotent step
+(set a theme, set a query) that is merely wasteful. For a **toggle** it is a coin flip decided
+by the frame rate: the ribbon act left the note bookmarked at one frame rate and un-bookmarked
+at another, and the film had no ribbon in it.
+
+`once(key, at, t, fn)` fires a step the first time `t` passes a threshold and never again.
+Every timed step in the storyboard goes through it.
+
+**And every act opens what it needs.** The ribbon act relied on the previous act having left
+the reader open, so `--act ribbon` on its own shot a click at a disabled button and filmed
+nothing changing. An act that cannot be shot alone cannot be iterated on alone, which defeats
+the point of `--act`.
+
 ## Output
 
 `--out` writes h.264 in an mp4 (`yuv420p`, `+faststart`, even dimensions forced — an odd

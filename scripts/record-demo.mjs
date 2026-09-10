@@ -132,7 +132,7 @@ html, body { background: #0b0c0d; }
  * else needs to know the frame rate.
  */
 function storyboard(P) {
-  const { go, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn } = P;
+  const { go, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once } = P;
 
   return [
     {
@@ -214,78 +214,112 @@ function storyboard(P) {
         await caption(t, 0.06, 0.9,
           "<b>One note, six addresses.</b>",
           "Step sideways into another shelf without leaving the note.");
-        if (t > 0.35 && t < 0.42) {
+        await once("sideways", 0.36, t, () => go(`(function(){
+          var links = document.querySelectorAll("#vs-alsoin button");
+          if (links[1]) links[1].click(); else if (links[0]) links[0].click();
+        })(); void 0`));
+      },
+    },
+    {
+      name: "ribbon",
+      seconds: 9,
+      async at(t, first) {
+        await caption(t, 0.05, 0.92,
+          "Leave a <b>ribbon</b> in it.",
+          "One note is in six books, so one ribbon hangs out of all six &mdash; and it " +
+          "re-threads itself if you hide a shelf or rename the note.");
+        /* EVERY ACT OPENS WHAT IT NEEDS. Relying on the previous act to have left the reader
+         * open makes `--act ribbon` shoot a click at a disabled button and film nothing. */
+        if (first) {
           await go(`(function(){
-            var links = document.querySelectorAll("#vs-alsoin button");
-            if (links[1]) links[1].click(); else if (links[0]) links[0].click();
+            if (document.getElementById("vs-reader").hidden) {
+              var m = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0];
+              __vs.openBook(m.books[0].id, null);
+            }
           })(); void 0`);
+        }
+        await once("mark", 0.16, t, () => go(`document.getElementById("vs-ribbon").click(); void 0`));
+        await once("back", 0.44, t, () => go(`document.getElementById("vs-back").click(); void 0`));
+        if (t > 0.5) await scrollTo(0);
+      },
+    },
+    {
+      name: "parting",
+      seconds: 10,
+      async at(t, first) {
+        await caption(t, 0.05, 0.92,
+          "Search, and the shelf <b>parts</b>.",
+          "Nothing is removed. Matches draw forward, the rest thin to ghosts, and clearing " +
+          "the box puts the room back exactly.");
+        if (first) await scrollTo(await shelfTop("encyclopedia", -20));
+        /* Typed a letter at a time, because the whole point is what happens WHILE you type. */
+        const word = "garden";
+        if (t < 0.62) {
+          const n = Math.min(word.length, Math.floor(((t - 0.12) / 0.38) * word.length) + 1);
+          await go(`__vs.setQuery(${JSON.stringify(word)}.slice(0, ${Math.max(0, n)})); void 0`);
+        } else if (t > 0.86) {
+          await go(`__vs.setQuery(""); void 0`);
         }
       },
     },
     {
-      name: "bookmark",
-      seconds: 6,
-      async at(t, first) {
-        await caption(t, 0.08, 0.9,
-          "A ribbon saves your place.",
-          "It re-resolves later, even if that shelf is hidden or that book has gone.");
-        if (t > 0.3 && t < 0.36) await go(`document.getElementById("vs-ribbon").click(); void 0`);
-        if (t > 0.68 && t < 0.74) await go(`document.getElementById("vs-back").click(); void 0`);
-      },
-    },
-    {
-      name: "filter",
+      name: "wear",
       seconds: 8,
       async at(t, first) {
-        await caption(t, 0.06, 0.9,
-          "Filter by folder, by day, or by text.",
-          "Membership changes. Nothing moves.");
-        if (first) await scrollTo(await shelfTop("encyclopedia", -20));
-        if (t > 0.22 && t < 0.28) {
-          await go(`(function(){
-            var rows = document.querySelectorAll("#vs-folders .folderrow");
-            if (rows[0]) rows[0].click();
-          })(); void 0`);
+        await caption(t, 0.05, 0.92,
+          "And the room remembers your hands.",
+          "A book you keep opening looks handled: the boards darken, the corners soften, " +
+          "and it never sits quite flush again.");
+        if (first) {
+          await go(`__vs.setQuery(""); void 0`);
+          await scrollTo(await shelfTop("years", -20));
         }
-        if (t > 0.78 && t < 0.84) {
-          await go(`document.getElementById("vs-clearfilters").click(); void 0`);
+        /* Thirteen opens is wear level 3 of 3 (core.wearLevel). Spread across the act so the
+         * spine is seen changing rather than found already changed. */
+        /* Thirteen opens is wear level 3 of 3, and they are spread across the act so the
+         * spine is seen changing rather than found already changed. */
+        if (t > 0.18 && t < 0.72) {
+          await go(`(function(){
+            var y = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0];
+            var b = y.books[0];
+            __vs.openBook(b.id, null);
+            __vs.closeReader();
+          })(); void 0`);
         }
       },
     },
     {
       name: "build",
-      seconds: 10,
+      seconds: 11,
       async at(t, first) {
-        await caption(t, 0.05, 0.9,
+        await caption(t, 0.04, 0.92,
           "Build your own from <b>two questions</b>.",
-          "Which notes belong here, and what makes a book. The preview is the real thing.");
+          "Which notes belong here, and what makes a book. The preview is the real thing, " +
+          "not an estimate.");
         if (first) await go(`document.getElementById("vs-newshelf").click(); void 0`);
-        if (t > 0.3 && t < 0.36) {
-          await go(`(function(){
-            var s = document.getElementById("vs-bclassifier");
-            s.value = "person";
-            s.dispatchEvent(new Event("change", { bubbles: true }));
-          })(); void 0`);
-        }
-        if (t > 0.62 && t < 0.68) {
-          await go(`(function(){
-            var s = document.getElementById("vs-bclassifier");
-            s.value = "property";
-            s.dispatchEvent(new Event("change", { bubbles: true }));
-          })(); void 0`);
-        }
-        if (t > 0.92) await go(`document.getElementById("vs-bcancel").click(); void 0`);
+        await once("person", 0.3, t, () => go(`(function(){
+          var s = document.getElementById("vs-bclassifier");
+          s.value = "person";
+          s.dispatchEvent(new Event("change", { bubbles: true }));
+        })(); void 0`));
+        await once("property", 0.6, t, () => go(`(function(){
+          var s = document.getElementById("vs-bclassifier");
+          s.value = "property";
+          s.dispatchEvent(new Event("change", { bubbles: true }));
+        })(); void 0`));
+        await once("cancel", 0.9, t, () => go(`document.getElementById("vs-bcancel").click(); void 0`));
       },
     },
     {
-      name: "paper",
-      seconds: 7,
+      name: "theme",
+      seconds: 8,
       async at(t, first) {
-        await caption(t, 0.08, 0.9,
-          "<b>Two skins</b>, one feature set.",
-          "Graphite is a charcoal archive. Paper &amp; cloth is the same library in warm paper.");
+        await caption(t, 0.06, 0.92,
+          "Painted from <b>Vault Graph</b>, and it follows your theme.",
+          "The same twelve colour slots, the same surfaces &mdash; read from the stylesheet, " +
+          "so a folder that is blue on the disc is blue on a spine.");
         if (first) await scrollTo(await shelfTop("months", -70));
-        if (t > 0.3 && t < 0.36) await go(`__vs.setSkin("paper"); void 0`);
+        await once("light", 0.3, t, () => go(`__vs.setTheme("light"); void 0`));
       },
     },
     {
@@ -293,12 +327,12 @@ function storyboard(P) {
       seconds: 5,
       async at(t, first) {
         if (first) {
-          await go(`__vs.setSkin("graphite"); void 0`);
+          await go(`__vs.setTheme("dark"); void 0`);
           await scrollTo(await shelfTop("encyclopedia", -20));
         }
         await caption(t, 0.1, 0.8,
           "Vault Shelf",
-          "An Obsidian plugin. Local, deterministic, and it never touches your files.");
+          "An Obsidian plugin. Local, deterministic, and your notes never move.");
       },
     },
   ];
@@ -449,7 +483,21 @@ try {
     })(); void 0`);
   };
 
-  const P = { go, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn };
+  /* design/0007 -- ONE STEP, ONCE, WHATEVER THE FRAME RATE.
+   *
+   * An act is handed t on every frame, so `if (t > 0.16 && t < 0.22) click()` fires on every
+   * frame inside that window -- three times at 6fps, thirteen at 24. For an idempotent step
+   * (set a theme, set a query) that is merely wasteful. For a TOGGLE it is a coin flip decided
+   * by the frame rate: the ribbon act left the note bookmarked at one fps and un-bookmarked at
+   * another, and the shelf in the film had no ribbon on it. */
+  const fired = new Set();
+  const once = async (key, at, t, fn) => {
+    if (t < at || fired.has(key)) return;
+    fired.add(key);
+    await fn();
+  };
+
+  const P = { go, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once };
   const acts = storyboard(P).filter((a) => !ONLY.length || ONLY.some((q) => a.name.toLowerCase().includes(q)));
   if (!acts.length) throw new Error("--act " + ONLY.join(",") + " matched no act");
 
