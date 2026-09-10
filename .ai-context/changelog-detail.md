@@ -1,5 +1,39 @@
 # Changelog detail
 
+## 2026-09-11 — The docs site wears the product's dark look
+
+> github#1: "a theme close to vault-shelf's own dark look ... not a generic off-the-shelf
+> GitHub Pages theme"
+
+`docs/assets/css/style.scss` imports `jekyll-theme-midnight` and repaints it. **The palette is
+`src/page.css`'s dark block, value for value**, held as tokens under the names they were read
+from so a change to one is a change to the other: `--surface-0` `#121211` is the page ground,
+`--surface-1` `#1a1a19` the rail and code blocks, `--surface-2` `#232322` a control, `--border`
+`#33332f` every hairline, `--text-1/2/3` `#ffffff` / `#c3c2b7` / `#8d8c84` the text ramp, and
+`--accent` `#3987e5` the links. The two faces are the product's too: the rail, the title and
+every heading in the system-sans `--ui` stack, the body in the reading spread's serif
+`--prose` at the same `15px/1.65` as `.vs-prose`. An `h2` is drawn as a shelf label (13px,
+uppercase, `0.08em`, a hairline under it), an `h3` as a book's title in the serif, a table
+head as the shelf's meta line. The theme's fixed gradient ground, its 60px slab of a header
+with a green gradient button, the yellow links, bullet and rule images, inset shadows and
+text-shadows are all gone; the header is the library's 44px rail on `--surface-1` with the
+"View On GitHub" link drawn as a `.vs-jump`-style box. One static theme; theme-following is
+out of scope by the ticket.
+
+**Looked at, not built.** No Ruby on the machine, so Pages was reproduced without it: the
+theme's `_sass`, layout, fonts and images fetched from `pages-themes/midnight`, the override
+compiled with dart-sass over that load path (**23,964 bytes** of CSS, against **19,322** for the
+bare theme), `index.md` and `features.md` rendered with marked into the theme's
+`default.html` with its Liquid resolved by hand, and screenshotted at 1280×1000 in headless
+Chrome beside the demo export forced to the Modern look. Index and features both read; the
+features contents table, inline code and the section rules all take the tokens. The Pages
+build itself, which uses Jekyll's own sass and kramdown, was not run: what could differ is
+markdown edge cases, not colour.
+
+**Not verified.** A 400px-wide headless window clips the right edge of the text, identically
+with and without the override, so it is Chrome's minimum window width rather than the sheet;
+the theme's own 480px breakpoint was not exercised. The site is still not live: enabling
+Pages needs the repository public, `decisions/0009`.
 ## 2026-09-11 — Cyberpunk shelved, and every control the same size in every look
 
 > "disable cyberpunk for now until redesign, make sure though to make changes to it aswell,

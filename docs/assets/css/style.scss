@@ -1,0 +1,292 @@
+---
+---
+
+// github#1 -- the docs site wears the product's own dark look. GitHub Pages compiles this
+// file: the base theme comes in first, then every rule below repaints it. One static dark
+// theme; a light one and theme-following are out of scope for a docs page.
+//
+// THE PALETTE IS src/page.css's DARK BLOCK, VALUE FOR VALUE. Every colour here is a token
+// named after the one it was read from (--surface-0/1/2, --border, --text-1/2/3, --accent),
+// so a change to the product's dark theme is a change to the same line here. Nothing is
+// "inspired by"; the page ground on the docs site is the page ground in the library.
+
+@import "{{ site.theme }}";
+
+:root {
+  --surface-0: #121211;
+  --surface-1: #1a1a19;
+  --surface-2: #232322;
+  --border:    #33332f;
+  --border-strong: #4a4a45;
+  --text-1: #ffffff;
+  --text-2: #c3c2b7;
+  --text-3: #8d8c84;
+  --accent: #3987e5;
+  // The product's two faces: chrome in the system sans, a note in the reading spread's serif.
+  --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  --prose: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --mono: ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+  // The reader's page is a 66ch column; the docs read as one open page.
+  --measure: 760px;
+}
+
+// ---- the ground -----------------------------------------------------------------------
+// The theme paints a fixed gradient; the library is one flat surface, and so is this.
+
+html { color-scheme: dark; background: var(--surface-0); }
+
+body {
+  background: var(--surface-0);
+  background-attachment: scroll !important;
+  color: var(--text-1);
+  font: 15px/1.65 var(--prose);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--accent); color: #fff; }
+
+.wrapper { max-width: var(--measure); }
+
+section {
+  max-width: var(--measure);
+  margin-top: 60px;
+}
+
+// ---- the rail -------------------------------------------------------------------------
+// The theme's header is a 60px slab with a gradient button on it. The product has one rail
+// across the top -- surface-1, a hairline under it -- and its controls are flat, bordered,
+// three-pixel-cornered boxes. The same rail, the same box.
+
+#header {
+  height: 44px;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border);
+  box-shadow: none;
+
+  nav {
+    max-width: var(--measure);
+    margin: 0 auto;
+    padding: 0 20px;
+    background: none;
+
+    ul li {
+      font: 11.5px/44px var(--ui);
+      color: var(--text-2);
+      text-shadow: none;
+
+      a {
+        font-family: var(--ui);
+        font-size: 11.5px;
+        line-height: 14px;
+        color: var(--text-2);
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        box-shadow: none;
+        padding: 4px 9px;
+        margin-top: 0;
+        vertical-align: middle;
+
+        &:hover {
+          color: var(--text-1);
+          background: var(--surface-2);
+          border-color: var(--border-strong);
+          box-shadow: none;
+        }
+      }
+    }
+  }
+}
+
+// ---- the title block ------------------------------------------------------------------
+// The vault's name sits at the left of the rail in the library; on a page it is the name
+// over the first shelf, so it keeps the rail's face and weight, only larger.
+
+section #title {
+  margin-bottom: 40px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+
+  h1 {
+    font: 600 34px/1.15 var(--ui);
+    letter-spacing: 0.01em;
+    color: var(--text-1);
+    text-align: left;
+  }
+
+  p {
+    font: 17px/1.5 var(--prose);
+    color: var(--text-2);
+    text-align: left;
+    margin-bottom: 14px;
+  }
+
+  hr { display: none; }
+
+  .credits {
+    font: 11px/1.4 var(--ui);
+    color: var(--text-3);
+    margin-top: 0;
+
+    a { color: var(--text-2); }
+  }
+}
+
+// ---- type -------------------------------------------------------------------------------
+// A shelf is labelled in small spaced capitals and a book by its title in the reading serif;
+// an h2 here is a shelf label, an h3 a book.
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--ui);
+  color: var(--text-1);
+}
+
+h1 {
+  font: 600 28px/1.2 var(--ui);
+  letter-spacing: 0.01em;
+  margin: 0 0 16px;
+}
+
+h2 {
+  font: 600 13px/1.4 var(--ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  margin: 44px 0 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+h2:first-child { margin-top: 0; }
+
+h3 {
+  font: 600 20px/1.25 var(--prose) !important;
+  letter-spacing: 0.01em;
+  color: var(--text-1);
+  margin: 32px 0 10px;
+}
+
+h4, h5, h6 {
+  font: 600 15px/1.4 var(--ui);
+  color: var(--text-2);
+  margin: 24px 0 8px;
+}
+
+p, ul, ol, table, pre, dl { margin: 0 0 16px; }
+
+strong {
+  font-family: inherit !important;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+em { color: var(--text-2); }
+
+a {
+  color: var(--accent);
+  font-weight: inherit;
+
+  &:hover {
+    color: var(--text-1);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+a small { color: var(--text-3); }
+
+ul {
+  list-style: disc;
+  list-style-image: none;
+  padding-left: 1.4em;
+}
+
+ol { padding-left: 1.4em; }
+
+li::marker { color: var(--text-3); }
+
+blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 16px;
+  color: var(--text-2);
+}
+
+hr {
+  height: 1px;
+  background: var(--border);
+  margin: 32px 0;
+}
+
+// ---- code -------------------------------------------------------------------------------
+// A control in the rail: surface-2, a hairline, three-pixel corners. No inset shadow and
+// no text-shadow; the library has neither.
+
+code {
+  font: 12.5px/1.5 var(--mono);
+  color: var(--text-1);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  margin: 0;
+  padding: 1px 5px;
+}
+
+pre {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  box-shadow: none;
+  padding: 10px 14px;
+
+  code {
+    font-size: 12.5px;
+    color: var(--text-1);
+    background: none;
+    border: 0;
+    text-shadow: none;
+    padding: 0;
+  }
+}
+
+.highlight { background: var(--surface-1); }
+
+// ---- tables -----------------------------------------------------------------------------
+// The shelf head's meta line: a heading in small spaced capitals, rows separated by the
+// same hairline as everything else.
+
+th {
+  font: 600 11px/1.5 var(--ui) !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border-strong);
+  padding: 6px 10px;
+}
+
+td {
+  border-bottom: 1px solid var(--border);
+  padding: 7px 10px;
+  vertical-align: top;
+}
+
+tr:last-child td { border-bottom: 0; }
+
+dt {
+  font-family: var(--ui) !important;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+section img {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+// ---- small screens ----------------------------------------------------------------------
+// The theme drops the whole rail under 480px; the product keeps its rail at every width.
+
+@media print, screen and (max-width: 480px) {
+  #header { margin-top: 0; }
+  nav { display: block; }
+  section { margin-top: 60px; }
+}

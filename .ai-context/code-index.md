@@ -5,11 +5,12 @@ markers already in the source: which code cites an issue, an ADR or a DDR; which
 enforces each invariant; who calls each `__vs` entry point. Stale when
 `node scripts/code-map.mjs --check` fails.
 
-## Issues — 1 cited (1 in code, 0 in `.ai-context/`)
+## Issues — 2 cited (1 in code, 1 in `.ai-context/`)
 
 | issue | code sites | prose sites |
 |---|---|---|
 | #0 | src/page.js:1684, src/page.js:1859 | — |
+| #1 | — | .ai-context/changelog-detail.md:5, .ai-context/decisions/0009-the-docs-site-is-a-live-demo.md:85 |
 
 ## Decision and design records cited in code — 26
 

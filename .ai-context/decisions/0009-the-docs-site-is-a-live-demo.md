@@ -81,8 +81,10 @@ without moving or duplicating the clips.
 ## What was rejected
 
 **A workflow that builds the site.** `jekyll-theme-midnight` is one of the themes Pages builds
-itself; a workflow would add a CI job, a Gemfile and a lockfile to keep current, for a page
-with no build step in it. Vault Graph took the same view — it added no workflow either.
+itself, and `assets/css/style.scss`, which repaints it in the product's own dark palette
+(github#1), is compiled by that same build; a workflow would add a CI job, a Gemfile and a
+lockfile to keep current, for a page with no build step in it. Vault Graph took the same view —
+it added no workflow either.
 
 **Regenerating the demo in CI.** The fixture's `--end` defaults to today, so a rebuild produces
 a different file every day and the diff would be the whole 377 KB. The export is refreshed when
