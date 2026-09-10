@@ -196,7 +196,8 @@ export function migrate(raw: unknown): Persisted {
   return {
     schema: SETTINGS_SCHEMA,
     shelves: shelves.length
-      ? shelves.map((s, i) => ({ ...weeksAway(decadesOn(s, from), from), position: i }))
+      ? shelves.map((s, i) => ({ ...alphabetOn(weeksAway(decadesOn(s, from), from), from),
+                                 position: i }))
       : base.shelves,
     reading: Array.isArray(data.reading) ? data.reading.filter(isMark) : [],
     wear: wearOf(data.wear),
@@ -234,6 +235,18 @@ export function migrate(raw: unknown): Persisted {
  * it applies to is the one that got a dozen rows long when the bookcase replaced the scroller.
  * Un-hiding it is one click in Manage, and a file that already says 4 means what it says.
  */
+/**
+ * design/0003 -- Schema 6 gave the alphabet a plaque, so the People and Tags shelves a file was
+ * written with say `plaques: false` on a question that could not be asked when it was written:
+ * `plaqueFor` returned null for every classifier that was not a date, so the checkbox did
+ * nothing on those shelves. The same argument `decadesOn` makes, one classifier along.
+ */
+function alphabetOn(shelf: Shelf, from: number): Shelf {
+  if (from >= 6 || shelf.plaques) return shelf;
+  const lettered = shelf.classifier === "person" || shelf.classifier === "tag";
+  return lettered ? { ...shelf, plaques: true } : shelf;
+}
+
 function weeksAway(shelf: Shelf, from: number): Shelf {
   if (from >= 4 || shelf.id !== "weeks" || shelf.hidden) return shelf;
   return { ...shelf, hidden: true };

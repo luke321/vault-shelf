@@ -419,15 +419,21 @@ check("a settings file from an older schema comes up with the newer defaults", a
              fields: up.dateFields.join(","), keptOff: keptYears.plaques,
              stamp: up.useFileStamp, keptStampOff: core.migrate(atThree).useFileStamp,
              order: up.noteOrder,
+             lettered: core.migrate({ schema: 5, shelves: [{ id: "people", name: "People",
+               source: { kind: "all" }, classifier: "person", direction: "alphabetical",
+               hidden: false, position: 0, plaques: false }] }).shelves[0].plaques,
              weeksHidden: core.migrate({ schema: 1, shelves: [{ id: "weeks", name: "Weeks",
                source: { kind: "all" }, classifier: "week", direction: "chronological",
                hidden: false, position: 0, plaques: true }] }).shelves[0].hidden,
              keptShown: shown ? shown.hidden === false : false };
   })()`);
-  const ok = r.schema === 6 && r.years === true && r.months === true && r.people === false &&
+  /* People carries plaques from schema 6 too -- the alphabet is a unit above the book like a
+   * decade is (design/0003) -- so the shelf that proves a migration does not touch everything
+   * is Months, which asked for plaques before any of this and still has them. */
+  const ok = r.schema === 6 && r.years === true && r.months === true && r.people === true &&
              r.wear === 3 && r.fields === "date" && r.keptOff === false &&
              r.stamp === true && r.keptStampOff === false && r.order === "oldest" &&
-             r.weeksHidden === true && r.keptShown === true;
+             r.weeksHidden === true && r.keptShown === true && r.lettered === true;
   return {
     ok,
     detail: `schema 1 -> ${r.schema}: Years plaques ${r.years}, Months ${r.months}, People ` +
@@ -436,7 +442,8 @@ check("a settings file from an older schema comes up with the newer defaults", a
             `A file already at schema 2 keeps its Years plaques off: ${r.keptOff === false}; ` +
             `one at 3 keeps its stamp fallback off: ${r.keptStampOff === false}; the Weeks ` +
             `shelf comes up hidden (${r.weeksHidden}) unless the file already says 4 ` +
-            `(${r.keptShown})`
+            `(${r.keptShown}); a People shelf written before schema 6 comes up with the ` +
+            `alphabet on its plaques (${r.lettered})`
   };
 });
 
