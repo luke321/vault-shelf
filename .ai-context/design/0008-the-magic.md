@@ -98,3 +98,32 @@ Worth building next; it needs a note→books index that `bookIndex` is halfway t
 **Anything with physics.** A book that tips, a shelf that sags, a page that turns. Every one
 of them is a frame between somebody and their note, and `design/0005` gives the whole thing a
 5px hover lift as its entire animation budget.
+
+## A ribbon you can see from inside the book
+
+A ribbon showed on a spine and on the Reading shelf, and vanished the moment the book was
+open — which is backwards, since a ribbon is what you put in a book to get back to a page
+*while you are reading it*.
+
+Up to three now hang out of the top edge of the cover, named with their notes and clickable.
+They are drawn as ribbons rather than as tabs, and the difference is three details:
+
+- **the cut end points up.** A ribbon comes over the top edge and down between the pages, so
+  what you see is its loose end, and the notch it is cut with to stop it fraying is at that
+  end rather than at the fold;
+- **it has its own colour.** `--ribbon` and `--ribbon-ink`, not `--accent`: a look dyes fabric
+  differently from how it dyes a button, and under leather the blanket `button` rule had made
+  the ribbons look exactly like the furniture;
+- **the space is always reserved.** The row keeps its 40px whether the book holds ribbons or
+  not, and is `flex: 0 0` so a long contents list cannot take the pixels back. Hiding it moved
+  the whole spread as you marked and unmarked, and a page that jumps under your hands is worse
+  than a strip of nothing. It also owns the space above the book in every look, so that a
+  ribbon emerges from the cover's edge rather than floating above it.
+
+At the end of the row is **a stub** — the edge of a ribbon you have not pushed in yet. Pushing
+it in leaves one in the page you are on. It is the same thing the `Ribbon` button in the bar
+does, one hand's width closer to the page.
+
+Three, at most. Every note in a book can be marked, and a row of forty is a different feature:
+a table of contents, which is already on the left-hand page.
+

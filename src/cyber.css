@@ -37,6 +37,9 @@
  * for ever.
  */
 .vault-shelf[data-look="cyber"][data-look] {
+  /* A ribbon here is tape, not silk: the magenta of the sign across the street. */
+  --ribbon: #ff2f92;
+  --ribbon-ink: #0a0f1a;
   /* design/0016 -- WITHOUT THIS THE SELECT IS A WHITE SLAB. The base token block is
    * `color-scheme: light`, and a look that repaints every surface dark but leaves the
    * keyword alone gets the platform's LIGHT native controls on top of them. */
@@ -651,7 +654,7 @@
  * frames the spread without adding a pixel to the grid, so the two pages keep the widths
  * design/0009 measured. Only the margin grows, to give the frame somewhere to sit. */
 .vault-shelf[data-look="cyber"] .vs-spread {
-  margin: 22px auto 26px;
+  margin: 0 auto 26px;
   border: 1px solid #101c30;
   border-radius: 3px;
   box-shadow:
@@ -872,3 +875,16 @@
     transform: none;
   }
 }
+
+/* design/0008 -- the ribbon is tape over the top edge, and the blanket button rule would
+ * otherwise make it another lit key. */
+.vault-shelf[data-look="cyber"] .vs-mark,
+.vault-shelf[data-look="cyber"] .vs-markstub {
+  background: var(--ribbon);
+  border: 0;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--ribbon) 45%, transparent);
+}
+
+.vault-shelf[data-look="cyber"] .vs-mark { color: var(--ribbon-ink); }
+.vault-shelf[data-look="cyber"] .vs-mark:hover { background: var(--ribbon); }
+

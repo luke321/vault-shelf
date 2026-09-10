@@ -90,3 +90,17 @@ flipped would need letter tabs that ran Z to A.
 downstream knows. The tabs follow because they are positions in the list, and a saved reading
 place re-resolves through the rebuild the way it does after any other one.
 
+## The shelf turns with the book
+
+> "the shelves are not sorted oldest first but the notes inside the books are, both need to be
+> oldest first or newest first"
+
+They did not, and it was two settings pretending to be one. Each shelf carried its own
+`direction`, set when it was built; the top bar turned the notes inside every book. A Years
+shelf therefore ran 2026 back to 2015 while every book on it ran forwards.
+
+`buildShelf` now takes the order for **date** classifiers — year, month, week — from the same
+control, and the builder disables its own direction control for those shelves and says why. A
+shelf classified by a person, a tag, a folder or a property keeps its `direction`, because
+A-to-Z is not something a reading order has an opinion about.
+

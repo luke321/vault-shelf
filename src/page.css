@@ -104,6 +104,10 @@
    * 1,180px is about 28 spines -- a shelf you can take in -- and it is also contents plus a
    * 66ch note plus its tabs, so the reader closes up into something that reads as one book. */
   --measure: 1180px;
+  /* design/0008 -- the colour of a ribbon. Its own token because a look dyes fabric
+   * differently from how it dyes a button, and the accent is a button's colour. */
+  --ribbon: var(--accent);
+  --ribbon-ink: #fff;
   /* design/0005 -- HOW MUCH OF ITS FOLDER'S COLOUR A BOOK'S BOARD TAKES, and it is not the
    * same number in the two themes. Mixing a saturated hue into a DARK surface deepens it and
    * reads as dyed cloth; mixing the same hue into WHITE can only lighten toward it, so the
@@ -651,7 +655,7 @@
   min-width: 0;
   width: 100%;
   max-width: var(--measure);
-  margin: 10px auto 14px;
+  margin: 0 auto 14px;
   display: grid;
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   position: relative;
@@ -967,53 +971,82 @@
   .vault-shelf .vs-shelfhead .vs-mini { transition: none; }
 }
 
-/* design/0008 -- THE RIBBONS AN OPEN BOOK HOLDS, hanging over the top of the spread the way
- * a marker sticks out of the pages rather than sitting in a toolbar. Three at most; the rest
- * are a count, because the full list of a book's notes is the left-hand page. */
+/* design/0008 -- THE RIBBONS AN OPEN BOOK HOLDS, hanging out of the top of it.
+ *
+ * Not buttons in a strip: a ribbon is a length of fabric that goes over the top edge and down
+ * between the pages, so what you see above the book is the folded end of one -- a tapered
+ * tail, a fold-line where it turns over the edge, and the note's name on it.
+ *
+ * THE ROW IS ALWAYS THE SAME HEIGHT, empty or not. Hiding it when a book holds no ribbons
+ * moved the whole spread up and down as you marked and unmarked; a page that jumps under your
+ * hands is worse than a strip of nothing. */
 .vault-shelf .vs-marks {
   display: flex;
-  align-items: flex-end;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 7px;
   width: 100%;
   max-width: var(--measure);
-  margin: 6px auto -1px;
-  padding: 0 26px;
+  margin: 0 auto;
+  padding: 0 30px;
+  /* THE ROW OWNS THE SPACE ABOVE THE BOOK, in every look, so that a ribbon comes out of the
+   * top edge of the cover rather than floating some distance above it. Each look used to put
+   * its own margin there -- 10px, 28px, 22px -- which is exactly the gap a ribbon would have
+   * had to span. They keep the space below the book; this row is the space above it.
+   *
+   * NOT SHRINKABLE. The reader is a flex column, so a `height` here is a suggestion: a book
+   * with a long contents list overflows the column and the browser takes the missing pixels
+   * out of whatever will give -- which was this row, 30px on a short book and 26px on a long
+   * one. The space above the book has to be the same on every book or it is not reserved. */
+  flex: 0 0 40px;
+  height: 40px;
+  padding-top: 10px;
   box-sizing: border-box;
   min-width: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .vault-shelf .vs-mark {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 6px;
+  gap: 0;
   min-width: 0;
-  max-width: 240px;
-  padding: 4px 10px 6px;
-  border: 1px solid var(--border);
-  border-bottom: 0;
-  border-radius: 3px 3px 0 0;
-  background: var(--surface-1);
-  color: var(--text-2);
-  font-size: 11.5px;
+  max-width: 210px;
+  height: 30px;
+  padding: 3px 11px 9px;
+  border: 0;
+  border-radius: 0;
+  background: var(--ribbon);
+  color: var(--ribbon-ink);
+  font-size: 11px;
+  line-height: 1;
   box-shadow: none;
+  /* The tail: a notch cut out of the bottom, the way a ribbon end is cut so it does not fray. */
+  /* THE CUT END POINTS UP. A ribbon comes over the top edge of the cover and down between the
+   * pages, so the part you can see is its loose end -- and the notch a ribbon is cut with to
+   * stop it fraying is at that end, not at the fold. */
+  clip-path: polygon(0 6px, 50% 0, 100% 6px, 100% 100%, 0 100%);
+  opacity: 0.92;
+  transition: opacity 90ms linear, transform 90ms linear;
 }
 
-.vault-shelf .vs-mark:hover { color: var(--text-1); }
-.vault-shelf .vs-mark[aria-current="true"] {
-  color: var(--text-1);
-  background: var(--surface-2);
-  font-weight: 600;
-}
+.vault-shelf .vs-mark:hover,
+.vault-shelf .vs-mark:focus-visible { opacity: 1; transform: translateY(2px); }
+.vault-shelf .vs-mark[aria-current="true"] { opacity: 1; font-weight: 600; }
 
-/* The marker itself: a strip of the accent, the same idea as the one on a spine. */
+/* The fold, where the ribbon turns over the top edge of the cover and darkens. */
 .vault-shelf .vs-markribbon {
-  flex: 0 0 auto;
-  width: 4px;
-  height: 12px;
-  border-radius: 0 0 2px 2px;
-  background: var(--accent);
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 9px;
+  background: color-mix(in srgb, #000 26%, transparent);
+  pointer-events: none;
 }
+
+.vault-shelf .vs-mark { position: relative; }
 
 .vault-shelf .vs-markname {
   min-width: 0;
@@ -1023,8 +1056,32 @@
 }
 
 .vault-shelf .vs-markmore {
-  align-self: center;
+  align-self: flex-start;
   color: var(--text-3);
   font-size: 10.5px;
-  padding-bottom: 4px;
+  padding-top: 7px;
+}
+
+/* THE EDGE OF A RIBBON YOU HAVE NOT PUSHED IN YET. Narrow, quiet, and in the same row, so
+ * leaving one is a thing you do to the page rather than a button you go and find. */
+.vault-shelf .vs-markstub {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-left: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--ribbon) 45%, var(--surface-2));
+  clip-path: polygon(0 5px, 50% 0, 100% 5px, 100% 100%, 0 100%);
+  opacity: 0.5;
+  box-shadow: none;
+  transition: opacity 90ms linear, height 90ms linear;
+}
+
+.vault-shelf .vs-markstub:hover,
+.vault-shelf .vs-markstub:focus-visible { opacity: 1; height: 22px; }
+.vault-shelf .vs-markstub[aria-pressed="true"] {
+  background: var(--ribbon);
+  opacity: 0.95;
 }

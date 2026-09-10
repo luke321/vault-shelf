@@ -5,8 +5,16 @@
   color-scheme: dark;
   --prose: Georgia, "Palatino Linotype", Palatino, serif;
   --ui: var(--prose);
-  font-size: 14px;
-  zoom: 1.2;
+  /* design/0016 -- THE TYPE GROWS, THE FURNITURE DOES NOT. This look used to be `zoom: 1.2`,
+   * which is 20% of everything: the type, but also `--spine-w`, `--spine-h` and `--measure`,
+   * so a shelf held fewer books per row than the same shelf in any other look and every book
+   * jumped when you switched. The readability that zoom bought is bought here instead by the
+   * base font size alone -- 17px is the same 20% -- because a spine's size is a measurement of
+   * the book (design/0011) and a look may not have an opinion about it. */
+  font-size: 17px;
+  /* A bookmark ribbon in a bound book is silk, and it is the one bright thing in it. */
+  --ribbon: #b0122b;
+  --ribbon-ink: #f6e6c4;
   width: 100%;
   --surface-0: #222321;
   --surface-1: #292a26;
@@ -271,7 +279,7 @@
 }
 .vault-shelf[data-look="leather"] .vs-spread {
   width: calc(100% - 48px);
-  margin: 28px auto 32px;
+  margin: 0 auto 32px;
   border: 1px solid #362a20;
   border-radius: 3px;
   box-shadow: 0 0 0 6px #502f30, 0 0 0 7px #b0976066, 0 0 0 11px #3b2526, 0 16px 32px #00000055;
@@ -313,6 +321,19 @@
 .vault-shelf[data-look="leather"] .vs-page h2 { color: var(--text-1); }
 .vault-shelf[data-look="leather"] #vs-bookname { font-size: 25px; font-weight: 400; }
 .vault-shelf[data-look="leather"] #vs-bookmeta { margin-bottom: 18px; }
+/* design/0008 -- A RIBBON IS NOT A BUTTON, and the blanket `button` rule above is the whole
+ * reason it looked like one: a length of dyed silk over the top edge of the cover takes its
+ * colour from `--ribbon`, not from the furniture. */
+.vault-shelf[data-look="leather"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-markstub {
+  background: var(--ribbon);
+  border: 0;
+  box-shadow: 0 1px 2px #00000040;
+}
+
+.vault-shelf[data-look="leather"] .vs-mark { color: var(--ribbon-ink); }
+.vault-shelf[data-look="leather"] .vs-mark:hover { background: var(--ribbon); }
+
 .vault-shelf[data-look="leather"] .vs-contents button {
   color: var(--text-2);
   background: none;
@@ -393,7 +414,7 @@
   .vault-shelf[data-look="leather"] #vs-hits:empty { display: none; }
   .vault-shelf[data-look="leather"] .vs-shelfhead { flex-wrap: wrap; gap: 6px 10px; }
   .vault-shelf[data-look="leather"] .vs-shelfhead .vs-mini { opacity: 1; }
-  .vault-shelf[data-look="leather"] .vs-spread { width: calc(100% - 32px); margin: 20px auto; }
+  .vault-shelf[data-look="leather"] .vs-spread { width: calc(100% - 32px); margin: 0 auto 20px; }
   .vault-shelf[data-look="leather"] .vs-page { padding: 20px; }
   .vault-shelf[data-look="leather"] .vs-page.vs-left { border-bottom: 1px solid var(--border); }
   .vault-shelf[data-look="leather"] .vs-page::after { display: none; }

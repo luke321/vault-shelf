@@ -35,12 +35,12 @@ export function defaultShelves(): Shelf[] {
     {
       id: "people", name: "People", source: { kind: "all" },
       classifier: "person", direction: "alphabetical", hidden: false, position: 4,
-      plaques: false,
+      plaques: true,
     },
     {
       id: "tags", name: "Tags", source: { kind: "all" },
       classifier: "tag", direction: "alphabetical", hidden: false, position: 5,
-      plaques: false, includeSubtags: true,
+      plaques: true, includeSubtags: true,
     },
   ];
 }
@@ -89,7 +89,7 @@ export function recipes(): Recipe[] {
  * decisions/0001
  */
 
-export const SETTINGS_SCHEMA = 5;
+export const SETTINGS_SCHEMA = 6;
 
 export interface Persisted {
   schema: number;
@@ -145,8 +145,8 @@ export type Look = "" | "leather" | "cyber";
  * shipped.
  */
 export const LOOKS: { value: Look; name: string }[] = [
-  { value: "", name: "Default" },
   { value: "leather", name: "Leather" },
+  { value: "", name: "Modern" },
   { value: "cyber", name: "Cyberpunk" },
 ];
 
@@ -176,7 +176,7 @@ export function emptySettings(): Persisted {
     peopleFields: ["people", "attendees", "person"],
     useFileStamp: true,
     noteOrder: "oldest",
-    look: "",
+    look: "leather",
     varyBookColors: false,
   };
 }
@@ -209,7 +209,12 @@ export function migrate(raw: unknown): Persisted {
      * about plaques -- so it comes up on, and a file that already says 3 means what it says. */
     useFileStamp: from >= 3 ? data.useFileStamp === true : true,
     noteOrder: data.noteOrder === "newest" ? "newest" : "oldest",
-    look: isLook(data.look) ? data.look : "",
+    /* Schema 6 made leather the look a fresh library opens in. A file written under an
+     * earlier one says `""`, which was the only look there was to start with rather than a
+     * decision -- the same argument `decadesOn` makes about plaques -- so it comes up in
+     * leather, and one that already says 6 means what it says. Changing it back is one
+     * selector in the top bar. */
+    look: isLook(data.look) ? (from >= 6 || data.look ? data.look : "leather") : base.look,
     varyBookColors: data.varyBookColors === true,
   };
 }

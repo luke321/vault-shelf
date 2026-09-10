@@ -133,7 +133,12 @@ export function plaqueFor(key: string, shelf: Shelf): string | null {
   if (shelf.classifier === "month") return key.slice(0, 4);
   if (shelf.classifier === "week") return key.slice(0, 4);
   if (shelf.classifier === "year") return decadeOf(key);
-  return null;
+  /* A shelf of people or of tags is an alphabet, and an alphabet is exactly what a plaque is
+   * for: 126 names in a run are a list to be read, and the same 126 under A, B, C are a shelf
+   * to be scanned. `-unfiled` is left without one for the same reason `-undated` is: it is not
+   * a letter and it sorts last. */
+  if (key === UNFILED) return null;
+  return firstLetter(key);
 }
 
 /** "2014" -> "2010-2019". The key is a four-digit year; anything else has no decade. */
@@ -178,7 +183,17 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
     });
   }
 
-  books.sort((a, b) => compareKeys(a.key, b.key, shelf.direction));
+  /* design/0015 -- A DATE SHELF READS THE SAME WAY ITS BOOKS DO. The reading order in the top
+   * bar used to turn the notes inside a book round and leave the books themselves alone, so a
+   * Years shelf ran 2026 back to 2015 while every book in it ran forwards. One control, both
+   * directions. A shelf classified by anything else keeps its own A-to-Z, which the order in
+   * the top bar has nothing to say about. */
+  const dated = shelf.classifier === "year" || shelf.classifier === "month" ||
+                shelf.classifier === "week";
+  const direction = dated
+    ? (order === "newest" ? "chronological" : "alphabetical")
+    : shelf.direction;
+  books.sort((a, b) => compareKeys(a.key, b.key, direction));
   return { shelf, books, noteCount: members.length };
 }
 

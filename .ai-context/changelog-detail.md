@@ -642,3 +642,45 @@ this change's file.
 | `check-comments` baseline | 746 | 746 (CSS is not scanned) |
 | `npm run lint` | 0 errors, 0 warnings | 0 errors, 0 warnings |
 | built `styles.css` | 61 KB | 90 KB |
+
+## No look moves a book any more
+
+Leather shipped as `zoom: 1.2`, which is 20% of the type and also 20% of `--spine-w`,
+`--spine-h` and `--measure`. Measured before: a spine **59×158** in leather against **49×132**
+elsewhere, in a room of **983 CSS px** against 1180 — a different number of books per row, and
+every book jumping on a switch.
+
+The 20% is now the base font size alone, 14px → 17px. Measured after, on all three vault
+shapes and all three looks: **49×132 in a 1180px room** (demo), 57×132 (sparse), 47×132 (10k).
+The look check asserts it rather than trusting it.
+
+## Leather is what a fresh library opens in
+
+`LOOKS` reordered to **leather, modern, cyberpunk**, and `emptySettings().look` is `leather`
+from settings schema 6. A file written under an earlier schema says `""`, which was the only
+look there was rather than a decision, so it comes up in leather; one that already says 6
+means what it says.
+
+Two checks had to say which look they are about: the twelve slots and the theme-follows-host
+pair are about the **modern** look's palette, and now select it before reading.
+
+## Plaques for the alphabet
+
+`core.plaqueFor` falls through to `firstLetter(key)` for every classifier that is not a date,
+and the default People and Tags shelves ask for plaques. The mirror's People shelf goes from
+**126 books in one run** to 126 books under **21 letters**.
+
+## The shelf turns with the book
+
+The reading order in the top bar turned the notes inside every book and left the books
+themselves alone, so a Years shelf ran 2026 → 2015 while every book on it ran forwards. Date
+classifiers now take their direction from the same control; the builder disables its own
+direction control for them and says why.
+
+## Ribbons hang out of the top of the book
+
+Up to three, named, clickable, drawn as ribbons rather than tabs — cut end up, their own
+`--ribbon` colour per look, and a stub at the end of the row to push a new one in. The row
+keeps **40px** whether the book holds ribbons or not and is `flex: 0 0`, because it was
+measured at **30px on a short book and 26px on a long one**: the reader is a flex column, and a
+book whose contents overflowed it had the missing pixels taken out of this row.

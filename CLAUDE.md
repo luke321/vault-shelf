@@ -23,9 +23,9 @@ of measuring it.** Build the page, drive it, read the numbers.
   the other). People come from the people property and never from prose. A missing value gets
   its own book (`-undated`, `-unfiled`), never an exclusion. `decisions/0003`, amended.
 - **The ISO week keeps its week-year.** 2027-01-01 is 2026-W53.
-- **Plaques are date classifiers only, and only when asked for**: months and weeks under their
-  year, years under their decade. A plaque lives in the same row as the books it names, and a
-  run that wraps is named on every row it reaches.
+- **A plaque names the unit above the book**: months and weeks under their year, years under
+  their decade, people and tags under their letter. Only when asked for. A plaque lives in the
+  same row as the books it names, and a run that wraps is named on every row it reaches.
 - **A shelf is a bookcase, not a conveyor belt.** Nothing scrolls sideways; a run too long for
   the room continues on the next row down.
 - **A filter narrows; the query marks.** A filter removes notes before books are built. The
@@ -41,12 +41,16 @@ of measuring it.** Build the page, drive it, read the numbers.
 - **A tab is a position in the contents**, so the index is cut the way the book is ordered: an
   Encyclopedia volume is alphabetical inside and gets letters, everything else is in date order
   and gets dates.
-- **A book opens on its oldest note.** A notebook that starts on its last page reads as if it
-  were written backwards; the top bar carries the one toggle that says otherwise.
+- **A book opens on its oldest note, and so does a date shelf.** A notebook that starts on its
+  last page reads as if it were written backwards. One toggle in the top bar turns both round;
+  a shelf classified by anything else keeps its own A-to-Z.
 - **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` and
   `"cyber"` the opt-in ones — and it may repaint anything and move nothing: not a shelf's
-  order, not a book's address, not a count. `core.LOOKS` is the one list of them, the selector
-  in the top bar is built from it, and `migrate` validates against it. `design/0016`.
+  order, not a book's address, not a count, **and not a book's size** — a spine is the same
+  width and height in all three, in a room of the same width, so switching does not move the
+  furniture. `core.LOOKS` is the one list of them, in the order the selector offers them
+  (leather first, which is what a fresh library opens in), and `migrate` validates against it.
+  `design/0016`.
 
 ## How to work here
 

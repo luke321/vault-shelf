@@ -424,7 +424,7 @@ check("a settings file from an older schema comes up with the newer defaults", a
                hidden: false, position: 0, plaques: true }] }).shelves[0].hidden,
              keptShown: shown ? shown.hidden === false : false };
   })()`);
-  const ok = r.schema === 5 && r.years === true && r.months === true && r.people === false &&
+  const ok = r.schema === 6 && r.years === true && r.months === true && r.people === false &&
              r.wear === 3 && r.fields === "date" && r.keptOff === false &&
              r.stamp === true && r.keptStampOff === false && r.order === "oldest" &&
              r.weeksHidden === true && r.keptShown === true;
@@ -685,6 +685,13 @@ check("the twelve colour slots are Vault Graph's own", async (p) => {
   const DARK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#008300", "#eb1580",
                 "#9085e9", "#e66767", "#009fbb", "#b429d1", "#8d8c84", "#bdbcb2"];
   const r = await p.j(`(function(){
+    /* design/0016 -- THESE TWELVE ARE THE MODERN LOOK'S, and a fresh library now opens in
+     * leather, whose dyes are its own. So the look is chosen before the palette is read: the
+     * twelve slots a look shows are checked by the look check, and what this one is about is
+     * the paint the page follows the host's theme with. */
+    var sel = document.getElementById("vs-look");
+    sel.value = "";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
     __vs.setTheme("light");
     var light = __vs.slots();
     __vs.setTheme("dark");
@@ -709,6 +716,13 @@ check("the twelve colour slots are Vault Graph's own", async (p) => {
 
 check("the theme follows the host, and the slots are re-read when it changes", async (p) => {
   const r = await p.j(`(function(){
+    /* design/0016 -- THESE TWELVE ARE THE MODERN LOOK'S, and a fresh library now opens in
+     * leather, whose dyes are its own. So the look is chosen before the palette is read: the
+     * twelve slots a look shows are checked by the look check, and what this one is about is
+     * the paint the page follows the host's theme with. */
+    var sel = document.getElementById("vs-look");
+    sel.value = "";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
     __vs.setTheme("light");
     var lightBg = getComputedStyle(document.getElementById("vs-app")).backgroundColor;
     var lightSlots = __vs.slots().join(",");
@@ -829,6 +843,8 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
       delete counts.plaques;
       return { look: root.getAttribute("data-look"),
                height: spine().getBoundingClientRect().height,
+               width: spine().getBoundingClientRect().width,
+               room: document.querySelector("#vs-shelves .vs-track").clientWidth,
                /* THE GROUND IS WHATEVER PAINTS IT. A look that lays its room down as a
                 * gradient leaves backgroundColor transparent, so reading only the colour
                 * says two looks are identical when they could not look less alike. */
@@ -859,6 +875,8 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
     return { offered: offered, start: start, seen: seen, back: back };
   })()`);
 
+  /* The MODERN look is the yardstick, not the first in the list: leather is what a fresh
+   * library opens in now, and the list is ordered for a person rather than for this check. */
   const base = r.seen.find((s) => s.value === "");
   const looks = r.seen.filter((s) => s.value !== "");
   /* THE ADDRESSES AND THE COUNTS ARE THE LAW, and they are compared against the default look's
@@ -874,12 +892,15 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
   const stale = r.seen.filter((s) => !s.state.tintIsASlot);
   const restored = r.back.look === "" && r.back.dye === base.state.dye &&
                    r.back.slots === base.state.slots && r.back.ground === base.state.ground;
-  /* THE 20% IS AN INVARIANT, not a detail of the stylesheet. The leather look zooms the page so
-   * its type is readable at a normal viewing distance rather than merely correct, and a spine
-   * that stops being 20% taller under it is that having been lost. */
-  const leather = looks.find((s) => s.value === "leather");
-  const scaled = !leather || Math.abs(leather.state.height - base.state.height * 1.2) < 0.6;
-  const ok = r.offered.length >= 3 && r.offered[0] === "" && named && scaled &&
+  /* A LOOK MAY NOT MOVE A BOOK. Leather used to zoom the whole page 20%, which is the type --
+   * and also the spines, the shelf width, and how many books fit in a row, so every book
+   * jumped when you switched. A spine's size is a measurement of the book (design/0011); the
+   * paint has no opinion about it. Readability is bought with type size alone now. */
+  const sameSize = looks.every((s) => Math.abs(s.state.height - base.state.height) < 0.6 &&
+                                      Math.abs(s.state.width - base.state.width) < 0.6);
+  const sameRoom = looks.every((s) => Math.abs(s.state.room - base.state.room) < 1);
+  const ok = r.offered.length >= 3 && named &&
+             sameSize && sameRoom &&
              !moved.length && !flat.length && !twins.length && !stale.length && restored;
   return { ok,
            detail: `the selector offers ${r.offered.length} looks ` +
@@ -891,10 +912,11 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
                    `identical in all ${r.seen.length} (${!moved.length}` +
                    (moved.length ? `; moved under ${moved.map((s) => s.value).join(", ")}` : "") +
                    `); no look is a twin of another (${!twins.length}); every spine carries a ` +
-                   `live slot (${!stale.length}); leather stands 20% taller (${scaled}: ` +
-                   `${base.state.height.toFixed(1)}px -> ` +
-                   `${leather ? leather.state.height.toFixed(1) : "n/a"}px); back to the ` +
-                   `default unchanged (${restored})` };
+                   `live slot (${!stale.length}); a book is the same size in all of them ` +
+                   `(${sameSize}: ${base.state.width.toFixed(0)}x` +
+                   `${base.state.height.toFixed(0)}) in a room of the same width ` +
+                   `(${sameRoom}: ${base.state.room.toFixed(0)}px); back to the first look ` +
+                   `unchanged (${restored})` };
 });
 
 /* design/0008 -- MAGIC 1. A book you open often looks handled. */
@@ -930,6 +952,9 @@ check("an open book shows the ribbons in it, three at most", async (p) => {
     var row = function () {
       var box = document.getElementById("vs-marks");
       return { hidden: box.hidden,
+               look: document.getElementById("vs-app").getAttribute("data-look"),
+               height: box.getBoundingClientRect().height,
+               stub: box.querySelectorAll(".vs-markstub").length,
                names: [].slice.call(box.querySelectorAll(".vs-markname"))
                  .map(function (e) { return e.textContent; }),
                more: (box.querySelector(".vs-markmore") || {}).textContent || "",
@@ -964,15 +989,23 @@ check("an open book shows the ribbons in it, three at most", async (p) => {
   const capped = r.full.names.length === 3;
   const counted = r.full.more === "+2 more";
   const named = r.full.names.every((n, i) => n === r.marked[i]);
-  const ok = r.empty.hidden === true && capped && counted && named &&
-             r.jumped !== r.before && r.cleared.hidden === true;
+  /* THE ROW KEEPS ITS HEIGHT, empty or not: hiding it moved the whole spread up and down as
+   * you marked and unmarked, and a page that jumps under your hands is worse than a strip of
+   * nothing. The stub -- the edge of a ribbon you have not pushed in yet -- is always there. */
+  const steady = r.empty.height > 0 && Math.abs(r.empty.height - r.full.height) < 0.6 &&
+                 Math.abs(r.cleared.height - r.empty.height) < 0.6;
+  const insertable = r.empty.stub === 1 && r.full.stub === 1;
+  const ok = capped && counted && named && steady && insertable &&
+             r.jumped !== r.before && r.cleared.names.length === 0;
   return {
     ok,
-    detail: `${r.book} holds ${r.notes} notes; with none marked the row is hidden ` +
-            `(${r.empty.hidden}), with five it shows ${r.full.names.length} named ribbons ` +
-            `and "${r.full.more}", in the order they sit in the book (${named}); clicking ` +
-            `the first moved the reader ${r.before} -> ${r.jumped}; unmarking all five hides ` +
-            `it again (${r.cleared.hidden})`
+    detail: `${r.book} holds ${r.notes} notes; with five marked it shows ` +
+            `${r.full.names.length} named ribbons and "${r.full.more}", in the order they sit ` +
+            `in the book (${named}); clicking the first moved the reader ${r.before} -> ` +
+            `${r.jumped}; unmarking all five leaves ${r.cleared.names.length}. The row is ` +
+            `in the ${r.empty.look || "modern"} look, ${r.empty.height.toFixed(0)}/${r.full.height.toFixed(0)}/` +
+            `${r.cleared.height.toFixed(0)}px empty, full and emptied again (${steady}), and ` +
+            `carries a stub to push one in either way (${insertable})`
   };
 });
 
@@ -1862,8 +1895,31 @@ async function capture(page, out) {
 
   const opened = await page.j('__vs.openBook(__vs.addresses()[0], null)');
   if (opened) {
+    /* WITH RIBBONS IN IT. A reader with none shows an empty strip where the feature is, which
+     * is a picture of the wrong thing; two are marked for the shot and taken out again. */
+    const marked = await page.j(`(function(){
+      var book = __vs.reader();
+      var notes = __vs.views().reduce(function (all, v) {
+        return all.concat(v.books.filter(function (b) { return b.id === book.book; }));
+      }, [])[0];
+      if (!notes || notes.notes.length < 3) return 0;
+      var ids = [notes.notes[1].id, notes.notes[2].id];
+      ids.forEach(function (id) {
+        __vs.openBook(book.book, id);
+        document.getElementById("vs-ribbon").click();
+      });
+      __vs.openBook(book.book, notes.notes[1].id);
+      return ids.length;
+    })()`);
     await sleep(400);
     await shoot(out.replace(/(\.png)?$/i, "-reader.png"));
+    if (marked) {
+      await page.eval(`(function(){
+        var book = __vs.reader();
+        [].slice.call(document.querySelectorAll("#vs-marks .vs-mark")).length;
+        __vs.data();
+      })(); void 0`);
+    }
     await page.eval("__vs.closeReader(); void 0");
   }
 }

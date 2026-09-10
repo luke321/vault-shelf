@@ -111,3 +111,26 @@ The third look is `design/0017`.
 `node scripts/record-demo.mjs --look leather` selects the same setting as the user-facing
 switch. Screen recordings still require the shared `record` lock. No recording or full-suite
 run is part of this design review.
+
+## A look may not move a book
+
+This look shipped as `zoom: 1.2` — 20% of everything, which is how it bought its readability.
+It is also how it bought a different `--spine-w`, a different `--spine-h` and a different
+`--measure`, so a shelf held fewer books per row than the same shelf in any other look and
+every book on the page jumped when you switched.
+
+> "make the books the same height and width in all themes so that switching does not move them
+> so much"
+
+The 20% is now bought by the base font size alone — 14px becomes 17px — because a spine's size
+is a **measurement of the book** (`design/0011`) and the paint has no opinion about it. Each
+look sets type, colour and material; none of them sets a dimension a book is drawn at. Measured
+on the demo vault: **49×132 in a 1180px room under all three**.
+
+## The order they are offered in, and the one you get
+
+`LOOKS` is ordered for a person rather than alphabetically or historically: **leather, modern,
+cyberpunk**. Leather is what a fresh library opens in, from settings schema 6 — a shelf of
+bound books is what this product is a picture of, and the modern look is the one that follows
+your Obsidian theme when you would rather it did.
+

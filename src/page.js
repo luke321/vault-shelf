@@ -77,7 +77,8 @@ var SLOT_KEYS = ["--g1", "--g2", "--g3", "--g4", "--g5", "--g6",
  * a row is mispacked by exactly their difference. */
 /* design/0003 -- the classifiers that group under a bigger date: months and weeks under a
  * year, years under a decade. core.plaqueFor is the other half and the two agree by test. */
-var PLAQUABLE = { month: true, week: true, year: true };
+var PLAQUABLE = { month: true, week: true, year: true,
+                  person: true, tag: true, folder: true, property: true };
 
 /* design/0008 -- how many ribbons hang over an open book before the rest become a count. */
 var MARKS_SHOWN = 3;
@@ -770,8 +771,12 @@ function mountVaultShelf(root, data, options) {
     var here = reader.book.notes
       .map(function (note, i) { return { note: note, at: i }; })
       .filter(function (row) { return isBookmarked(row.note.id); });
-    box.hidden = here.length === 0;
-    if (!here.length) return;
+
+    /* THE SPACE IS ALWAYS THERE. Hiding the row when a book holds no ribbons moved the whole
+     * spread up and down as you marked and unmarked, which is a page that jumps under your
+     * hands. The row keeps its height empty, and the stub at the end of it is the edge of a
+     * ribbon waiting to be pushed in. */
+    box.hidden = false;
 
     here.slice(0, MARKS_SHOWN).forEach(function (row) {
       var b = /** @type {HTMLButtonElement} */ (el("button", "vs-mark"));
@@ -787,6 +792,20 @@ function mountVaultShelf(root, data, options) {
       box.appendChild(el("span", "vs-markmore",
         "+" + (here.length - MARKS_SHOWN) + " more"));
     }
+
+    /* The stub: a ribbon's edge, showing above the page you are on. Pushing it in leaves a
+     * ribbon there; pulling it out takes it away again, which is the same button `Ribbon` in
+     * the bar is, one hand's width closer to the page. */
+    var note = reader.book.notes[reader.index];
+    if (!note) return;
+    var stub = /** @type {HTMLButtonElement} */ (el("button", "vs-markstub"));
+    stub.type = "button";
+    var marked = isBookmarked(note.id);
+    stub.setAttribute("aria-pressed", marked ? "true" : "false");
+    stub.title = marked ? "Take the ribbon out of this page" : "Leave a ribbon in this page";
+    stub.setAttribute("aria-label", stub.title);
+    on(stub, "click", toggleBookmark);
+    box.appendChild(stub);
   }
 
   function renderContents() {
@@ -1159,6 +1178,10 @@ function mountVaultShelf(root, data, options) {
     order.options[0].textContent = dated ? "Oldest first" : "A to Z";
     order.options[1].textContent = dated ? "Newest first" : "Z to A";
     order.value = d.direction;
+    /* design/0015 -- a date shelf takes its direction from the top bar, so the control here
+     * would be a second answer to a question already answered. */
+    order.disabled = dated;
+    order.title = dated ? "Date shelves follow the reading order in the top bar." : "";
     field("bplaques").checked = !!d.plaques;
     field("bplaques").disabled = !PLAQUABLE[d.classifier];
     field("bsubtags").checked = d.includeSubtags !== false;
