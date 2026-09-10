@@ -106,11 +106,18 @@ const options = {
 function copyStyles() {
   const host = readFileSync(join(ROOT, "plugin", "styles.css"), "utf8");
   const page = readFileSync(join(ROOT, "src", "page.css"), "utf8");
+  /* design/0016 -- the leather look ships alongside the default one and paints nothing until
+   * `data-look="leather"` is on the root. Last in the file, so it is reading the tokens the
+   * default look has already declared rather than racing them. */
+  const leather = readFileSync(join(ROOT, "src", "leather.css"), "utf8");
   writeFileSync(join(ROOT, "styles.css"),
-    "/* Built by scripts/build-plugin.mjs from plugin/styles.css + src/page.css. */\n" +
+    "/* Built by scripts/build-plugin.mjs from plugin/styles.css + src/page.css + " +
+    "src/leather.css. */\n" +
     host.trimEnd() + "\n\n" +
     "/* ---- src/page.css ---------------------------------------------------- */\n" +
-    page.trimEnd() + "\n", "utf8");
+    page.trimEnd() + "\n\n" +
+    "/* ---- src/leather.css ------------------------------------------------- */\n" +
+    leather.trimEnd() + "\n", "utf8");
 }
 
 if (WATCH) {

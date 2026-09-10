@@ -42,6 +42,12 @@ changing what a shelf contains or how a book is addressed.
 | `0008-the-magic` | Shelf wear, ribbons that hang, and the shelf parting as you type |
 | `0009-the-room` | No sidebar: the library is the surface, and New shelf is at both ends of it |
 | `0010-the-note` | Obsidian's own markdown renderer, and why that is not a filesystem read |
+| `0011-thickness-is-the-note-count` | A spine's width is a measurement of the book, log-scaled against the library |
+| `0012-the-reader-is-a-book` | Four pieces of geometry that make a spread an open book, and none of them a texture |
+| `0013-the-mirror-vault` | Why a film is shot in a mirror of a real vault rather than in a fixture |
+| `0014-the-bookcase` | Rows instead of a horizontal scroller: why the packing is arithmetic, and how a plaque earns its width |
+| `0015-the-index` | The tabs are cut the way the book is ordered, and as deep as its titles need |
+| `0016-the-leather-look` | The opt-in leather binding: why a texture is allowed once it stops claiming to follow the theme |
 
 **ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
 it explains *why not the other thing*. A DDR describes how a part actually works and the

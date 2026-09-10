@@ -1,0 +1,753 @@
+/* THE LEATHER LOOK -- opt-in, and every rule in this file is scoped under
+ * `.vault-shelf[data-look="leather"]`. With the setting off, not one selector here matches and
+ * the default look is exactly what it was. scripts/check-scope.mjs reads this file the same
+ * way it reads page.css: an unscoped rule in either one styles the whole of Obsidian.
+ *
+ * design/0016 -- what this is, and why an opt-in texture is allowed where a default one was
+ * not. design/0005 -- the default look follows the host's theme and this one does not: it is a
+ * deliberate object with its own colours, which is the whole reason it has to be asked for.
+ *
+ * TWO RULES HELD THROUGHOUT:
+ *   1. PAINT ONLY. Nothing here changes what a shelf contains, where a book sits, or what it
+ *      is addressed by. Geometry is left alone wherever it can be -- a spine is the same
+ *      22-58px wide by 132px tall box, so thickness still means the note count (design/0011).
+ *   2. NOTHING IS FETCHED. Every texture is a CSS gradient or an inline SVG data URI written
+ *      out below; scripts/check-network.mjs reads this file.
+ */
+
+/* ---- the palette ---------------------------------------------------------
+ * The twelve slots are REMAPPED, not used raw. design/0005 gives them their meaning -- a
+ * folder is a colour -- and page.js reads whatever the cascade resolves them to, so a look can
+ * restate them without a line of JavaScript. Vault Graph's saturated palette on a leather
+ * spine reads as a chart of bindings; these twelve are the dyes a binder actually had.
+ *
+ * The doubled attribute is specificity, not a typo. The theme's own token blocks are
+ * `.vault-shelf[data-theme="dark"]` at 0-2-0, and a look that only tied 0-2-0 would be relying
+ * on this file being concatenated last, in both builds, for ever.
+ */
+.vault-shelf[data-look="leather"][data-look] {
+  color-scheme: dark;
+
+  --surface-0: #171009;
+  --surface-1: #241811;
+  --surface-2: #2d1f15;
+  --border: #4a3423;
+  --border-strong: #6d4c2c;
+  --text-1: #f2e5c8;
+  --text-2: #cdb489;
+  --text-3: #9d8459;
+  --edge: #3a2718;
+  --edge-hi: #d8b76a;
+  --dim: #241811;
+
+  /* the dyed bindings, in slot order: oxblood, tan, dark green, ochre, forest, plum, navy,
+   * vermilion, teal, aubergine, chestnut, near-black calf */
+  --g1: #6d2024;
+  --g2: #97612f;
+  --g3: #26492f;
+  --g4: #8a6a20;
+  --g5: #1f3c27;
+  --g6: #5a2140;
+  --g7: #26355c;
+  --g8: #8c2f28;
+  --g9: #1f4a4f;
+  --g10: #432a52;
+  --g11: #6b4326;
+  --g12: #332a21;
+  --n1: #6b4326;
+  --n2: #8a6a45;
+  --n3: #4a3423;
+
+  --accent: #d8b76a;
+  /* the dye IS the board here, so the mix is the whole slot. design/0005 */
+  --tint: 100%;
+
+  /* gilt, in three weights: the stamping, the tooled fillet, and the dull edge of it */
+  --vs-gilt: #e6c87d;
+  --vs-gilt-dim: #a8863d;
+  --vs-gilt-hi: #f7ebbd;
+
+  /* the shelf itself: stained oak, dark at the front edge */
+  --vs-wood: #4a2f1b;
+  --vs-wood-dark: #2a1a0f;
+
+  /* LEATHER GRAIN, authored here rather than fetched: fractal noise, desaturated, laid over
+   * the dye with `overlay` so it darkens and lightens the hide instead of greying it. 0.85 is
+   * where the grain is a hide rather than television static at a 22px spine width. */
+  --vs-grain: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.22'/%3E%3C/svg%3E");
+
+  /* WOOD GRAIN: the same noise stretched along the plank, so the shelf reads as sawn rather
+   * than as a brown rule. */
+  --vs-woodgrain: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='40'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='40' filter='url(%23w)' opacity='0.34'/%3E%3C/svg%3E");
+
+  /* MARBLED ENDPAPER: combed stripes pushed through a turbulence displacement, which is what
+   * marbling physically is -- pigment floated on size and drawn through with a comb. The
+   * reader opens onto this, and the two pages sit on it. */
+  --vs-marble: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='m' x='-25%25' y='-25%25' width='150%25' height='150%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.05' numOctaves='5' seed='11' result='t'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='t' scale='34' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect width='260' height='260' fill='%23241610'/%3E%3Cg filter='url(%23m)' fill='none' stroke-linecap='round'%3E%3Cpath d='M-60 8 H320' stroke='%235e1d21' stroke-width='13'/%3E%3Cpath d='M-60 20 H320' stroke='%23b2934c' stroke-width='3'/%3E%3Cpath d='M-60 30 H320' stroke='%232b4632' stroke-width='10'/%3E%3Cpath d='M-60 41 H320' stroke='%23d8c79a' stroke-width='2'/%3E%3Cpath d='M-60 52 H320' stroke='%235e1d21' stroke-width='12'/%3E%3Cpath d='M-60 64 H320' stroke='%23a8863d' stroke-width='3'/%3E%3Cpath d='M-60 76 H320' stroke='%232b4632' stroke-width='11'/%3E%3Cpath d='M-60 88 H320' stroke='%23d8c79a' stroke-width='2'/%3E%3Cpath d='M-60 100 H320' stroke='%235e1d21' stroke-width='13'/%3E%3Cpath d='M-60 112 H320' stroke='%23b2934c' stroke-width='3'/%3E%3Cpath d='M-60 124 H320' stroke='%232b4632' stroke-width='10'/%3E%3Cpath d='M-60 136 H320' stroke='%23d8c79a' stroke-width='2'/%3E%3Cpath d='M-60 148 H320' stroke='%235e1d21' stroke-width='12'/%3E%3Cpath d='M-60 160 H320' stroke='%23a8863d' stroke-width='3'/%3E%3Cpath d='M-60 172 H320' stroke='%232b4632' stroke-width='11'/%3E%3Cpath d='M-60 184 H320' stroke='%23d8c79a' stroke-width='2'/%3E%3Cpath d='M-60 196 H320' stroke='%235e1d21' stroke-width='13'/%3E%3Cpath d='M-60 208 H320' stroke='%23b2934c' stroke-width='3'/%3E%3Cpath d='M-60 220 H320' stroke='%232b4632' stroke-width='10'/%3E%3Cpath d='M-60 232 H320' stroke='%23d8c79a' stroke-width='2'/%3E%3Cpath d='M-60 246 H320' stroke='%235e1d21' stroke-width='13'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ---- the room ------------------------------------------------------------
+ * A library at dusk: dark panelling, and the light falling from above the shelves rather than
+ * evenly across the surface. The vignette is what stops the ground reading as a flat brown
+ * page; it is one gradient and it costs nothing.
+ */
+.vault-shelf[data-look="leather"] {
+  background:
+    radial-gradient(120% 80% at 50% -10%,
+      rgba(232, 194, 124, 0.13), rgba(0, 0, 0, 0) 62%),
+    linear-gradient(180deg, #241710, #150d07);
+}
+
+/* The panelling behind the shelves: a seam every 186px, lit on one side. It is two pixels of
+ * gradient and it is the difference between a room and a background colour. */
+.vault-shelf[data-look="leather"] #vs-library {
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(0, 0, 0, 0.42) 0 2px,
+      rgba(255, 214, 155, 0.05) 2px 4px,
+      rgba(0, 0, 0, 0) 4px 186px);
+}
+
+/* ---- the top rail --------------------------------------------------------
+ * Stained wood with a brass fillet under it, so the chrome belongs to the same piece of
+ * furniture as the shelves.
+ */
+.vault-shelf[data-look="leather"] #vs-rail {
+  background:
+    var(--vs-woodgrain),
+    linear-gradient(180deg, #3b2617, #22150c);
+  background-size: 300px 100%, auto;
+  background-blend-mode: overlay, normal;
+  border-bottom: 1px solid var(--vs-gilt-dim);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.6), 0 6px 14px rgba(0, 0, 0, 0.35);
+}
+
+.vault-shelf[data-look="leather"] .vs-railname {
+  color: var(--vs-gilt);
+  font-family: var(--prose);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+/* the jump chips as small brass plates */
+.vault-shelf[data-look="leather"] .vs-jump {
+  color: var(--vs-gilt-dim);
+  background: linear-gradient(180deg, #352315, #241710);
+  border: 1px solid #59401f;
+  border-radius: 2px;
+}
+
+.vault-shelf[data-look="leather"] .vs-jump:hover {
+  color: var(--vs-gilt-hi);
+  background: linear-gradient(180deg, #45301c, #2c1c11);
+  border-color: var(--vs-gilt-dim);
+}
+
+.vault-shelf[data-look="leather"] .vs-jump .vs-n { color: #8a6a45; }
+
+/* ---- buttons, boxes and the sheets --------------------------------------- */
+
+.vault-shelf[data-look="leather"] button {
+  color: var(--vs-gilt-dim);
+  background: linear-gradient(180deg, #332214, #24170f);
+  border: 1px solid #543a20;
+  border-radius: 2px;
+}
+
+.vault-shelf[data-look="leather"] button:hover {
+  color: var(--vs-gilt-hi);
+  border-color: var(--vs-gilt-dim);
+}
+
+.vault-shelf[data-look="leather"] button.vs-primary {
+  color: #2a1a0c;
+  background: linear-gradient(180deg, var(--vs-gilt-hi), var(--vs-gilt-dim));
+  border-color: #6b4f1e;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.vault-shelf[data-look="leather"] input[type="search"],
+.vault-shelf[data-look="leather"] input[type="text"],
+.vault-shelf[data-look="leather"] select,
+.vault-shelf[data-look="leather"] #vs-q {
+  color: var(--text-1);
+  background: #1b120b;
+  border: 1px solid #4d3620;
+  border-radius: 2px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.vault-shelf[data-look="leather"] #vs-q:focus { border-color: var(--vs-gilt-dim); }
+
+.vault-shelf[data-look="leather"] .vs-newshelf {
+  border-color: #4d3620;
+  color: #8a6a45;
+}
+
+.vault-shelf[data-look="leather"] .vs-newshelf:hover {
+  color: var(--vs-gilt);
+  border-color: var(--vs-gilt-dim);
+  background: rgba(216, 183, 106, 0.06);
+}
+
+.vault-shelf[data-look="leather"] .vs-shelfhead h2 {
+  color: var(--vs-gilt);
+  font-family: var(--prose);
+  letter-spacing: 0.12em;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+.vault-shelf[data-look="leather"] .vs-shelfhead .vs-meta { color: #8a6a45; }
+
+/* The sheets are paper laid on the desk, so they carry the paper tokens rather than the
+ * room's. Redeclaring the tokens on one element repaints every rule underneath it -- the
+ * headings, the hints, the borders and the preview rail -- without restating one of them. */
+.vault-shelf[data-look="leather"] .vs-sheet {
+  background: rgba(12, 8, 4, 0.72);
+}
+
+.vault-shelf[data-look="leather"] .vs-sheetbody {
+  --surface-1: #f0e5cb;
+  --surface-2: #f7efdb;
+  --text-1: #241a10;
+  --text-2: #4d3a26;
+  --text-3: #7d6647;
+  --border: #cbb797;
+  --border-strong: #a98f68;
+  --accent: #7a2018;
+  background: linear-gradient(180deg, #f5ecd6, #e9dcc0);
+  border: 1px solid #7a5730;
+  border-radius: 3px;
+  box-shadow: 0 0 0 7px #33210f, 0 0 0 8px var(--vs-gilt-dim), 0 24px 50px rgba(0, 0, 0, 0.6);
+  color: var(--text-1);
+}
+
+.vault-shelf[data-look="leather"] .vs-sheetbody h2 {
+  font-family: var(--prose);
+  letter-spacing: 0.02em;
+}
+
+.vault-shelf[data-look="leather"] .vs-sheetbody button {
+  color: #3b2a15;
+  background: linear-gradient(180deg, #efe2c2, #d9c69c);
+  border-color: #a98f68;
+}
+
+.vault-shelf[data-look="leather"] .vs-sheetbody button:hover {
+  color: #241a10;
+  border-color: #7a5730;
+}
+
+.vault-shelf[data-look="leather"] .vs-sheetbody button.vs-primary {
+  color: #241a10;
+  background: linear-gradient(180deg, var(--vs-gilt-hi), #c9a45e);
+  border-color: #8a6a2a;
+}
+
+.vault-shelf[data-look="leather"] .vs-sheetbody input[type="search"],
+.vault-shelf[data-look="leather"] .vs-sheetbody input[type="text"],
+.vault-shelf[data-look="leather"] .vs-sheetbody select {
+  color: #241a10;
+  background: #fbf5e6;
+  border-color: #b9a37d;
+  box-shadow: inset 0 1px 2px rgba(90, 70, 40, 0.25);
+}
+
+.vault-shelf[data-look="leather"] .vs-endcard {
+  border-color: #4d3620;
+  color: #a8895e;
+}
+
+/* ---- the shelf -----------------------------------------------------------
+ * design/0009 -- the floor is a BACKGROUND on the track, painted at a known height, which is
+ * what lets a plaque hang below it. Wood builds on that rather than fighting it: the same
+ * layer, thicker, with grain along it and a lit front edge.
+ */
+.vault-shelf[data-look="leather"] .vs-track {
+  --board: 14px;
+  background-image:
+    /* the shadow the books cast on the board they stand on -- two pixels, not a bruise: the
+     * first cut painted half the plank black and the wood disappeared */
+    linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0)),
+    /* the lit top of the plank, and the front edge turning under it */
+    linear-gradient(180deg,
+      rgba(255, 236, 195, 0.55) 0 1px,
+      rgba(255, 226, 170, 0.16) 1px 3px,
+      rgba(0, 0, 0, 0) 3px 62%,
+      rgba(0, 0, 0, 0.22) 82%,
+      rgba(0, 0, 0, 0.5) 100%),
+    var(--vs-woodgrain),
+    linear-gradient(180deg, #8a5c35 0 22%, #77502e 45%, #5c3a20 78%, var(--vs-wood-dark) 100%),
+    /* and the shadow the board itself throws down the panelling behind it */
+    linear-gradient(180deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0));
+  background-size:
+    100% 4px,
+    100% var(--board),
+    300px var(--board),
+    100% var(--board),
+    100% 10px;
+  background-position:
+    0 var(--spine-h),
+    0 var(--spine-h),
+    0 var(--spine-h),
+    0 var(--spine-h),
+    0 calc(var(--spine-h) + var(--board));
+  background-repeat: no-repeat, no-repeat, repeat-x, no-repeat, no-repeat;
+  background-blend-mode: normal, normal, overlay, normal, normal;
+}
+
+/* The rail scrolls, and the platform's own scrollbar is a grey pill lying across the wood.
+ * A brass runner instead, and only on the shelf rails -- nothing else here touches one. */
+.vault-shelf[data-look="leather"] .vs-shelfrail {
+  /* BOTH SPELLINGS, and the standard one is not belt and braces: a host that sets
+   * `scrollbar-color` anywhere above us puts Chromium on the standard scrollbar, where every
+   * ::-webkit-scrollbar rule below is ignored. In the standalone the brass runner drew and in
+   * Obsidian it stayed grey, which is what that difference looks like. */
+  scrollbar-color: #8a6a2a rgba(0, 0, 0, 0.35);
+  scrollbar-width: thin;
+}
+
+.vault-shelf[data-look="leather"] .vs-shelfrail::-webkit-scrollbar { height: 8px; }
+
+.vault-shelf[data-look="leather"] .vs-shelfrail::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 4px;
+}
+
+.vault-shelf[data-look="leather"] .vs-shelfrail::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #8a6a2a, #5a4119);
+  border-radius: 4px;
+}
+
+.vault-shelf[data-look="leather"] .vs-shelfrail::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #c9a45e, #8a6a2a);
+}
+
+/* An engraved brass plate, screwed to the front of the shelf. */
+.vault-shelf[data-look="leather"] .vs-plaque {
+  color: #3a2a10;
+  background: linear-gradient(180deg, #d9be7d 0 42%, #b2934c 42% 100%);
+  border: 1px solid #7a5f26;
+  border-top: 0;
+  border-radius: 0 0 2px 2px;
+  font-family: var(--prose);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-shadow: 0 1px 0 rgba(255, 245, 210, 0.55);
+  box-shadow: inset 0 -1px 0 rgba(255, 245, 210, 0.4), 0 2px 4px rgba(0, 0, 0, 0.45);
+}
+
+/* ---- a spine -------------------------------------------------------------
+ * A bound volume, and every piece of it has to still read at 22px wide:
+ *
+ *   the DYE        the folder's slot, deepened -- a hide takes a colour, it does not print one
+ *   the ROUND      a spine is a cylinder: light down the left edge, shadow down the right
+ *   the GRAIN      fractal noise over the dye, so it is hide rather than paint
+ *   the BANDS      the cords the leaves are sewn to, standing proud across the spine, with a
+ *                  gilt fillet on the head side of each -- this is the one that says
+ *                  "encyclopedia" from across a room
+ *   the STAMPING   the title in gilt, in the reading face, because a binder had type and not
+ *                  a UI font
+ */
+.vault-shelf[data-look="leather"] .vs-spine {
+  background:
+    linear-gradient(90deg,
+      rgba(0, 0, 0, 0.45) 0 1px,
+      rgba(255, 238, 205, 0.26) 1px 3px,
+      rgba(255, 238, 205, 0.10) 3px 18%,
+      rgba(0, 0, 0, 0) 42%,
+      rgba(0, 0, 0, 0.26) 76%,
+      rgba(0, 0, 0, 0.52) 100%),
+    color-mix(in srgb, var(--spine-tint, var(--n1)) 90%, #170d06);
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-top: 0;
+  border-radius: 3px 3px 1px 1px;
+  color: var(--vs-gilt);
+  box-shadow:
+    inset 0 -6px 10px rgba(0, 0, 0, 0.45),
+    0 3px 6px rgba(0, 0, 0, 0.45);
+  transform-origin: 50% 100%;
+}
+
+/* the raised bands, the gilt fillets and the grain, in one overlay */
+.vault-shelf[data-look="leather"] .vs-spine::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    /* head cap: the leather turned over the head of the boards */
+    linear-gradient(180deg,
+      rgba(255, 238, 205, 0.20) 0 1px,
+      rgba(0, 0, 0, 0.30) 1px 3px,
+      rgba(0, 0, 0, 0) 3px 6px,
+      rgba(226, 200, 125, 0.50) 6px 7px,
+      rgba(0, 0, 0, 0) 7px 100%),
+    /* THE BANDS. Four cords across a 132px spine: a shadow where the leather falls away
+     * above the cord, a proud lit face, and a deeper shadow under it. This is the piece that
+     * has to survive at 22px wide, which is why it is drawn across the full width and never
+     * inset. */
+    repeating-linear-gradient(180deg,
+      rgba(0, 0, 0, 0) 0 24px,
+      rgba(0, 0, 0, 0.34) 24px 26px,
+      rgba(255, 238, 205, 0.10) 26px 27px,
+      rgba(255, 238, 205, 0.22) 27px 30px,
+      rgba(255, 238, 205, 0.08) 30px 31px,
+      rgba(0, 0, 0, 0.44) 31px 33px,
+      rgba(0, 0, 0, 0.16) 33px 35px),
+    /* a gilt hair tooled on the head side of each band */
+    repeating-linear-gradient(180deg,
+      rgba(0, 0, 0, 0) 0 22px,
+      rgba(226, 200, 125, 0.40) 22px 23px,
+      rgba(0, 0, 0, 0) 23px 35px),
+    var(--vs-grain);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 140px 140px;
+  background-blend-mode: normal, normal, normal, overlay;
+}
+
+/* the tail panel: a double gilt rule with the volume number under it */
+.vault-shelf[data-look="leather"] .vs-spine::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 15px;
+  height: 3px;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg,
+      rgba(226, 200, 125, 0.5) 0 1px,
+      rgba(0, 0, 0, 0) 1px 2px,
+      rgba(226, 200, 125, 0.32) 2px 3px);
+}
+
+.vault-shelf[data-look="leather"] .vs-spine .vs-title {
+  position: relative;
+  z-index: 1;
+  color: var(--vs-gilt);
+  font-family: var(--prose);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65), 0 0 5px rgba(230, 200, 125, 0.22);
+}
+
+.vault-shelf[data-look="leather"] .vs-spine .vs-n {
+  position: absolute;
+  z-index: 1;
+  bottom: 3px;
+  color: var(--vs-gilt-dim);
+  font-family: var(--prose);
+  font-size: 9px;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+/* A book tips out of the shelf before it comes off it. design/0005 keeps the budget at 5px of
+ * lift; this spends one more pixel and two degrees, about the bottom edge, and still moves
+ * nothing but a transform -- a tilted spine cannot reflow its neighbours. */
+.vault-shelf[data-look="leather"] .vs-spine:hover,
+.vault-shelf[data-look="leather"] .vs-spine:focus-visible {
+  transform: translateY(-6px) rotate(-1.6deg);
+  border-color: rgba(0, 0, 0, 0.7);
+  color: var(--vs-gilt-hi);
+  box-shadow:
+    inset 0 -6px 10px rgba(0, 0, 0, 0.35),
+    0 10px 18px rgba(0, 0, 0, 0.55);
+}
+
+.vault-shelf[data-look="leather"] .vs-spine:hover .vs-title,
+.vault-shelf[data-look="leather"] .vs-spine:focus-visible .vs-title {
+  color: var(--vs-gilt-hi);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65), 0 0 9px rgba(247, 235, 189, 0.4);
+}
+
+/* ---- wear, in leather ----------------------------------------------------
+ * design/0008 -- a handled book is rubbed rather than repainted: the dye lightens at the head
+ * and tail where a hand pulls it off the shelf, and the gilt goes dull before it goes.
+ */
+.vault-shelf[data-look="leather"] .vs-spine[data-wear="2"],
+.vault-shelf[data-look="leather"] .vs-spine[data-wear="3"] {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 226, 175, 0.16) 0 10%,
+      rgba(0, 0, 0, 0) 26% 74%,
+      rgba(255, 226, 175, 0.12) 92% 100%),
+    linear-gradient(90deg,
+      rgba(255, 236, 200, 0.16) 0 1px,
+      rgba(255, 236, 200, 0.07) 1px 3px,
+      rgba(0, 0, 0, 0) 22%,
+      rgba(0, 0, 0, 0.18) 62%,
+      rgba(0, 0, 0, 0.42) 100%),
+    color-mix(in srgb, var(--spine-tint, var(--n1)) 86%, #150c06);
+}
+
+.vault-shelf[data-look="leather"] .vs-spine[data-wear="3"] .vs-title {
+  color: var(--vs-gilt-dim);
+}
+
+.vault-shelf[data-look="leather"] .vs-spine[data-wear="2"]:hover,
+.vault-shelf[data-look="leather"] .vs-spine[data-wear="3"]:hover {
+  transform: translateY(-6px) rotate(-1.6deg);
+}
+
+/* ---- the ribbon ----------------------------------------------------------
+ * Silk rather than felt: a highlight down one side, and it hangs in front of the boards.
+ */
+.vault-shelf[data-look="leather"] .vs-spine .vs-ribbon {
+  z-index: 2;
+  background:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.30) 0 1px,
+      rgba(0, 0, 0, 0) 1px 60%,
+      rgba(0, 0, 0, 0.28) 100%),
+    var(--g8);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* ---- the query, in leather ----------------------------------------------
+ * design/0008 -- the room still parts; what draws forward is lit rather than outlined, because
+ * an accent border on a bound book reads as a sticker.
+ */
+.vault-shelf[data-look="leather"][data-query="1"] .vs-spine[data-match="1"] {
+  border-color: rgba(0, 0, 0, 0.6);
+  box-shadow:
+    inset 0 -6px 10px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(226, 200, 125, 0.55),
+    0 10px 20px rgba(0, 0, 0, 0.55),
+    0 0 22px rgba(226, 200, 125, 0.22);
+}
+
+.vault-shelf[data-look="leather"][data-query="1"] .vs-spine[data-match="1"] .vs-n {
+  color: var(--vs-gilt-hi);
+}
+
+/* ---- the reader ----------------------------------------------------------
+ * design/0012 -- the spread was already an open book made of geometry. Under leather it gets
+ * the two things geometry could not give it: the inside of the cover, which is marbled
+ * endpaper, and gilded edges on the leaves.
+ */
+.vault-shelf[data-look="leather"] .vs-reader {
+  background:
+    radial-gradient(120% 90% at 50% 0%,
+      rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.74) 74%),
+    var(--vs-marble);
+  /* The tile is drawn at 260 and laid down at 168, because marbling is a fine thing: at
+   * full size the veins read as camouflage rather than as paper. */
+  background-size: auto, 168px 168px;
+}
+
+.vault-shelf[data-look="leather"] .vs-readerbar {
+  background:
+    var(--vs-woodgrain),
+    linear-gradient(180deg, #3b2617, #22150c);
+  background-size: 300px 100%, auto;
+  background-blend-mode: overlay, normal;
+  border-bottom: 1px solid var(--vs-gilt-dim);
+}
+
+.vault-shelf[data-look="leather"] .vs-readertitle {
+  color: var(--vs-gilt);
+  font-family: var(--prose);
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+}
+
+/* THE COVER IS A SHADOW, NOT A BORDER: a box-shadow ring frames the spread in leather and a
+ * gilt fillet without adding a pixel to the grid, so the two pages keep the widths
+ * design/0009 measured. Only the margin grows, to give the cover somewhere to sit. */
+.vault-shelf[data-look="leather"] .vs-spread {
+  margin: 26px auto 30px;
+  border: 1px solid #1a0f07;
+  border-radius: 2px;
+  /* The cover, tooled with a double fillet: leather, a gilt rule, more leather, a fainter
+   * gilt rule. Every ring is a shadow, so the boards cost the grid nothing. */
+  box-shadow:
+    0 0 0 7px #402916,
+    0 0 0 8px var(--vs-gilt-dim),
+    0 0 0 13px #402916,
+    0 0 0 14px rgba(168, 134, 61, 0.55),
+    0 0 0 15px #1a0f07,
+    0 24px 50px rgba(0, 0, 0, 0.66);
+}
+
+/* gilded edges: the leaves seen from the fore-edge, gold-tooled */
+.vault-shelf[data-look="leather"] .vs-spread::before,
+.vault-shelf[data-look="leather"] .vs-spread::after {
+  width: 6px;
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(120, 90, 30, 0.35) 0 1px,
+      rgba(0, 0, 0, 0) 1px 2px),
+    linear-gradient(90deg, #b8923b, #f0dfa6 45%, #a8863d);
+}
+
+/* THE PAPER TOKENS. Every rule inside a page -- headings, contents, leader dots, the note, its
+ * meta line, blockquote rules -- reads the same three text steps and two surfaces. Redeclaring
+ * them on `.vs-page` turns the whole inside of the book to ink-on-paper without restating a
+ * single one of those rules, and it is also what keeps the gutter gradient dark: it mixes
+ * `--text-1`, which in here is ink. */
+.vault-shelf[data-look="leather"] .vs-page {
+  --surface-1: #efe3c8;
+  --surface-2: #f6eed9;
+  --text-1: #241a10;
+  --text-2: #4d3a26;
+  --text-3: #806a4a;
+  --border: #d3c1a0;
+  --border-strong: #b09a72;
+  --accent: #7a2018;
+  color: var(--text-1);
+}
+
+/* Aged paper: warmer and duller toward the fore-edge, where a book is handled. The first cut
+ * had two large foxing spots on each page and they photographed as thumbprints -- age is in
+ * the fall of the colour across the sheet, not in stains somebody has to look at. */
+.vault-shelf[data-look="leather"] .vs-page.vs-left {
+  background:
+    radial-gradient(120% 90% at 100% 50%, rgba(150, 110, 60, 0.05), rgba(0, 0, 0, 0) 60%),
+    linear-gradient(90deg, #e8dabb 0%, #f1e6cd 34%, #efe3c8 100%);
+}
+
+.vault-shelf[data-look="leather"] .vs-page.vs-right {
+  background:
+    radial-gradient(120% 90% at 100% 50%, rgba(150, 110, 60, 0.07), rgba(0, 0, 0, 0) 62%),
+    linear-gradient(90deg, #f6eed9 0%, #f4ead2 72%, #ebe0c2 100%);
+}
+
+/* The fold is deeper in a bound book than in two panes. */
+.vault-shelf[data-look="leather"] .vs-page.vs-left::after {
+  width: 30px;
+  background: linear-gradient(90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(60, 36, 14, 0.10) 55%,
+    rgba(45, 26, 10, 0.30) 100%);
+}
+
+.vault-shelf[data-look="leather"] .vs-page.vs-right::after {
+  width: 30px;
+  background: linear-gradient(90deg,
+    rgba(45, 26, 10, 0.34) 0%,
+    rgba(60, 36, 14, 0.10) 45%,
+    rgba(0, 0, 0, 0) 100%);
+}
+
+.vault-shelf[data-look="leather"] .vs-page h2 {
+  color: #2a1a0c;
+  letter-spacing: 0.02em;
+}
+
+/* THE CONTENTS ROWS ARE NOT BUTTONS TO LOOK AT. They are `<button>` elements, so the leather
+ * button rule above reached them and printed a row of little plaques down the index -- caught
+ * in the first screenshot, invisible to every check in the suite. A printed index is ink on
+ * the page and nothing else. */
+.vault-shelf[data-look="leather"] .vs-contents button {
+  color: var(--text-2);
+  background: none;
+  border: 0;
+  /* AND THE HOST'S OWN BUTTON RULES, which only show inside Obsidian: app.css gives every
+   * `button` a box-shadow and `justify-content: center`, so the index printed as a stack of
+   * centred plaques in the app and as a proper left-aligned index in the standalone. Nothing
+   * in the suite sees this -- the standalone is what it drives. The default look has the same
+   * two symptoms and the fix belongs in page.css; it is not made here, because this file may
+   * not reach into the other look. */
+  box-shadow: none;
+  justify-content: flex-start;
+}
+
+.vault-shelf[data-look="leather"] .vs-contents button:hover {
+  color: #241a10;
+  background: rgba(90, 60, 25, 0.10);
+  border: 0;
+}
+
+.vault-shelf[data-look="leather"] .vs-contents button[aria-current="true"] {
+  color: #5c1a12;
+}
+
+/* A book's headings are set in the book's type. page.css puts them in the UI face because the
+ * default look lives in the host's chrome; on paper that is a sans-serif label pasted into a
+ * printed page. */
+.vault-shelf[data-look="leather"] .vs-prose h1,
+.vault-shelf[data-look="leather"] .vs-prose h2,
+.vault-shelf[data-look="leather"] .vs-prose h3,
+.vault-shelf[data-look="leather"] .vs-notemeta strong {
+  font-family: var(--prose);
+  color: #2a1a0c;
+}
+
+.vault-shelf[data-look="leather"] .vs-alsoin button,
+.vault-shelf[data-look="leather"] .vs-editin button {
+  color: #4a3218;
+  background: linear-gradient(180deg, #ede0be, #d8c69e);
+  border: 1px solid #b09a72;
+}
+
+.vault-shelf[data-look="leather"] .vs-alsoin button:hover,
+.vault-shelf[data-look="leather"] .vs-editin button:hover {
+  color: #241a10;
+  border-color: #7a5730;
+}
+
+.vault-shelf[data-look="leather"] #vs-within {
+  color: #241a10;
+  background: #fbf5e6;
+  border-color: #bda880;
+  box-shadow: inset 0 1px 2px rgba(90, 70, 40, 0.2);
+}
+
+.vault-shelf[data-look="leather"] .vs-prose {
+  color: #241a10;
+}
+
+/* Index tabs cut from leather, stamped in gilt, protruding from the fore-edge. */
+.vault-shelf[data-look="leather"] .vs-tabs button {
+  color: var(--vs-gilt);
+  background: linear-gradient(90deg, #3b2617, #2a1a0f);
+  border: 1px solid #1a0f07;
+  border-left: 0;
+  border-radius: 0 3px 3px 0;
+  font-family: var(--prose);
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.45);
+}
+
+.vault-shelf[data-look="leather"] .vs-tabs button[aria-current="true"] {
+  color: #2a1a0c;
+  background: linear-gradient(90deg, #c9a45e, var(--vs-gilt-hi));
+  border-color: #6b4f1e;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.vault-shelf[data-look="leather"] #vs-ribbon[aria-pressed="true"] {
+  color: #f7ecd6;
+  background: var(--g8);
+  border-color: #4a140f;
+}
+
+/* ---- plain list mode and reduced motion ---------------------------------
+ * design/0005 -- the list view is the assistive-technology one: a row of text, not a spine
+ * seen edge-on. Bands drawn across a 132px-tall spine become stripes across a 34px row, so
+ * they go, and the dye stays.
+ */
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine::before {
+  background-image: var(--vs-grain);
+  background-size: 140px 140px;
+  background-blend-mode: overlay;
+}
+
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine::after { display: none; }
+
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine .vs-title {
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vault-shelf[data-look="leather"] .vs-spine:hover,
+  .vault-shelf[data-look="leather"] .vs-spine:focus-visible,
+  .vault-shelf[data-look="leather"] .vs-spine[data-wear="2"]:hover,
+  .vault-shelf[data-look="leather"] .vs-spine[data-wear="3"]:hover {
+    transform: none;
+  }
+}

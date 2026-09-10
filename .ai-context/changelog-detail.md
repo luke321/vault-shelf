@@ -338,3 +338,90 @@ already says schema 2 keeps whatever it says, including plaques somebody has sin
 Measured on a schema-1 blob: `schema 1 -> 2`, Years plaques **false → true**, Months **true**
 (unchanged), People **false** (unchanged), wear `years/2026: 3` and `dateFields: ["date"]`
 carried through untouched. 43 checks.
+
+## A second look, bound in leather
+
+`design/0016`. An opt-in look — `data-look="leather"`, off by default — in a **new** stylesheet
+(`src/leather.css`), wired into both builds after `page.css`. `page.css` was not changed.
+
+**What it costs when it is off: nothing.** Every rule in the new file is scoped under
+`.vault-shelf[data-look="leather"]`, so with the setting off not one selector matches, and
+every other number in this file is unchanged.
+
+| | Before | After |
+|---|---|---|
+| stylesheets the page ships | 1 (`page.css`, 931 lines, 141 rules) | 2 (`page.css` untouched + `leather.css`, 70 rules) |
+| CSS rules `check-scope` reads | 141, in one file | **211, in two** |
+| built `styles.css` | 29 KB | 58 KB |
+| built `main.js` | 67 KB | 67 KB — five lines of JavaScript in all |
+| the suite | 40 checks over three shapes | **41** |
+| settings-tab rows | 3 | 4 |
+
+**The look is a setting, never a class somebody pokes on.** `applyLook()` owns `data-look` and
+calls `readTheme()` when it changes, because the twelve slots resolve differently under a look
+and a spine dyed before that re-read carries the *previous* palette. Measured through
+`__vs.slots()`: under leather the twelve come back `#6d2024, #97612f, #26492f …` (the dyes),
+and switching back returns Vault Graph's `#3987e5, #d95926, #199e70 …` exactly.
+
+**The new check.** `"a look is opt-in, repaints everything and moves nothing"` clicks the
+standalone's own switch and measures both sides:
+
+| Vault | Book addresses, look off | Book addresses, look on | The first spine |
+|---|---|---|---|
+| demo | 182 | **182, identical** | `#26313d` → `#641e21` |
+| sparse | 194 | **194, identical** | `#26313d` → `#641e21` |
+| library (10k) | 709 | **709, identical** | `#323230` → `#623e23` |
+
+**Three metrics move under leather, and only under leather**: the shelf board `3px → 14px` (it
+is still the same background line at `var(--spine-h)`, so the plaque still hangs beneath it),
+the spread's margin `10/14px → 26/30px` (somewhere for a `box-shadow` cover to sit — the grid
+itself does not move) and the hover lift `5px → 6px + 1.6°`. Nothing else: a spine's width
+still runs 22–58px against the library's largest book, so `"a spine's thickness is its note
+count"` measures the same numbers in both looks.
+
+### Four things only a screenshot could see
+
+The suite was green through every one of them.
+
+1. **The grain ate the palette.** Fractal noise at `opacity 0.55` over the dye washed all
+   twelve dyes to one speckled tan — brown rectangles, which is the exact failure this work
+   existed to avoid. **0.22, blended `overlay`.**
+2. **The index printed as plaques.** `.vs-contents button` really is a `<button>`, so the
+   leather button rule reached it. A printed index is ink on the page and nothing else.
+3. **The plank was a dark rule.** The books' cast shadow was 7px of near-black over a 14px
+   board and had eaten the wood. **4px, a lit top edge and a lighter stain.**
+4. **Inside Obsidian the index was centred, in boxes.** `app.css` gives every `button`
+   `justify-content: center` and a box-shadow, and the standalone that the suite drives has no
+   host stylesheet at all. Fixed under leather. **The default look still has both symptoms** —
+   the fix is two declarations in `page.css` and was deliberately not made here.
+
+
+## The room follows the window
+
+Rows were packed once per render and never repacked, so a window dragged narrower kept the row
+it had been packed for and let the end of it run off the side. A `resize` listener now
+re-measures and redraws, coalesced into one animation frame — a drag fires `resize`
+continuously, and repacking a 10k library sixty times a second is sixty renders nobody sees.
+
+Measured at 2560px, 760px and back:
+
+| Vault | rows at 2560 | at 760 | back | overflow |
+|---|---|---|---|---|
+| demo | 15 | **25** | 15 | 0px |
+| sparse | 10 | **14** | 10 | 0px |
+| library | 27 | **42** | 27 | 0px |
+
+A row is 1180px at 2560 (the measure, centred 683/698) and 705px inside a 760px viewport.
+
+## The lock was never shared, and the two suites ran together
+
+`scripts/lock.mjs` is the same file in both sister repos and it put its lock directory under
+the repo's own name — `vault-shelf-locks` beside `vault-graph-locks`. Each suite therefore held
+a lock the other could not see. This was found by looking, while Vault Graph held a `suite`
+lock 866 seconds old and Vault Shelf ran its own full suite three times.
+
+Both now use `obsidian-vault-locks`, and `acquire` honours a lock still sitting in either
+legacy root — checked **before** the new directory is claimed, since a legacy lock lives
+somewhere else and creating this one would otherwise succeed. Verified: with Vault Graph
+holding `suite`, `node scripts/lock.mjs acquire suite` in Vault Shelf reports
+`WAITING … held in a legacy root` and then `BUSY`, exit 1.

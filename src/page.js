@@ -511,6 +511,38 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
+   * design/0014 -- THE ROOM IS THE WINDOW, until `--measure` catches it. Below the measure a
+   * shelf is as wide as what it is in -- a narrowed window, an Obsidian pane with the sidebar
+   * out, a split -- and the rows repack to suit; at the measure it stops growing and centres.
+   * None of that happens on its own, because the packing is done once per render: a window
+   * dragged narrower would keep the row it was packed for and let the end of it run off the
+   * side. So a resize re-measures and redraws.
+   *
+   * COALESCED TO A FRAME. A drag fires resize continuously, and repacking a 10k library 60
+   * times a second is 60 renders nobody sees. `requestAnimationFrame` collapses a burst into
+   * the one render that matters, and the width is checked before drawing so a resize that
+   * did not change the room -- a taller window, a hidden sidebar -- costs nothing at all.
+   */
+  function watchRoom() {
+    var pending = 0;
+    var seen = 0;
+    function measure() {
+      pending = 0;
+      var track = $("shelves").querySelector(".vs-track");
+      var w = track ? track.clientWidth : 0;
+      if (w <= 80 || w === seen) return;
+      seen = w;
+      roomWidth = w;
+      renderLibrary();
+    }
+    on(WIN, "resize", function () {
+      if (pending) return;
+      pending = WIN.requestAnimationFrame(measure);
+    });
+    onDestroy.push(function () { if (pending) WIN.cancelAnimationFrame(pending); });
+  }
+
+  /**
    * design/0003 -- the plaque sits in the SAME row as the books it names, so the two cannot
    * drift apart. A shelf with no plaques renders one anonymous group, which keeps the DOM
    * shape identical in both cases.
@@ -1299,7 +1331,17 @@ function mountVaultShelf(root, data, options) {
 
   /* ================================================================= refresh == */
 
+  /* design/0016 -- the LOOK is one attribute, and the twelve slots resolve differently under
+   * it, so a look that has just changed has to re-read them before anything is dyed. */
+  function applyLook() {
+    var want = settings.look === "leather" ? "leather" : "";
+    if (root.getAttribute("data-look") === want) return;
+    root.setAttribute("data-look", want);
+    readTheme();
+  }
+
   function refresh() {
+    applyLook();
     rebuild();
     renderRail();
     renderLibrary();
@@ -1319,6 +1361,8 @@ function mountVaultShelf(root, data, options) {
   }
 
   /* ============================================================ the wiring == */
+
+  watchRoom();
 
   on($("q"), "input", function () {
     query = field("q").value;

@@ -14,6 +14,7 @@ const OURS = [
   "src/page.html",
   "src/shell.html",
   "src/page.css",
+  "src/leather.css",
   "plugin/styles.css",
 ];
 

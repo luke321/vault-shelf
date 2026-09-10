@@ -603,6 +603,44 @@ check("the theme follows the host, and the slots are re-read when it changes", a
                    `(${r.slotsChanged}); the library is identical in both (${r.same})` };
 });
 
+const bookCount = (joined) => (joined ? joined.split("|").length : 0);
+
+/* design/0016 -- A LOOK IS PAINT. The leather binding is a second stylesheet and a setting; it
+ * may repaint anything and it may move nothing. This drives the standalone's own switch rather
+ * than poking the attribute, so what is measured is the path a person actually takes. */
+check("a look is opt-in, repaints everything and moves nothing", async (p) => {
+  const r = await p.j(`(function(){
+    var root = document.getElementById("vs-app");
+    var spine = function () { return document.querySelector("#vs-shelves .vs-spine"); };
+    var read = function () {
+      return { look: root.getAttribute("data-look"),
+               ground: getComputedStyle(root).backgroundColor,
+               dye: getComputedStyle(spine()).backgroundColor,
+               slots: __vs.slots().join(","),
+               addresses: __vs.addresses().join("|"),
+               counts: JSON.stringify(__vs.counts()) };
+    };
+    var off = read();
+    var sw = document.getElementById("vs-lookswitch");
+    sw.click();
+    var on = read();
+    sw.click();
+    var back = read();
+    return { off: off, on: on, back: back, pressed: sw.getAttribute("aria-pressed") };
+  })()`);
+  const moved = r.off.addresses !== r.on.addresses || r.off.counts !== r.on.counts;
+  const repainted = r.off.dye !== r.on.dye && r.off.slots !== r.on.slots &&
+                    r.off.ground !== r.on.ground;
+  const restored = r.back.look === "" && r.back.dye === r.off.dye &&
+                   r.back.slots === r.off.slots;
+  return { ok: r.off.look === "" && r.on.look === "leather" && !moved && repainted && restored,
+           detail: `data-look "${r.off.look}" -> "${r.on.look}" -> "${r.back.look}"; ` +
+                   `the first spine is ${r.off.dye} then ${r.on.dye}; ` +
+                   `${bookCount(r.off.addresses)} book addresses, identical in both ` +
+                   `(${!moved}); the twelve slots changed (${r.off.slots !== r.on.slots}) ` +
+                   `and came back (${restored})` };
+});
+
 /* design/0008 -- MAGIC 1. A book you open often looks handled. */
 check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
   const r = await p.j(`(function(){
@@ -686,6 +724,67 @@ check("the shelf parts as you type, and no book leaves the room", async (p) => {
 /* design/0009 -- A ROOM HAS A WIDTH. Measured by overriding the viewport rather than by
  * resizing a window, so the number is the same on a laptop and on the WQHD screen this was
  * reported from. */
+check("a narrower window grows rows, and a wide one centres the shelf", async (p) => {
+  const at = async (width) => {
+    await p.send("Emulation.setDeviceMetricsOverride",
+                 { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+    /* CDP RESIZES THE VIEWPORT WITHOUT TELLING THE PAGE. `setDeviceMetricsOverride` changes
+     * the metrics and, headless, does not always deliver the resize event a real window
+     * manager would -- so the event is dispatched here. It is the same event the browser
+     * sends, so what is being tested is still the handler and not the emulation.
+     *
+     * `p.j` is `JSON.stringify(expr)`: an EXPRESSION, and a promise stringifies to `{}`
+     * without ever being awaited. Waiting for the repack is therefore a sleep rather than an
+     * await, and 150ms is nine of the frame the handler coalesces into. */
+    await p.j(`window.dispatchEvent(new Event("resize"))`);
+    await sleep(150);
+    return p.j(`(function(){
+      var app = document.getElementById("vs-app");
+      var host = app.getBoundingClientRect();
+      var rows = document.querySelectorAll('[data-shelf="months"] .vs-track');
+      var first = rows[0] ? rows[0].getBoundingClientRect() : null;
+      var over = 0;
+      [].slice.call(document.querySelectorAll("#vs-shelves .vs-track")).forEach(function (t) {
+        over = Math.max(over, t.scrollWidth - t.clientWidth);
+      });
+      return { app: Math.round(host.width), rows: rows.length,
+               total: document.querySelectorAll("#vs-shelves .vs-track").length,
+               row: first ? Math.round(first.width) : 0,
+               left: first ? Math.round(first.left - host.left) : 0,
+               right: first ? Math.round(host.right - first.right) : 0,
+               over: over,
+               measure: parseInt(getComputedStyle(app).getPropertyValue("--measure"), 10) };
+    })()`);
+  };
+
+  const wide = await at(2560);
+  const narrow = await at(760);
+  const back = await at(2560);
+  await p.send("Emulation.clearDeviceMetricsOverride");
+  await sleep(250);
+
+  /* Below the measure the row is the window; at or above it the row stops at the measure and
+   * the gutters match. 24px of tolerance is a scrollbar, not slack. */
+  const capped = wide.row <= wide.measure + 2;
+  const centred = Math.abs(wide.left - wide.right) <= 24;
+  const fills = narrow.row > 600 && narrow.row < 760;
+  /* SOME shelf has to wrap further, not necessarily the Months one: a vault whose months
+   * already fit in two rows at 1180px can still fit in two at 760px, and that is not a
+   * failure of anything. The library's total row count is the honest measure. */
+  const grew = narrow.total > wide.total && narrow.rows >= wide.rows;
+  const restored = back.total === wide.total && back.row === wide.row;
+  const ok = capped && centred && fills && grew && restored &&
+             wide.over === 0 && narrow.over === 0;
+  return {
+    ok,
+    detail: `at 2560px the Months shelf is ${wide.rows} row(s) of ${wide.row}px, centred ` +
+            `${wide.left}/${wide.right}; at 760px it is ${narrow.rows} row(s) of ` +
+            `${narrow.row}px; the library goes from ${wide.total} rows to ${narrow.total} ` +
+            `and back to ${back.total}. ` +
+            `Worst overflow ${Math.max(wide.over, narrow.over, back.over)}px`
+  };
+});
+
 check("the room has a width, however wide the window is", async (p) => {
   await p.send("Emulation.setDeviceMetricsOverride",
                { width: 2560, height: 1400, deviceScaleFactor: 1, mobile: false });

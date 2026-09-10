@@ -259,6 +259,24 @@ ground colour in each theme, that the twelve slots came back **different** after
 a hardcoded array could only ever be one of them — and that the library is otherwise
 identical.
 
+## A look is paint, and nothing else
+
+`design/0016`. The leather binding is a second stylesheet (`src/leather.css`) and one setting;
+it may repaint anything and it may move nothing.
+
+`"a look is opt-in, repaints everything and moves nothing"` drives the standalone's **own
+switch** rather than poking the attribute, and asserts that `data-look` goes `"" → "leather"
+→ ""`; that the ground, the first spine's colour and the twelve slots **all** change; that
+every book address and every count is byte-identical across the switch; and that switching
+back restores the colours exactly. Measured: **182 addresses on the demo vault, 194 on the
+sparse, 709 on the 10k library — identical in both looks in all three.**
+
+The default look is the one every other check in this file measures, and it is unchanged: with
+the setting off, not one selector in `leather.css` matches. `scripts/check-scope.mjs` reads
+**both** stylesheets — an unscoped rule in the second would style the whole of Obsidian
+exactly as one in the first — and `scripts/check-network.mjs` reads the second one too, so the
+leather grain, the wood and the marbling stay CSS gradients and inline SVG data URIs.
+
 ## The magic
 
 `design/0008`. Three things a real shelf cannot do, and each has a check.
@@ -286,6 +304,17 @@ asserts the library, the rail, a row and the reading spread all fit inside `--me
 scrollbar, not slack — and that **no row overflows by so much as a pixel**. Measured: shelves
 **1180 (683/698)**, row **1180**, spread **1180 (690/690)**, **worst overflow 0px** across
 15 rows on the demo vault, 10 on the sparse and 27 on the library.
+
+`"a narrower window grows rows, and a wide one centres the shelf"` drives the viewport to
+2560px, to 760px and back. At 2560 a row stops at the **measure** and the gutters match; at
+760 it is the window (**705px**, inside a 760px viewport). The library's row count goes
+**15 → 25 → 15** on the demo vault, **10 → 14 → 10** on the sparse and **27 → 42 → 27** on the
+library, with **0px of overflow** at every width and the same row count on the way back.
+
+The repack is a `resize` listener coalesced into one animation frame; without it a window
+dragged narrower keeps the row it was packed for and lets the end of it run off the side.
+CDP's `setDeviceMetricsOverride` does not always deliver a resize event headless, so the check
+dispatches the event the browser would.
 
 Nothing runs sideways any more (`design/0014`), so the question is no longer whether the
 scroller clips but whether anything overflows at all. **The 13px this check caught was a
@@ -349,9 +378,13 @@ stacked over the shelves. `changelog-detail.md` has the whole story.
 | people and tags came from the metadata cache | 9 people books, 16 tag books |
 | the debug surface is not shipped | `window.__vs` is `undefined` inside Obsidian |
 | three close-and-reopen cycles | 1 mounted root; DOM nodes 2,675 → 2,675 |
-| the settings tab renders on both paths | 3 declarative definitions, 3 rows from `display()` |
+| the settings tab renders on both paths | 4 declarative definitions, 4 rows from `display()` |
 | the note is rendered by Obsidian's own renderer | 238 characters in 7 elements, no fallback text |
 | a long note wraps instead of widening the reader | reader 1,216px, note 495px, nothing scrolls sideways |
+
+`--look leather` writes the plugin's own `data.json` before Obsidian starts, so `--shot` can
+photograph either look as a person would actually have it. Re-measured 2026-09-10 on the
+mirror vault under leather: **10/10, 543 files, 417 spines, 22 plaques, 4 settings rows.**
 
 ## Not covered here
 

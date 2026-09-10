@@ -39,6 +39,9 @@ of measuring it.** Build the page, drive it, read the numbers.
 - **A tab is a position in the contents**, so the index is cut the way the book is ordered: an
   Encyclopedia volume is alphabetical inside and gets letters, everything else is in date order
   and gets dates.
+- **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` the
+  opt-in binding — and it may repaint anything and move nothing: not a shelf's order, not a
+  book's address, not a count. `design/0016`.
 
 ## How to work here
 
@@ -63,7 +66,11 @@ of measuring it.** Build the page, drive it, read the numbers.
   node scripts/lock.mjs status
   ```
 
-  The lock lives in the OS temp dir, not the worktree, so **every worktree shares one**.
+  The lock lives in the OS temp dir under one root for **every sister project** —
+  `obsidian-vault-locks` — so a Vault Graph suite and a Vault Shelf suite block each other.
+  They did not until 2026-09-10: each repo had its own directory, so each held a lock the
+  other could not see and the two ran together anyway. A machine has one Chrome and one
+  screen no matter which repository the suite belongs to.
   Screenshots need no lock — `obsidian-smoke.mjs` captures over CDP — but it takes its own port.
 - `git push` and merging into `develop` are separate asks, every time. `main` only ever
   receives `develop`.
@@ -100,9 +107,10 @@ of measuring it.** Build the page, drive it, read the numbers.
 |---|---|
 | `src/core/` | the membership engine (TypeScript, `strict`): eight classifiers, source predicates, ISO-week and month keys, stable addresses, filters, settings migration. Notes in, books out; no DOM |
 | `src/page.js` | the page: directory, shelf rails, builder, manage sheet, reading spread — one `mountVaultShelf()`. **Do not read it top to bottom**; open `.ai-context/code-map.md` and go to the line range |
+| `src/leather.css` | the opt-in second look (`design/0014`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 43 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 45 checks over three vault shapes |
 | `scripts/obsidian-smoke.mjs` | the same plugin inside a real Obsidian: ribbon icon, view lifecycle, settings tab, Obsidian's markdown renderer, `--shot` for two pictures |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
 | `.ai-context/code-map.md` | **generated**: sections and functions of the two big files, with line numbers |

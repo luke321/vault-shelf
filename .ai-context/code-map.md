@@ -4,7 +4,7 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 1528 lines, 16 sections, 69 functions
+## `src/page.js` — 1572 lines, 16 sections, 72 functions
 
 ### Sections
 
@@ -16,16 +16,16 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 239–260 | membership |
 | 261–282 | the rail |
 | 283–303 | the reading shelf |
-| 304–612 | library |
-| 613–650 | the shelf parts as you type |
-| 651–1028 | reader |
-| 1029–1202 | builder |
-| 1203–1277 | manage |
-| 1278–1299 | filters |
-| 1300–1320 | refresh |
-| 1321–1374 | the wiring |
-| 1375–1495 | debug api — stripped from the plugin build |
-| 1496–1528 | the wiring (continued) |
+| 304–644 | library |
+| 645–682 | the shelf parts as you type |
+| 683–1060 | reader |
+| 1061–1234 | builder |
+| 1235–1309 | manage |
+| 1310–1331 | filters |
+| 1332–1362 | refresh |
+| 1363–1418 | the wiring |
+| 1419–1539 | debug api — stripped from the plugin build |
+| 1540–1572 | the wiring (continued) |
 
 ### Functions
 
@@ -56,52 +56,55 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 473 | `plaqueWidth` |
 | 488 | `room` |
 | 504 | `settleRoom` |
-| 523 | `renderTrack` |
-| 547 | `renderSpine` |
-| 598 | `thicknessOf` |
-| 605 | `ribbonsIn` |
-| 618 | `applyQuery` |
-| 638 | `scrollToShelf` |
-| 647 | `cssEscape` |
-| 656 | `openBook` |
-| 676 | `markWear` |
-| 685 | `closeReader` |
-| 695 | `renderReader` |
-| 711 | `renderContents` |
-| 751 | `indexSections` |
-| 786 | `cutBy` |
-| 810 | `letterTabs` |
-| 831 | `titlePrefix` |
-| 849 | `spanTabs` |
-| 860 | `renderTabs` |
-| 872 | `renderNote` |
-| 930 | `renderMeta` |
-| 944 | `renderMarkdownInto` |
-| 971 | `goTo` |
-| 980 | `shelfById` |
-| 988 | `isBookmarked` |
-| 992 | `toggleBookmark` |
-| 1007 | `previousCollection` |
-| 1020 | `findBook` |
-| 1035 | `openBuilder` |
-| 1055 | `closeBuilder` |
-| 1061 | `writeBuilderFields` |
-| 1085 | `readBuilderFields` |
-| 1104 | `fillSourceValues` |
-| 1123 | `fillProperties` |
-| 1142 | `fillRecipes` |
-| 1161 | `previewBuilder` |
-| 1179 | `saveBuilder` |
-| 1197 | `uniqueId` |
-| 1205 | `openManage` |
-| 1214 | `newShelfFromManage` |
-| 1219 | `renderManage` |
-| 1264 | `reorder` |
-| 1280 | `renderActiveFilters` |
-| 1293 | `clearFilters` |
-| 1302 | `refresh` |
+| 526 | `watchRoom` |
+| 529 | · `measure` |
+| 555 | `renderTrack` |
+| 579 | `renderSpine` |
+| 630 | `thicknessOf` |
+| 637 | `ribbonsIn` |
+| 650 | `applyQuery` |
+| 670 | `scrollToShelf` |
+| 679 | `cssEscape` |
+| 688 | `openBook` |
+| 708 | `markWear` |
+| 717 | `closeReader` |
+| 727 | `renderReader` |
+| 743 | `renderContents` |
+| 783 | `indexSections` |
+| 818 | `cutBy` |
+| 842 | `letterTabs` |
+| 863 | `titlePrefix` |
+| 881 | `spanTabs` |
+| 892 | `renderTabs` |
+| 904 | `renderNote` |
+| 962 | `renderMeta` |
+| 976 | `renderMarkdownInto` |
+| 1003 | `goTo` |
+| 1012 | `shelfById` |
+| 1020 | `isBookmarked` |
+| 1024 | `toggleBookmark` |
+| 1039 | `previousCollection` |
+| 1052 | `findBook` |
+| 1067 | `openBuilder` |
+| 1087 | `closeBuilder` |
+| 1093 | `writeBuilderFields` |
+| 1117 | `readBuilderFields` |
+| 1136 | `fillSourceValues` |
+| 1155 | `fillProperties` |
+| 1174 | `fillRecipes` |
+| 1193 | `previewBuilder` |
+| 1211 | `saveBuilder` |
+| 1229 | `uniqueId` |
+| 1237 | `openManage` |
+| 1246 | `newShelfFromManage` |
+| 1251 | `renderManage` |
+| 1296 | `reorder` |
+| 1312 | `renderActiveFilters` |
+| 1325 | `clearFilters` |
+| 1336 | `applyLook` |
+| 1343 | `refresh` |
 
-## `scripts/smoke.mjs` — 1519 lines, 6 sections, 11 functions, 43 checks
+## `scripts/smoke.mjs` — 1618 lines, 6 sections, 13 functions, 45 checks
 
 ### Sections
 
@@ -109,10 +112,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 |---|---|
 | 54–69 | chrome |
 | 70–107 | the checks |
-| 108–1088 | the invariants |
-| 1089–1216 | which vaults, and why |
-| 1217–1417 | one run |
-| 1418–1519 | main |
+| 108–1187 | the invariants |
+| 1188–1315 | which vaults, and why |
+| 1316–1516 | one run |
+| 1517–1618 | main |
 
 ### Functions
 
@@ -123,12 +126,14 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 56 | `findChrome` |
 | 87 | `gridSlot` |
 | 364 | · `tabsFor` |
-| 696 | · `box` |
-| 1121 | `resolveVaults` |
-| 1203 | `buildFor` |
-| 1219 | `runOne` |
-| 1376 | `killBrowser` |
-| 1420 | `main` |
+| 614 | · `spine` |
+| 615 | · `read` |
+| 795 | · `box` |
+| 1220 | `resolveVaults` |
+| 1302 | `buildFor` |
+| 1318 | `runOne` |
+| 1475 | `killBrowser` |
+| 1519 | `main` |
 
 ### Checks
 
@@ -156,24 +161,26 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 531 | the library is the whole surface, with no sidebar |
 | 558 | the twelve colour slots are Vault Graph's own |
 | 587 | the theme follows the host, and the slots are re-read when it changes |
-| 607 | shelf wear is recorded and drawn, and survives a rebuild |
-| 630 | a ribbon hangs from every book that holds a marked note |
-| 656 | the shelf parts as you type, and no book leaves the room |
-| 689 | the room has a width, however wide the window is |
-| 752 | the reader and the sheets are not painted until they are opened |
-| 769 | clicking a spine opens a book on the note it names |
-| 786 | the reader's index tabs stay countable on the biggest book |
-| 800 | previous and next walk the book and stop at its ends |
-| 825 | also shelved in moves to another book and keeps the note |
-| 856 | previous collection walks back, and Alt+Left does the same |
-| 875 | escape closes the reader and leaves the shelf where it was |
-| 894 | the reading shelf survives its own shelf being hidden |
-| 930 | a saved reading place re-resolves after its own book is gone |
-| 945 | the builder previews the shelf it would actually save |
-| 964 | a saved shelf gets a stable id and joins the library |
-| 985 | parent tag inclusion is a setting, and it changes the answer |
-| 1005 | people come from the property alone, never from prose |
-| 1026 | plain list mode keeps every book reachable |
-| 1043 | every control the keyboard can reach has a name |
-| 1065 | nothing on the page reaches the network |
-| 1075 | a spine lifts on hover and holds its size |
+| 611 | a look is opt-in, repaints everything and moves nothing |
+| 645 | shelf wear is recorded and drawn, and survives a rebuild |
+| 668 | a ribbon hangs from every book that holds a marked note |
+| 694 | the shelf parts as you type, and no book leaves the room |
+| 727 | a narrower window grows rows, and a wide one centres the shelf |
+| 788 | the room has a width, however wide the window is |
+| 851 | the reader and the sheets are not painted until they are opened |
+| 868 | clicking a spine opens a book on the note it names |
+| 885 | the reader's index tabs stay countable on the biggest book |
+| 899 | previous and next walk the book and stop at its ends |
+| 924 | also shelved in moves to another book and keeps the note |
+| 955 | previous collection walks back, and Alt+Left does the same |
+| 974 | escape closes the reader and leaves the shelf where it was |
+| 993 | the reading shelf survives its own shelf being hidden |
+| 1029 | a saved reading place re-resolves after its own book is gone |
+| 1044 | the builder previews the shelf it would actually save |
+| 1063 | a saved shelf gets a stable id and joins the library |
+| 1084 | parent tag inclusion is a setting, and it changes the answer |
+| 1104 | people come from the property alone, never from prose |
+| 1125 | plain list mode keeps every book reachable |
+| 1142 | every control the keyboard can reach has a name |
+| 1164 | nothing on the page reaches the network |
+| 1174 | a spine lifts on hover and holds its size |
