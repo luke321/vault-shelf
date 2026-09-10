@@ -102,12 +102,25 @@ const FACETS = ["log", "scope", "budget", "retro", "open questions", "next steps
  * that the name IS in some bodies, and that it is in nobody's people list. */
 const PROSE_ONLY = "Dagny Halvorsen";
 
+/* decisions/0003 -- A NAME THAT ONLY EVER APPEARS AS A LINK. It has a person's note of its
+ * own (`type: people`) and is never in anybody's people property; every mention of it is a
+ * `[[wikilink]]` in a body, half of them aliased. A People shelf that gives it a book is a
+ * People shelf that reads links to person notes -- and it must be ONE book, under the note's
+ * name, not one for the alias and one for the full name. */
+const LINKED_ONLY = "Halvor Estrin";
+let linkedMentions = 0;
+
 const WORDS = ["shelf", "spine", "index", "margin", "quire", "folio", "binding", "plate",
                "gathering", "colophon", "recto", "verso", "signature", "leaf", "board"];
 
 function paragraph(n) {
   const out = [];
   if (rand() < 0.12) out.push("Mentioned by " + PROSE_ONLY + " in passing.");
+  if (rand() < 0.10) {
+    linkedMentions++;
+    out.push((linkedMentions % 2 ? "Agreed with [[" + LINKED_ONLY + "]]"
+                                 : "Agreed with [[" + LINKED_ONLY + "|Halvor]]") + " afterwards.");
+  }
   for (let i = 0; i < n; i++) {
     const len = 6 + Math.floor(rand() * 12);
     const words = [];
@@ -151,8 +164,8 @@ function write(folder, name, frontmatter, body) {
   count++;
 }
 
-for (const person of PEOPLE) {
-  write("07 - People", person, { tags: ["person"] },
+for (const person of PEOPLE.concat([LINKED_ONLY])) {
+  write("07 - People", person, { tags: ["person"], type: "people" },
         "# " + person + "\n\n" + paragraph(2));
 }
 
@@ -199,4 +212,5 @@ write("", "Dashboard", { tags: ["map"] }, "# Dashboard\n\n" + paragraph(1));
 write("", "Home", { tags: ["map"] }, "# Home\n\n" + paragraph(1));
 
 console.log(`wrote ${count} notes to ${OUT} (seed ${SEED}, end ${END}, ${DAYS} days, ` +
-            `${(DAYS / 365.25).toFixed(1)} years)`);
+            `${(DAYS / 365.25).toFixed(1)} years); ${linkedMentions} notes link to ` +
+            `${LINKED_ONLY} and none names them in a property`);

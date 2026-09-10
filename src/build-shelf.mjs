@@ -132,6 +132,25 @@ const notes = [];
 const folderCounts = new Map();
 const sources = { field: 0, title: 0, stamp: 0, none: 0 };
 
+/* decisions/0003 -- which notes are people, decided once before any note is shelved; the
+ * plugin does the same over the metadata cache. Indexed by path without its extension and by
+ * bare title, which is how a wikilink names a note. */
+const PERSON_NOTE = arg("person-note", "type: people");
+/** @type {Map<string, string>} */
+const personByRef = new Map();
+if (PERSON_NOTE) {
+  for (const file of files) {
+    const { props, lists } = parseFrontmatter(readFileSync(file.abs, "utf8"));
+    const tags = (lists.tags || []).concat(props.tags ? props.tags.split(/[,\s]+/) : [])
+      .map((t) => t.replace(/^#/, "")).filter(Boolean);
+    if (!CORE.isPersonNote(PERSON_NOTE, props, tags)) continue;
+    const title = file.rel.split("/").pop().replace(/\.md$/i, "");
+    const who = CORE.cleanPerson(props.name || title) || title;
+    personByRef.set(file.rel.replace(/\.md$/i, "").toLowerCase(), who);
+    personByRef.set(title.toLowerCase(), who);
+  }
+}
+
 for (const file of files) {
   const text = readFileSync(file.abs, "utf8");
   const { props, lists, body } = parseFrontmatter(text);
@@ -153,6 +172,15 @@ for (const file of files) {
   for (const field of PEOPLE_FIELDS) {
     for (const v of lists[field] || []) people.push(CORE.cleanPerson(v));
     if (props[field]) people.push(CORE.cleanPerson(props[field]));
+  }
+  if (personByRef.size) {
+    const self = file.rel.replace(/\.md$/i, "").toLowerCase();
+    for (const target of CORE.linkTargets(text)) {
+      const ref = target.replace(/\.md$/i, "").toLowerCase();
+      if (ref === self || ref === self.split("/").pop()) continue;
+      const who = personByRef.get(ref) || personByRef.get(ref.split("/").pop() || ref);
+      if (who) people.push(who);
+    }
   }
 
   const tags = (lists.tags || []).slice();

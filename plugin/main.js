@@ -67,36 +67,36 @@ export function buildData(app, settings) {
   /** @type {Map<string, number>} */
   const folderCounts = new Map();
 
+  /* decisions/0003 -- WHICH NOTES ARE PEOPLE, decided once before any note is read. A vault
+   * that keeps a note per person links to it rather than repeating the name in a property,
+   * and the link is the declaration: the target says what it is. The rule is the person's own
+   * (`type: people`, or `#person`), and the name a link earns is the target's `name` property
+   * or its title -- so `[[Ada Lovelace|Ada]]` and `[[Ada Lovelace]]` are one person, which a
+   * property could not have promised. */
+  /** @type {Map<string, string>} */
+  const personByPath = new Map();
+  if (settings.personNote) {
+    for (const file of files) {
+      const cache = app.metadataCache.getFileCache(file);
+      const fm = cache && cache.frontmatter ? cache.frontmatter : {};
+      if (!core.isPersonNote(settings.personNote, propsOf(fm, settings), tagsOf(cache, fm))) continue;
+      const named = typeof fm.name === "string" && fm.name.trim() ? fm.name.trim() : file.basename;
+      personByPath.set(file.path, core.cleanPerson(named) || file.basename);
+    }
+  }
+
   for (const file of files) {
     const cache = app.metadataCache.getFileCache(file);
     /** @type {Record<string, unknown>} */
     const fm = cache && cache.frontmatter ? cache.frontmatter : {};
     const folder = file.path.indexOf("/") < 0 ? "(vault root)" : file.path.slice(0, file.path.indexOf("/"));
-
-    /** @type {Record<string,string>} */
-    const props = {};
-    for (const key of Object.keys(fm)) {
-      if (key === "position" || key === "tags" || settings.peopleFields.indexOf(key) >= 0) continue;
-      const value = fm[key];
-      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-        props[key] = String(value);
-      }
-    }
+    const props = propsOf(fm, settings);
 
     const stamp = settings.useFileStamp
       ? core.stampOf(file.stat.ctime, file.stat.mtime)
       : null;
     const date = core.resolveDate(props, file.basename, stamp, settings.dateFields);
-
-    /** @type {string[]} */
-    const tags = [];
-    if (cache && cache.tags) for (const t of cache.tags) tags.push(t.tag.replace(/^#/, ""));
-    const fmTags = fm.tags;
-    if (Array.isArray(fmTags)) {
-      for (const t of fmTags) if (typeof t === "string") tags.push(t.replace(/^#/, ""));
-    } else if (typeof fmTags === "string") {
-      for (const t of fmTags.split(/[,\s]+/)) if (t) tags.push(t.replace(/^#/, ""));
-    }
+    const tags = tagsOf(cache, fm);
 
     /* decisions/0003 -- EVERY people property, merged. A vault does not use one name for
      * them: meeting notes carry `attendees`, a 1-on-1 carries `person`, something written by
@@ -110,6 +110,18 @@ export function buildData(app, settings) {
         for (const p of raw) if (typeof p === "string") people.push(core.cleanPerson(p));
       } else if (typeof raw === "string") {
         people.push(core.cleanPerson(raw));
+      }
+    }
+    /* ...and every link to a person's note, body and frontmatter alike, resolved the way the
+     * app resolves it so an alias, a subfolder or a shortest-path link all land. A person's
+     * own note does not name itself. */
+    if (personByPath.size && cache) {
+      const links = (cache.links || []).concat(cache.frontmatterLinks || []);
+      for (const link of links) {
+        const target = app.metadataCache.getFirstLinkpathDest(link.link, file.path);
+        if (!target || target.path === file.path) continue;
+        const who = personByPath.get(target.path);
+        if (who) people.push(who);
       }
     }
 
@@ -146,6 +158,42 @@ export function buildData(app, settings) {
   };
 }
 
+
+/**
+ * Scalar frontmatter as strings, minus the fields that have first-class homes.
+ * @param {Record<string, unknown>} fm @param {Persisted} settings @returns {Record<string, string>}
+ */
+function propsOf(fm, settings) {
+  /** @type {Record<string,string>} */
+  const props = {};
+  for (const key of Object.keys(fm)) {
+    if (key === "position" || key === "tags" || settings.peopleFields.indexOf(key) >= 0) continue;
+    const value = fm[key];
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      props[key] = String(value);
+    }
+  }
+  return props;
+}
+
+/**
+ * Every tag on a note, from the body and the frontmatter, without its `#`.
+ * @param {import("obsidian").CachedMetadata | null} cache
+ * @param {Record<string, unknown>} fm
+ * @returns {string[]}
+ */
+function tagsOf(cache, fm) {
+  /** @type {string[]} */
+  const tags = [];
+  if (cache && cache.tags) for (const t of cache.tags) tags.push(t.tag.replace(/^#/, ""));
+  const fmTags = fm.tags;
+  if (Array.isArray(fmTags)) {
+    for (const t of fmTags) if (typeof t === "string") tags.push(t.replace(/^#/, ""));
+  } else if (typeof fmTags === "string") {
+    for (const t of fmTags.split(/[,\s]+/)) if (t) tags.push(t.replace(/^#/, ""));
+  }
+  return tags;
+}
 
 /**
  * The `a.internal-link` under a mouse event, if there is one.
@@ -368,7 +416,7 @@ export default class VaultShelfPlugin extends Plugin {
  * which serves both hosts and is where you are standing when you want to change it. A setting
  * that lives two places drifts, and a third look would have needed a dropdown here anyway.
  *
- * @type {{ key: "dateFields" | "peopleFields" | "useFileStamp", name: string, desc: string, kind: "text" | "toggle" }[]}
+ * @type {{ key: "dateFields" | "peopleFields" | "personNote" | "useFileStamp", name: string, desc: string, kind: "text" | "toggle" }[]}
  */
 const SETTINGS = [
   { key: "dateFields", kind: "text",
@@ -380,6 +428,12 @@ const SETTINGS = [
     desc: "Comma-separated frontmatter properties that name people, merged -- `people, " +
           "attendees, person` by default, because a vault rarely uses one of them. Values " +
           "may be wikilinks. People are never inferred from a note's prose." },
+  { key: "personNote", kind: "text",
+    name: "What makes a note a person",
+    desc: "A link to a note that matches this names that person: `type: people` (a property " +
+          "and its value) or `#person` (a tag). Empty turns it off. The name comes from the " +
+          "note's `name` property or its title, so an alias in the link still counts as the " +
+          "same person." },
   { key: "useFileStamp", kind: "toggle",
     name: "Fall back to the file's creation date",
     desc: "On by default. A note with no date property and no date in its title takes the " +
@@ -415,6 +469,7 @@ class ShelfSettingTab extends PluginSettingTab {
   getControlValue(key) {
     if (key === "dateFields") return this.plugin.config.dateFields.join(", ");
     if (key === "peopleFields") return this.plugin.config.peopleFields.join(", ");
+    if (key === "personNote") return this.plugin.config.personNote;
     if (key === "useFileStamp") return this.plugin.config.useFileStamp;
     return undefined;
   }
@@ -441,6 +496,7 @@ class ShelfSettingTab extends PluginSettingTab {
       this.plugin.config.peopleFields = fields.length ? fields : ["people"];
       return;
     }
+    if (key === "personNote") { this.plugin.config.personNote = String(value).trim(); return; }
     if (key === "useFileStamp") this.plugin.config.useFileStamp = value === true;
   }
 

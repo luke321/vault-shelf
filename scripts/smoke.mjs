@@ -1514,6 +1514,39 @@ check("a person is read from every people property, and out of a wikilink", asyn
   };
 });
 
+check("a link to a person's note names that person, once, by the note's name", async (p) => {
+  const r = await p.j(`(function(){
+    var notes = __vs.data().notes;
+    var full = "Halvor Estrin", alias = "Halvor";
+    var linking = notes.filter(function (n) {
+      return (n.body || "").indexOf("[[" + full) >= 0 && n.title !== full;
+    });
+    var named = notes.filter(function (n) { return n.people.indexOf(full) >= 0; });
+    var byAlias = notes.filter(function (n) { return n.people.indexOf(alias) >= 0; });
+    var own = notes.filter(function (n) { return n.title === full; })[0];
+    var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
+    var book = people.books.filter(function (b) { return b.key === full; })[0];
+    var aliasBook = people.books.filter(function (b) { return b.key === alias; })[0];
+    return { linking: linking.length, named: named.length, byAlias: byAlias.length,
+             self: own ? own.people.indexOf(full) >= 0 : null,
+             book: book ? book.notes.length : 0, aliasBook: !!aliasBook,
+             exact: linking.every(function (n) { return n.people.indexOf(full) >= 0; }) &&
+                    named.every(function (n) { return linking.indexOf(n) >= 0; }) };
+  })()`);
+  if (r.linking === 0) {
+    return { ok: true, detail: "this vault has no linked-only person; nothing to assert" };
+  }
+  const ok = r.exact && r.byAlias === 0 && !r.aliasBook && r.self === false &&
+             r.book === r.linking;
+  return {
+    ok,
+    detail: `${r.linking} notes link to Halvor Estrin and no property names them; exactly ` +
+            `those ${r.named} carry the name (${r.exact}), the alias earns nobody a book ` +
+            `(${r.byAlias} notes, book: ${r.aliasBook}), the person's own note does not name ` +
+            `itself (${r.self === false}), and the book holds ${r.book}`
+  };
+});
+
 check("people come from the property alone, never from prose", async (p) => {
   const r = await p.j(`(function(){
     var sentinel = ${JSON.stringify(PROSE_ONLY)};

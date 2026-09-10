@@ -684,3 +684,20 @@ Up to three, named, clickable, drawn as ribbons rather than tabs — cut end up,
 keeps **40px** whether the book holds ribbons or not and is `flex: 0 0`, because it was
 measured at **30px on a short book and 26px on a long one**: the reader is a flex column, and a
 book whose contents overflowed it had the missing pixels taken out of this row.
+
+## A link to a person's note names that person
+
+Reported as one missing person; measured as a vault that records people by link rather than
+by property — 64 notes with `type: people`, linked from bodies, named in no `attendees`.
+`personNote` (`type: people` by default) says which notes are people, and a link to one names
+them by the target's own name, so an aliased link and a plain one are one book.
+
+| | before | after |
+|---|---|---|
+| people in the real vault | 124 | **140** |
+| notes naming the reported person | 0 | **22** (the 22 that link to her) |
+| demo fixture, linked-only person | — | **38 notes, one book**, alias earns none |
+
+The plugin resolves links through `metadataCache.getFirstLinkpathDest`, the same way the app
+does; the exporter indexes person notes by path and by title. 51 checks.
+

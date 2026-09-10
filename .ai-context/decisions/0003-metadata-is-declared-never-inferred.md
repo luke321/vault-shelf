@@ -97,3 +97,27 @@ shape that once had the exporter inventing a fifteenth month. Now both call one 
 it also refuses a `{{placeholder}}`, because a vault that keeps its templates alongside its
 notes would otherwise grow a person called `{{VALUE}}` with a book of their own.
 
+### Revised 2026-09-10 — a link to a person's note is a declaration
+
+> "[a person] not showing as people"
+
+They were not, and the rule was right about it: across that vault the person is named in
+**no** people property. They are linked from **22 note bodies** — a plain `[[Name]]` in 14, an
+aliased `[[Name|First]]` in 16 — and they have a note of their own carrying `type: people`,
+like 63 others there. The vault keeps a note per person and lets the link be
+the record.
+
+That is still declared metadata. The **target** says what it is, in its own frontmatter; the
+linking note says *who* by linking to it. What this record refuses is scanning prose for
+capitalised words, and nothing here does that: a bare first name in running text still counts
+for nothing, and the check asserts it.
+
+So `personNote` is a setting — `type: people` by default, or a `#tag`; empty turns it off — and
+a link to any note that matches it names that person, **by the target's `name` property or its
+title**. Which is the one thing a property could never have promised: `[[Ada Lovelace]]` and
+`[[Ada Lovelace|Ada]]` are one book, not two. A person's own note does not name itself.
+
+Measured on that vault: **124 people → 140**, and the person in exactly the 22 notes that
+link to them. The demo fixture now carries a person who exists only as a link, in 38 notes, half of
+them aliased, so the suite holds all of that.
+

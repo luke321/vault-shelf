@@ -108,7 +108,7 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1488 | `applyLook` |
 | 1495 | `refresh` |
 
-## `scripts/smoke.mjs` — 2105 lines, 6 sections, 19 functions, 50 checks
+## `scripts/smoke.mjs` — 2138 lines, 6 sections, 19 functions, 51 checks
 
 ### Sections
 
@@ -116,10 +116,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 |---|---|
 | 57–72 | chrome |
 | 73–116 | the checks |
-| 117–1600 | the invariants |
-| 1601–1728 | which vaults, and why |
-| 1729–2003 | one run |
-| 2004–2105 | main |
+| 117–1633 | the invariants |
+| 1634–1761 | which vaults, and why |
+| 1762–2036 | one run |
+| 2037–2138 | main |
 
 ### Functions
 
@@ -137,13 +137,13 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 874 | · `pick` |
 | 960 | · `row` |
 | 1174 | · `box` |
-| 1633 | `resolveVaults` |
-| 1715 | `buildFor` |
-| 1731 | `runOne` |
-| 1915 | `tagged` |
-| 1921 | `capture` |
-| 1962 | `killBrowser` |
-| 2006 | `main` |
+| 1666 | `resolveVaults` |
+| 1748 | `buildFor` |
+| 1764 | `runOne` |
+| 1948 | `tagged` |
+| 1954 | `capture` |
+| 1995 | `killBrowser` |
+| 2039 | `main` |
 
 ### Checks
 
@@ -194,8 +194,9 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1442 | a saved shelf gets a stable id and joins the library |
 | 1463 | parent tag inclusion is a setting, and it changes the answer |
 | 1483 | a person is read from every people property, and out of a wikilink |
-| 1517 | people come from the property alone, never from prose |
-| 1538 | plain list mode keeps every book reachable |
-| 1555 | every control the keyboard can reach has a name |
-| 1577 | nothing on the page reaches the network |
-| 1587 | a spine lifts on hover and holds its size |
+| 1517 | a link to a person's note names that person, once, by the note's name |
+| 1550 | people come from the property alone, never from prose |
+| 1571 | plain list mode keeps every book reachable |
+| 1588 | every control the keyboard can reach has a name |
+| 1610 | nothing on the page reaches the network |
+| 1620 | a spine lifts on hover and holds its size |
