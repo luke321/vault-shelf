@@ -778,14 +778,27 @@ function mountVaultShelf(root, data, options) {
      * ribbon waiting to be pushed in. */
     box.hidden = false;
 
-    here.slice(0, MARKS_SHOWN).forEach(function (row) {
+    /* THREE AT MOST, AND ALWAYS THE ONE YOU ARE ON. A ribbon is taken out by clicking it, so
+     * the ribbon in the current page has to be reachable -- otherwise the fourth ribbon in a
+     * book could be left but never removed. If it is not in the first three it takes the last
+     * of their places; the count of the rest is unchanged. */
+    var shown = here.slice(0, MARKS_SHOWN);
+    var onPage = here.filter(function (row) { return row.at === reader.index; })[0];
+    if (onPage && shown.indexOf(onPage) < 0) shown[shown.length - 1] = onPage;
+
+    shown.forEach(function (row) {
       var b = /** @type {HTMLButtonElement} */ (el("button", "vs-mark"));
       b.type = "button";
       b.appendChild(el("span", "vs-markribbon"));
       b.appendChild(el("span", "vs-markname", row.note.title));
-      b.title = "Go to " + row.note.title;
-      if (row.at === reader.index) b.setAttribute("aria-current", "true");
-      on(b, "click", function () { goTo(row.at); });
+      /* THE RIBBON IN THE PAGE YOU ARE ON IS THE ONE YOU TAKE OUT. Clicking a ribbon goes to
+       * its page; clicking the one you are already on would be a no-op, so it does the only
+       * other thing a ribbon can do. Adding is the stub's job and removing is this one's:
+       * one control never has to mean both. */
+      var mine = row.at === reader.index;
+      b.title = mine ? "Take this ribbon out" : "Go to " + row.note.title;
+      if (mine) b.setAttribute("aria-current", "true");
+      on(b, "click", function () { if (mine) toggleBookmark(); else goTo(row.at); });
       box.appendChild(b);
     });
     if (here.length > MARKS_SHOWN) {
@@ -798,11 +811,15 @@ function mountVaultShelf(root, data, options) {
      * the bar is, one hand's width closer to the page. */
     var note = reader.book.notes[reader.index];
     if (!note) return;
+    /* NOTHING TO ADD WHEN IT IS ALREADY THERE. The stub used to toggle, so the same small
+     * shape meant "leave one" and "take that one out" depending on a state you could not see
+     * -- and taking one out is what its own ribbon is for, one hand's width away. */
+    if (isBookmarked(note.id)) return;
     var stub = /** @type {HTMLButtonElement} */ (el("button", "vs-markstub"));
     stub.type = "button";
-    var marked = isBookmarked(note.id);
-    stub.setAttribute("aria-pressed", marked ? "true" : "false");
-    stub.title = marked ? "Take the ribbon out of this page" : "Leave a ribbon in this page";
+    stub.appendChild(el("span", "vs-markplus", "+"));
+    stub.appendChild(el("span", "vs-markname", "Ribbon"));
+    stub.title = "Leave a ribbon in this page";
     stub.setAttribute("aria-label", stub.title);
     on(stub, "click", toggleBookmark);
     box.appendChild(stub);
@@ -977,12 +994,9 @@ function mountVaultShelf(root, data, options) {
       box.appendChild(el("p", "vs-hint", "This book has no notes under the current filters."));
       clear($("alsoin"));
       $("notemeta").textContent = "";
-      field("ribbon").disabled = true;
       return;
     }
     reader.noteId = note.id;
-    field("ribbon").disabled = false;
-    $("ribbon").setAttribute("aria-pressed", isBookmarked(note.id) ? "true" : "false");
     field("prevnote").disabled = reader.index <= 0;
     field("nextnote").disabled = reader.index >= reader.book.notes.length - 1;
 
@@ -1071,6 +1085,11 @@ function mountVaultShelf(root, data, options) {
   function goTo(index) {
     if (!reader) return;
     reader.index = Math.max(0, Math.min(index, reader.book.notes.length - 1));
+    /* THE CONTENTS MARK `reader.noteId`, AND `renderNote` IS WHERE IT WAS SET -- which runs
+     * after them. So the first click drew the index against the note you had just left and
+     * the second one caught up, which is why it took two clicks to highlight one row. */
+    var going = reader.book.notes[reader.index];
+    if (going) reader.noteId = going.id;
     renderContents();
     renderTabs();
     renderNote();
@@ -1089,7 +1108,11 @@ function mountVaultShelf(root, data, options) {
     return settings.reading.some(function (m) { return m.noteId === noteId; });
   }
 
-  /** @returns {void} */
+  /* design/0008 -- THE ROW IS THE CONTROL. There used to be a `Ribbon` button in the reader's
+   * bar as well, which meant the same act had two places and neither said which ribbon it was
+   * about: the row over the book shows every ribbon in it, the stub leaves one in the page you
+   * are on, and its own ribbon takes it out again.
+   * @returns {void} */
   function toggleBookmark() {
     if (!reader) return;
     var note = reader.book.notes[reader.index];
@@ -1100,7 +1123,6 @@ function mountVaultShelf(root, data, options) {
     else settings.reading.push({ noteId: note.id, shelfId: reader.book.shelfId,
                                  bookId: reader.book.id, at: Date.now() });
     persist();
-    $("ribbon").setAttribute("aria-pressed", isBookmarked(note.id) ? "true" : "false");
     renderMarks();   // the row over the spread is this book's ribbons, so it changes here too
     renderLibrary();
     applyQuery();
@@ -1532,7 +1554,6 @@ function mountVaultShelf(root, data, options) {
   on($("prevcollection"), "click", previousCollection);
   on($("prevnote"), "click", function () { goTo(reader.index - 1); });
   on($("nextnote"), "click", function () { goTo(reader.index + 1); });
-  on($("ribbon"), "click", toggleBookmark);
   on($("within"), "input", function () {
     reader.within = field("within").value;
     renderContents();

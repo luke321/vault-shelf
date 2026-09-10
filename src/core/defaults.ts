@@ -89,7 +89,7 @@ export function recipes(): Recipe[] {
  * decisions/0001
  */
 
-export const SETTINGS_SCHEMA = 6;
+export const SETTINGS_SCHEMA = 7;
 
 export interface Persisted {
   schema: number;
@@ -110,6 +110,12 @@ export interface Persisted {
    * full of people.
    */
   peopleFields: string[];
+  /**
+   * decisions/0003 -- which notes ARE people, so that a link to one counts as naming them.
+   * `type: people` or `#person`; empty turns it off. A vault that keeps a note per person and
+   * links to it has declared who was there just as plainly as a property would have.
+   */
+  personNote: string;
   /**
    * decisions/0003 -- ON since schema 3: a note with no declared date takes the earliest stamp
    * the filesystem has for it rather than going to Undated. `dates.stampOf` is what makes that
@@ -174,6 +180,7 @@ export function emptySettings(): Persisted {
     wear: {},
     dateFields: ["date", "created"],
     peopleFields: ["people", "attendees", "person"],
+    personNote: "type: people",
     useFileStamp: true,
     noteOrder: "oldest",
     look: "leather",
@@ -205,6 +212,7 @@ export function migrate(raw: unknown): Persisted {
       ? data.dateFields.filter((f): f is string => typeof f === "string")
       : base.dateFields,
     peopleFields: peopleFieldsOf(data, base.peopleFields),
+    personNote: typeof data.personNote === "string" ? data.personNote.trim() : base.personNote,
     /* Schema 3 turned the file-stamp fallback on. A file written under it says `false`,
      * which was the default rather than a decision -- the same argument `decadesOn` makes
      * about plaques -- so it comes up on, and a file that already says 3 means what it says. */

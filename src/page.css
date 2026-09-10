@@ -247,7 +247,11 @@
 /* The name is the first thing to go when the rail is tight, and it is the one thing in there
  * that cannot be worked out from anything else. */
 .vault-shelf .vs-railname { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.vault-shelf #vs-order, .vault-shelf #vs-manageopen { flex: 0 0 auto; white-space: nowrap; }
+/* A FIXED WIDTH, because the label changes. "Oldest first" and "Newest first" are not the same
+ * number of pixels, so a button that sizes to its text shoves the search box sideways every
+ * time you press it. */
+.vault-shelf #vs-order { flex: 0 0 92px; width: 92px; white-space: nowrap; text-align: center; }
+.vault-shelf #vs-manageopen { flex: 0 0 auto; white-space: nowrap; }
 
 .vault-shelf #vs-hits {
   flex: 0 0 auto;
@@ -625,11 +629,6 @@
 .vault-shelf .vs-readerbar .vs-spacer { flex: 1 1 auto; }
 .vault-shelf .vs-readertitle { color: var(--text-2); font-size: 12px; }
 
-.vault-shelf #vs-ribbon[aria-pressed="true"] {
-  color: #fff;
-  background: var(--g8);
-  border-color: var(--g8);
-}
 
 /* min-width: 0 ON BOTH, and it takes both. A flex item and a grid item each default to
  * `min-width: auto`, which means "never shrink below your content" -- so a single long
@@ -791,6 +790,23 @@
 .vault-shelf .vs-prose code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
 .vault-shelf .vs-prose ul, .vault-shelf .vs-prose ol { padding-left: 20px; }
 .vault-shelf .vs-prose img { max-width: 100%; height: auto; }
+
+/* A table, for the standalone -- inside Obsidian the host's own `markdown-rendered` rules
+ * dress it, and the container now carries that class (design/0010). Wide ones scroll rather
+ * than widening the page, the same rule every other block in here follows. */
+.vault-shelf .vs-prose table {
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.95em;
+}
+.vault-shelf .vs-prose th, .vault-shelf .vs-prose td {
+  border: 1px solid var(--border);
+  padding: 5px 9px;
+  text-align: left;
+  vertical-align: top;
+}
+.vault-shelf .vs-prose th { background: var(--surface-2); font-weight: 600; }
+.vault-shelf .vs-prose > table { display: block; overflow-x: auto; }
 .vault-shelf .vs-prose blockquote {
   border-left: 2px solid var(--border-strong);
   margin: 12px 0;
@@ -983,6 +999,9 @@
 .vault-shelf .vs-marks {
   display: flex;
   align-items: flex-start;
+  /* OVER THE RIGHT-HAND PAGE, which is the one the note is on. A ribbon marks a note, and the
+   * left page is the contents -- a ribbon over that would be pointing at the index. */
+  justify-content: flex-end;
   gap: 7px;
   width: 100%;
   max-width: var(--measure);
@@ -1065,22 +1084,29 @@
 /* THE EDGE OF A RIBBON YOU HAVE NOT PUSHED IN YET. Narrow, quiet, and in the same row, so
  * leaving one is a thing you do to the page rather than a button you go and find. */
 .vault-shelf .vs-markstub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
+  height: 30px;
   margin-left: 2px;
-  padding: 0;
+  padding: 3px 11px 9px;
+  color: var(--ribbon-ink);
+  font-size: 11px;
+  line-height: 1;
   border: 0;
   border-radius: 0;
-  background: color-mix(in srgb, var(--ribbon) 45%, var(--surface-2));
-  clip-path: polygon(0 5px, 50% 0, 100% 5px, 100% 100%, 0 100%);
+  background: color-mix(in srgb, var(--ribbon) 62%, var(--surface-2));
+  clip-path: polygon(0 6px, 50% 0, 100% 6px, 100% 100%, 0 100%);
   opacity: 0.5;
   box-shadow: none;
   transition: opacity 90ms linear, height 90ms linear;
 }
 
 .vault-shelf .vs-markstub:hover,
-.vault-shelf .vs-markstub:focus-visible { opacity: 1; height: 22px; }
+.vault-shelf .vs-markstub:focus-visible { opacity: 1; transform: translateY(2px); }
+
+.vault-shelf .vs-markplus { font-size: 13px; line-height: 1; opacity: 0.85; }
 .vault-shelf .vs-markstub[aria-pressed="true"] {
   background: var(--ribbon);
   opacity: 0.95;

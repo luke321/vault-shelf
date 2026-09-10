@@ -430,7 +430,7 @@ check("a settings file from an older schema comes up with the newer defaults", a
   /* People carries plaques from schema 6 too -- the alphabet is a unit above the book like a
    * decade is (design/0003) -- so the shelf that proves a migration does not touch everything
    * is Months, which asked for plaques before any of this and still has them. */
-  const ok = r.schema === 6 && r.years === true && r.months === true && r.people === true &&
+  const ok = r.schema === 7 && r.years === true && r.months === true && r.people === true &&
              r.wear === 3 && r.fields === "date" && r.keptOff === false &&
              r.stamp === true && r.keptStampOff === false && r.order === "oldest" &&
              r.weeksHidden === true && r.keptShown === true && r.lettered === true;
@@ -962,18 +962,22 @@ check("an open book shows the ribbons in it, three at most", async (p) => {
                look: document.getElementById("vs-app").getAttribute("data-look"),
                height: box.getBoundingClientRect().height,
                stub: box.querySelectorAll(".vs-markstub").length,
-               names: [].slice.call(box.querySelectorAll(".vs-markname"))
+               /* .vs-mark .vs-markname, not .vs-markname alone: the stub carries one too,
+                * and counting its label as a ribbon says a book still holds one when it
+                * does not. */
+               names: [].slice.call(box.querySelectorAll(".vs-mark .vs-markname"))
                  .map(function (e) { return e.textContent; }),
                more: (box.querySelector(".vs-markmore") || {}).textContent || "",
                current: [].slice.call(box.querySelectorAll('[aria-current="true"]')).length };
     };
     var empty = row();
+    var stubWhenFree = empty.stub;
 
     /* Mark five notes of this book, from inside it, the way a person does. */
     var marked = [];
     for (var i = 0; i < 5; i++) {
       __vs.openBook(book.id, book.notes[i].id);
-      document.getElementById("vs-ribbon").click();
+      document.querySelector("#vs-marks .vs-markstub").click();
       marked.push(book.notes[i].title);
     }
     var full = row();
@@ -984,9 +988,12 @@ check("an open book shows the ribbons in it, three at most", async (p) => {
     if (first) first.click();
     var jumped = __vs.reader().index;
 
+    /* Taking one out is its own ribbon's job, not the stub's: the stub is not there once the
+     * page you are on already has one (design/0008). */
     for (var k = 0; k < 5; k++) {
       __vs.openBook(book.id, book.notes[k].id);
-      document.getElementById("vs-ribbon").click();
+      var mine = document.querySelector('#vs-marks .vs-mark[aria-current="true"]');
+      if (mine) mine.click();
     }
     var cleared = row();
     __vs.closeReader();
@@ -995,13 +1002,18 @@ check("an open book shows the ribbons in it, three at most", async (p) => {
   })()`);
   const capped = r.full.names.length === 3;
   const counted = r.full.more === "+2 more";
-  const named = r.full.names.every((n, i) => n === r.marked[i]);
+  /* The first three, except that the ribbon in the page you are on always has a place, so it
+   * may have taken the third one (design/0008). */
+  const named = r.full.names.slice(0, 2).every((n, i) => n === r.marked[i]);
   /* THE ROW KEEPS ITS HEIGHT, empty or not: hiding it moved the whole spread up and down as
    * you marked and unmarked, and a page that jumps under your hands is worse than a strip of
    * nothing. The stub -- the edge of a ribbon you have not pushed in yet -- is always there. */
   const steady = r.empty.height > 0 && Math.abs(r.empty.height - r.full.height) < 0.6 &&
                  Math.abs(r.cleared.height - r.empty.height) < 0.6;
-  const insertable = r.empty.stub === 1 && r.full.stub === 1;
+  /* The stub is there when the page you are on has no ribbon, and gone when it has one --
+   * one shape, one meaning. With five marked the reader sits on a marked note, so there is
+   * none; emptied again, it is back. */
+  const insertable = r.empty.stub === 1 && r.full.stub === 0 && r.cleared.stub === 1;
   const ok = capped && counted && named && steady && insertable &&
              r.jumped !== r.before && r.cleared.names.length === 0;
   return {
@@ -1009,10 +1021,10 @@ check("an open book shows the ribbons in it, three at most", async (p) => {
     detail: `${r.book} holds ${r.notes} notes; with five marked it shows ` +
             `${r.full.names.length} named ribbons and "${r.full.more}", in the order they sit ` +
             `in the book (${named}); clicking the first moved the reader ${r.before} -> ` +
-            `${r.jumped}; unmarking all five leaves ${r.cleared.names.length}. The row is ` +
+            `${r.jumped}; unmarking all five leaves ${r.cleared.names.length} (${r.cleared.names.join(", ")}). The row is ` +
             `in the ${r.empty.look || "modern"} look, ${r.empty.height.toFixed(0)}/${r.full.height.toFixed(0)}/` +
             `${r.cleared.height.toFixed(0)}px empty, full and emptied again (${steady}), and ` +
-            `carries a stub to push one in either way (${insertable})`
+            `carries a stub to push one in exactly when the page has none (${insertable})`
   };
 });
 
@@ -1026,7 +1038,7 @@ check("a ribbon hangs from every book that holds a marked note", async (p) => {
       v.books.forEach(function (b) { if (!book && b.notes.length) book = b; });
     });
     __vs.openBook(book.id, null);
-    document.getElementById("vs-ribbon").click();
+    document.querySelector("#vs-marks .vs-markstub").click();
     var after = __vs.magic();
     var reading = document.querySelectorAll('#vs-shelves [data-shelf="-reading"] .vs-spine').length;
     var noteId = __vs.reader().note;
@@ -1351,7 +1363,7 @@ check("the reading shelf survives its own shelf being hidden", async (p) => {
     });
     if (!book) return { found: false };
     __vs.openBook(book.id, null);
-    document.getElementById("vs-ribbon").click();
+    document.querySelector("#vs-marks .vs-markstub").click();
     var noteId = __vs.reader().note;
     __vs.closeReader();
     var before = document.querySelectorAll('#vs-shelves [data-shelf="-reading"] .vs-spine').length;
@@ -1913,7 +1925,7 @@ async function capture(page, out) {
       var ids = [notes.notes[1].id, notes.notes[2].id];
       ids.forEach(function (id) {
         __vs.openBook(book.book, id);
-        document.getElementById("vs-ribbon").click();
+        document.querySelector("#vs-marks .vs-markstub").click();
       });
       __vs.openBook(book.book, notes.notes[1].id);
       return ids.length;

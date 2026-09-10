@@ -147,6 +147,17 @@ export function buildData(app, settings) {
 }
 
 
+/**
+ * The `a.internal-link` under a mouse event, if there is one.
+ * @param {MouseEvent} evt @returns {HTMLElement|null}
+ */
+function linkUnder(evt) {
+  const target = evt.target;
+  if (!(target instanceof HTMLElement)) return null;
+  const anchor = target.closest("a.internal-link");
+  return anchor instanceof HTMLElement ? anchor : null;
+}
+
 /* ================================================================= the view == */
 
 export class ShelfView extends ItemView {
@@ -221,7 +232,38 @@ export class ShelfView extends ItemView {
     }
     const text = await this.app.vault.cachedRead(file);
     const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+    /* design/0010 -- THE RENDERER IS ONLY HALF OF IT. `MarkdownRenderer.render` produces
+     * Obsidian's own markup, and Obsidian styles that markup through a class it expects on the
+     * container: without `markdown-rendered` a table is an unstyled table, a callout is a
+     * blockquote and a code block has no chrome. It looked like the wrong renderer and was the
+     * right renderer in an unmarked box. */
+    into.addClass("markdown-rendered");
     await MarkdownRenderer.render(this.app, body, into, note.path, this);
+
+    /* AND A LINK IS A LINK. `internal-link` anchors carry a `data-href` and no behaviour of
+     * their own -- the workspace does the opening, and in a view of our own nobody had asked
+     * it to, so every wikilink in a note was inert. */
+    this.registerDomEvent(into, "click", (evt) => {
+      const anchor = linkUnder(evt);
+      if (!anchor) return;
+      const href = anchor.getAttribute("data-href") || anchor.getAttribute("href");
+      if (!href) return;
+      evt.preventDefault();
+      void this.app.workspace.openLinkText(href, note.path, evt.ctrlKey || evt.metaKey);
+    });
+
+    /* The hover preview every other view gives you, through the same event the app listens
+     * for; without it a link in here is the one link in Obsidian that does not preview. */
+    this.registerDomEvent(into, "mouseover", (evt) => {
+      const anchor = linkUnder(evt);
+      if (!anchor) return;
+      const href = anchor.getAttribute("data-href") || anchor.getAttribute("href");
+      if (!href) return;
+      this.app.workspace.trigger("hover-link", {
+        event: evt, source: VIEW_TYPE, hoverParent: this, targetEl: anchor,
+        linktext: href, sourcePath: note.path,
+      });
+    });
   }
 
   /** The Refresh command and the metadata-cache listener both land here. */

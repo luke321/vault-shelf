@@ -92,6 +92,49 @@ export function cleanPerson(value: string): string {
   return /\{\{|\}\}/.test(name) ? "" : name;
 }
 
+/**
+ * decisions/0003 -- WHAT MAKES A NOTE A PERSON'S NOTE, as one declared rule.
+ *
+ * A vault that keeps a note per person does not usually repeat the name in a property of every
+ * note that mentions them: it links to the person's note and lets the link be the record. That
+ * is still a declaration -- the target says what it is -- so reading it is not the prose
+ * scanning `decisions/0003` refuses. What is needed is a rule for which notes are people, and
+ * this is it, written the way a person would write it in a settings box:
+ *
+ *   `type: people`   a frontmatter property with that value
+ *   `#person`        a tag
+ *
+ * An empty rule means the vault does not do this and nothing is read from links.
+ */
+export function isPersonNote(rule: string, props: Record<string, string>, tags: string[]): boolean {
+  const trimmed = rule.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("#")) {
+    const want = trimmed.slice(1).toLowerCase();
+    return tags.some((t) => t.toLowerCase() === want ||
+                            t.toLowerCase().startsWith(want + "/"));
+  }
+  const at = trimmed.indexOf(":");
+  if (at < 0) return false;
+  const key = trimmed.slice(0, at).trim();
+  const want = trimmed.slice(at + 1).trim().toLowerCase();
+  const have = props[key];
+  return have !== undefined && String(have).trim().toLowerCase() === want;
+}
+
+/** Every `[[target]]` in a note's text, as link targets with any alias and heading removed. */
+export function linkTargets(body: string): string[] {
+  const out: string[] = [];
+  const re = /\[\[([^\]|#^]+)(?:[#^][^\]|]*)?(?:\|[^\]]*)?\]\]/g;
+  let m = re.exec(body);
+  while (m !== null) {
+    const target = m[1].trim();
+    if (target) out.push(target);
+    m = re.exec(body);
+  }
+  return out;
+}
+
 export function firstLetter(title: string): string {
   const trimmed = title.replace(/^[^\p{L}\p{N}]+/u, "");
   const ch = trimmed.slice(0, 1).toUpperCase();

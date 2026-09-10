@@ -369,11 +369,6 @@
   background: #e4cf9d;
   border-color: #b39a6a;
 }
-.vault-shelf[data-look="leather"] #vs-ribbon[aria-pressed="true"] {
-  color: #faf0dd;
-  background: #87463f;
-  border-color: #b06e5f;
-}
 
 /* ---- paper dialogs ---------------------------------------------------- */
 .vault-shelf[data-look="leather"] .vs-sheet { background: #151611bd; }
