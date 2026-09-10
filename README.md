@@ -17,6 +17,12 @@ vault as one disc. Both are deterministic, local, and make no network requests a
 *Six shelves over a 394-note vault. The full 83-second walkthrough is
 `node scripts/record-demo.mjs`.*
 
+**Try it live** — a real export of an invented 394-note vault spanning fifteen years, which you
+can open, read, search and build a shelf in exactly like your own. The full feature list — the
+bookcase, plaques, thickness, the reading spread, ribbons, shelf wear, the shelf that parts as
+you type, and the three looks — is a click away too. Both are going up as a proper site from
+[`docs/`](docs/); this line gets its links the moment it is live.
+
 ---
 
 ## What it does
