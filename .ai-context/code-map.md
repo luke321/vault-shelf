@@ -4,7 +4,7 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 1296 lines, 16 sections, 57 functions
+## `src/page.js` — 1306 lines, 16 sections, 58 functions
 
 ### Sections
 
@@ -22,10 +22,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 814–979 | builder |
 | 980–1046 | manage |
 | 1047–1068 | filters |
-| 1069–1089 | refresh |
-| 1090–1142 | the wiring |
-| 1143–1263 | debug api — stripped from the plugin build |
-| 1264–1296 | the wiring (continued) |
+| 1069–1099 | refresh |
+| 1100–1152 | the wiring |
+| 1153–1273 | debug api — stripped from the plugin build |
+| 1274–1306 | the wiring (continued) |
 
 ### Functions
 
@@ -87,9 +87,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1033 | `reorder` |
 | 1049 | `renderActiveFilters` |
 | 1062 | `clearFilters` |
-| 1071 | `refresh` |
+| 1073 | `applyLook` |
+| 1080 | `refresh` |
 
-## `scripts/smoke.mjs` — 1370 lines, 6 sections, 10 functions, 40 checks
+## `scripts/smoke.mjs` — 1408 lines, 6 sections, 12 functions, 41 checks
 
 ### Sections
 
@@ -97,10 +98,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 |---|---|
 | 54–69 | chrome |
 | 70–107 | the checks |
-| 108–939 | the invariants |
-| 940–1067 | which vaults, and why |
-| 1068–1268 | one run |
-| 1269–1370 | main |
+| 108–977 | the invariants |
+| 978–1105 | which vaults, and why |
+| 1106–1306 | one run |
+| 1307–1408 | main |
 
 ### Functions
 
@@ -110,12 +111,14 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 43 | `freePort` |
 | 56 | `findChrome` |
 | 87 | `gridSlot` |
-| 552 | · `box` |
-| 972 | `resolveVaults` |
-| 1054 | `buildFor` |
-| 1070 | `runOne` |
-| 1227 | `killBrowser` |
-| 1271 | `main` |
+| 470 | · `spine` |
+| 471 | · `read` |
+| 590 | · `box` |
+| 1010 | `resolveVaults` |
+| 1092 | `buildFor` |
+| 1108 | `runOne` |
+| 1265 | `killBrowser` |
+| 1309 | `main` |
 
 ### Checks
 
@@ -140,24 +143,25 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 387 | the library is the whole surface, with no sidebar |
 | 414 | the twelve colour slots are Vault Graph's own |
 | 443 | the theme follows the host, and the slots are re-read when it changes |
-| 463 | shelf wear is recorded and drawn, and survives a rebuild |
-| 486 | a ribbon hangs from every book that holds a marked note |
-| 512 | the shelf parts as you type, and no book leaves the room |
-| 545 | the room has a width, however wide the window is |
-| 603 | the reader and the sheets are not painted until they are opened |
-| 620 | clicking a spine opens a book on the note it names |
-| 637 | the reader's index tabs stay countable on the biggest book |
-| 651 | previous and next walk the book and stop at its ends |
-| 676 | also shelved in moves to another book and keeps the note |
-| 707 | previous collection walks back, and Alt+Left does the same |
-| 726 | escape closes the reader and leaves the shelf where it was |
-| 745 | the reading shelf survives its own shelf being hidden |
-| 781 | a saved reading place re-resolves after its own book is gone |
-| 796 | the builder previews the shelf it would actually save |
-| 815 | a saved shelf gets a stable id and joins the library |
-| 836 | parent tag inclusion is a setting, and it changes the answer |
-| 856 | people come from the property alone, never from prose |
-| 877 | plain list mode keeps every book reachable |
-| 894 | every control the keyboard can reach has a name |
-| 916 | nothing on the page reaches the network |
-| 926 | a spine lifts on hover and holds its size |
+| 467 | a look is opt-in, repaints everything and moves nothing |
+| 501 | shelf wear is recorded and drawn, and survives a rebuild |
+| 524 | a ribbon hangs from every book that holds a marked note |
+| 550 | the shelf parts as you type, and no book leaves the room |
+| 583 | the room has a width, however wide the window is |
+| 641 | the reader and the sheets are not painted until they are opened |
+| 658 | clicking a spine opens a book on the note it names |
+| 675 | the reader's index tabs stay countable on the biggest book |
+| 689 | previous and next walk the book and stop at its ends |
+| 714 | also shelved in moves to another book and keeps the note |
+| 745 | previous collection walks back, and Alt+Left does the same |
+| 764 | escape closes the reader and leaves the shelf where it was |
+| 783 | the reading shelf survives its own shelf being hidden |
+| 819 | a saved reading place re-resolves after its own book is gone |
+| 834 | the builder previews the shelf it would actually save |
+| 853 | a saved shelf gets a stable id and joins the library |
+| 874 | parent tag inclusion is a setting, and it changes the answer |
+| 894 | people come from the property alone, never from prose |
+| 915 | plain list mode keeps every book reachable |
+| 932 | every control the keyboard can reach has a name |
+| 954 | nothing on the page reaches the network |
+| 964 | a spine lifts on hover and holds its size |

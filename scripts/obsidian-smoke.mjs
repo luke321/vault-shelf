@@ -40,6 +40,7 @@ const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[
 const ONLY = (arg("only", "") || "").toLowerCase();
 const KEEP = argv.includes("--keep");
 const SHOT = arg("shot", "");
+const LOOK = arg("look", "");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const selected = (name) => !ONLY || name.toLowerCase().includes(ONLY);
 
@@ -106,6 +107,10 @@ function makeThrowawayVault(src) {
   const plug = join(dot, "plugins", PLUGIN_ID);
   mkdirSync(plug, { recursive: true });
   for (const f of ASSETS) cpSync(join(ROOT, f), join(plug, f));
+  /* design/0014 -- `--look leather` writes the plugin's own settings file, so the picture is
+   * of the look as a person would have it: the setting on before the view ever mounts, rather
+   * than a class poked into the DOM afterwards. */
+  if (LOOK) writeFileSync(join(plug, "data.json"), JSON.stringify({ look: LOOK }, null, 2) + "\n");
   writeFileSync(join(dot, "community-plugins.json"), JSON.stringify([PLUGIN_ID]) + "\n");
   return dest;
 }

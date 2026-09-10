@@ -1068,7 +1068,17 @@ function mountVaultShelf(root, data, options) {
 
   /* ================================================================= refresh == */
 
+  /* design/0014 -- the LOOK is one attribute, and the twelve slots resolve differently under
+   * it, so a look that has just changed has to re-read them before anything is dyed. */
+  function applyLook() {
+    var want = settings.look === "leather" ? "leather" : "";
+    if (root.getAttribute("data-look") === want) return;
+    root.setAttribute("data-look", want);
+    readTheme();
+  }
+
   function refresh() {
+    applyLook();
     rebuild();
     renderRail();
     renderLibrary();

@@ -459,6 +459,44 @@ check("the theme follows the host, and the slots are re-read when it changes", a
                    `(${r.slotsChanged}); the library is identical in both (${r.same})` };
 });
 
+const bookCount = (joined) => (joined ? joined.split("|").length : 0);
+
+/* design/0014 -- A LOOK IS PAINT. The leather binding is a second stylesheet and a setting; it
+ * may repaint anything and it may move nothing. This drives the standalone's own switch rather
+ * than poking the attribute, so what is measured is the path a person actually takes. */
+check("a look is opt-in, repaints everything and moves nothing", async (p) => {
+  const r = await p.j(`(function(){
+    var root = document.getElementById("vs-app");
+    var spine = function () { return document.querySelector("#vs-shelves .vs-spine"); };
+    var read = function () {
+      return { look: root.getAttribute("data-look"),
+               ground: getComputedStyle(root).backgroundColor,
+               dye: getComputedStyle(spine()).backgroundColor,
+               slots: __vs.slots().join(","),
+               addresses: __vs.addresses().join("|"),
+               counts: JSON.stringify(__vs.counts()) };
+    };
+    var off = read();
+    var sw = document.getElementById("vs-lookswitch");
+    sw.click();
+    var on = read();
+    sw.click();
+    var back = read();
+    return { off: off, on: on, back: back, pressed: sw.getAttribute("aria-pressed") };
+  })()`);
+  const moved = r.off.addresses !== r.on.addresses || r.off.counts !== r.on.counts;
+  const repainted = r.off.dye !== r.on.dye && r.off.slots !== r.on.slots &&
+                    r.off.ground !== r.on.ground;
+  const restored = r.back.look === "" && r.back.dye === r.off.dye &&
+                   r.back.slots === r.off.slots;
+  return { ok: r.off.look === "" && r.on.look === "leather" && !moved && repainted && restored,
+           detail: `data-look "${r.off.look}" -> "${r.on.look}" -> "${r.back.look}"; ` +
+                   `the first spine is ${r.off.dye} then ${r.on.dye}; ` +
+                   `${bookCount(r.off.addresses)} book addresses, identical in both ` +
+                   `(${!moved}); the twelve slots changed (${r.off.slots !== r.on.slots}) ` +
+                   `and came back (${restored})` };
+});
+
 /* design/0008 -- MAGIC 1. A book you open often looks handled. */
 check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
   const r = await p.j(`(function(){

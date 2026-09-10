@@ -18,13 +18,41 @@
  * here. The container paints the full viewport anyway, so nothing shows through.
  */
 html, body { height: 100%; margin: 0; }
+
+/* design/0014 -- THE LOOK SWITCH, and it belongs to the standalone rather than to the page.
+ * The plugin has a settings tab to put this in; an exported file has nobody, so the one
+ * control sits outside #vs-app -- where none of the page's own rules or checks can reach it
+ * -- and writes the same `look` setting the plugin's toggle writes. */
+#vs-lookswitch {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 20;
+  opacity: 0.4;
+  transition: opacity 120ms ease;
+  font: 11.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  letter-spacing: 0.04em;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  color: #8a897f;
+  background: transparent;
+  cursor: pointer;
+}
+#vs-lookswitch:hover, #vs-lookswitch:focus-visible { opacity: 1; }
+#vs-lookswitch[aria-pressed="true"] { color: #d8b76a; background: #241811; opacity: 0.92; }
 </style>
 <style>
 <!--CSS-->
 </style>
+<style>
+<!--LOOKS-->
+</style>
 </head>
 <body>
 <!--MARKUP-->
+
+<button type="button" id="vs-lookswitch" aria-pressed="false">Leather binding</button>
 
 <!--LIBS-->
 <!--DATA-->
@@ -63,12 +91,31 @@ function followSystemTheme(handle, root) {
 }
 
 var vsRoot = document.getElementById("vs-app");
+var vsSettings = loadSettings();
 var vsHandle = mountVaultShelf(vsRoot, window.VAULT_DATA, {
   core: window.VaultShelfCore,
-  settings: loadSettings(),
-  onSettings: saveSettings
+  settings: vsSettings,
+  onSettings: function (next) { vsSettings = next; saveSettings(next); }
 });
 followSystemTheme(vsHandle, vsRoot);
+
+/* design/0014 -- the look is a SETTING, not a class the switch pokes onto the root. The page
+ * owns the attribute, because it also has to re-read the twelve slots when the look changes;
+ * the plugin's settings tab writes the same field on the same schema. */
+var vsSwitch = document.getElementById("vs-lookswitch");
+function paintLookSwitch() {
+  vsSwitch.setAttribute("aria-pressed",
+    vsRoot.getAttribute("data-look") === "leather" ? "true" : "false");
+}
+vsSwitch.addEventListener("click", function () {
+  var next = vsSettings && typeof vsSettings === "object" ? vsSettings : {};
+  next.look = vsRoot.getAttribute("data-look") === "leather" ? "" : "leather";
+  vsSettings = next;
+  saveSettings(next);
+  vsHandle.setSettings(next);
+  paintLookSwitch();
+});
+paintLookSwitch();
 </script>
 </body>
 </html>

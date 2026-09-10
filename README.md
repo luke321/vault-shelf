@@ -88,8 +88,11 @@ gh attestation verify main.js --repo luke321/vault-shelf
 | **Date properties** | comma-separated frontmatter fields, tried in order. A note with none of them falls back to a date at the start of its title |
 | **People property** | the property that names people. People are **never** inferred from a note's prose |
 | **Fall back to the file's own date** | off by default. A file's modification time is almost never the date the note is about — a sync or a bulk reformat restamps the whole vault — so a note with no date goes to **Undated** instead, where you can see it |
-The theme is not a setting: the library follows Obsidian's, and re-reads its palette when
-you change it.
+| **Leather binding** | off by default. Binds the library in leather and gilt instead of following your theme: dyed spines with raised bands, a stained plank, brass plaques, and an open book on marbled endpapers. It changes paint only — the same shelves, the same books, the same addresses |
+
+The theme is not a setting: by default the library follows Obsidian's and re-reads its palette
+when you change it. **Leather binding** is the one look that does not, which is exactly why it
+has to be asked for.
 
 ## What it promises
 

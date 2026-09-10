@@ -33,6 +33,9 @@ of measuring it.** Build the page, drive it, read the numbers.
   shipped reaches the network. Obsidian's own `app.css` claims `.spread`, and it claimed ours.
 - **The twelve colour slots are Vault Graph's**, read from the cascade rather than copied, and
   the theme is whatever the host says it is.
+- **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` the
+  opt-in binding — and it may repaint anything and move nothing: not a shelf's order, not a
+  book's address, not a count. `design/0014`.
 
 ## How to work here
 
@@ -94,9 +97,10 @@ of measuring it.** Build the page, drive it, read the numbers.
 |---|---|
 | `src/core/` | the membership engine (TypeScript, `strict`): eight classifiers, source predicates, ISO-week and month keys, stable addresses, filters, settings migration. Notes in, books out; no DOM |
 | `src/page.js` | the page: directory, shelf rails, builder, manage sheet, reading spread — one `mountVaultShelf()`. **Do not read it top to bottom**; open `.ai-context/code-map.md` and go to the line range |
+| `src/leather.css` | the opt-in second look (`design/0014`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 39 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 41 checks over three vault shapes |
 | `scripts/obsidian-smoke.mjs` | the same plugin inside a real Obsidian: ribbon icon, view lifecycle, settings tab, Obsidian's markdown renderer, `--shot` for two pictures |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
 | `.ai-context/code-map.md` | **generated**: sections and functions of the two big files, with line numbers |

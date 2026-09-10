@@ -234,6 +234,14 @@ export class ShelfView extends ItemView {
     if (this.handle) this.handle.refresh(buildData(this.app, this.plugin.config));
   }
 
+  /* design/0014 -- the settings tab wrote a field the mounted page keeps its own copy of, so
+   * the page is told rather than left to find out when it is next opened. Only the tab calls
+   * this: the page's own persist() is where those settings came from, and handing them back
+   * would re-render the room every time a book is opened. */
+  adopt() {
+    if (this.handle) this.handle.setSettings(this.plugin.config);
+  }
+
   onClose() {
     if (this.handle) attempt(() => this.handle.destroy());
     this.handle = null;
@@ -317,7 +325,7 @@ export default class VaultShelfPlugin extends Plugin {
  * same table (SETTINGS), so what one path shows the other shows too.
  */
 
-/** @type {{ key: "dateFields" | "peopleProperty" | "useFileStamp", name: string, desc: string, kind: "text" | "toggle" }[]} */
+/** @type {{ key: "dateFields" | "peopleProperty" | "useFileStamp" | "look", name: string, desc: string, kind: "text" | "toggle" }[]} */
 const SETTINGS = [
   { key: "dateFields", kind: "text",
     name: "Date properties",
@@ -332,6 +340,12 @@ const SETTINGS = [
     desc: "Off by default. A file's modification time is almost never the date the note is " +
           "about -- a sync or a bulk reformat restamps the whole vault -- so a note with no " +
           "date property and no date in its title goes to Undated instead." },
+  { key: "look", kind: "toggle",
+    name: "Leather binding",
+    desc: "Off by default. Binds the library in leather and gilt instead of following your " +
+          "Obsidian theme: dyed spines with raised bands, a stained plank, brass plaques and " +
+          "an open book on marbled endpapers. It changes paint only -- the same shelves, the " +
+          "same books, the same addresses." },
 ];
 
 class ShelfSettingTab extends PluginSettingTab {
@@ -362,6 +376,7 @@ class ShelfSettingTab extends PluginSettingTab {
     if (key === "dateFields") return this.plugin.config.dateFields.join(", ");
     if (key === "peopleProperty") return this.plugin.config.peopleProperty;
     if (key === "useFileStamp") return this.plugin.config.useFileStamp;
+    if (key === "look") return this.plugin.config.look === "leather";
     return undefined;
   }
 
@@ -369,6 +384,7 @@ class ShelfSettingTab extends PluginSettingTab {
   async setControlValue(key, value) {
     this.write(key, value);
     await this.plugin.saveSettings(this.plugin.config);
+    this.plugin.eachView((view) => view.adopt());
   }
 
   /**
@@ -386,6 +402,9 @@ class ShelfSettingTab extends PluginSettingTab {
       return;
     }
     if (key === "useFileStamp") this.plugin.config.useFileStamp = value === true;
+    /* design/0014 -- one field, two states, and anything else migrates back to the default
+     * look rather than leaving the page asking for a stylesheet nobody shipped. */
+    if (key === "look") this.plugin.config.look = value === true ? "leather" : "";
   }
 
   display() {
@@ -397,6 +416,7 @@ class ShelfSettingTab extends PluginSettingTab {
       const save = (/** @type {unknown} */ value) => {
         this.write(def.key, value);
         void this.plugin.saveSettings(this.plugin.config);
+        this.plugin.eachView((view) => view.adopt());
       };
       if (def.kind === "toggle") {
         setting.addToggle((toggle) => toggle

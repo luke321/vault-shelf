@@ -197,6 +197,9 @@ const asScript = (js) => js.replace(/^export \{[^}]*\};?\s*$/m, "").trimEnd();
 
 const html = part("shell.html")
   .replace("<!--CSS-->", () => part("page.css").trimEnd())
+  /* design/0014 -- the opt-in look travels with the page, off unless the setting says so.
+   * A second stylesheet rather than a second copy of the first one. */
+  .replace("<!--LOOKS-->", () => part("leather.css").trimEnd())
   .replace("<!--MARKUP-->", () => part("page.html").trimEnd())
   .replace("<!--SCRIPT-->", () => asScript(part("page.js")))
   .replace("<!--LIBS-->", () => `<script>\n${core.trimEnd()}\n</script>`)

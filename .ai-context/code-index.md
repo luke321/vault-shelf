@@ -10,7 +10,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | issue | code sites | prose sites |
 |---|---|---|
 
-## Decision and design records cited in code — 21
+## Decision and design records cited in code — 22
 
 | record | code sites |
 |---|---|
@@ -19,24 +19,25 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `decisions/0003` | src/build-shelf.mjs:25, src/build-shelf.mjs:55, src/core/dates.ts:23, src/core/defaults.ts:102, plugin/main.js:144, scripts/make-demo-vault.mjs:95, scripts/make-library-vault.mjs:64, scripts/make-sparse-vault.mjs:60 |
 | `decisions/0004` | src/build-shelf.mjs:36, scripts/check-build-order-determinism.mjs:2, scripts/check-generator-determinism.mjs:2, scripts/make-demo-vault.mjs:7, scripts/make-library-vault.mjs:3, scripts/make-mirror-vault.mjs:2, scripts/make-sparse-vault.mjs:3 |
 | `decisions/0005` | plugin/main.js:50, plugin/main.js:213, scripts/make-mirror-vault.mjs:344 |
-| `decisions/0006` | scripts/check-network.mjs:97 |
+| `decisions/0006` | scripts/check-network.mjs:98 |
 | `decisions/0007` | scripts/check-comments.mjs:2, scripts/check-comments.mjs:14, scripts/check-comments.mjs:140, scripts/code-map.mjs:2 |
-| `decisions/0008` | scripts/smoke.mjs:1093 |
+| `decisions/0008` | scripts/smoke.mjs:1131 |
 | `design/0001` | src/core/dates.ts:2, src/core/types.ts:2 |
-| `design/0002` | src/core/defaults.ts:4, src/core/defaults.ts:45, src/core/shelves.ts:22, src/core/shelves.ts:37, src/core/shelves.ts:106, src/core/types.ts:35, src/page.js:230, src/page.js:815, scripts/smoke.mjs:773 |
+| `design/0002` | src/core/defaults.ts:4, src/core/defaults.ts:45, src/core/shelves.ts:22, src/core/shelves.ts:37, src/core/shelves.ts:106, src/core/types.ts:35, src/page.js:230, src/page.js:815, scripts/smoke.mjs:811 |
 | `design/0003` | src/core/shelves.ts:96, src/core/types.ts:60, src/core/types.ts:73, src/page.css:371, src/page.js:382, scripts/smoke.mjs:270 |
 | `design/0004` | src/core/shelves.ts:171, src/core/shelves.ts:226, src/core/types.ts:94, src/page.js:516 |
-| `design/0005` | src/page.css:4, src/page.css:8, src/page.css:107, src/page.css:417, src/page.css:604, src/page.js:62, src/page.js:216, src/page.js:418, src/page.js:1174, plugin/main.js:10, plugin/main.js:199, scripts/check-scope.mjs:64, scripts/smoke.mjs:410 |
+| `design/0005` | src/leather.css:7, src/leather.css:19, src/leather.css:62, src/leather.css:439, src/leather.css:720, src/page.css:4, src/page.css:8, src/page.css:107, src/page.css:417, src/page.css:604, src/page.js:62, src/page.js:216, src/page.js:418, src/page.js:1184, plugin/main.js:10, plugin/main.js:199, scripts/check-scope.mjs:72, scripts/smoke.mjs:410 |
 | `design/0006` | scripts/obsidian-smoke.mjs:3, scripts/screen.mjs:1, scripts/screen.mjs:42 |
 | `design/0007` | scripts/record-demo.mjs:2, scripts/record-demo.mjs:23, scripts/record-demo.mjs:139, scripts/record-demo.mjs:172, scripts/record-demo.mjs:419, scripts/record-demo.mjs:442, scripts/record-demo.mjs:451, scripts/record-demo.mjs:562 |
-| `design/0008` | src/core/defaults.ts:95, src/core/defaults.ts:165, src/core/shelves.ts:186, src/core/types.ts:79, src/core/types.ts:105, src/page.css:488, src/page.css:516, src/page.css:536, src/page.js:192, src/page.js:274, src/page.js:425, src/page.js:478, src/page.js:530, src/page.js:1176, scripts/smoke.mjs:462, scripts/smoke.mjs:485, scripts/smoke.mjs:511 |
-| `design/0009` | src/page.css:91, src/page.css:101, src/page.css:296, src/page.js:252, scripts/smoke.mjs:385, scripts/smoke.mjs:542 |
+| `design/0008` | src/core/defaults.ts:95, src/core/defaults.ts:176, src/core/shelves.ts:186, src/core/types.ts:79, src/core/types.ts:105, src/leather.css:459, src/leather.css:502, src/page.css:488, src/page.css:516, src/page.css:536, src/page.js:192, src/page.js:274, src/page.js:425, src/page.js:478, src/page.js:530, src/page.js:1186, scripts/smoke.mjs:500, scripts/smoke.mjs:523, scripts/smoke.mjs:549 |
+| `design/0009` | src/leather.css:263, src/leather.css:551, src/page.css:91, src/page.css:101, src/page.css:296, src/page.js:252, scripts/smoke.mjs:385, scripts/smoke.mjs:580 |
 | `design/0010` | src/page.css:730, src/page.js:55, src/page.js:675, plugin/main.js:211 |
-| `design/0011` | src/page.css:95, src/page.js:71, src/page.js:457, scripts/smoke.mjs:586 |
-| `design/0012` | src/page.css:600, src/page.js:586 |
+| `design/0011` | src/leather.css:13, src/page.css:95, src/page.js:71, src/page.js:457, scripts/smoke.mjs:624 |
+| `design/0012` | src/leather.css:519, src/page.css:600, src/page.js:586 |
 | `design/0013` | src/build-shelf.mjs:121, scripts/make-mirror-vault.mjs:2, scripts/make-mirror-vault.mjs:114, scripts/make-mirror-vault.mjs:204, scripts/make-mirror-vault.mjs:423, scripts/make-sparse-vault.mjs:153, scripts/record-demo.mjs:77 |
+| `design/0014` | src/build-shelf.mjs:200, src/core/defaults.ts:105, src/core/defaults.ts:112, src/leather.css:6, src/page.js:1071, src/shell.html:22, src/shell.html:102, plugin/main.js:237, plugin/main.js:405, scripts/build-plugin.mjs:109, scripts/check-scope.mjs:16, scripts/obsidian-smoke.mjs:110, scripts/smoke.mjs:464 |
 
-## Invariants → checks — 26 sections in `.ai-context/invariants.md`
+## Invariants → checks — 27 sections in `.ai-context/invariants.md`
 
 | invariant (line) | check (smoke.mjs line) |
 |---|---|
@@ -52,20 +53,21 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | An impossible date is not a date (113) | an impossible date is not a date, and never a fifteenth month (170) |
 | Book addresses are stable across a rebuild (130) | book addresses are stable across a rebuild (313) |
 | Filters change membership and nothing else (136) | a filter changes membership without moving a shelf (324) |
-| Hiding a shelf hides it, and never deletes it (146) | a hidden shelf keeps its definition and its books (345); also shelved in moves to another book and keeps the note (676); hiding every shelf offers a way back rather than an empty room (363) |
-| The reader (158) | clicking a spine opens a book on the note it names (620); the reader's index tabs stay countable on the biggest book (637); previous and next walk the book and stop at its ends (651); also shelved in moves to another book and keeps the note (676); previous collection walks back, and Alt+Left does the same (707); escape closes the reader and leaves the shelf where it was (726) |
-| The reading table survives (184) | a saved reading place re-resolves after its own book is gone (781) |
-| The builder previews the truth (195) | the builder previews the shelf it would actually save (796); a saved shelf gets a stable id and joins the library (815) |
-| Metadata is declared, never inferred (206) | parent tag inclusion is a setting, and it changes the answer (836); people come from the property alone, never from prose (856) |
+| Hiding a shelf hides it, and never deletes it (146) | a hidden shelf keeps its definition and its books (345); also shelved in moves to another book and keeps the note (714); hiding every shelf offers a way back rather than an empty room (363) |
+| The reader (158) | clicking a spine opens a book on the note it names (658); the reader's index tabs stay countable on the biggest book (675); previous and next walk the book and stop at its ends (689); also shelved in moves to another book and keeps the note (714); previous collection walks back, and Alt+Left does the same (745); escape closes the reader and leaves the shelf where it was (764) |
+| The reading table survives (184) | a saved reading place re-resolves after its own book is gone (819) |
+| The builder previews the truth (195) | the builder previews the shelf it would actually save (834); a saved shelf gets a stable id and joins the library (853) |
+| Metadata is declared, never inferred (206) | parent tag inclusion is a setting, and it changes the answer (874); people come from the property alone, never from prose (894) |
 | The palette is Vault Graph's, and the theme is the host's (219) | the twelve colour slots are Vault Graph's own (414); the theme follows the host, and the slots are re-read when it changes (443) |
-| The magic (232) | shelf wear is recorded and drawn, and survives a rebuild (463); a ribbon hangs from every book that holds a marked note (486); the shelf parts as you type, and no book leaves the room (512) |
-| The room (251) | the room has a width, however wide the window is (545); the library is the whole surface, with no sidebar (387) |
-| Accessibility and scale (268) | plain list mode keeps every book reachable (877); every control the keyboard can reach has a name (894) |
-| Nothing reaches the network (278) | nothing on the page reaches the network (916) |
-| A spine holds its size (285) | a spine lifts on hover and holds its size (926) |
-| Hidden means hidden (294) | the reader and the sheets are not painted until they are opened (603) |
-| The plugin behaves inside a real Obsidian (308) | — no check named in the section |
-| Not covered here (325) | — no check named in the section |
+| A look is paint, and nothing else (232) | a look is opt-in, repaints everything and moves nothing (467) |
+| The magic (250) | shelf wear is recorded and drawn, and survives a rebuild (501); a ribbon hangs from every book that holds a marked note (524); the shelf parts as you type, and no book leaves the room (550) |
+| The room (269) | the room has a width, however wide the window is (583); the library is the whole surface, with no sidebar (387) |
+| Accessibility and scale (286) | plain list mode keeps every book reachable (915); every control the keyboard can reach has a name (932) |
+| Nothing reaches the network (296) | nothing on the page reaches the network (954) |
+| A spine holds its size (303) | a spine lifts on hover and holds its size (964) |
+| Hidden means hidden (312) | the reader and the sheets are not painted until they are opened (641) |
+| The plugin behaves inside a real Obsidian (326) | — no check named in the section |
+| Not covered here (347) | — no check named in the section |
 
 ## `__vs.*` entry points → callers outside page.js — 17
 
@@ -73,10 +75,10 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 |---|---|
 | `__vs.$` | scripts/code-map.mjs ×1 |
 | `__vs.addShelf` | scripts/smoke.mjs ×1 |
-| `__vs.addresses` | scripts/smoke.mjs ×4 |
+| `__vs.addresses` | scripts/smoke.mjs ×5 |
 | `__vs.checkMembership` | scripts/smoke.mjs ×1 |
 | `__vs.closeReader` | scripts/record-demo.mjs ×1, scripts/smoke.mjs ×7 |
-| `__vs.counts` | scripts/record-demo.mjs ×1, scripts/smoke.mjs ×14 |
+| `__vs.counts` | scripts/record-demo.mjs ×1, scripts/smoke.mjs ×15 |
 | `__vs.data` | scripts/record-demo.mjs ×1, scripts/smoke.mjs ×9 |
 | `__vs.magic` | scripts/smoke.mjs ×5 |
 | `__vs.openBook` | scripts/record-demo.mjs ×2, scripts/smoke.mjs ×10 |
@@ -86,5 +88,5 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `__vs.setQuery` | scripts/record-demo.mjs ×3, scripts/smoke.mjs ×3 |
 | `__vs.setTheme` | scripts/record-demo.mjs ×2, scripts/smoke.mjs ×4 |
 | `__vs.settings` | scripts/smoke.mjs ×12 |
-| `__vs.slots` | scripts/smoke.mjs ×4 |
+| `__vs.slots` | scripts/smoke.mjs ×5 |
 | `__vs.views` | scripts/record-demo.mjs ×2, scripts/smoke.mjs ×23 |

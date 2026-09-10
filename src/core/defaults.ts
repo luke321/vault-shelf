@@ -101,7 +101,16 @@ export interface Persisted {
   peopleProperty: string;
   /** decisions/0003 -- off by default; a file's mtime is almost never the note's date. */
   useFileStamp: boolean;
+  /**
+   * design/0014 -- which LOOK the page paints in. "" is the default look, which follows the
+   * host's theme; "leather" is the opt-in binding. It is a paint setting and nothing else:
+   * no shelf, no book and no address depends on it.
+   */
+  look: Look;
 }
+
+/** design/0014 -- the looks that exist. A blob naming any other one falls back to "". */
+export type Look = "" | "leather";
 
 /**
  * A deep copy that keeps its type. The page edits drafts of shelves and hands settings back
@@ -121,6 +130,7 @@ export function emptySettings(): Persisted {
     dateFields: ["date", "created"],
     peopleProperty: "people",
     useFileStamp: false,
+    look: "",
   };
 }
 
@@ -146,6 +156,7 @@ export function migrate(raw: unknown): Persisted {
     peopleProperty: typeof data.peopleProperty === "string" && data.peopleProperty
       ? data.peopleProperty : base.peopleProperty,
     useFileStamp: data.useFileStamp === true,
+    look: data.look === "leather" ? "leather" : "",
   };
 }
 

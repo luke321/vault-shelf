@@ -229,6 +229,24 @@ ground colour in each theme, that the twelve slots came back **different** after
 a hardcoded array could only ever be one of them — and that the library is otherwise
 identical.
 
+## A look is paint, and nothing else
+
+`design/0014`. The leather binding is a second stylesheet (`src/leather.css`) and one setting;
+it may repaint anything and it may move nothing.
+
+`"a look is opt-in, repaints everything and moves nothing"` drives the standalone's **own
+switch** rather than poking the attribute, and asserts that `data-look` goes `"" → "leather"
+→ ""`; that the ground, the first spine's colour and the twelve slots **all** change; that
+every book address and every count is byte-identical across the switch; and that switching
+back restores the colours exactly. Measured: **182 addresses on the demo vault, 194 on the
+sparse, 709 on the 10k library — identical in both looks in all three.**
+
+The default look is the one every other check in this file measures, and it is unchanged: with
+the setting off, not one selector in `leather.css` matches. `scripts/check-scope.mjs` reads
+**both** stylesheets — an unscoped rule in the second would style the whole of Obsidian
+exactly as one in the first — and `scripts/check-network.mjs` reads the second one too, so the
+leather grain, the wood and the marbling stay CSS gradients and inline SVG data URIs.
+
 ## The magic
 
 `design/0008`. Three things a real shelf cannot do, and each has a check.
@@ -318,9 +336,13 @@ stacked over the shelves. `changelog-detail.md` has the whole story.
 | people and tags came from the metadata cache | 9 people books, 16 tag books |
 | the debug surface is not shipped | `window.__vs` is `undefined` inside Obsidian |
 | three close-and-reopen cycles | 1 mounted root; DOM nodes 2,675 → 2,675 |
-| the settings tab renders on both paths | 3 declarative definitions, 3 rows from `display()` |
+| the settings tab renders on both paths | 4 declarative definitions, 4 rows from `display()` |
 | the note is rendered by Obsidian's own renderer | 238 characters in 7 elements, no fallback text |
 | a long note wraps instead of widening the reader | reader 1,216px, note 495px, nothing scrolls sideways |
+
+`--look leather` writes the plugin's own `data.json` before Obsidian starts, so `--shot` can
+photograph either look as a person would actually have it. Re-measured 2026-09-10 on the
+mirror vault under leather: **10/10, 543 files, 417 spines, 22 plaques, 4 settings rows.**
 
 ## Not covered here
 
