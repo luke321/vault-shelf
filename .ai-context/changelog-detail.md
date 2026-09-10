@@ -736,5 +736,20 @@ shelf varies; a right-click on the first Years book takes it from its folder's s
 its shelf varied, so a library came out one colour. The folder dye is back as the default.
 
 A spine shows up to **three** ribbons side by side (x = 40/49/58 on the demo vault) instead of
-one wider one. Schema 8; 55 checks.
+one wider one. Schema 8; 54 checks.
+
+## The resize repack was dead whenever the window was not being painted
+
+Found by the suite, not by a person, and only because the check now reads the watcher's own
+log: on two of three shapes the resize handler ran and its `requestAnimationFrame` callback
+never did — **"saw 2 resizes, measured 0 times"** — so the library kept the rows it had been
+packed for and let the end of every row run 468px off the side. Chrome gives no frames to a
+window it is not painting, which is any Obsidian pane resized while another has focus, and the
+watcher's pending flag then stayed set for good. It coalesces through a 60ms timer now;
+measured after: **2 resizes, 2 measurements, 8 rows → 14 → 8**, 0px of overflow on all three.
+
+The library-wide *book colors are optional* check retired with the switch it tested; its one
+surviving claim — a rebuild never recolours a varied shelf — moved into the vary check, where
+a narrowing filter recolours **0** of 8 books. The scroll-timing and resize checks moved to
+the serial lane, since three other Chromes on one GPU showed up in their numbers. 54 checks.
 

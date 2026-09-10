@@ -195,6 +195,8 @@ function mountVaultShelf(root, data, options) {
   var folders = data.folders.slice();
   /** design/0014 -- the measured inner width of a shelf row; 0 until the first render lands. */
   var roomWidth = 0;
+  /** What the resize watcher saw, for the harness to read back. */
+  var roomLog = { resizes: 0, measured: 0, last: 0 };
 
   /** @type {string[]} */
   var SLOTS = [];
@@ -504,8 +506,7 @@ function mountVaultShelf(root, data, options) {
    */
   function room() {
     if (roomWidth > 80) return roomWidth;
-    var box = $("shelves");
-    var w = box ? box.clientWidth : 0;
+    var w = shelfWidth();
     return w > 80 ? w : 900;
   }
 
@@ -519,12 +520,24 @@ function mountVaultShelf(root, data, options) {
    * @returns {boolean} whether the library has to be drawn again
    */
   function settleRoom() {
-    var track = $("shelves").querySelector(".vs-track");
-    if (!track) return false;
-    var w = track.clientWidth;
+    var w = shelfWidth();
     if (w <= 80 || w === roomWidth) return false;
     roomWidth = w;
     return true;
+  }
+
+  /**
+   * THE CONTAINER, NOT THE FIRST ROW. A row inside a shelf that `content-visibility` has
+   * skipped measures 0 wide, and the first row is skipped whenever the top of the library is
+   * off screen -- so a resize measured through it saw nothing and repacked nothing. The
+   * container is never skipped, it lives inside the scroller so its width already excludes
+   * the scrollbar, and a row is 100% of it by construction.
+   * @returns {number}
+   */
+  function shelfWidth() {
+    var box = node("shelves");
+    var cs = WIN.getComputedStyle(box);
+    return box.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
   }
 
   /**
@@ -535,28 +548,35 @@ function mountVaultShelf(root, data, options) {
    * dragged narrower would keep the row it was packed for and let the end of it run off the
    * side. So a resize re-measures and redraws.
    *
-   * COALESCED TO A FRAME. A drag fires resize continuously, and repacking a 10k library 60
-   * times a second is 60 renders nobody sees. `requestAnimationFrame` collapses a burst into
-   * the one render that matters, and the width is checked before drawing so a resize that
-   * did not change the room -- a taller window, a hidden sidebar -- costs nothing at all.
+   * COALESCED. A drag fires resize continuously, and repacking a 10k library 60 times a
+   * second is 60 renders nobody sees; a short timer collapses a burst into the one render
+   * that matters, and the width is checked before drawing so a resize that did not change
+   * the room -- a taller window, a hidden sidebar -- costs nothing at all.
    */
   function watchRoom() {
     var pending = 0;
     var seen = 0;
     function measure() {
       pending = 0;
-      var track = $("shelves").querySelector(".vs-track");
-      var w = track ? track.clientWidth : 0;
+      var w = shelfWidth();
+      roomLog.measured++;
+      roomLog.last = w;
       if (w <= 80 || w === seen) return;
       seen = w;
       roomWidth = w;
       renderLibrary();
     }
+    /* A TIMER, NOT AN ANIMATION FRAME. This coalesced through requestAnimationFrame first,
+     * and the harness caught it: the resize handler ran, the frame callback never did -- the
+     * watcher had "seen 2 resizes, measured 0 times" -- because a window Chrome is not
+     * painting gets no frames, and `pending` then stayed set for good. A repack is a
+     * correctness step, and a timer fires whether or not the window is being drawn. */
     on(WIN, "resize", function () {
+      roomLog.resizes++;
       if (pending) return;
-      pending = WIN.requestAnimationFrame(measure);
+      pending = WIN.setTimeout(measure, 60);
     });
-    onDestroy.push(function () { if (pending) WIN.cancelAnimationFrame(pending); });
+    onDestroy.push(function () { if (pending) WIN.clearTimeout(pending); });
   }
 
   /**
@@ -1805,6 +1825,8 @@ function mountVaultShelf(root, data, options) {
     },
     /** The twelve slots as the cascade currently resolves them. design/0005. */
     slots: function () { return SLOTS.slice(); },
+    /** design/0014 -- the room as packed, and what the resize watcher has seen. */
+    room: function () { return { width: roomWidth, resizes: roomLog.resizes, measured: roomLog.measured, last: roomLog.last }; },
     /** design/0008 -- what the room currently looks like it has been used for. */
     magic: function () {
       var worn = {};

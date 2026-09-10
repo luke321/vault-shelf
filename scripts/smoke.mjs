@@ -103,6 +103,11 @@ function gridSlot(i, k) {
 /* Checks that click, scroll or read a laid-out box run alone: a contended browser reports a
  * geometry that has more to do with the other three windows than with the code. */
 const POINTER_DRIVEN = [
+  /* A frame-time measurement and a viewport resize are as sensitive to three other Chromes
+   * on the same GPU as any box-reading check is, and showed it: the scroll check failed one
+   * shape in a full run and passed the same shape alone. */
+  "stays smooth",
+  "narrower window",
   "opens a book",
   "spine lifts",
   "reading shelf",
@@ -749,86 +754,6 @@ check("the theme follows the host, and the slots are re-read when it changes", a
 });
 
 /* design/0005 -- colours belong to stable book addresses, never changing note counts. */
-check("book colors are optional, encyclopedia volumes match and new notes never recolor books", async (p) => {
-  const r = await p.j(`(function(){
-    var core = window.VaultShelfCore;
-    var original = core.clone(__vs.settings());
-    var originalCounts = JSON.stringify(__vs.counts());
-    var addresses = __vs.addresses().join("|");
-    function colors() {
-      var out = {};
-      document.querySelectorAll("#vs-shelves .vs-spine").forEach(function (e) {
-        out[e.getAttribute("data-book")] = getComputedStyle(e).getPropertyValue("--spine-tint").trim();
-      });
-      return out;
-    }
-    var defaults = !core.migrate({ schema: 1 }).varyBookColors &&
-                   !core.migrate({ varyBookColors: "true" }).varyBookColors;
-    document.getElementById("vs-manageopen").click();
-    var toggle = document.getElementById("vs-mvarycolors");
-    var off = !toggle.checked && new Set(Object.values(colors())).size === 1;
-    toggle.click();
-    var saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
-    var persists = saved.varyBookColors === true && core.migrate(saved).varyBookColors;
-    var paintOnly = addresses === __vs.addresses().join("|") &&
-                    originalCounts === JSON.stringify(__vs.counts());
-    var target = __vs.views().find(function (v) { return v.shelf.classifier === "month"; }).books[0];
-    var next = core.clone(VAULT_DATA);
-    for (var i = 0; i <= target.notes.length; i++) {
-      var note = core.clone(target.notes[0]);
-      note.id = note.path = "color-arrivals/" + i + ".md";
-      note.folder = "color-arrivals";
-      next.notes.push(note);
-    }
-    next.folders.reverse();
-    next.folders.forEach(function (f, i) { f.slot = i + 1; });
-    next.folders.unshift({ path: "color-arrivals", count: target.notes.length + 1, slot: 0 });
-    var modes = [];
-    ["light", "dark", "leather"].forEach(function (mode) {
-      var settings = core.clone(__vs.settings());
-      settings.look = mode === "leather" ? "leather" : "";
-      vsHandle.setSettings(settings);
-      __vs.setTheme(mode === "light" ? "light" : "dark");
-      var before = colors();
-      var encyclopedia = Object.keys(before).filter(function (id) { return id.indexOf("encyclopedia/") === 0; });
-      var matching = new Set(encyclopedia.map(function (id) { return before[id]; })).size === 1;
-      var varied = new Set(Object.values(before)).size > 1;
-      vsHandle.refresh(next);
-      var after = colors();
-      var same = Object.keys(before).every(function (id) { return after[id] === before[id]; });
-      var changedMix = __vs.views().find(function (v) { return v.shelf.classifier === "month"; })
-        .books.find(function (b) { return b.id === target.id; }).bands[0].folder === "color-arrivals";
-      modes.push({ mode: mode, matching: matching, varied: varied, same: same, changedMix: changedMix,
-                   books: Object.keys(before).length });
-      vsHandle.refresh(VAULT_DATA);
-    });
-    vsHandle.setSettings(original);
-    document.getElementById("vs-manageopen").click();
-    document.getElementById("vs-mvarycolors").click();
-    return { defaults: defaults, off: off, persists: persists, paintOnly: paintOnly, modes: modes };
-  })()`);
-  await p.send("Page.reload");
-  for (let i = 0; i < 60; i++) {
-    if (await p.eval('document.readyState === "complete" && !!window.__vs').catch(() => false)) break;
-    await sleep(100);
-  }
-  const reload = await p.j(`(function(){
-    document.getElementById("vs-manageopen").click();
-    var toggle = document.getElementById("vs-mvarycolors");
-    var kept = toggle.checked && __vs.settings().varyBookColors;
-    toggle.click();
-    var colors = Array.from(document.querySelectorAll("#vs-shelves .vs-spine"), function(e) {
-      return getComputedStyle(e).getPropertyValue("--spine-tint").trim();
-    });
-    document.getElementById("vs-mclose").click();
-    return kept && !__vs.settings().varyBookColors && new Set(colors).size === 1;
-  })()`);
-  return { ok: r.defaults && r.off && r.persists && r.paintOnly && reload &&
-               r.modes.every((m) => m.matching && m.varied && m.same && m.changedMix),
-           detail: `default off ${r.off}; paint only ${r.paintOnly}; reload/toggle ${reload}; ` +
-                   r.modes.map((m) => `${m.mode}: ${m.books} stable ${m.same}, encyclopedia matches ${m.matching}, new dominant folder ${m.changedMix}`).join("; ") };
-});
-
 const bookCount = (joined) => (joined ? joined.split("|").length : 0);
 
 /* design/0016, design/0017 -- A LOOK IS PAINT. Each look is a stylesheet and a setting; it may
@@ -988,6 +913,10 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
       return __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
     };
     var ids = people().books.slice(0, 8).map(function (b) { return b.id; });
+    /* The SET of dyes, not how many: a vault with eight source folders gives eight People
+     * books eight colours by folder already, and varying them changes which colours, not
+     * how many. */
+    var byFolderDyes = ids.map(tint).join(",");
     var byFolder = new Set(ids.map(tint)).size;
 
     /* Vary this shelf, through the button in Manage. */
@@ -997,7 +926,19 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
     var vary = [].slice.call(row.querySelectorAll("button"))
       .filter(function (b) { return b.textContent === "Vary colours"; })[0];
     vary.click();
+    var variedDyes = ids.map(tint).join(",");
     var varied = new Set(ids.map(tint)).size;
+    /* NEW NOTES NEVER RECOLOUR A VARIED SHELF: the slot is hashed from the address, so a
+     * rebuild that changes what is in the books leaves every book its colour. A filter that
+     * narrows the room is such a rebuild. */
+    var folders = __vs.data().folders.map(function (f) { return f.path; });
+    __vs.setFilters({ folders: folders.slice(0, Math.max(1, folders.length - 1)) });
+    var afterNarrowing = ids.map(function (id) { return tint(id) || "(gone)"; });
+    var recoloured = ids.filter(function (id, i) {
+      var now = afterNarrowing[i];
+      return now !== "(gone)" && now !== variedDyes.split(",")[i];
+    }).length;
+    __vs.setFilters({ folders: [] });
     var pressed = [].slice.call(document.querySelectorAll("#vs-managelist .vs-managerow button"))
       .filter(function (b) { return b.textContent === "Vary colours"; })
       .filter(function (b) { return b.getAttribute("aria-pressed") === "true"; }).length;
@@ -1005,6 +946,7 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
       .filter(function (r) { return r.textContent.indexOf("People") === 0; })[0]
       .querySelector('button[aria-pressed]');
     vary.click();
+    var backDyes = ids.map(tint).join(",");
     var back = new Set(ids.map(tint)).size;
 
     /* A chosen palette: change one input and all twelve become the person's. */
@@ -1026,15 +968,19 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
     var reset = __vs.slots()[0];
     document.getElementById("vs-mclose").click();
     return { byFolder: byFolder, varied: varied, pressed: pressed, back: back,
+             changed: variedDyes !== byFolderDyes, restored: backDyes === byFolderDyes,
+             recoloured: recoloured,
              slotsBefore: slotsBefore, slot1: slotsAfter[0], first: first,
              underOther: underOther, reset: reset, other: other || "modern" };
   })()`);
-  const ok = r.varied > r.byFolder && r.pressed === 1 && r.back === r.byFolder &&
+  const ok = r.changed && r.pressed === 1 && r.restored && r.recoloured === 0 &&
              r.slot1 === "#123456" && r.underOther === "#123456" && r.reset !== "#123456";
   return {
     ok,
-    detail: `8 People books wear ${r.byFolder} colour(s) by folder, ${r.varied} varied ` +
-            `(one shelf pressed: ${r.pressed === 1}), ${r.back} again after; choosing ` +
+    detail: `8 People books wear ${r.byFolder} colour(s) by folder and ${r.varied} varied -- ` +
+            `a different set (${r.changed}), one shelf pressed (${r.pressed === 1}), ` +
+            `${r.recoloured} recoloured by a narrowing rebuild, the folder dyes back after ` +
+            `(${r.restored}); choosing ` +
             `#123456 for slot 1 makes it ${r.slot1}, still ${r.underOther} under the ` +
             `${r.other} look, and ${r.reset} after "use the look's own"`
   };
@@ -1280,6 +1226,7 @@ check("a narrower window grows rows, and a wide one centres the shelf", async (p
       });
       return { app: Math.round(host.width), rows: rows.length,
                total: document.querySelectorAll("#vs-shelves .vs-track").length,
+               room: __vs.room(),
                row: first ? Math.round(first.width) : 0,
                left: first ? Math.round(first.left - host.left) : 0,
                right: first ? Math.round(host.right - first.right) : 0,
@@ -1312,7 +1259,9 @@ check("a narrower window grows rows, and a wide one centres the shelf", async (p
             `${wide.left}/${wide.right}; at 760px it is ${narrow.rows} row(s) of ` +
             `${narrow.row}px; the library goes from ${wide.total} rows to ${narrow.total} ` +
             `and back to ${back.total}. ` +
-            `Worst overflow ${Math.max(wide.over, narrow.over, back.over)}px`
+            `Worst overflow ${Math.max(wide.over, narrow.over, back.over)}px; the watcher saw ` +
+            `${narrow.room.resizes} resizes, measured ${narrow.room.measured} times, last ` +
+            `${narrow.room.last}px, packed for ${narrow.room.width}px`
   };
 });
 

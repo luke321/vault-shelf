@@ -421,8 +421,12 @@ scrollbar, not slack — and that **no row overflows by so much as a pixel**. Me
 **15 → 25 → 15** on the demo vault, **10 → 14 → 10** on the sparse and **27 → 42 → 27** on the
 library, with **0px of overflow** at every width and the same row count on the way back.
 
-The repack is a `resize` listener coalesced into one animation frame; without it a window
-dragged narrower keeps the row it was packed for and lets the end of it run off the side.
+The repack is a `resize` listener coalesced through a **60ms timer** — not an animation
+frame. It was a frame first, and this check caught what that costs: the handler ran and the
+frame callback never did (`saw 2 resizes, measured 0 times`), because a window Chrome is not
+painting gets no frames, and the pending flag then stayed set for good. A pane resized while
+another view has focus is that window. The check reads the watcher's own log back
+(`__vs.room()`) so a repack that silently did not happen cannot pass as one that did.
 CDP's `setDeviceMetricsOverride` does not always deliver a resize event headless, so the check
 dispatches the event the browser would.
 
