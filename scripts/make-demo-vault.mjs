@@ -208,6 +208,19 @@ for (const folder of FOLDERS) {
   }
 }
 
+/* design/0010 -- A NOTE THAT IS ONE WIDE TABLE, because a real vault had one and it rendered
+ * "strangely": 31 rows, a cell of 1,764 characters, 188 spans of inline code. The reader has
+ * to hold it without widening the page or crushing the cell, and this is the note the check
+ * opens to prove it. */
+const wideCell = (n) => Array.from({ length: n }, (_, i) => "`" + pick(WORDS) + "-" + i + "`").join(" ");
+const wideRows = ["| when | what | where | who | how | notes |", "|---|---|---|---|---|---|"];
+for (let i = 0; i < 12; i++) {
+  wideRows.push("| " + dayAt(i * 9) + " | " + wideCell(3) + " | " + pick(SUBJECTS) + " | " +
+                pick(PEOPLE) + " | " + wideCell(i === 4 ? 160 : 6) + " | " + pick(FACETS) + " |");
+}
+write("", "Wide table of everything", { tags: ["map"], date: dayAt(3) },
+      "# Wide table of everything\n\n" + wideRows.join("\n") + "\n");
+
 write("", "Dashboard", { tags: ["map"] }, "# Dashboard\n\n" + paragraph(1));
 write("", "Home", { tags: ["map"] }, "# Home\n\n" + paragraph(1));
 

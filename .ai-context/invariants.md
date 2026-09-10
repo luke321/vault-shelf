@@ -203,6 +203,14 @@ An empty room with no way out is the worst reachable state in this product.
 
 ## The reader
 
+`"a wide table scrolls inside the page and never widens the book"` opens the fixture note that
+is one 12-row table with a 1,981-character cell and asserts the spread is still no wider than
+`--measure` (**1180px**), that the right-hand page does not scroll sideways (**0px**), and that
+the table rendered as a table (**13 rows, 72 cells**). It was written for a real note that is
+31 rows of history and rendered as a stack of cells; `design/0010` says why the article scrolls
+and the table does not.
+
+
 `"clicking a spine opens a book on the note it names"` clicks a real spine on the Years shelf
 and asserts the reader opened on the book that spine addressed, with a non-empty contents list.
 

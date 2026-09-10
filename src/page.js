@@ -1185,8 +1185,32 @@ function mountVaultShelf(root, data, options) {
     var lines = String(note.body || note.excerpt || "").split("\n");
     /** @type {HTMLElement|null} */
     var list = null;
+    /** @type {HTMLTableElement|null} */
+    var table = null;
     lines.forEach(function (raw) {
       var line = raw.replace(/\s+$/, "");
+      /* A pipe table, which the standalone's small renderer did not know at all: a run of
+       * `| a | b |` lines is a table, its second line -- `|---|---|` -- is the ruling under the
+       * head and is not a row. Inside Obsidian the app's renderer does this; here it is the
+       * one block the fallback had no idea of, and a vault of tables read as pipe soup. */
+      var cells = /^\s*\|(.*)\|\s*$/.exec(line);
+      if (cells) {
+        var parts = cells[1].split("|").map(function (c) { return c.trim(); });
+        if (parts.every(function (c) { return /^:?-{2,}:?$/.test(c); })) return;
+        if (!table) {
+          table = /** @type {HTMLTableElement} */ (DOC.createElement("table"));
+          box.appendChild(table);
+          var tr0 = DOC.createElement("tr");
+          parts.forEach(function (c) { tr0.appendChild(el("th", "", c)); });
+          table.appendChild(tr0);
+          return;
+        }
+        var tr = DOC.createElement("tr");
+        parts.forEach(function (c) { tr.appendChild(el("td", "", c)); });
+        table.appendChild(tr);
+        return;
+      }
+      table = null;
       var head = /^(#{1,3})\s+(.*)$/.exec(line);
       var item = /^\s*[-*]\s+(.*)$/.exec(line);
       var quote = /^>\s?(.*)$/.exec(line);

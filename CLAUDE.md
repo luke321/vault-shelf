@@ -114,7 +114,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 47 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 55 checks over three vault shapes |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
 | `.ai-context/code-map.md` | **generated**: sections and functions of the two big files, with line numbers |
 | `.ai-context/code-index.md` | **generated**: issue → code sites, ADR/DDR → code sites, invariant → check, `__vs.*` → callers |

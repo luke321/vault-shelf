@@ -798,6 +798,11 @@
   max-width: 66ch;
   color: var(--text-1);
   overflow-wrap: anywhere;
+  /* design/0010 -- A WIDE THING SCROLLS INSIDE THE PAGE. A table with a 1,700-character cell
+   * has to go somewhere: let it push, and the right-hand page widens and the spread with it;
+   * clamp it, and the cell becomes a sliver a paragraph tall. It scrolls sideways within the
+   * article instead, the way a code block already does, and the page keeps its width. */
+  overflow-x: auto;
 }
 
 .vault-shelf .vs-prose > * { max-width: 100%; }
@@ -818,19 +823,27 @@
 /* A table, for the standalone -- inside Obsidian the host's own `markdown-rendered` rules
  * dress it, and the container now carries that class (design/0010). Wide ones scroll rather
  * than widening the page, the same rule every other block in here follows. */
+/* A TABLE STAYS A TABLE. `display: block` on it -- the first attempt at wide tables -- threw
+ * away the column layout Obsidian's own rules give it under `markdown-rendered`, which is
+ * what "tables render strangely" looked like from the reader. The article scrolls now, and
+ * the table is left alone to be a table; long cells wrap at their content rather than forcing
+ * the column open. */
 .vault-shelf .vs-prose table {
   border-collapse: collapse;
   margin: 12px 0;
   font-size: 0.95em;
+  max-width: none;
 }
 .vault-shelf .vs-prose th, .vault-shelf .vs-prose td {
   border: 1px solid var(--border);
   padding: 5px 9px;
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
+  min-width: 6ch;
 }
 .vault-shelf .vs-prose th { background: var(--surface-2); font-weight: 600; }
-.vault-shelf .vs-prose > table { display: block; overflow-x: auto; }
+.vault-shelf .vs-prose td code, .vault-shelf .vs-prose th code { white-space: pre-wrap; }
 .vault-shelf .vs-prose blockquote {
   border-left: 2px solid var(--border-strong);
   margin: 12px 0;

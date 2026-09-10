@@ -753,3 +753,20 @@ surviving claim — a rebuild never recolours a varied shelf — moved into the 
 a narrowing filter recolours **0** of 8 books. The scroll-timing and resize checks moved to
 the serial lane, since three other Chromes on one GPU showed up in their numbers. 54 checks.
 
+## A note that is one wide table
+
+> "claude history render strangely"
+
+The note in question is 38 lines, 31 of them table rows, with a cell of **1,764 characters**
+and 188 spans of inline code. Two things were wrong with it in the reader. The first attempt
+at wide tables had put `display: block` on the table, which throws away the column layout
+Obsidian's own rules give it under `markdown-rendered` — a table that is a block is a stack of
+cells. And the standalone's small fallback renderer did not know pipe tables at all, so
+outside Obsidian the note read as pipe soup.
+
+Now the **article** scrolls sideways within the page, the way a code block already did, and
+the table is left alone to be a table; long cells wrap at their content. The fallback renderer
+learned the one block it was missing. The demo fixture carries a 12-row table with a
+**1,981-character** cell, and the check opens it: the spread stays **1180px** in a 1180px
+measure, the page scrolls **0px** sideways, 72 cells render.
+

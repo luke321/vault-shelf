@@ -87,6 +87,9 @@ const JOBS = Math.max(1, Number(arg("jobs", "4")) || 4);
  * will be looking at whichever of three shapes finished last. */
 const SHOT = arg("shot", "");
 const LOOK = arg("look", "");
+/* `--shot-note "<title>"` opens that note for the reader picture instead of the first book,
+ * which is how a rendering complaint about one particular note gets looked at. */
+const SHOT_NOTE = arg("shot-note", "");
 const GRID = argv.includes("--no-grid") ? false
           : argv.includes("--grid") ? true
           : JOBS > 1;
@@ -1406,6 +1409,50 @@ check("the reader and the sheets are not painted until they are opened", async (
              : r.map((x) => `${x.id} display:${x.display}`).join(", ") };
 });
 
+check("a wide table scrolls inside the page and never widens the book", async (p) => {
+  const r = await p.j(`(function(){
+    var note = __vs.data().notes.filter(function (n) { return n.title === "Wide table of everything"; })[0];
+    if (!note) return null;
+    var home = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) {
+        if (!home && b.notes.some(function (n) { return n.id === note.id; })) home = b.id;
+      });
+    });
+    __vs.openBook(home, note.id);
+    var measure = parseInt(getComputedStyle(document.getElementById("vs-app"))
+      .getPropertyValue("--measure"), 10);
+    var spread = document.querySelector("#vs-reader .vs-spread");
+    var page = document.querySelector("#vs-reader .vs-page.vs-right");
+    var prose = document.querySelector("#vs-reader .vs-prose");
+    var table = prose ? prose.querySelector("table") : null;
+    var out = {
+      measure: measure,
+      spread: Math.round(spread.getBoundingClientRect().width),
+      pageScrolls: page.scrollWidth - page.clientWidth,
+      proseScrolls: prose ? prose.scrollWidth - prose.clientWidth : -1,
+      rows: table ? table.querySelectorAll("tr").length : 0,
+      cells: table ? table.querySelectorAll("td").length : 0,
+      widest: 0
+    };
+    if (table) {
+      out.widest = Math.max.apply(null, [].slice.call(table.querySelectorAll("td"))
+        .map(function (td) { return td.textContent.length; }));
+    }
+    __vs.closeReader();
+    return out;
+  })()`);
+  if (r === null) return { ok: true, detail: "this vault has no wide-table note; nothing to assert" };
+  const ok = r.spread <= r.measure + 2 && r.pageScrolls <= 1 && r.rows >= 12 && r.cells >= 60;
+  return {
+    ok,
+    detail: `the note renders as a ${r.rows}-row table with ${r.cells} cells, the widest ` +
+            `${r.widest} characters; the spread stays ${r.spread}px inside the ${r.measure}px ` +
+            `measure, the page does not scroll sideways (${r.pageScrolls}px), and the article ` +
+            `${r.proseScrolls > 0 ? "scrolls " + r.proseScrolls + "px within itself" : "fits"}`
+  };
+});
+
 check("clicking a spine opens a book on the note it names", async (p) => {
   await p.eval("__vs.closeReader()");
   const r = await p.j(`(function(){
@@ -2123,7 +2170,18 @@ async function capture(page, out) {
   await sleep(250);
   await shoot(out);
 
-  const opened = await page.j('__vs.openBook(__vs.addresses()[0], null)');
+  const opened = SHOT_NOTE
+    ? await page.j(`(function(){
+        var want = ${JSON.stringify(SHOT_NOTE)};
+        var note = __vs.data().notes.filter(function (n) { return n.title === want; })[0];
+        if (!note) return false;
+        var home = null;
+        __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+          if (!home && b.notes.some(function (n) { return n.id === note.id; })) home = b.id;
+        }); });
+        return home ? __vs.openBook(home, note.id) : false;
+      })()`)
+    : await page.j('__vs.openBook(__vs.addresses()[0], null)');
   if (opened) {
     /* WITH RIBBONS IN IT. A reader with none shows an empty strip where the feature is, which
      * is a picture of the wrong thing; two are marked for the shot and taken out again. */
