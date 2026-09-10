@@ -226,25 +226,70 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
     });
   }
 
-  /* design/0015 -- A DATE SHELF READS THE SAME WAY ITS BOOKS DO. The reading order in the top
-   * bar used to turn the notes inside a book round and leave the books themselves alone, so a
-   * Years shelf ran 2026 back to 2015 while every book in it ran forwards. One control, both
-   * directions. A shelf classified by anything else keeps its own A-to-Z, which the order in
-   * the top bar has nothing to say about. */
+  books.sort((a, b) => compareKeys(a.key, b.key, autoDirection(shelf, order)));
+  return {
+    shelf,
+    books: shelf.direction === "manual" ? arrange(books, shelf.order) : books,
+    noteCount: members.length,
+  };
+}
+
+/**
+ * design/0015 -- A DATE SHELF READS THE SAME WAY ITS BOOKS DO. The reading order in the top
+ * bar used to turn the notes inside a book round and leave the books themselves alone, so a
+ * Years shelf ran 2026 back to 2015 while every book in it ran forwards. One control, both
+ * directions. A shelf classified by anything else keeps its own A-to-Z, which the order in
+ * the top bar has nothing to say about.
+ *
+ * design/0018 -- and a shelf arranged by hand has neither: this is only what its LEFTOVERS
+ * fall into, so it is A-to-Z and the reading order in the top bar cannot reach it.
+ */
+function autoDirection(shelf: Shelf, order: NoteOrder): "alphabetical" | "chronological" {
+  if (shelf.direction === "manual") return "alphabetical";
   const dated = shelf.classifier === "year" || shelf.classifier === "month" ||
                 shelf.classifier === "week";
-  const direction = dated
-    ? (order === "newest" ? "chronological" : "alphabetical")
-    : shelf.direction;
-  books.sort((a, b) => compareKeys(a.key, b.key, direction));
-  return { shelf, books, noteCount: members.length };
+  if (dated) return order === "newest" ? "chronological" : "alphabetical";
+  return shelf.direction;
+}
+
+/**
+ * design/0018 -- THE SEQUENCE IS A LIST OF KEYS, AND NOTHING ELSE MOVES. Every book keeps the
+ * address `decisions/0002` gave it; only where it stands changes. A key the list does not name
+ * is not an exclusion -- it goes to the END, in the A-to-Z the shelf would otherwise have had,
+ * so a note that arrives overnight never lands in the middle of somebody's arrangement.
+ */
+export function arrange(books: Book[], order: string[] | undefined): Book[] {
+  if (!order || !order.length) return books;
+  const at = new Map<string, number>();
+  order.forEach((key, i) => { if (!at.has(key)) at.set(key, i); });
+  const placed: Book[] = [];
+  const rest: Book[] = [];
+  for (const book of books) {
+    if (at.has(book.key)) placed.push(book); else rest.push(book);
+  }
+  const rank = (key: string): number => { const i = at.get(key); return i === undefined ? 0 : i; };
+  placed.sort((a, b) => rank(a.key) - rank(b.key));
+  return placed.concat(rest);
+}
+
+/**
+ * design/0018 -- ONE MOVE, SAID AS "BEFORE WHICH BOOK", because that is what a drop is and
+ * what a filtered shelf can still answer. An index would be an index into whatever happened to
+ * be on screen; a neighbour's key means the same thing whether or not the books between them
+ * are being shown. `before === null` is the end of the shelf.
+ */
+export function moveBefore(keys: string[], key: string, before: string | null): string[] {
+  const next = keys.filter((k) => k !== key);
+  const at = before === null ? -1 : next.indexOf(before);
+  if (at < 0) next.push(key); else next.splice(at, 0, key);
+  return next;
 }
 
 /**
  * Undated and Unfiled sort last in both directions. They are real books and hiding them
  * would lose notes; putting them first would open every date shelf on its least useful page.
  */
-function compareKeys(a: string, b: string, direction: Shelf["direction"]): number {
+function compareKeys(a: string, b: string, direction: "alphabetical" | "chronological"): number {
   const aSpecial = a === UNDATED || a === UNFILED;
   const bSpecial = b === UNDATED || b === UNFILED;
   if (aSpecial !== bSpecial) return aSpecial ? 1 : -1;

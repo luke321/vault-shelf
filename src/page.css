@@ -545,6 +545,35 @@
 
 .vault-shelf .vs-spine[data-empty="1"] { opacity: 0.45; }
 
+/* ---- a shelf arranged by hand --------------------------------------------
+ * design/0018 -- a spine you can pick up says so before you touch it, and while one is in the
+ * air the shelf says where it would land. The mark is a bar in the GAP between two books --
+ * the gap is 3px and so is the bar -- because that is the place the book is going, and a
+ * highlight on the neighbour would say "this one" instead of "here".
+ *
+ * AN ELEMENT, NOT A PSEUDO-ELEMENT. `.vs-spine::before` and `::after` are already the gilt
+ * bands of the leather binding and the neon edge of the cyberpunk one (design/0016, 0017), at
+ * a specificity this file cannot reach and in stylesheets this feature is not allowed to touch.
+ * A drop mark drawn on either of them is invisible in two looks out of three.
+ */
+.vault-shelf .vs-spine[data-hand="1"] { cursor: grab; }
+.vault-shelf .vs-spine[data-hand="1"]:active { cursor: grabbing; }
+.vault-shelf .vs-spine[data-dragging="1"] { opacity: 0.35; }
+
+.vault-shelf .vs-drop {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+  pointer-events: none;
+  z-index: 4;
+}
+.vault-shelf .vs-drop[data-side="before"] { left: -3px; }
+.vault-shelf .vs-drop[data-side="after"] { right: -3px; }
+
 /* ---- magic 1: shelf wear -------------------------------------------------
  * design/0008 -- a book you open often looks handled. Four steps, and every one of them is
  * a thing that happens to a real book: the boards darken where a hand holds them, the head
@@ -1061,6 +1090,18 @@
 
 .vault-shelf[data-list="1"] .vs-spine .vs-n { position: static; text-align: left; margin-left: auto; }
 .vault-shelf[data-list="1"] .vs-spine .vs-ribbon { position: static; width: 7px; height: 12px; margin: 0 0 0 8px; }
+
+/* design/0018 -- a list runs down, so the gap the book lands in is above or below it. */
+.vault-shelf[data-list="1"] .vs-drop {
+  top: auto;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 3px;
+}
+.vault-shelf[data-list="1"] .vs-drop[data-side="before"] { top: -2px; }
+.vault-shelf[data-list="1"] .vs-drop[data-side="after"] { bottom: -2px; }
 
 @media (max-width: 860px) {
   .vault-shelf #vs-rail { flex-wrap: wrap; }

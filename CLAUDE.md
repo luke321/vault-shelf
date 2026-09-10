@@ -25,7 +25,9 @@ of measuring it.** Build the page, drive it, read the numbers.
 - **The ISO week keeps its week-year.** 2027-01-01 is 2026-W53.
 - **A plaque names the unit above the book**: months and weeks under their year, years under
   their decade, people and tags under their letter. Only when asked for. A plaque lives in the
-  same row as the books it names, and a run that wraps is named on every row it reaches.
+  same row as the books it names, and a run that wraps is named on every row it reaches. **A
+  run is whatever is adjacent**, so a shelf arranged by hand can carry the same label twice in
+  one row — a plate says what is under it, never what it wishes were under it.
 - **A shelf is a bookcase, not a conveyor belt.** Nothing scrolls sideways; a run too long for
   the room continues on the next row down.
 - **A filter narrows; the query marks.** A filter removes notes before books are built. The
@@ -43,7 +45,12 @@ of measuring it.** Build the page, drive it, read the numbers.
   and gets dates.
 - **A book opens on its oldest note, and so does a date shelf.** A notebook that starts on its
   last page reads as if it were written backwards. One toggle in the top bar turns both round;
-  a shelf classified by anything else keeps its own A-to-Z.
+  a shelf classified by anything else keeps its own A-to-Z. **A shelf can also have no rule**:
+  `manual` is the order a person dragged the books into, held as `Shelf.order` — a list of
+  classifier **keys**, so it survives a rebuild the way an address does. It moves the sequence
+  and nothing else: not an address, not membership, not what is inside a book. A key it does
+  not name goes to the end, a key the vault has lost is dropped on save, and the toggle in the
+  top bar cannot reach it. `design/0018`.
 - **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` and
   `"cyber"` the opt-in ones — and it may repaint anything and move nothing: not a shelf's
   order, not a book's address, not a count, **and not a book's size** — a spine is the same
@@ -114,7 +121,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 55 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 61 checks over three vault shapes |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
 | `.ai-context/code-map.md` | **generated**: sections and functions of the two big files, with line numbers |
 | `.ai-context/code-index.md` | **generated**: issue → code sites, ADR/DDR → code sites, invariant → check, `__vs.*` → callers |

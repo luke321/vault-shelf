@@ -1,5 +1,59 @@
 # Changelog detail
 
+## 2026-09-11 — A shelf you can arrange by hand
+
+> "add the option for a shelf without automatic order where you can drag and drop stuff"
+
+The Order control gains `manual` for every classifier, and a manual shelf's books stand in the
+order a person dragged them into. `design/0018` records the design; `decisions/0002` is the
+constraint it had to respect and did.
+
+**Nothing moved but the sequence.** Switching People to `manual` left the whole library's
+address list identical: **451 demo / 194 sparse / 709 library** addresses, element for element,
+and the shelf's own sequence identical to the automatic one it replaced. `noteCount` unchanged
+on every shelf, and the full suite went **54/54 → 60/60 on all three shapes** (six new checks,
+none of the existing 54 moved).
+
+**The sequence is keys, and it survives.** `Alt+ArrowRight` on the first spine swapped the
+first two books and left the other **8 / 6 / 9** where they were. **10 / 8 / 11** keys were
+written to `Shelf.order`; a rebuild through `__vs.setFilters({})` read back the same sequence,
+and `core.migrate` over the settings blob returned the same `order` — the reload path. Focus
+followed the book to `people/Halvor Estrin`.
+
+**A drag does the same thing.** A real `dragstart` / `dragover` / `drop` with a `DataTransfer`,
+first spine onto the last, on the shelf with the most books: **136 books over 4 rows** (demo),
+**30 over 2** (sparse), **122 over 5** (library) — a different row in every case, so the
+cross-row drop is measured rather than assumed. The insertion mark measured **3px** wide on the
+correct side, and **0** marks were left in the document afterwards.
+
+**Two things the reading order and a filter must not do.** With a hand-made sequence on Years,
+two clicks of the top bar's order button left **17 / 6 / 12** year books exactly where they
+were while the automatic Months shelf of **136 / 30 / 122** books reversed and came back. With
+People arranged and the smallest folder applied as a filter, **10 → 1**, **8 → 1**, **11 → 11**
+books survived, every one of them still in the arranged order, and clearing put all of them
+back in it.
+
+**A book nobody placed goes last.** With **9 of 10**, **7 of 8**, **10 of 11** keys named in
+`order`, the unnamed book stood at the end of the shelf and every address was still there.
+
+**What a screenshot caught that no number could.** Two things, both on the mirror vault
+(543 notes, 126 People books, 4 rows):
+
+- The drop mark was a `::before` on the spine. It painted correctly in the default look and was
+  **invisible in leather and cyberpunk**, whose stylesheets already own `.vs-spine::before` and
+  `::after` at a specificity `page.css` cannot reach — and which this change was not allowed to
+  edit. It is a real `<span class="vs-drop">` now, and it draws in all three looks in each
+  look's own `--accent`: blue in Modern, gilt in Leather, cyan in Cyberpunk.
+- `renderTrack` grouped a row's books into a **map keyed by the plaque** rather than by
+  adjacency. Under every automatic sort that is the same answer, because same-plaque books are
+  always neighbours; under a manual one it silently re-orders the row. Dropping *Marta Ortiz*
+  between two A names now gives **`A | M | A`** — ten plates over ten groups in the first row —
+  instead of quietly filing her back with the Ms.
+
+Full suite **60/60 × 3 shapes**, exit 0. `npm run lint` 0 errors 0 warnings, typecheck clean,
+`check-scope` clean (358 css rules, 68 prefixed classes), `check-network` clean. No schema
+bump: an absent `order` is an automatic shelf.
+
 ## 2026-09-10 — Rework the leather binding
 
 The room changes from brown panelling to charcoal, the shelves from bright stained planks

@@ -119,6 +119,9 @@ const POINTER_DRIVEN = [
   "plaque sits",
   "tabs",
   "has a width",
+  /* design/0018 -- a drop is a pointer position against a box, and it has to scroll a shelf
+   * into view before it can read one. */
+  "drag and drop",
 ];
 const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
 
@@ -624,6 +627,247 @@ check("a filter changes membership without moving a shelf", async (p) => {
   return { ok, detail: `${r.before.filtered} -> ${after.counts.filtered} notes under "${folder}", ` +
                        `back to ${back.filtered}; shelf order unchanged: ` +
                        `${JSON.stringify(after.order) === JSON.stringify(r.order)}` };
+});
+
+/* design/0018 -- the six that hold the manual shelf up. Every one of them puts the shelf back
+ * the way it found it, because the checks in a shard share one page. */
+
+check("a shelf arranged by hand keeps every address and starts where it stood", async (p) => {
+  const r = await p.j(`(function(){
+    var shelf = __vs.settings().shelves.filter(function (s) { return s.id === "people"; })[0];
+    var was = shelf.direction;
+    var before = __vs.sequence("people");
+    var addresses = __vs.addresses();
+    shelf.direction = "manual";
+    __vs.setFilters({});
+    var after = __vs.sequence("people");
+    var same = __vs.addresses();
+    var spines = document.querySelectorAll('[data-shelf="people"] .vs-spine').length;
+    var draggable = document.querySelectorAll('[data-shelf="people"] .vs-spine[data-hand="1"]').length;
+    var elsewhere = document.querySelectorAll('[data-shelf="tags"] .vs-spine[data-hand="1"]').length;
+    var seeded = shelf.order === undefined;
+    shelf.direction = was;
+    delete shelf.order;
+    __vs.setFilters({});
+    return { books: before.length, sequence: before.join("|") === after.join("|"),
+             addresses: addresses.join("|") === same.join("|"), addressCount: addresses.length,
+             spines: spines, draggable: draggable, elsewhere: elsewhere, untouched: seeded };
+  })()`);
+  const ok = r.books > 2 && r.sequence && r.addresses && r.spines > 0 &&
+             r.draggable === r.spines && r.elsewhere === 0 && r.untouched;
+  return {
+    ok,
+    detail: `${r.books} books on People: the sequence is identical to the automatic one ` +
+            `(${r.sequence}) and all ${r.addressCount} addresses in the library are unchanged ` +
+            `(${r.addresses}); ${r.draggable}/${r.spines} spines became draggable and ` +
+            `${r.elsewhere} on the automatic Tags shelf did; nothing was written to order yet: ` +
+            `${r.untouched}`
+  };
+});
+
+check("Alt+Right moves a book one place, and it survives a rebuild and a reload", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var shelf = __vs.settings().shelves.filter(function (s) { return s.id === "people"; })[0];
+    var was = shelf.direction;
+    shelf.direction = "manual";
+    __vs.setFilters({});
+    var before = __vs.sequence("people");
+    var spine = document.querySelector('[data-shelf="people"] .vs-spine[data-hand="1"]');
+    spine.focus();
+    spine.dispatchEvent(new KeyboardEvent("keydown",
+      { key: "ArrowRight", altKey: true, bubbles: true }));
+    var after = __vs.sequence("people");
+    var focused = document.activeElement ? document.activeElement.getAttribute("data-book") : null;
+    var stored = (shelf.order || []).slice();
+    __vs.setFilters({});
+    var rebuilt = __vs.sequence("people");
+    var reread = core.migrate(JSON.parse(JSON.stringify(__vs.settings())))
+      .shelves.filter(function (s) { return s.id === "people"; })[0].order || [];
+    shelf.direction = was;
+    delete shelf.order;
+    __vs.setFilters({});
+    return { books: before.length, head: before.slice(0, 3), moved: after.slice(0, 3),
+             swapped: after[0] === before[1] && after[1] === before[0],
+             tailKept: after.slice(2).join("|") === before.slice(2).join("|"),
+             rebuilt: rebuilt.join("|") === after.join("|"),
+             reread: reread.join("|") === stored.join("|"),
+             stored: stored.length, focused: focused,
+             refocused: focused === "people/" + before[0] };
+  })()`);
+  const ok = r.books > 2 && r.swapped && r.tailKept && r.rebuilt && r.reread &&
+             r.stored === r.books && r.refocused;
+  return {
+    ok,
+    detail: `${r.books} books: ${r.head.join(", ")} -> ${r.moved.join(", ")}; the rest did not ` +
+            `move (${r.tailKept}); ${r.stored} keys were saved, the rebuild read back the same ` +
+            `sequence (${r.rebuilt}) and so did migrate() over the settings (${r.reread}); ` +
+            `focus followed the book to ${r.focused}`
+  };
+});
+
+check("a drag and drop moves a book the same way a key does, across rows", async (p) => {
+  const picked = await p.j(`(function(){
+    var best = null;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.hidden) return;
+      if (!best || v.books.length > best.books) best = { id: v.shelf.id, books: v.books.length };
+    });
+    var shelf = __vs.settings().shelves.filter(function (s) { return s.id === best.id; })[0];
+    best.was = shelf.direction;
+    shelf.direction = "manual";
+    __vs.setFilters({});
+    var section = document.querySelector('[data-shelf="' + best.id + '"]');
+    section.scrollIntoView(true);
+    best.rows = section.querySelectorAll(".vs-track").length;
+    return best;
+  })()`);
+  await sleep(300);
+  const r = await p.j(`(function(){
+    var id = ${JSON.stringify(picked.id)};
+    var shelf = __vs.settings().shelves.filter(function (s) { return s.id === id; })[0];
+    var before = __vs.sequence(id);
+    var spines = [].slice.call(
+      document.querySelectorAll('[data-shelf="' + id + '"] .vs-spine[data-hand="1"]'));
+    var from = spines[0];
+    var onto = spines[spines.length - 1];
+    var sameRow = from.closest(".vs-track") === onto.closest(".vs-track");
+    var dt = new DataTransfer();
+    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+    var carried = dt.getData("text/plain");
+    var box = onto.getBoundingClientRect();
+    var at = { bubbles: true, cancelable: true, dataTransfer: dt,
+               clientX: box.left + box.width - 2, clientY: box.top + 4 };
+    onto.dispatchEvent(new DragEvent("dragover", at));
+    var mark = onto.getAttribute("data-drop");
+    var bar = onto.querySelector(".vs-drop");
+    /* The mark is an ELEMENT because both opt-in looks already own the spine's ::before and
+     * ::after (design/0018), so what is measured here is a real box in the document. */
+    var painted = bar ? Math.round(bar.getBoundingClientRect().width) : 0;
+    var side = bar ? bar.getAttribute("data-side") : null;
+    var lifted = from.getAttribute("data-dragging");
+    onto.dispatchEvent(new DragEvent("drop", at));
+    var after = __vs.sequence(id);
+    var marksLeft = document.querySelectorAll('[data-shelf="' + id + '"] .vs-drop').length +
+                    document.querySelectorAll('[data-shelf="' + id + '"] [data-drop]').length;
+    shelf.direction = ${JSON.stringify(picked.was)};
+    delete shelf.order;
+    __vs.setFilters({});
+    return { books: before.length, spines: spines.length, sameRow: sameRow, mark: mark,
+             painted: painted, side: side, lifted: lifted, carried: carried,
+             marksLeft: marksLeft,
+             wanted: before.slice(1).concat([before[0]]).join("|") === after.join("|"),
+             head: after.slice(0, 2), last: after[after.length - 1] };
+  })()`);
+  const ok = r.wanted && r.mark === "after" && r.side === "after" && r.painted === 3 &&
+             r.lifted === "1" && r.marksLeft === 0 && r.carried === picked.id + "/" + r.last;
+  return {
+    ok,
+    detail: `${picked.id}: ${r.books} books over ${picked.rows} row(s); dragging the first onto ` +
+            `the last (a different row: ${!r.sameRow}) drew a "${r.mark}" mark ${r.painted}px ` +
+            `wide and left it at the end (${r.wanted}); the shelf now opens ${r.head.join(", ")}; ` +
+            `the payload was the address ${r.carried}; ${r.marksLeft} marks left behind`
+  };
+});
+
+check("the reading order in the top bar leaves an arranged shelf alone", async (p) => {
+  const r = await p.j(`(function(){
+    var shelves = __vs.settings().shelves;
+    var years = shelves.filter(function (s) { return s.id === "years"; })[0];
+    var was = years.direction;
+    years.direction = "manual";
+    years.order = __vs.sequence("years").slice().reverse();
+    __vs.setFilters({});
+    var before = __vs.sequence("years");
+    var autoBefore = __vs.sequence("months");
+    var button = document.getElementById("vs-order");
+    var said = button.textContent;
+    button.click();
+    var then = button.textContent;
+    var after = __vs.sequence("years");
+    var autoAfter = __vs.sequence("months");
+    button.click();
+    var back = __vs.sequence("years");
+    years.direction = was;
+    delete years.order;
+    __vs.setFilters({});
+    return { books: before.length, months: autoBefore.length, said: said, then: then,
+             held: before.join("|") === after.join("|") && before.join("|") === back.join("|"),
+             autoTurned: autoBefore.join("|") !== autoAfter.join("|"),
+             head: before.slice(0, 2) };
+  })()`);
+  const control = r.months < 2 || r.autoTurned;
+  return {
+    ok: r.books > 1 && r.held && control,
+    detail: `${r.books} year books arranged by hand, opening ${r.head.join(", ")}: "${r.said}" ` +
+            `-> "${r.then}" and back left the sequence untouched (${r.held}), while the ` +
+            `automatic Months shelf of ${r.months} books did turn round (${r.autoTurned})`
+  };
+});
+
+check("a book nobody has arranged stands at the end of the shelf", async (p) => {
+  const r = await p.j(`(function(){
+    var shelf = __vs.settings().shelves.filter(function (s) { return s.id === "people"; })[0];
+    var was = shelf.direction;
+    var auto = __vs.sequence("people");
+    shelf.direction = "manual";
+    /* The first book's key is left out, which is what a note that arrived after the shelf was
+     * arranged looks like from here. */
+    shelf.order = auto.slice(1);
+    __vs.setFilters({});
+    var after = __vs.sequence("people");
+    var addresses = __vs.addresses().filter(function (a) { return a.indexOf("people/") === 0; });
+    shelf.direction = was;
+    delete shelf.order;
+    __vs.setFilters({});
+    return { books: auto.length, newcomer: auto[0], last: after[after.length - 1],
+             kept: after.length === auto.length,
+             rest: after.slice(0, -1).join("|") === auto.slice(1).join("|"),
+             addresses: addresses.length };
+  })()`);
+  return {
+    ok: r.books > 2 && r.kept && r.rest && r.last === r.newcomer,
+    detail: `${r.books} books, ${r.books - 1} of them named in the sequence: the unnamed ` +
+            `"${r.newcomer}" stands last (${r.last === r.newcomer}), the named ones keep their ` +
+            `order (${r.rest}), and all ${r.addresses} addresses are still there (${r.kept})`
+  };
+});
+
+check("a filter narrows an arranged shelf without shuffling it", async (p) => {
+  /* THE SMALLEST FOLDER, not the first one: the first is usually the one holding most of the
+   * vault, and a filter that removes nothing proves nothing about what survives it. */
+  const folder = await p.eval(`__vs.data().folders.slice().sort(function (a, b) {
+    return a.count - b.count;
+  })[0].path`);
+  const r = await p.j(`(function(){
+    var shelf = __vs.settings().shelves.filter(function (s) { return s.id === "people"; })[0];
+    var was = shelf.direction;
+    shelf.direction = "manual";
+    shelf.order = __vs.sequence("people").slice().reverse();
+    __vs.setFilters({});
+    var full = __vs.sequence("people");
+    __vs.setFilters({ folders: [${JSON.stringify(folder)}] });
+    var narrow = __vs.sequence("people");
+    var at = -1, ordered = true;
+    narrow.forEach(function (k) {
+      var i = full.indexOf(k);
+      if (i <= at) ordered = false;
+      at = i;
+    });
+    __vs.setFilters({ folders: [] });
+    var back = __vs.sequence("people");
+    shelf.direction = was;
+    delete shelf.order;
+    __vs.setFilters({});
+    return { full: full.length, narrow: narrow.length, ordered: ordered,
+             back: back.join("|") === full.join("|"), head: full.slice(0, 2) };
+  })()`);
+  return {
+    ok: r.full > 1 && r.narrow > 0 && r.narrow <= r.full && r.ordered && r.back,
+    detail: `an arranged People shelf opening ${r.head.join(", ")}: ${r.full} books narrow to ` +
+            `${r.narrow} under "${folder}" and every one of them is still in the arranged order ` +
+            `(${r.ordered}); clearing the filter puts all ${r.full} back in it (${r.back})`
+  };
 });
 
 check("a hidden shelf keeps its definition and its books", async (p) => {

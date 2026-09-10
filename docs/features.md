@@ -12,7 +12,7 @@ can do to a real 394-note vault in the page itself.
 
 | | |
 |---|---|
-| **The library** | [Six shelves, and every one is the whole vault](#six-shelves-and-every-one-of-them-is-the-whole-vault) · [Build your own, from two questions](#build-your-own-from-two-questions) · [The room has no sidebar](#the-room-has-no-sidebar) · [Hiding never deletes](#hiding-never-deletes) |
+| **The library** | [Six shelves, and every one is the whole vault](#six-shelves-and-every-one-of-them-is-the-whole-vault) · [Build your own, from two questions](#build-your-own-from-two-questions) · [Arranged by hand](#arranged-by-hand) · [The room has no sidebar](#the-room-has-no-sidebar) · [Hiding never deletes](#hiding-never-deletes) |
 | **The bookcase** | [A shelf is a bookcase, not a conveyor belt](#a-shelf-is-a-bookcase-not-a-conveyor-belt) · [Thickness is the note count](#thickness-is-the-note-count) · [Year and decade plaques](#year-and-decade-plaques) · [A spine tells you where its notes came from](#a-spine-tells-you-where-its-notes-came-from) |
 | **Reading a book** | [The two-page spread](#the-two-page-spread) · [Index tabs, cut the way the book is ordered](#index-tabs-cut-the-way-the-book-is-ordered) · [Also shelved in](#also-shelved-in) · [Which end you open](#which-end-you-open) · [Obsidian's own renderer](#obsidians-own-renderer) |
 | **The magic** | [Ribbons that hang out of the book](#ribbons-that-hang-out-of-the-book) · [Shelf wear](#shelf-wear) · [The shelf parts as you type](#the-shelf-parts-as-you-type) |
@@ -64,6 +64,23 @@ Three recipes — a monthly journal, a book for each person, an anthology of ide
 whole form so you can then edit it. They are a starting point, not a menu.
 
 `design/0002`
+
+### Arranged by hand
+
+Every shelf is sorted by a rule — A to Z, or the reading order in the top bar — until you tell
+it not to be. Set a shelf's Order to **Arranged by hand** and its books stand where you put
+them: **drag a spine** along the shelf, across rows, and drop it in front of another; or, with a
+spine focused, `Alt+←` / `Alt+→` moves it one place.
+
+It changes one thing, the sequence. Not a book's address, so no ribbon, no reading place, no
+hand-given colour and no wear moves with it; not what is in a book; not the order of the notes
+inside. A book nobody has placed stands at the **end**, in the order the shelf would otherwise
+have had — a note that arrives overnight never lands in the middle of an arrangement. A drop is
+recorded as "before which book", never as a position, which is the only form that survives a
+filter: narrow the library to one folder, drag, and the placement of every book the filter is
+hiding is kept.
+
+`design/0018`
 
 ### The room has no sidebar
 

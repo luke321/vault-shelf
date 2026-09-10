@@ -218,7 +218,7 @@ export function migrate(raw: unknown): Persisted {
     schema: SETTINGS_SCHEMA,
     shelves: shelves.length
       ? shelves.map((s, i) => ({
-          ...variesOn(alphabetOn(weeksAway(decadesOn(s, from), from), from), data),
+          ...arrangedBy(variesOn(alphabetOn(weeksAway(decadesOn(s, from), from), from), data)),
           position: i,
         }))
       : base.shelves,
@@ -284,6 +284,29 @@ function variesOn(shelf: Shelf, data: Partial<Persisted> & { varyBookColors?: un
     return { ...shelf, varyColors: true };
   }
   return shelf;
+}
+
+/**
+ * design/0018 -- NO SCHEMA BUMP: a shelf with no `order` is simply automatic, which is what
+ * every shelf written before this was and what every shelf written after it still starts as.
+ * What is needed instead is that a hand-edited file cannot hand the builder a sequence that is
+ * not a list of keys, and that a shelf saying "manual" with nothing arranged yet is exactly an
+ * A-to-Z shelf rather than an empty one.
+ */
+function arrangedBy(shelf: Shelf): Shelf {
+  const listed = Array.isArray(shelf.order)
+    ? shelf.order.filter((k): k is string => typeof k === "string" && k !== "")
+    : [];
+  const seen = new Set<string>();
+  const order = listed.filter((k) => (seen.has(k) ? false : (seen.add(k), true)));
+  const direction = shelf.direction === "manual" || shelf.direction === "chronological"
+    ? shelf.direction : "alphabetical";
+  if (!order.length) {
+    const rest: Shelf = { ...shelf, direction };
+    delete rest.order;
+    return rest;
+  }
+  return { ...shelf, direction, order };
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
