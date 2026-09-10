@@ -1,160 +1,89 @@
-# 0014 — The leather look
+# 0016 — The leather look
 
-An opt-in second look: 19th-century leather bindings, gilt stamping, raised bands, a stained
-plank, brass plaques and an open book lying on marbled endpapers. It is off by default, it is
-a **setting**, and with it off nothing on the page is one pixel different.
+The opt-in leather binding gives the library its own materials and palette. The default
+look still follows Obsidian. One setting selects `data-look="leather"`; every selector in
+`src/leather.css` requires that attribute. The membership engine and book addresses are
+unaffected. See `design/0005` for the default palette and `design/0011` for thickness.
 
-> "I am really starting to like this — work on an old school look, that looks like real
-> leather encyclopedias."
+## Reworked on 2026-09-10
 
-## What was rejected before, and why this is not that
+The first version put polished wood, gold plates, four raised bands and marbled endpapers
+across the whole interface. The bands crossed the lettering, the upper-case month names
+were cramped, and navigation controls competed with the books. The new treatment gives
+each material a smaller, specific job:
 
-`design/0012` rejected a paper texture, in as many words:
+- **Charcoal room:** a soft pool of light above the shelves, with no repeated panel seams.
+  Navigation uses plain controls and the shelf names use 22px sentence-case serif type.
+  Leather typography uses locally installed Georgia, with Palatino and serif fallbacks,
+  for both navigation and book text. Spine titles are 13px and counts 11px; the larger
+  letterforms remain readable at library scale. Month bindings use
+  three-letter names with their year, such as `Sep 2026`, to fit the title panel.
+- **Dyed leather:** twelve muted bindings, including oxblood, tobacco, forest and slate.
+  Rounded edge lighting and a low-opacity local grain give each spine depth.
+  Bindings default to matching oxblood. Manage's **Vary book colors** assigns other books
+  fixed palette slots by their stable addresses; encyclopedia volumes always stay oxblood.
+  New notes never change an existing book's color. See `design/0005`.
+- **Tooling:** two raised bands sit above and below the title, with a fine recessed frame
+  around it. Mixed-case serif lettering uses pale gilt. The note count stays at the foot.
+  Titles that exceed the panel retain ellipsis and their existing full hover/accessible name.
+- **Walnut boards:** 10px deep, with a lit top edge and a modest cast shadow. The brass year
+  labels are darkened metal with light engraving rather than broad bright gold strips.
+- **Reading spread:** warm ivory paper, dark ink, 16px prose with 1.75 line height, a shallow
+  fold, and an oxblood cover. The surrounding table is quiet; the marbling is removed.
+- **Paper dialogs:** controls inherit light paper tokens while preview spines keep their dye.
+  Preview books wrap within the sheet; a long preview must not paint outside the dialog.
 
-> **A paper texture.** It fights every Obsidian theme, and this page follows the theme
-> (`design/0005`). A texture that looks right in the default dark theme is dirt in Solarized.
+No image or font is fetched. Both textures are authored inline SVG data URIs. The hide uses
+fractal noise at 0.72 frequency, three octaves and 0.14 opacity, blended with soft-light;
+wood uses stretched noise at 0.006 / 0.9 frequency and 0.18 opacity. Gradients provide the
+remaining lighting, paper and metal.
 
-That reasoning was right and it still stands **for the default look**, which is exactly the
-clause that lets this exist. The objection is not "textures are ugly"; it is *a texture cannot
-follow a theme*. A look that never claims to follow the theme cannot fail to.
+## The contract
 
-So the two looks answer different questions:
+`look` remains `"" | "leather"`, defaulting to `""`. The standalone switch and Obsidian
+setting both write settings; `applyLook()` sets the attribute and re-reads the twelve CSS
+slots before rebuilding. The setting is paint: counts, membership, order and book addresses
+stay the same. The leather token selector repeats the attribute to outrank the host-theme
+selector, regardless of CSS concatenation order.
 
-| | |
-|---|---|
-| `data-look=""` — **the default** | the library belongs to your Obsidian. It reads the host's theme, repaints on `css-change`, and uses Vault Graph's twelve slots so the two plugins describe one vault. `design/0005` |
-| `data-look="leather"` — **this one** | the library is an object in your Obsidian. It has its own colours, its own light and its own furniture, and it ignores the theme on purpose |
+Following the request for 20% more room, the leather root uses **120% layout zoom**: books,
+fonts, controls, spacing and the reader scale together. Spines retain their logical
+**22–58px × 132px** geometry and render at **26.4–69.6px × 158.4px**. Hover and keyboard
+focus lift them **6px** on screen. Row packing measures unscaled `clientWidth`, so it still
+wraps correctly; additional rows can repeat year plaques without changing book counts or
+addresses. Root width and height fill the host. Wear changes the highlight at the head and tail. Search still
+parts the books, and ribbons still mark saved notes. Reduced motion removes all spine
+transforms. List mode removes the binding decoration and uses ordinary horizontal text.
 
-The same argument settles what would otherwise be a contradiction: `design/0005` says *the
-theme is whatever the host says it is*. Under leather it is not, and that is the whole content
-of the setting. A person who wants the room to follow their theme leaves the switch alone.
+The spread retains its **1180px** maximum width, but reserves **24px** on either side for
+its **11px** cover ring. Below 860px it reserves **16px** and stacks the pages. Navigation
+wraps, shelf actions stay visible, and the index tabs become rows below the note.
 
-## Additive, in every place it touches
+## Visual and measured verification
 
-The look is a **second stylesheet** — `src/leather.css` — and one attribute. Nothing in
-`page.css` was changed, moved or deleted, and every rule in the new file is scoped under
-`.vault-shelf[data-look="leather"]`, so with the setting off not one selector matches.
+The review artifacts live locally in `dist/leather-review/` (ignored), including before and
+after Obsidian library/reader screenshots, standalone views at 390/768/1440px, search, list,
+and builder screenshots, plus `measurements.json` from a temporary CDP inspection script.
+Only generated fixtures were used.
 
-| | |
-|---|---|
-| `src/leather.css` | every rule. `scripts/check-scope.mjs` now reads **both** stylesheets — an unscoped rule in the second one would style the whole of Obsidian exactly as one in the first |
-| `src/core/defaults.ts` | `look: "" \| "leather"` on `Persisted`, defaulting to `""`, and a `migrate` that turns anything else back into `""` |
-| `src/page.js` | one function, `applyLook()`, called first in `refresh()` |
-| `plugin/main.js` | one toggle in the settings tab, on both the declarative and the `display()` path, and `ShelfView.adopt()` so a mounted library repaints when the tab writes |
-| `src/shell.html` | the standalone's own switch, **outside** `#vs-app` |
-| `scripts/build-plugin.mjs`, `src/build-shelf.mjs` | the second stylesheet, appended after the first in both builds |
+The pictures caught two problems during the redesign:
 
-**The switch writes the setting; it never writes the attribute.** `applyLook()` owns
-`data-look` because changing a look also changes what `--g1`..`--g12` resolve to, and the
-twelve slots have to be re-read from the cascade before a single spine is dyed:
+1. A UTF-8 BOM in a concatenated stylesheet invalidated its first selector, so the leather
+   palette and texture variables never loaded. The file is now UTF-8 without a BOM, with LF
+   line endings; the scope check also caught the mixed-line-ending control character.
+2. The builder preview used the full library's row width and painted books outside its paper
+   sheet. Its local flex row now wraps, and the preview has no shelf-board background.
 
-```js
-function applyLook() {
-  var want = settings.look === "leather" ? "leather" : "";
-  if (root.getAttribute("data-look") === want) return;
-  root.setAttribute("data-look", want);
-  readTheme();
-}
-```
+The targeted smoke checks cover look switching, room width, hidden sheets, named controls
+and spine geometry on the demo, sparse and 10k fixtures. The look-switch check verified
+**419 / 194 / 709** addresses respectively, unchanged and with the default palette restored.
+These checks mostly run in the default look; separate CDP measurements exercise leather:
+**419 books** at 390, 768 and 1440px; **zero** row, toolbar or reader-page overflow; a hovered
+spine stays **57 × 132px** and lifts **5px**; reduced motion resolves to `none`.
+Search retains **419** books (**177** matches and **242** ghosts), and list mode retains all
+**419**. Obsidian's markdown renderer was checked separately with zero horizontal overflow.
 
-Without that `readTheme()` the first paint after a switch dyes every board with the *previous*
-look's twelve values, because `readTheme()` runs once at mount, before the attribute exists.
-
-## The twelve slots are remapped, not overridden in code
-
-`design/0005` is the reason this look cost no JavaScript at all beyond those five lines:
-`page.js` never keeps a copy of the palette, it asks the cascade. So a look that wants
-different dyes declares different `--g1`..`--g12` and every spine, hover peek and preview
-follows. `__vs.slots()` reports the leather dyes under leather, which is what the new check
-reads.
-
-The dyes are the ones a binder had, in slot order: oxblood, tan, dark green, ochre, forest,
-plum, navy, vermilion, teal, aubergine, chestnut and near-black calf. Vault Graph's saturated
-palette on a bound spine reads as a chart of bindings — the exact failure `design/0005`
-records for the stacked bar — so under leather the folder is still the colour, but the colour
-is a dye rather than a hue from a legend.
-
-## Paint only
-
-**No rule here changes what a shelf contains, where a book sits, or what it is addressed by**,
-and geometry is left alone wherever it can be. A spine is the same 22–58px × 132px box, so
-thickness still means the note count (`design/0011`). Three metrics move, all of them local
-and none of them measured by an invariant:
-
-| | |
-|---|---|
-| `--board: 3px → 14px` on the track | the floor becomes a plank. It is still the same **background line** at `var(--spine-h)` that `design/0003` requires, so the plaque still hangs beneath it — the plaque's own offset is `calc(var(--board) + 9px)` and follows |
-| `.vs-spread` margin `10px/14px → 26px/30px` | the cover is a `box-shadow` ring, which costs the grid nothing; the margin is only somewhere for it to sit |
-| the hover lift `5px → 6px and 1.6°` | `design/0005` set the animation budget at 5px of lift. A book tips out of a shelf before it comes off it; the tilt is a `transform` about the bottom edge, so a tipped spine still cannot reflow its neighbours, and `prefers-reduced-motion` removes it |
-
-## Nothing is fetched
-
-`scripts/check-network.mjs` reads `src/leather.css`. Every texture is either a CSS gradient or
-an inline SVG data URI written out in the file:
-
-- **the leather grain** — `feTurbulence type="fractalNoise" baseFrequency="0.85"`, desaturated,
-  laid over the dye with `background-blend-mode: overlay`;
-- **the wood grain** — the same noise stretched along the plank (`baseFrequency="0.006 0.9"`);
-- **the marbled endpaper** — twenty-one combed stripes pushed through a displacement map,
-  which is what marbling physically is: pigment floated on size and drawn through with a comb.
-
-No font is loaded either. The gilt stamping is `var(--prose)`, the serif stack the reader
-already sets its text in.
-
-## What the screenshots changed
-
-Every one of these was invisible to the suite and visible in a picture. `CLAUDE.md`'s rule —
-*numbers cannot see* — earned its keep four more times:
-
-| Shot | What it showed |
-|---|---|
-| 1, the standalone | The grain was at 0.55 opacity and washed all twelve dyes to the same speckled tan: the shelf was brown rectangles, which is the failure mode this whole task exists to avoid. **0.22, and blended `overlay`.** |
-| 1, the reader | The index rows were little plaques — the leather `button` rule had reached `.vs-contents button`, which are buttons. A printed index is ink on the page and nothing else. |
-| 2, the standalone | The plank was a dark rule: the books' cast shadow was 7px of near-black over a 14px board and had eaten the wood. **4px of shadow, a lit top edge, and a lighter stain.** |
-| 3, inside Obsidian | The index rows were **centred, with a box** — and so are they in the default look, because Obsidian's `app.css` gives every `button` `justify-content: center` and a box-shadow. Fixed under leather; **the default look still has it**, and the fix belongs in `page.css`. |
-
-## Inside Obsidian, and only inside Obsidian
-
-The last row above is the general lesson and it is `design/0005`'s again from the other side:
-**the standalone is not a preview of the plugin.** The suite drives the standalone, where no
-host stylesheet exists; the app's own `button` rules only appear in the app. Anything shaped
-like a native control — a button, an input, a scrollbar — has to be looked at in
-`obsidian-smoke.mjs --shot`, which is why that script now takes `--look leather` and writes
-the plugin's `data.json` before Obsidian starts.
-
-## The check
-
-`"a look is opt-in, repaints everything and moves nothing"` drives the standalone's own switch
-— not the attribute — and asserts, on all three vault shapes:
-
-- `data-look` goes `"" → "leather" → ""`;
-- the first spine's colour and the twelve slots and the ground **all** change;
-- **every book address and every count is byte-identical** before and after;
-- switching back restores the exact colours it started with.
-
-Measured on the demo vault: 182 addresses, identical in both. That is the law this look is
-allowed to exist under, stated as a number.
-
-## What was not built
-
-- **A third look.** The attribute is a name, not a boolean, so a third one is a stylesheet and
-  a value; nothing here assumes two. But a look is a large surface to keep true, and one that
-  nobody asked for is a maintenance cost with no reader.
-- **Varying book heights.** Real shelves are ragged along the top and it would be the single
-  biggest gain left. It is not built because a height would have to *mean* something —
-  everything else on a spine does (`design/0011`) — and a random one is decoration pretending
-  to be data.
-- **A page-turn.** Still rejected, for the reason `design/0012` gives: it is a delay between a
-  person and their note. The leather look spends its motion budget on a book tipping out of the
-  shelf, which is a way of pointing at the thing you are about to open.
-
-## Filming it
-
-`node scripts/record-demo.mjs --look leather` shoots the storyboard in the binding. The film
-takes the look the way a person does -- by pressing the standalone's own switch -- and then
-hides the switch, because it belongs to the standalone rather than to the plugin and a control
-that is not in the product should not be in the film. The recorder throws rather than shooting
-98 seconds of the wrong look if the attribute does not come back as asked.
+## Filming
 
 ## Picking one
 
@@ -179,3 +108,6 @@ no behaviour at all.
 
 The third look is `design/0017`.
 
+`node scripts/record-demo.mjs --look leather` selects the same setting as the user-facing
+switch. Screen recordings still require the shared `record` lock. No recording or full-suite
+run is part of this design review.

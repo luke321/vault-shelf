@@ -883,6 +883,8 @@
 
 .vault-shelf .vs-sheetactions { margin-top: 18px; }
 
+.vault-shelf .vs-coloroption { display: flex; align-items: center; gap: 6px; }
+
 .vault-shelf .vs-managerow {
   display: flex;
   align-items: center;

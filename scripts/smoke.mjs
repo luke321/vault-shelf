@@ -680,8 +680,7 @@ check("the twelve colour slots are Vault Graph's own", async (p) => {
     var light = __vs.slots();
     __vs.setTheme("dark");
     var dark = __vs.slots();
-    /* Read the slot off a SPINE, not off a swatch: what has to be true is that a folder's
-     * colour reaches the thing a person looks at. */
+    /* design/0005 -- read a binding, including the matching encyclopedia set. */
     var spine = document.querySelector("#vs-shelves .vs-spine");
     var tint = spine ? getComputedStyle(spine).getPropertyValue("--spine-tint").trim() : "";
     return { light: light, dark: dark, painted: tint,
@@ -718,6 +717,87 @@ check("the theme follows the host, and the slots are re-read when it changes", a
                    `(${r.slotsChanged}); the library is identical in both (${r.same})` };
 });
 
+/* design/0005 -- colours belong to stable book addresses, never changing note counts. */
+check("book colors are optional, encyclopedia volumes match and new notes never recolor books", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var original = core.clone(__vs.settings());
+    var originalCounts = JSON.stringify(__vs.counts());
+    var addresses = __vs.addresses().join("|");
+    function colors() {
+      var out = {};
+      document.querySelectorAll("#vs-shelves .vs-spine").forEach(function (e) {
+        out[e.getAttribute("data-book")] = getComputedStyle(e).getPropertyValue("--spine-tint").trim();
+      });
+      return out;
+    }
+    var defaults = !core.migrate({ schema: 1 }).varyBookColors &&
+                   !core.migrate({ varyBookColors: "true" }).varyBookColors;
+    document.getElementById("vs-manageopen").click();
+    var toggle = document.getElementById("vs-mvarycolors");
+    var off = !toggle.checked && new Set(Object.values(colors())).size === 1;
+    toggle.click();
+    var saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
+    var persists = saved.varyBookColors === true && core.migrate(saved).varyBookColors;
+    var paintOnly = addresses === __vs.addresses().join("|") &&
+                    originalCounts === JSON.stringify(__vs.counts());
+    var target = __vs.views().find(function (v) { return v.shelf.classifier === "month"; }).books[0];
+    var next = core.clone(VAULT_DATA);
+    for (var i = 0; i <= target.notes.length; i++) {
+      var note = core.clone(target.notes[0]);
+      note.id = note.path = "color-arrivals/" + i + ".md";
+      note.folder = "color-arrivals";
+      next.notes.push(note);
+    }
+    next.folders.reverse();
+    next.folders.forEach(function (f, i) { f.slot = i + 1; });
+    next.folders.unshift({ path: "color-arrivals", count: target.notes.length + 1, slot: 0 });
+    var modes = [];
+    ["light", "dark", "leather"].forEach(function (mode) {
+      var settings = core.clone(__vs.settings());
+      settings.look = mode === "leather" ? "leather" : "";
+      vsHandle.setSettings(settings);
+      __vs.setTheme(mode === "light" ? "light" : "dark");
+      var before = colors();
+      var encyclopedia = Object.keys(before).filter(function (id) { return id.indexOf("encyclopedia/") === 0; });
+      var matching = new Set(encyclopedia.map(function (id) { return before[id]; })).size === 1;
+      var varied = new Set(Object.values(before)).size > 1;
+      vsHandle.refresh(next);
+      var after = colors();
+      var same = Object.keys(before).every(function (id) { return after[id] === before[id]; });
+      var changedMix = __vs.views().find(function (v) { return v.shelf.classifier === "month"; })
+        .books.find(function (b) { return b.id === target.id; }).bands[0].folder === "color-arrivals";
+      modes.push({ mode: mode, matching: matching, varied: varied, same: same, changedMix: changedMix,
+                   books: Object.keys(before).length });
+      vsHandle.refresh(VAULT_DATA);
+    });
+    vsHandle.setSettings(original);
+    document.getElementById("vs-manageopen").click();
+    document.getElementById("vs-mvarycolors").click();
+    return { defaults: defaults, off: off, persists: persists, paintOnly: paintOnly, modes: modes };
+  })()`);
+  await p.send("Page.reload");
+  for (let i = 0; i < 60; i++) {
+    if (await p.eval('document.readyState === "complete" && !!window.__vs').catch(() => false)) break;
+    await sleep(100);
+  }
+  const reload = await p.j(`(function(){
+    document.getElementById("vs-manageopen").click();
+    var toggle = document.getElementById("vs-mvarycolors");
+    var kept = toggle.checked && __vs.settings().varyBookColors;
+    toggle.click();
+    var colors = Array.from(document.querySelectorAll("#vs-shelves .vs-spine"), function(e) {
+      return getComputedStyle(e).getPropertyValue("--spine-tint").trim();
+    });
+    document.getElementById("vs-mclose").click();
+    return kept && !__vs.settings().varyBookColors && new Set(colors).size === 1;
+  })()`);
+  return { ok: r.defaults && r.off && r.persists && r.paintOnly && reload &&
+               r.modes.every((m) => m.matching && m.varied && m.same && m.changedMix),
+           detail: `default off ${r.off}; paint only ${r.paintOnly}; reload/toggle ${reload}; ` +
+                   r.modes.map((m) => `${m.mode}: ${m.books} stable ${m.same}, encyclopedia matches ${m.matching}, new dominant folder ${m.changedMix}`).join("; ") };
+});
+
 const bookCount = (joined) => (joined ? joined.split("|").length : 0);
 
 /* design/0016 -- A LOOK IS PAINT. The leather binding is a second stylesheet and a setting; it
@@ -728,12 +808,15 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
     var root = document.getElementById("vs-app");
     var spine = function () { return document.querySelector("#vs-shelves .vs-spine"); };
     var read = function () {
+      var counts = __vs.counts();
+      delete counts.plaques;
       return { look: root.getAttribute("data-look"),
+               height: spine().getBoundingClientRect().height,
                ground: getComputedStyle(root).backgroundColor,
                dye: getComputedStyle(spine()).backgroundColor,
                slots: __vs.slots().join(","),
                addresses: __vs.addresses().join("|"),
-               counts: JSON.stringify(__vs.counts()) };
+               counts: JSON.stringify(counts) };
     };
     var off = read();
     var sw = document.getElementById("vs-lookswitch");
@@ -748,12 +831,13 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
                     r.off.ground !== r.on.ground;
   const restored = r.back.look === "" && r.back.dye === r.off.dye &&
                    r.back.slots === r.off.slots;
-  return { ok: r.off.look === "" && r.on.look === "leather" && !moved && repainted && restored,
+  const scaled = Math.abs(r.on.height - r.off.height * 1.2) < 0.1;
+  return { ok: r.off.look === "" && r.on.look === "leather" && !moved && repainted && restored && scaled,
            detail: `data-look "${r.off.look}" -> "${r.on.look}" -> "${r.back.look}"; ` +
                    `the first spine is ${r.off.dye} then ${r.on.dye}; ` +
                    `${bookCount(r.off.addresses)} book addresses, identical in both ` +
                    `(${!moved}); the twelve slots changed (${r.off.slots !== r.on.slots}) ` +
-                   `and came back (${restored})` };
+                   `and came back (${restored}); 120% scale ${scaled}` };
 });
 
 /* design/0008 -- MAGIC 1. A book you open often looks handled. */
