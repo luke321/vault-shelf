@@ -431,7 +431,7 @@ check("a settings file from an older schema comes up with the newer defaults", a
   /* People carries plaques from schema 6 too -- the alphabet is a unit above the book like a
    * decade is (design/0003) -- so the shelf that proves a migration does not touch everything
    * is Months, which asked for plaques before any of this and still has them. */
-  const ok = r.schema === 7 && r.years === true && r.months === true && r.people === true &&
+  const ok = r.schema === 8 && r.years === true && r.months === true && r.people === true &&
              r.wear === 3 && r.fields === "date" && r.keptOff === false &&
              r.stamp === true && r.keptStampOff === false && r.order === "oldest" &&
              r.weeksHidden === true && r.keptShown === true && r.lettered === true;
@@ -928,6 +928,158 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
 });
 
 /* design/0008 -- MAGIC 1. A book you open often looks handled. */
+check("a book's colour is the person's, then the shelf's, then the folder's", async (p) => {
+  const r = await p.j(`(function(){
+    var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0];
+    var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
+    var tint = function (id) {
+      var el = document.querySelector('[data-book="' + id + '"]');
+      return el ? el.style.getPropertyValue("--spine-tint").trim() : "";
+    };
+    var slots = __vs.slots();
+
+    /* 3. by default a book wears its dominant folder's dye, which is one of the twelve. */
+    var book = years.books[0];
+    var byFolder = tint(book.id);
+    var folderSlot = slots.indexOf(byFolder);
+
+    /* 1. a right-click gives it one of the twelve, which it keeps across a rebuild. */
+    var spine = document.querySelector('[data-book="' + book.id + '"]');
+    spine.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true,
+                                                        clientX: 300, clientY: 300 }));
+    var menu = document.getElementById("vs-dye");
+    var opened = !menu.hidden;
+    var swatches = menu.querySelectorAll(".vs-swatch").length;
+    var pick = (folderSlot + 5) % 12;
+    menu.querySelectorAll(".vs-swatch")[pick].click();
+    var byHand = tint(book.id);
+    __vs.setFilters({});
+    var afterRebuild = tint(book.id);
+    var closed = menu.hidden;
+
+    /* 2. a shelf that varies gives every book its own, and a book with a given colour keeps
+     * it anyway. */
+    var before = people.books.slice(0, 6).map(function (b) { return tint(b.id); });
+    var distinctBefore = new Set(before).size;
+    var chosen = tint(book.id);
+    return { byFolder: byFolder, folderSlot: folderSlot, opened: opened, swatches: swatches,
+             pick: pick, byHand: byHand, want: slots[pick], afterRebuild: afterRebuild,
+             closed: closed, distinctBefore: distinctBefore, chosen: chosen,
+             peopleShown: before.length };
+  })()`);
+  const ok = r.folderSlot >= 0 && r.opened && r.swatches === 12 && r.byHand === r.want &&
+             r.afterRebuild === r.want && r.closed;
+  return {
+    ok,
+    detail: `the first year book wears its folder's slot ${r.folderSlot + 1} (${r.byFolder}); ` +
+            `a right-click opens ${r.swatches} swatches (${r.opened}), picking slot ` +
+            `${r.pick + 1} dyes it ${r.byHand} and a rebuild keeps it (${r.afterRebuild === r.want}); ` +
+            `the menu closed itself (${r.closed})`
+  };
+});
+
+check("a shelf can vary its books, and a chosen palette beats the look's", async (p) => {
+  const r = await p.j(`(function(){
+    var tint = function (id) {
+      var el = document.querySelector('[data-book="' + id + '"]');
+      return el ? el.style.getPropertyValue("--spine-tint").trim() : "";
+    };
+    var people = function () {
+      return __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
+    };
+    var ids = people().books.slice(0, 8).map(function (b) { return b.id; });
+    var byFolder = new Set(ids.map(tint)).size;
+
+    /* Vary this shelf, through the button in Manage. */
+    document.getElementById("vs-manageopen").click();
+    var rows = [].slice.call(document.querySelectorAll("#vs-managelist .vs-managerow"));
+    var row = rows.filter(function (r) { return r.textContent.indexOf("People") === 0; })[0];
+    var vary = [].slice.call(row.querySelectorAll("button"))
+      .filter(function (b) { return b.textContent === "Vary colours"; })[0];
+    vary.click();
+    var varied = new Set(ids.map(tint)).size;
+    var pressed = [].slice.call(document.querySelectorAll("#vs-managelist .vs-managerow button"))
+      .filter(function (b) { return b.textContent === "Vary colours"; })
+      .filter(function (b) { return b.getAttribute("aria-pressed") === "true"; }).length;
+    vary = [].slice.call(document.querySelectorAll("#vs-managelist .vs-managerow"))
+      .filter(function (r) { return r.textContent.indexOf("People") === 0; })[0]
+      .querySelector('button[aria-pressed]');
+    vary.click();
+    var back = new Set(ids.map(tint)).size;
+
+    /* A chosen palette: change one input and all twelve become the person's. */
+    var slotsBefore = __vs.slots().join(",");
+    var input = document.querySelectorAll("#vs-mpalette input")[0];
+    input.value = "#123456";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    var slotsAfter = __vs.slots();
+    var first = tint(__vs.views().filter(function (v) { return v.shelf.id === "years"; })[0]
+      .books.filter(function (b) { return b.notes.length; })[0].id);
+    /* ...and survives a look switch, because it is the person's, not the look's. */
+    var sel = document.getElementById("vs-look");
+    var other = [].slice.call(sel.options).map(function (o) { return o.value; })
+      .filter(function (v) { return v !== sel.value; })[0];
+    sel.value = other;
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    var underOther = __vs.slots()[0];
+    document.getElementById("vs-mpalettereset").click();
+    var reset = __vs.slots()[0];
+    document.getElementById("vs-mclose").click();
+    return { byFolder: byFolder, varied: varied, pressed: pressed, back: back,
+             slotsBefore: slotsBefore, slot1: slotsAfter[0], first: first,
+             underOther: underOther, reset: reset, other: other || "modern" };
+  })()`);
+  const ok = r.varied > r.byFolder && r.pressed === 1 && r.back === r.byFolder &&
+             r.slot1 === "#123456" && r.underOther === "#123456" && r.reset !== "#123456";
+  return {
+    ok,
+    detail: `8 People books wear ${r.byFolder} colour(s) by folder, ${r.varied} varied ` +
+            `(one shelf pressed: ${r.pressed === 1}), ${r.back} again after; choosing ` +
+            `#123456 for slot 1 makes it ${r.slot1}, still ${r.underOther} under the ` +
+            `${r.other} look, and ${r.reset} after "use the look's own"`
+  };
+});
+
+check("a book with several ribbons in it shows them side by side", async (p) => {
+  const r = await p.j(`(function(){
+    var months = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0];
+    var book = months.books.filter(function (b) { return b.notes.length >= 5; })[0];
+    var count = function () {
+      var el = document.querySelector('[data-book="' + book.id + '"]');
+      return el ? el.querySelectorAll(".vs-ribbon").length : -1;
+    };
+    var none = count();
+    var lefts = [];
+    for (var i = 0; i < 4; i++) {
+      __vs.openBook(book.id, book.notes[i].id);
+      document.querySelector("#vs-marks .vs-markstub").click();
+      __vs.closeReader();
+      if (i === 2) {
+        lefts = [].slice.call(document.querySelector('[data-book="' + book.id + '"]')
+          .querySelectorAll(".vs-ribbon")).map(function (r) {
+            return Math.round(r.getBoundingClientRect().left);
+          });
+      }
+    }
+    var four = count();
+    for (var k = 0; k < 4; k++) {
+      __vs.openBook(book.id, book.notes[k].id);
+      var mine = document.querySelector('#vs-marks .vs-mark[aria-current="true"]');
+      if (mine) mine.click();
+      __vs.closeReader();
+    }
+    return { book: book.key, none: none, lefts: lefts, four: four, after: count() };
+  })()`);
+  const spread = r.lefts.length === 3 && r.lefts[0] < r.lefts[1] && r.lefts[1] < r.lefts[2];
+  const ok = r.none === 0 && spread && r.four === 3 && r.after === 0;
+  return {
+    ok,
+    detail: `${r.book}: ${r.none} ribbons on its spine, three side by side at x=` +
+            `${r.lefts.join("/")} after three are left (${spread}), still ${r.four} drawn ` +
+            `with four in (the rest are a count on the peek), ${r.after} after all come out`
+  };
+});
+
 check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
   const r = await p.j(`(function(){
     var book = null;

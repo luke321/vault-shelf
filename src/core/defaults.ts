@@ -89,7 +89,7 @@ export function recipes(): Recipe[] {
  * decisions/0001
  */
 
-export const SETTINGS_SCHEMA = 7;
+export const SETTINGS_SCHEMA = 8;
 
 export interface Persisted {
   schema: number;
@@ -137,8 +137,20 @@ export interface Persisted {
    * no shelf, no book and no address depends on it.
    */
   look: Look;
-  /** design/0005 -- stable book colours are opt-in; encyclopedia volumes always match. */
-  varyBookColors: boolean;
+  /**
+   * design/0005 -- THE TWELVE, chosen. Empty means the look's own twelve, read from the
+   * cascade; twelve hex colours here override them in every look. It is a person's palette,
+   * not a look's, so it survives switching looks.
+   */
+  palette: string[];
+  /** design/0008 -- the ribbon's colour, or "" for the look's own. */
+  ribbon: string;
+  /**
+   * design/0005 -- a colour a person gave one book by hand: the address of the book to the
+   * slot (0-11) it wears. Beats the shelf's rule and the folder's dye. Keyed by address, so
+   * it survives a rebuild the way a reading place does (decisions/0002).
+   */
+  bookColors: Record<string, number>;
 }
 
 /** design/0016 -- the looks that exist. A blob naming any other one falls back to "". */
@@ -184,7 +196,9 @@ export function emptySettings(): Persisted {
     useFileStamp: true,
     noteOrder: "oldest",
     look: "leather",
-    varyBookColors: false,
+    palette: [],
+    ribbon: "",
+    bookColors: {},
   };
 }
 
@@ -203,8 +217,10 @@ export function migrate(raw: unknown): Persisted {
   return {
     schema: SETTINGS_SCHEMA,
     shelves: shelves.length
-      ? shelves.map((s, i) => ({ ...alphabetOn(weeksAway(decadesOn(s, from), from), from),
-                                 position: i }))
+      ? shelves.map((s, i) => ({
+          ...variesOn(alphabetOn(weeksAway(decadesOn(s, from), from), from), data),
+          position: i,
+        }))
       : base.shelves,
     reading: Array.isArray(data.reading) ? data.reading.filter(isMark) : [],
     wear: wearOf(data.wear),
@@ -224,7 +240,9 @@ export function migrate(raw: unknown): Persisted {
      * leather, and one that already says 6 means what it says. Changing it back is one
      * selector in the top bar. */
     look: isLook(data.look) ? (from >= 6 || data.look ? data.look : "leather") : base.look,
-    varyBookColors: data.varyBookColors === true,
+    palette: paletteOf(data.palette),
+    ribbon: isHex(data.ribbon) ? String(data.ribbon) : "",
+    bookColors: bookColorsOf(data.bookColors),
   };
 }
 
@@ -253,6 +271,41 @@ function alphabetOn(shelf: Shelf, from: number): Shelf {
   if (from >= 6 || shelf.plaques) return shelf;
   const lettered = shelf.classifier === "person" || shelf.classifier === "tag";
   return lettered ? { ...shelf, plaques: true } : shelf;
+}
+
+/**
+ * design/0005 -- varying colours used to be one switch for the whole library, in schema 6 and
+ * 7. It is per shelf now; a file that had the switch on comes up with it on for every shelf
+ * that varied under it, which was every shelf but the Encyclopedia.
+ */
+function variesOn(shelf: Shelf, data: Partial<Persisted> & { varyBookColors?: unknown }): Shelf {
+  if (shelf.varyColors !== undefined) return shelf;
+  if (data.varyBookColors === true && shelf.classifier !== "initial") {
+    return { ...shelf, varyColors: true };
+  }
+  return shelf;
+}
+
+const HEX = /^#[0-9a-f]{6}$/i;
+function isHex(value: unknown): boolean {
+  return typeof value === "string" && HEX.test(value);
+}
+
+/** Twelve hex colours or nothing: eleven is a palette with a hole in it, which is nothing. */
+function paletteOf(raw: unknown): string[] {
+  if (!Array.isArray(raw) || raw.length !== 12) return [];
+  return raw.every(isHex) ? raw.map((c) => String(c).toLowerCase()) : [];
+}
+
+function bookColorsOf(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "number" && Number.isInteger(value) && value >= 0 && value < 12) {
+      out[key] = value;
+    }
+  }
+  return out;
 }
 
 function weeksAway(shelf: Shelf, from: number): Shelf {

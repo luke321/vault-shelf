@@ -354,6 +354,24 @@ the track (still the background line at `var(--spine-h)`, so the plaque still ha
 and the `.vs-spread` margin `10px/14px → 22px/26px` (the frame is a `box-shadow` ring, which
 costs the grid nothing). The hover lift is **6px and no rotation**, one pixel over
 `design/0005`'s budget and still nothing but a transform.
+## Whose colour a book wears
+
+`"a book's colour is the person's, then the shelf's, then the folder's"` reads `--spine-tint`
+off the first Years book and asserts it is one of the twelve (its folder's slot); right-clicks
+it, asserts a menu of **12 swatches** opened, picks one, asserts the spine wears exactly that
+slot, that a **rebuild keeps it**, and that the menu closed itself.
+
+`"a shelf can vary its books, and a chosen palette beats the look's"` counts the distinct dyes
+on eight People books by folder, presses that shelf's *Vary colours* in Manage and asserts
+more distinct dyes and exactly **one** shelf pressed, presses it again and asserts the count
+comes back; then changes slot 1 to `#123456` through the palette input and asserts
+`__vs.slots()[0]` is `#123456`, **still is under another look**, and is the look's own again
+after *Use the look's own*.
+
+`"a book with several ribbons in it shows them side by side"` marks four notes of one book
+and asserts **0 → 3 → 3** ribbon elements on its spine (three at most; the rest are on the
+peek), at rising x positions, and 0 after all come out.
+
 ## The magic
 
 `design/0008`. Three things a real shelf cannot do, and each has a check.

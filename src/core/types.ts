@@ -61,6 +61,13 @@ export interface Shelf {
   plaques: boolean;
   /** Whether `#garden` also collects `#garden/seeds`. */
   includeSubtags?: boolean;
+  /**
+   * design/0005 -- give each book on this shelf a fixed colour of its own, hashed from its
+   * address so it stays put as notes arrive, instead of the dye of its dominant folder. Per
+   * shelf, because an Encyclopedia that varies reads as a rainbow and a People shelf that
+   * varies reads as people.
+   */
+  varyColors?: boolean;
 }
 
 export interface Book {

@@ -139,3 +139,31 @@ somebody and their note.
 `design/0008`. The lift is a `transform`, never a size or a margin, so a hovered spine cannot
 reflow its neighbours — `"a spine lifts on hover and holds its size"` measures the box before
 and after and asserts both dimensions are unchanged.
+
+## Whose colour a book wears (2026-09-10)
+
+Three people can have an opinion about a book's dye, and they are ranked:
+
+1. **The person**, by right-clicking the spine: twelve swatches and *Automatic*, kept by the
+   book's address so it survives a rebuild the way a reading place does.
+2. **The shelf**, if it varies its books — a slot hashed from the address, so it stays put as
+   notes arrive. Per shelf and not per library, because an Encyclopedia that varies reads as
+   a rainbow and a People shelf that varies reads as people; the switch is in Manage on each
+   row and in the builder, and the Encyclopedia may have it too, since somebody asked.
+3. **The folder**, which is what a dye means by default: a book from the meetings folder and
+   one from the journal are different colours because they are different kinds of book.
+
+The leather rework had quietly made every book slot 0 unless its shelf varied, which is why a
+whole library came out one colour for a day. That was a regression of this record and it is
+repaired.
+
+**The twelve are editable.** Manage shows them as twelve colour inputs reading what the cascade
+currently resolves — the look's own, until one is changed, at which point all twelve become the
+person's, written inline on the root so they beat every look. A palette with one chosen colour
+and eleven that change with the look is not a palette anybody chose. "Use the look's own"
+clears it. The ribbon has its own input for the same reason.
+
+**A spine shows every ribbon in it, up to three**, side by side out of the bottom edge, 9px
+apart. A book with three ribbons looks like a book with three ribbons, not like one with a
+wider ribbon.
+

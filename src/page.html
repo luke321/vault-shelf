@@ -103,6 +103,7 @@
       <div class="vs-field vs-row">
         <label><input type="checkbox" id="vs-bplaques"> Year plaques</label>
         <label><input type="checkbox" id="vs-bsubtags" checked> Parent tags include their children</label>
+        <label><input type="checkbox" id="vs-bvary"> Vary book colours</label>
         <label><span>Order</span>
           <select id="vs-bdirection">
             <option value="alphabetical">Oldest first</option>
@@ -128,15 +129,22 @@
     </div>
   </div>
 
+  <div id="vs-dye" class="vs-dye" hidden role="menu" aria-label="Colour of this book"></div>
+
   <div id="vs-manage" class="vs-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="vs-managetitle">
     <div class="vs-sheetbody">
       <h2 id="vs-managetitle">Manage shelves</h2>
-      <label class="vs-coloroption"><input id="vs-mvarycolors" type="checkbox" aria-describedby="vs-colorhint"> Vary book colors</label>
-      <p id="vs-colorhint" class="vs-hint">Give each book a fixed color that stays the same as notes arrive.
-        Encyclopedia volumes always share one color.</p>
       <p class="vs-hint">Hiding a shelf never deletes it. Reorder with the arrows; the order here
         is the order of the library.</p>
       <div id="vs-managelist"></div>
+      <h3 class="vs-sheetsub">Colours</h3>
+      <p class="vs-hint">The twelve a library is dyed with, and the ribbon. Empty means the look's
+        own; a book keeps a colour you gave it by right-clicking its spine.</p>
+      <div id="vs-mpalette" class="vs-palette"></div>
+      <div class="vs-mini vs-wide">
+        <label class="vs-coloroption"><span>Ribbon</span> <input id="vs-mribbon" type="color"></label>
+        <button id="vs-mpalettereset">Use the look's own</button>
+      </div>
       <div class="vs-mini vs-wide vs-sheetactions">
         <button id="vs-mnew">New shelf&hellip;</button>
         <button id="vs-mrestore">Show every shelf</button>

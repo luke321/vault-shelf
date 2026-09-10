@@ -720,3 +720,21 @@ already rasterised and paints only the strip that just came into view. The looks
 is untouched — it was never too expensive to paint once, only too expensive to paint sixty
 times a second. 52 checks.
 
+## Colours: the person's, then the shelf's, then the folder's
+
+Right-click a spine for twelve swatches and *Automatic*; a chosen colour is keyed by address
+and survives a rebuild. *Vary colours* moved from one library-wide switch to a button on each
+shelf's row in Manage (and the builder), and a file that had the old switch on comes up with it
+on for every shelf that varied under it. The twelve slots and the ribbon are editable in
+Manage; a person's palette is written inline on the root and beats every look.
+
+Measured on the demo vault: 8 People books wear **2** colours by folder and **7** when the
+shelf varies; a right-click on the first Years book takes it from its folder's slot 1 to slot
+6 and a rebuild keeps it; slot 1 set to `#123456` stays `#123456` under the modern look.
+
+**A regression repaired on the way:** the leather rework had made every book slot 0 unless
+its shelf varied, so a library came out one colour. The folder dye is back as the default.
+
+A spine shows up to **three** ribbons side by side (x = 40/49/58 on the demo vault) instead of
+one wider one. Schema 8; 55 checks.
+

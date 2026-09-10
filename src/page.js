@@ -232,6 +232,19 @@ function mountVaultShelf(root, data, options) {
    * rather than one set tinted twice.
    */
   function readTheme() {
+    /* design/0005 -- A PERSON'S PALETTE OVER THE LOOK'S. Twelve chosen colours are written
+     * inline on the root so the cascade below resolves to them in every look; none chosen
+     * means the inline values are cleared and the look's own come through. The ribbon the
+     * same way. Inline, because the looks set these on the same element and a person's
+     * choice has to beat all three without knowing which is on. */
+    var chosen = settings.palette.length === 12;
+    SLOT_KEYS.forEach(function (k, i) {
+      if (chosen) root.style.setProperty(k, settings.palette[i]);
+      else root.style.removeProperty(k);
+    });
+    if (settings.ribbon) root.style.setProperty("--ribbon", settings.ribbon);
+    else root.style.removeProperty("--ribbon");
+
     var cs = WIN.getComputedStyle(root);
     SLOTS = SLOT_KEYS.map(function (k) {
       return (cs.getPropertyValue(k) || "").trim() || "#6f6e67";
@@ -587,16 +600,7 @@ function mountVaultShelf(root, data, options) {
     if (!book.notes.length) b.setAttribute("data-empty", "1");
     b.style.setProperty("--spine-w", thicknessOf(book.notes.length) + "px");
 
-    /* design/0005 -- fixed palette slots follow addresses; encyclopedia volumes match. */
-    var colorSlot = 0;
-    if (settings.varyBookColors && shelf.classifier !== "initial") {
-      var hash = 2166136261;
-      for (var i = 0; i < book.id.length; i++) {
-        hash = Math.imul(hash ^ book.id.charCodeAt(i), 16777619) >>> 0;
-      }
-      colorSlot = hash % SLOTS.length;
-    }
-    b.style.setProperty("--spine-tint", SLOTS[colorSlot]);
+    b.style.setProperty("--spine-tint", dyeOf(book, shelf));
     b.appendChild(el("span", "vs-title", book.label));
     b.appendChild(el("span", "vs-n", String(book.notes.length)));
 
@@ -604,12 +608,22 @@ function mountVaultShelf(root, data, options) {
     var opens = settings.wear[book.id] || 0;
     var level = core.wearLevel(opens);
     if (level) b.setAttribute("data-wear", String(level));
+    /* AS MANY RIBBONS AS IT HOLDS, up to three, side by side out of the bottom of the spine --
+     * a book with three ribbons in it looks like a book with three ribbons in it, not like
+     * one with a wider ribbon. Beyond three the count is on the hover peek. */
     var ribbons = ribbonsIn(book);
-    if (ribbons) {
+    for (var ri = 0; ri < Math.min(ribbons, 3); ri++) {
       var r = el("span", "vs-ribbon");
-      if (ribbons > 1) r.setAttribute("data-many", "1");
+      r.setAttribute("data-i", String(ri));
+      r.setAttribute("data-of", String(Math.min(ribbons, 3)));
       b.appendChild(r);
     }
+    /* design/0005 -- right-click a spine to dye it by hand. */
+    on(b, "contextmenu", function (e) {
+      var me = /** @type {MouseEvent} */ (e);
+      me.preventDefault();
+      openDye(book, me.clientX, me.clientY);
+    });
     b.setAttribute("data-match", book.matches > 0 ? "1" : "0");
 
     var peek = book.label + " -- " + book.notes.length +
@@ -641,6 +655,98 @@ function mountVaultShelf(root, data, options) {
     if (thickest <= 1) return SPINE_MIN;
     var t = Math.log(1 + n) / Math.log(1 + thickest);
     return Math.round(SPINE_MIN + (SPINE_MAX - SPINE_MIN) * t);
+  }
+
+  /**
+   * design/0005 -- WHICH OF THE TWELVE A BOOK WEARS, in order of who said so:
+   *
+   *   1. the person, by right-clicking the spine (`bookColors`, keyed by address);
+   *   2. the shelf, if it varies its books -- a slot hashed from the address, so it stays put
+   *      as notes arrive and a shelf of people reads as people rather than as folders;
+   *   3. the note's dominant source folder, which is what a dye MEANS by default: a book from
+   *      the meetings folder and a book from the journal are different colours because they
+   *      are different kinds of book.
+   *
+   * The leather rework had made every book slot 0 unless a shelf varied, which is why a whole
+   * library came out one colour; that was a regression of design/0005 and this is its repair.
+   * @param {Book} book @param {Shelf} shelf @returns {string}
+   */
+  function dyeOf(book, shelf) {
+    var given = settings.bookColors[book.id];
+    if (typeof given === "number" && SLOTS[given]) return SLOTS[given];
+    if (shelf.varyColors) return SLOTS[hashSlot(book.id)];
+    if (book.bands.length && book.bands[0].slot) return String(book.bands[0].slot);
+    return SLOTS[0];
+  }
+
+  /** FNV-1a over the address, folded into a slot. @param {string} id @returns {number} */
+  function hashSlot(id) {
+    var hash = 2166136261;
+    for (var i = 0; i < id.length; i++) {
+      hash = Math.imul(hash ^ id.charCodeAt(i), 16777619) >>> 0;
+    }
+    return hash % SLOTS.length;
+  }
+
+  /* ---- the dye menu ---------------------------------------------------------
+   * design/0005 -- twelve swatches and "Automatic", where the right-click landed. A colour
+   * given here is a colour kept: it is keyed by the book's address, so it survives a rebuild
+   * the way a reading place does.
+   */
+  /** @type {Book|null} */
+  var dyeing = null;
+
+  /** @param {Book} book @param {number} x @param {number} y */
+  function openDye(book, x, y) {
+    dyeing = book;
+    var menu = node("dye");
+    clear(menu);
+    var given = settings.bookColors[book.id];
+    menu.appendChild(el("div", "vs-dyename", book.label));
+    var row = el("div", "vs-swatches");
+    SLOTS.forEach(function (colour, i) {
+      var sw = /** @type {HTMLButtonElement} */ (el("button", "vs-swatch"));
+      sw.type = "button";
+      sw.style.setProperty("--swatch", colour);
+      sw.title = "Colour " + (i + 1);
+      sw.setAttribute("aria-label", sw.title);
+      if (given === i) sw.setAttribute("aria-pressed", "true");
+      on(sw, "click", function () { setBookColor(book, i); });
+      row.appendChild(sw);
+    });
+    menu.appendChild(row);
+    var auto = /** @type {HTMLButtonElement} */ (el("button", "vs-dyeauto", "Automatic"));
+    auto.type = "button";
+    if (given === undefined) auto.setAttribute("aria-pressed", "true");
+    on(auto, "click", function () { setBookColor(book, null); });
+    menu.appendChild(auto);
+
+    menu.hidden = false;
+    /* Placed where the pointer is, and pulled back inside the room if that would hang it off
+     * the edge. Measured after it is shown, because a hidden menu has no size. */
+    var host = root.getBoundingClientRect();
+    var w = menu.offsetWidth, h = menu.offsetHeight;
+    var left = Math.min(x - host.left, host.width - w - 8);
+    var top = Math.min(y - host.top, host.height - h - 8);
+    menu.style.left = Math.max(8, left) + "px";
+    menu.style.top = Math.max(8, top) + "px";
+    var first = menu.querySelector("button");
+    if (first instanceof HTMLElement) first.focus();
+  }
+
+  function closeDye() {
+    dyeing = null;
+    $("dye").hidden = true;
+  }
+
+  /** @param {Book} book @param {number|null} slot */
+  function setBookColor(book, slot) {
+    if (slot === null) delete settings.bookColors[book.id];
+    else settings.bookColors[book.id] = slot;
+    persist();
+    closeDye();
+    renderLibrary();
+    applyQuery();
   }
 
   /** @param {Book} book @returns {number} */
@@ -1214,6 +1320,7 @@ function mountVaultShelf(root, data, options) {
     field("bplaques").checked = !!d.plaques;
     field("bplaques").disabled = !PLAQUABLE[d.classifier];
     field("bsubtags").checked = d.includeSubtags !== false;
+    field("bvary").checked = !!d.varyColors;
     field("bsubtags").disabled = d.classifier !== "tag" && d.source.kind !== "tag";
   }
 
@@ -1233,6 +1340,7 @@ function mountVaultShelf(root, data, options) {
     d.direction = field("bdirection").value === "chronological" ? "chronological" : "alphabetical";
     d.plaques = !!PLAQUABLE[d.classifier] && field("bplaques").checked;
     d.includeSubtags = field("bsubtags").checked;
+    d.varyColors = field("bvary").checked;
     writeBuilderFields();
   }
 
@@ -1352,7 +1460,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   function renderManage() {
-    field("mvarycolors").checked = settings.varyBookColors;
+    renderPalette();
     var box = $("managelist");
     clear(box);
     var ordered = settings.shelves.slice().sort(function (a, b) { return a.position - b.position; });
@@ -1388,12 +1496,76 @@ function mountVaultShelf(root, data, options) {
       edit.type = "button";
       on(edit, "click", function () { $("manage").hidden = true; openBuilder(shelf); });
 
+      /* design/0005 -- per shelf, and it says what it IS. */
+      var vary = /** @type {HTMLButtonElement} */ (el("button", "", "Vary colours"));
+      vary.type = "button";
+      vary.setAttribute("aria-pressed", shelf.varyColors ? "true" : "false");
+      vary.title = shelf.varyColors
+        ? "Each book on this shelf has a colour of its own. Click to dye by folder instead."
+        : "Books are dyed by their source folder. Click to give each book a colour of its own.";
+      on(vary, "click", function () {
+        shelf.varyColors = !shelf.varyColors;
+        persist();
+        renderManage();
+        refresh();
+      });
+
       row.appendChild(up);
       row.appendChild(down);
       row.appendChild(vis);
+      row.appendChild(vary);
       row.appendChild(edit);
       box.appendChild(row);
     });
+  }
+
+  /**
+   * design/0005 -- THE TWELVE, EDITABLE. Twelve colour inputs showing what the cascade
+   * currently resolves -- the look's own until a person changes one, at which point all twelve
+   * become theirs, because a palette with one chosen colour and eleven that change with the
+   * look is not a palette anybody chose.
+   */
+  function renderPalette() {
+    var box = $("mpalette");
+    clear(box);
+    SLOTS.forEach(function (colour, i) {
+      var input = /** @type {HTMLInputElement} */ (DOC.createElement("input"));
+      input.type = "color";
+      input.value = toHex(colour);
+      input.title = "Colour " + (i + 1);
+      input.setAttribute("aria-label", input.title);
+      on(input, "change", function () {
+        var next = settings.palette.length === 12 ? settings.palette.slice() : SLOTS.map(toHex);
+        next[i] = input.value.toLowerCase();
+        settings.palette = next;
+        persist();
+        readTheme();
+        refresh();
+        renderPalette();
+      });
+      box.appendChild(input);
+    });
+    field("mribbon").value = toHex(settings.ribbon ||
+      WIN.getComputedStyle(root).getPropertyValue("--ribbon").trim() || SLOTS[7]);
+  }
+
+  /**
+   * A colour input takes only #rrggbb, and the cascade hands back whatever the stylesheet
+   * wrote -- `rgb(…)`, `color(srgb …)`, a hex with alpha. Resolved through the document
+   * rather than parsed by hand.
+   * @param {string} colour @returns {string}
+   */
+  function toHex(colour) {
+    if (/^#[0-9a-f]{6}$/i.test(colour)) return colour.toLowerCase();
+    var probe = DOC.createElement("span");
+    probe.style.color = colour;
+    root.appendChild(probe);
+    var rgb = WIN.getComputedStyle(probe).color;
+    root.removeChild(probe);
+    var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(rgb);
+    if (!m) return "#6f6e67";
+    var hex = function (n) { return ("0" + Number(n).toString(16)).slice(-2); };
+    return "#" + hex(m[1]) + hex(m[2]) + hex(m[3]);
   }
 
   /** @param {string} id @param {number} delta */
@@ -1536,10 +1708,26 @@ function mountVaultShelf(root, data, options) {
   on($("newshelf"), "click", function () { openBuilder(null); });
   on($("newshelf2"), "click", function () { openBuilder(null); });
   on($("manageopen"), "click", openManage);
-  on($("mvarycolors"), "change", function () {
-    settings.varyBookColors = field("mvarycolors").checked;
+  on($("mribbon"), "change", function () {
+    settings.ribbon = field("mribbon").value.toLowerCase();
     persist();
+    readTheme();
     refresh();
+  });
+  on($("mpalettereset"), "click", function () {
+    settings.palette = [];
+    settings.ribbon = "";
+    persist();
+    readTheme();
+    refresh();
+    renderPalette();
+  });
+  /* The dye menu closes the way a menu does: a click anywhere else, or Escape. */
+  on(DOC, "mousedown", function (e) {
+    if (dyeing && e.target instanceof Node && !$("dye").contains(e.target)) closeDye();
+  });
+  on(DOC, "keydown", function (e) {
+    if (dyeing && /** @type {KeyboardEvent} */ (e).key === "Escape") closeDye();
   });
   on($("mnew"), "click", newShelfFromManage);
   on($("mclose"), "click", function () { $("manage").hidden = true; node("library").focus(); });
@@ -1552,7 +1740,7 @@ function mountVaultShelf(root, data, options) {
   on($("bsave"), "click", saveBuilder);
   on($("bcancel"), "click", closeBuilder);
   ["bname", "bsource", "bsourceval", "bclassifier", "bproperty", "bdirection",
-   "bplaques", "bsubtags"].forEach(function (id) {
+   "bplaques", "bsubtags", "bvary"].forEach(function (id) {
     on($(id), "change", function () { readBuilderFields(); previewBuilder(); });
     on($(id), "input", function () { readBuilderFields(); previewBuilder(); });
   });

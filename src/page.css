@@ -585,13 +585,18 @@
   width: 7px;
   height: 17px;
   margin-left: -3.5px;
-  background: var(--g8);
+  background: var(--ribbon);
   border-radius: 0 0 1px 1px;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 74%, 0 100%);
   pointer-events: none;
 }
 
-.vault-shelf .vs-spine .vs-ribbon[data-many="1"] { width: 11px; margin-left: -5.5px; }
+/* Two or three ribbons sit side by side, 9px apart, centred as a group. */
+.vault-shelf .vs-spine .vs-ribbon[data-of="2"][data-i="0"] { margin-left: -8px; }
+.vault-shelf .vs-spine .vs-ribbon[data-of="2"][data-i="1"] { margin-left: 1px; }
+.vault-shelf .vs-spine .vs-ribbon[data-of="3"][data-i="0"] { margin-left: -12.5px; }
+.vault-shelf .vs-spine .vs-ribbon[data-of="3"][data-i="1"] { margin-left: -3.5px; }
+.vault-shelf .vs-spine .vs-ribbon[data-of="3"][data-i="2"] { margin-left: 5.5px; }
 
 /* ---- magic 3: the shelf parts as you type -------------------------------
  * design/0008 -- a query does not empty the room. Matching books draw forward and gain air
@@ -948,6 +953,55 @@
 .vault-shelf .vs-sheetactions { margin-top: 18px; }
 
 .vault-shelf .vs-coloroption { display: flex; align-items: center; gap: 6px; }
+.vault-shelf .vs-sheetsub { font-size: 12.5px; font-weight: 600; margin: 22px 0 4px; }
+
+/* design/0005 -- the twelve, as twelve inputs, with no chrome of their own: a colour input
+ * that looks like a button is a button, and this is a palette. */
+.vault-shelf .vs-palette { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.vault-shelf .vs-palette input[type="color"],
+.vault-shelf .vs-coloroption input[type="color"] {
+  width: 32px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+}
+
+/* The dye menu, where the right-click landed. */
+.vault-shelf .vs-dye {
+  position: absolute;
+  z-index: 40;
+  width: 196px;
+  padding: 8px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 30%, transparent);
+}
+.vault-shelf .vs-dyename {
+  font-size: 11px;
+  color: var(--text-3);
+  margin: 0 0 6px 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vault-shelf .vs-swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.vault-shelf .vs-swatch {
+  height: 24px;
+  min-height: 0;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 3px;
+  background: var(--swatch);
+  box-shadow: none;
+}
+.vault-shelf .vs-swatch:hover, .vault-shelf .vs-swatch:focus-visible { border-color: var(--text-1); }
+.vault-shelf .vs-swatch[aria-pressed="true"] { border-color: var(--text-1); outline: 1px solid var(--surface-1); outline-offset: -3px; }
+.vault-shelf .vs-dyeauto { width: 100%; margin-top: 6px; justify-content: center; }
+.vault-shelf .vs-dyeauto[aria-pressed="true"] { color: var(--text-1); font-weight: 600; }
 
 .vault-shelf .vs-managerow {
   display: flex;
