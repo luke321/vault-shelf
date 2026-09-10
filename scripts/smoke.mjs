@@ -341,16 +341,23 @@ check("the twelve colour slots are Vault Graph's own", async (p) => {
     var light = __vs.slots();
     __vs.setTheme("dark");
     var dark = __vs.slots();
-    var band = document.querySelector("#vs-shelves .vs-spine .vs-band i");
-    var painted = band ? getComputedStyle(band).backgroundColor : "";
-    return { light: light, dark: dark, painted: painted };
+    /* Read the slot off a SPINE, not off a swatch: what has to be true is that a folder's
+     * colour reaches the thing a person looks at. */
+    var spine = document.querySelector("#vs-shelves .vs-spine");
+    var tint = spine ? getComputedStyle(spine).getPropertyValue("--spine-tint").trim() : "";
+    return { light: light, dark: dark, painted: tint,
+             inSlots: dark.map(function (v) { return v.toLowerCase(); })
+                          .indexOf(tint.toLowerCase()) >= 0 };
   })()`);
   const same = (a, b) => JSON.stringify(a.map((v) => v.toLowerCase())) === JSON.stringify(b);
-  return { ok: same(r.light, LIGHT) && same(r.dark, DARK),
-           detail: same(r.light, LIGHT) && same(r.dark, DARK)
+  const ok = same(r.light, LIGHT) && same(r.dark, DARK) && r.inSlots;
+  return { ok,
+           detail: ok
              ? `all twelve match in both themes (light g1 ${r.light[0]}, dark g1 ${r.dark[0]}); ` +
-               `a spine's band paints ${r.painted}`
-             : `light ${r.light.slice(0, 3).join(",")} dark ${r.dark.slice(0, 3).join(",")}` };
+               `a spine's board is dyed ${r.painted}, which is one of the twelve`
+             : same(r.light, LIGHT) && same(r.dark, DARK)
+               ? `the twelve match, but a spine is tinted "${r.painted}", which is not one of them`
+               : `light ${r.light.slice(0, 3).join(",")} dark ${r.dark.slice(0, 3).join(",")}` };
 });
 
 check("the theme follows the host, and the slots are re-read when it changes", async (p) => {

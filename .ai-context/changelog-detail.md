@@ -116,6 +116,21 @@ The `min-width: 0` on both the spread and the page stayed, because both were als
 item and a grid item each default to `min-width: auto`, and fixing only one left the other
 doing it.
 
+## The bar charts came off the books
+
+The spine carried a stacked bar of its folder mix across its head. It is a chart drawn on a
+book, which is the least analog thing the room had in it, and on a shelf where most books draw
+from the same few folders it is the same rainbow repeated 20 times.
+
+Removed. The colour moved into the board itself, and the **tint had to be measured per theme**
+rather than guessed once: rendered at 4/9/14/20 in dark and 18/26/34/44 in light. 4% was
+invisible once the bands were gone; 14% in dark reads as dyed cloth; the *same* 14% in light
+came out pale pastel, because mixing a hue into white can only lighten toward it. Settled at
+**14% dark, 20% light**.
+
+The folder mix itself is unchanged in the data (`core.bandsOf` still computes it) — it now
+reaches the reader as the board's colour and as words in the hover peek, rather than as a bar.
+
 ## The room got a width
 
 Measured at 2560px wide (a WQHD screen, less Obsidian's ~270px sidebar), before:

@@ -32,9 +32,9 @@ disabled rather than disappearing, so a person can see that something was there.
 
 ## `folder` is the first segment only
 
-Deliberately flat. The folder filter and the colour band on a spine are both about *where a
-note came from*, at the granularity somebody actually organises at, and a vault five levels
-deep would otherwise produce a filter list nobody can scan and a band nobody can read. The
+Deliberately flat. A spine's board colour is about *where a note came from*, at the
+granularity somebody actually organises at, and a vault five levels deep would otherwise
+produce more distinct colours than the twelve slots can carry. The
 Folder classifier is the place to go deeper, and it takes the whole segment path.
 
 `(vault root)` is a real folder name here, not a null. A note at the root has a source like any

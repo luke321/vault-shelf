@@ -402,18 +402,9 @@ function mountVaultShelf(root, data, options) {
     b.setAttribute("data-book", book.id);
     if (!book.notes.length) b.setAttribute("data-empty", "1");
 
-    var band = el("span", "vs-band");
-    var total = book.bands.slice(0, 3).reduce(function (n, part) { return n + part.count; }, 0) || 1;
-    book.bands.slice(0, 3).forEach(function (part) {
-      var i = el("i");
-      i.style.width = (100 * part.count / total) + "%";
-      i.style.setProperty("--slot", part.slot);
-      band.appendChild(i);
-    });
-    b.appendChild(band);
-    /* design/0005 -- the board takes 14% of its dominant folder's colour. Enough that a shelf
-     * reads as books rather than slats; little enough that the band at the head is still the
-     * thing carrying the information. */
+    /* design/0005 -- THE BOARD IS THE COLOUR. A book's binding is dyed; it does not carry a
+     * stacked bar chart on its head. The dominant folder's slot tints the whole spine, and the
+     * exact mix stays in the hover peek, in words. */
     if (book.bands.length) b.style.setProperty("--spine-tint", book.bands[0].slot);
     b.appendChild(el("span", "vs-title", book.label));
     b.appendChild(el("span", "vs-n", String(book.notes.length)));

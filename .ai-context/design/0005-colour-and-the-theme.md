@@ -34,6 +34,20 @@ values, and a hardcoded array can only ever be one of them.
 — twelve light, twelve dark — against literals, so this record cannot go stale again without
 a check failing.
 
+## Nothing here needs Vault Graph installed
+
+Worth stating plainly, because "you took the palette from the other plugin" invites the
+question. **There is no runtime dependency of any kind.** The twelve values are literals in
+`src/page.css`; `readTheme()` resolves `--g1`..`--g12` out of *our own* stylesheet through
+`getComputedStyle`. Nothing reads the other plugin, nothing imports from it, nothing checks
+whether it is installed, and `scripts/check-network.mjs` guarantees nothing fetches anything.
+Vault Shelf on a vault that has never heard of Vault Graph looks exactly the same.
+
+What the copy does cost is **drift**: if that project ever repaints, these values are a
+snapshot and no longer match. That is a documentation risk, not a runtime one, and the suite
+pins all twenty-four literals so the day it happens is a day a check fails rather than a day
+nobody notices.
+
 ## The theme is the host's
 
 There are no skins. The original design had *Graphite* and *Paper & cloth* as a manual toggle;
@@ -49,21 +63,30 @@ they are now simply Vault Graph's dark and light, and Obsidian decides which:
 Light **is** the paper library; dark **is** the graphite archive. Two names fewer, and the two
 plugins can no longer disagree about what colour the room is.
 
-## The band carries the colour; the board only hints at it
+## The board is the colour, and there is nothing else on the spine
 
-Vault Graph paints pure slot colour on a neutral ground — a dot *is* its folder's colour. The
-first pass here washed the whole spine in it at 9%, which over a dark surface is not a hint: it
-read as a row of muddy purple and brown blocks, and the band at the head, which is the part
-actually carrying information, disappeared into them.
+The first design put a **stacked bar of the book's folder mix across the head of every
+spine**. It went, and the reason is the brief: it is a chart drawn on a book, which is the
+least analog thing that was in the room. It also said less than it looked like it said — on a
+shelf where most books draw from the same few folders it is the same rainbow over and over,
+and the eye cannot compare two rainbows anyway.
 
-**4%, plus a light-to-dark fall down the board.** Enough that a shelf reads as a row of
-different books; little enough that the colour still lives in the 4px band. Three segments,
-never five — five made every spine on a mixed shelf carry the same rainbow, and the eye cannot
-compare two rainbows.
+What is left is a **dyed board**: the dominant folder's slot mixed into the surface, with a
+light-to-dark fall down the spine. A book's binding is dyed; it does not wear a legend.
 
-The band is explicitly **not** a legend and not a filter: it has no hit target, and the same
-information is in the spine's hover peek in words, because colour alone is not information
-anybody can rely on.
+The exact mix is not lost. It is in the **hover peek, in words** — `01 - Projects 14,
+04 - Daily Notes 9` — which is where anything nobody should have to read a colour for belongs.
+
+**The mix is not the same number in the two themes**, and that is not a fudge. Mixing a
+saturated hue into a *dark* surface deepens it and reads as dyed cloth; mixing the same hue
+into *white* can only lighten toward it, so the identical 14% that looked like a bound board in
+dark came out as pale sweet-shop pastel in light — the exact look the invented palette was
+pulled up for. Rendered at 4/9/14/20 in dark and 18/26/34/44 in light and looked at:
+**`--tint: 14%` dark, `20%` light**, which is where the two shelves read equally understated.
+
+`"the twelve colour slots are Vault Graph's own"` reads the slot off a **spine**, not off a
+swatch: what has to be true is that a folder's colour reaches the thing a person looks at, and
+that it is one of the twelve.
 
 ## The host cannot style us either
 

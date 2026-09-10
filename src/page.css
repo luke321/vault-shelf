@@ -61,6 +61,7 @@
     --g11:#8d8c84; --g12:#bdbcb2;
     --n1: #8d8c84; --n2: #bdbcb2; --n3: #77766d;
     --accent: #3987e5;
+    --tint: 14%;
   }
 }
 
@@ -83,6 +84,7 @@
   --g11:#8d8c84; --g12:#bdbcb2;
   --n1: #8d8c84; --n2: #bdbcb2; --n3: #77766d;
   --accent: #3987e5;
+  --tint: 14%;
 }
 
 /* ---- the room ------------------------------------------------------------
@@ -99,6 +101,13 @@
    * 1,180px is about 28 spines -- a shelf you can take in -- and it is also contents plus a
    * 66ch note plus its tabs, so the reader closes up into something that reads as one book. */
   --measure: 1180px;
+  /* design/0005 -- HOW MUCH OF ITS FOLDER'S COLOUR A BOOK'S BOARD TAKES, and it is not the
+   * same number in the two themes. Mixing a saturated hue into a DARK surface deepens it and
+   * reads as dyed cloth; mixing the same hue into WHITE can only lighten toward it, so the
+   * identical 14% that looked like a bound board in dark came out as pale sweet-shop pastel
+   * in light. Rendered at 4/9/14/20 in dark and 18/26/34/44 in light and looked at; these two
+   * are where the shelves read equally understated. */
+  --tint: 20%;
   --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
   --prose: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
 
@@ -387,13 +396,16 @@
 }
 
 /* ---- a spine -------------------------------------------------------------
- * design/0005 -- THE BAND CARRIES THE COLOUR; THE BOARD ONLY HINTS AT IT.
+ * design/0005 -- THE BOARD IS THE COLOUR, and there is nothing else on the spine.
  *
- * Vault Graph paints pure slot colour on a neutral ground: a dot IS its folder's colour. The
- * first pass here washed the whole board in it at 9%, which over a dark surface is not a hint
- * -- it reads as a row of muddy purple and brown blocks and the band at the head, which is the
- * part actually carrying information, disappears into it. 4%, plus a light-to-dark fall down
- * the board, gives a shelf of distinguishable books whose colour still lives in the band.
+ * The first design put a stacked bar of the book's folder mix across the head of every spine.
+ * It is the least analog thing that was in the room -- a chart drawn on a book -- and on a
+ * shelf where most books draw from the same few folders it is the same rainbow over and over,
+ * which the eye cannot compare anyway. It is gone.
+ *
+ * What is left is a dyed board: the dominant folder's slot mixed into the surface, with a
+ * light-to-dark fall down the spine. The exact mix is not lost -- it is in the hover peek in
+ * words, which is where anything nobody should have to read a colour for belongs.
  */
 .vault-shelf .vs-spine {
   width: var(--spine-w);
@@ -409,7 +421,7 @@
       color-mix(in srgb, var(--text-1) 3%, transparent) 0 22%,
       transparent 55%,
       color-mix(in srgb, var(--text-1) 4%, transparent) 100%),
-    color-mix(in srgb, var(--spine-tint, var(--n1)) 4%, var(--surface-2));
+    color-mix(in srgb, var(--spine-tint, var(--n1)) var(--tint), var(--surface-2));
   border: 1px solid var(--border);
   border-top: 0;
   border-radius: 2px 2px 1px 1px;
@@ -452,20 +464,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* design/0005 -- THREE SEGMENTS, NOT FIVE. Five made every spine on a mixed shelf carry the
- * same five-colour rainbow, which is a pattern that says nothing: the eye cannot compare two
- * rainbows. Three says "mostly this folder, some of that". */
-.vault-shelf .vs-spine .vs-band {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  display: flex;
-}
-
-.vault-shelf .vs-spine .vs-band i { display: block; height: 100%; background: var(--slot, var(--n1)); }
-
 .vault-shelf .vs-spine[data-empty="1"] { opacity: 0.45; }
 
 /* ---- magic 1: shelf wear -------------------------------------------------
@@ -482,7 +480,7 @@
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--text-1) 8%, transparent) 0 16%, transparent 40%),
     linear-gradient(0deg, color-mix(in srgb, var(--text-1) 5%, transparent) 0 9%, transparent 24%),
-    color-mix(in srgb, var(--spine-tint, var(--n1)) 4%, var(--surface-2));
+    color-mix(in srgb, var(--spine-tint, var(--n1)) var(--tint), var(--surface-2));
 }
 .vault-shelf .vs-spine[data-wear="3"] {
   border-radius: 5px 5px 2px 2px;
@@ -491,7 +489,7 @@
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--text-1) 12%, transparent) 0 18%, transparent 44%),
     linear-gradient(0deg, color-mix(in srgb, var(--text-1) 9%, transparent) 0 12%, transparent 30%),
-    color-mix(in srgb, var(--spine-tint, var(--n1)) 4%, var(--surface-2));
+    color-mix(in srgb, var(--spine-tint, var(--n1)) var(--tint), var(--surface-2));
 }
 .vault-shelf .vs-spine[data-wear="2"]:hover,
 .vault-shelf .vs-spine[data-wear="3"]:hover { transform: translateY(-5px); }
@@ -799,7 +797,6 @@
 }
 
 .vault-shelf[data-list="1"] .vs-spine .vs-n { position: static; text-align: left; margin-left: auto; }
-.vault-shelf[data-list="1"] .vs-spine .vs-band { display: none; }
 .vault-shelf[data-list="1"] .vs-spine .vs-ribbon { position: static; width: 7px; height: 12px; margin: 0 0 0 8px; }
 
 @media (max-width: 860px) {

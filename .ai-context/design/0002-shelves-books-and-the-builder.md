@@ -40,7 +40,8 @@ that immediately understands the product; a person shown one clever shelf does n
 3. push the note into each key's bucket;
 4. sort each book's notes newest-first, then by title;
 5. sort the books by key, special keys last;
-6. compute the source-folder band from the book's own notes.
+6. compute the source-folder mix from the book's own notes — which dyes the board and fills
+   the hover peek (`design/0005`).
 
 Step 2's de-duplication is the whole of the unique-membership law: a note tagged `#garden` and
 `#garden/seeds` on a tag shelf that includes children yields two keys and two books, but a
