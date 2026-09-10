@@ -1038,17 +1038,58 @@
   text-overflow: ellipsis;
 }
 .vault-shelf .vs-swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
-.vault-shelf .vs-swatch {
+/* THREE CLASSES DEEP ON PURPOSE. Every look paints `button` with its own rule at
+ * `.vault-shelf[data-look] button` -- one class, one attribute, one element -- which beats a
+ * two-class selector, and under leather the twelve swatches came out as twelve leather
+ * buttons with no colour on them at all. `.vault-shelf .vs-dye .vs-swatch` outranks it. */
+.vault-shelf .vs-dye .vs-swatch {
   height: 24px;
   min-height: 0;
   padding: 0;
   border: 2px solid transparent;
   border-radius: 3px;
   background: var(--swatch);
+  background-image: none;
   box-shadow: none;
 }
-.vault-shelf .vs-swatch:hover, .vault-shelf .vs-swatch:focus-visible { border-color: var(--text-1); }
-.vault-shelf .vs-swatch[aria-pressed="true"] { border-color: var(--text-1); outline: 1px solid var(--surface-1); outline-offset: -3px; }
+.vault-shelf .vs-dye .vs-swatch:hover, .vault-shelf .vs-dye .vs-swatch:focus-visible { border-color: var(--text-1); background: var(--swatch); }
+.vault-shelf .vs-dye .vs-swatch[aria-pressed="true"] { border-color: var(--text-1); outline: 1px solid var(--surface-1); outline-offset: -3px; }
+
+/* A switch: the state of a thing, drawn as a knob in a track, and the label reads as a fact. */
+.vault-shelf .vs-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--text-2);
+  user-select: none;
+}
+.vault-shelf .vs-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.vault-shelf .vs-toggle .vs-knob {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--border-strong);
+  transition: background 120ms linear;
+  flex: 0 0 auto;
+}
+.vault-shelf .vs-toggle .vs-knob::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--surface-0);
+  transition: transform 120ms ease-out;
+}
+.vault-shelf .vs-toggle input:checked + .vs-knob { background: var(--accent); }
+.vault-shelf .vs-toggle input:checked + .vs-knob::after { transform: translateX(14px); background: #fff; }
+.vault-shelf .vs-toggle input:focus-visible + .vs-knob { outline: 2px solid var(--accent); outline-offset: 2px; }
+.vault-shelf .vs-toggle:hover { color: var(--text-1); }
 .vault-shelf .vs-dyeauto { width: 100%; margin-top: 6px; justify-content: center; }
 .vault-shelf .vs-dyeauto[aria-pressed="true"] { color: var(--text-1); font-weight: 600; }
 

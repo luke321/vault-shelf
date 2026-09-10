@@ -1720,16 +1720,21 @@ function mountVaultShelf(root, data, options) {
       on(edit, "click", function () { $("manage").hidden = true; openBuilder(shelf); });
 
       /* design/0005 -- per shelf, and it says what it IS. */
-      var vary = /** @type {HTMLButtonElement} */ (el("button", "", "Vary colours"));
-      vary.type = "button";
-      vary.setAttribute("aria-pressed", shelf.varyColors ? "true" : "false");
-      vary.title = shelf.varyColors
-        ? "Each book on this shelf has a colour of its own. Click to dye by folder instead."
-        : "Books are dyed by their source folder. Click to give each book a colour of its own.";
-      on(vary, "click", function () {
-        shelf.varyColors = !shelf.varyColors;
+      /* design/0005 -- A TOGGLE, because it is a state and not an action: a button that
+       * reads "Vary colours" says what pressing it does, and a switch says what is so. */
+      var vary = el("label", "vs-toggle");
+      var sw = /** @type {HTMLInputElement} */ (DOC.createElement("input"));
+      sw.type = "checkbox";
+      sw.setAttribute("role", "switch");
+      sw.checked = !!shelf.varyColors;
+      sw.setAttribute("aria-label", "Vary colours on " + shelf.name);
+      vary.title = "Each book on this shelf in a colour of its own, rather than its folder's";
+      vary.appendChild(sw);
+      vary.appendChild(el("span", "vs-knob"));
+      vary.appendChild(el("span", "vs-togglename", "Vary colours"));
+      on(sw, "change", function () {
+        shelf.varyColors = sw.checked;
         persist();
-        renderManage();
         refresh();
       });
 
@@ -1970,6 +1975,21 @@ function mountVaultShelf(root, data, options) {
 
   on($("back"), "click", closeReader);
   on($("prevcollection"), "click", previousCollection);
+  /* design/0004 -- CLICKING OFF THE BOOK PUTS IT DOWN. The dark around the spread is the
+   * desk; a click on it, and not on the book, the ribbons or the bar, goes back to the
+   * shelves. Both ends of the click have to be off the book, or dragging a text selection out
+   * past the cover would close it on release. */
+  var pressedOffBook = false;
+  var offBook = function (target) {
+    if (!(target instanceof Element)) return false;
+    return !target.closest(".vs-spread, #vs-marks, .vs-readerbar, #vs-dye");
+  };
+  on($("reader"), "mousedown", function (e) { pressedOffBook = offBook(e.target); });
+  on($("reader"), "click", function (e) {
+    if (reader && pressedOffBook && offBook(e.target)) closeReader();
+    pressedOffBook = false;
+  });
+
   on($("prevnote"), "click", function () { goTo(reader.index - 1); });
   on($("nextnote"), "click", function () { goTo(reader.index + 1); });
   on($("within"), "input", function () {

@@ -251,6 +251,13 @@ An empty room with no way out is the worst reachable state in this product.
 
 ## The reader
 
+`"a click off the book puts it down, and a click on it does not"` opens a book, clicks the note's
+own text and asserts the reader stays open; clicks the desk **42px** to the left of the cover
+and asserts it closed; then presses on the page and releases on the desk — a text selection
+dragged off the cover — and asserts it did **not** close. Both ends of a click have to be off
+the book, or every selection dragged past the edge would put the book down on release.
+
+
 `"a wide table scrolls inside the page and never widens the book"` opens the fixture note that
 is one 12-row table with a 1,981-character cell and asserts the spread is still no wider than
 `--measure` (**1180px**), that the right-hand page does not scroll sideways (**0px**), and that
@@ -414,7 +421,9 @@ costs the grid nothing). The hover lift is **6px and no rotation**, one pixel ov
 
 `"a book's colour is the person's, then the shelf's, then the folder's"` reads `--spine-tint`
 off the first Years book and asserts it is one of the twelve (its folder's slot); right-clicks
-it, asserts a menu of **12 swatches** opened, picks one, asserts the spine wears exactly that
+it, asserts a menu of **12 swatches** opened and that all **12 are painted** their slot's
+colour — under leather the look's own `button` rule had outranked the swatch rule and twelve
+colourless buttons opened, which every earlier assertion passed — picks one, asserts the spine wears exactly that
 slot, that a **rebuild keeps it**, and that the menu closed itself.
 
 `"a shelf can vary its books, and a chosen palette beats the look's"` counts the distinct dyes

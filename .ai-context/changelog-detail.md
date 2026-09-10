@@ -829,3 +829,16 @@ gave every column a sliver and broke words down the middle — "wher/e", "Harad/
 `width: max-content` now, cells wrap at 40ch and never mid-word, and the article scrolls to
 the columns that do not fit. `--shot-note "<title>"` is how that picture was taken.
 
+## A click off the book puts it down, and three small things
+
+Clicking the desk around the open book closes it and goes back to the shelves — both ends of
+the click off the book, so a selection dragged past the cover does not. Measured: the desk is
+**42px** left of the cover on the demo vault; on it the book stays, off it the book closes.
+
+The twelve swatches in the right-click menu had **no colour under leather**: every look paints
+`button` at `.vault-shelf[data-look] button`, one class and an attribute and an element,
+which beats the two-class swatch rule. Three classes deep now, and the check asserts all
+**12 of 12** swatches paint their slot rather than merely exist.
+
+*Vary colours* in Manage is a switch, since it is a state and not an action. 62 checks.
+

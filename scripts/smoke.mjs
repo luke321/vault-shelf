@@ -1122,6 +1122,17 @@ check("a book's colour is the person's, then the shelf's, then the folder's", as
     var menu = document.getElementById("vs-dye");
     var opened = !menu.hidden;
     var swatches = menu.querySelectorAll(".vs-swatch").length;
+    /* PAINTED, not just present: under leather the look's own button rule outranked the
+     * swatch rule and twelve colourless buttons opened, which every previous assertion here
+     * passed. The swatch's computed background has to be its slot's colour. */
+    var probe = document.createElement("span");
+    document.body.appendChild(probe);
+    var painted = [].slice.call(menu.querySelectorAll(".vs-swatch")).filter(function (sw, i) {
+      probe.style.color = slots[i];
+      var want = getComputedStyle(probe).color;
+      return getComputedStyle(sw).backgroundColor === want;
+    }).length;
+    document.body.removeChild(probe);
     var pick = (folderSlot + 5) % 12;
     menu.querySelectorAll(".vs-swatch")[pick].click();
     var byHand = tint(book.id);
@@ -1135,16 +1146,18 @@ check("a book's colour is the person's, then the shelf's, then the folder's", as
     var distinctBefore = new Set(before).size;
     var chosen = tint(book.id);
     return { byFolder: byFolder, folderSlot: folderSlot, opened: opened, swatches: swatches,
+             painted: painted,
              pick: pick, byHand: byHand, want: slots[pick], afterRebuild: afterRebuild,
              closed: closed, distinctBefore: distinctBefore, chosen: chosen,
              peopleShown: before.length };
   })()`);
-  const ok = r.folderSlot >= 0 && r.opened && r.swatches === 12 && r.byHand === r.want &&
-             r.afterRebuild === r.want && r.closed;
+  const ok = r.folderSlot >= 0 && r.opened && r.swatches === 12 && r.painted === 12 &&
+             r.byHand === r.want && r.afterRebuild === r.want && r.closed;
   return {
     ok,
     detail: `the first year book wears its folder's slot ${r.folderSlot + 1} (${r.byFolder}); ` +
-            `a right-click opens ${r.swatches} swatches (${r.opened}), picking slot ` +
+            `a right-click opens ${r.swatches} swatches, ${r.painted} of them painted their ` +
+            `slot's colour (${r.opened}), picking slot ` +
             `${r.pick + 1} dyes it ${r.byHand} and a rebuild keeps it (${r.afterRebuild === r.want}); ` +
             `the menu closed itself (${r.closed})`
   };
@@ -1170,8 +1183,7 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
     document.getElementById("vs-manageopen").click();
     var rows = [].slice.call(document.querySelectorAll("#vs-managelist .vs-managerow"));
     var row = rows.filter(function (r) { return r.textContent.indexOf("People") === 0; })[0];
-    var vary = [].slice.call(row.querySelectorAll("button"))
-      .filter(function (b) { return b.textContent === "Vary colours"; })[0];
+    var vary = row.querySelector('.vs-toggle input[role="switch"]');
     vary.click();
     var variedDyes = ids.map(tint).join(",");
     var varied = new Set(ids.map(tint)).size;
@@ -1186,12 +1198,8 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
       return now !== "(gone)" && now !== variedDyes.split(",")[i];
     }).length;
     __vs.setFilters({ folders: [] });
-    var pressed = [].slice.call(document.querySelectorAll("#vs-managelist .vs-managerow button"))
-      .filter(function (b) { return b.textContent === "Vary colours"; })
-      .filter(function (b) { return b.getAttribute("aria-pressed") === "true"; }).length;
-    vary = [].slice.call(document.querySelectorAll("#vs-managelist .vs-managerow"))
-      .filter(function (r) { return r.textContent.indexOf("People") === 0; })[0]
-      .querySelector('button[aria-pressed]');
+    var pressed = [].slice.call(document.querySelectorAll('#vs-managelist .vs-toggle input[role="switch"]'))
+      .filter(function (b) { return b.checked; }).length;
     vary.click();
     var backDyes = ids.map(tint).join(",");
     var back = new Set(ids.map(tint)).size;
@@ -1801,6 +1809,50 @@ check("previous collection walks back, and Alt+Left does the same", async (p) =>
   return { ok: r.afterButton === r.first && r.afterKey === r.first,
            detail: `${r.first} -> ${r.second}; the button came back to ${r.afterButton}, ` +
                    `Alt+Left to ${r.afterKey}` };
+});
+
+check("a click off the book puts it down, and a click on it does not", async (p) => {
+  const r = await p.j(`(function(){
+    var press = function (el, x, y) {
+      ["mousedown", "mouseup", "click"].forEach(function (type) {
+        el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true,
+                                                clientX: x, clientY: y }));
+      });
+    };
+    __vs.openBook(__vs.addresses()[0], null);
+    var readerEl = document.getElementById("vs-reader");
+    var spread = document.querySelector("#vs-reader .vs-spread");
+    var box = spread.getBoundingClientRect();
+    /* On the book: the note's own text, well inside the cover. */
+    var onBook = document.elementFromPoint(box.left + box.width * 0.7, box.top + box.height * 0.5);
+    press(onBook, box.left + box.width * 0.7, box.top + box.height * 0.5);
+    var stillOpen = !readerEl.hidden;
+    /* Off the book: the desk to the left of the cover, at the book's own height. */
+    var host = readerEl.getBoundingClientRect();
+    var deskX = host.left + Math.max(4, (box.left - host.left) / 2);
+    var deskY = box.top + box.height * 0.5;
+    var desk = document.elementFromPoint(deskX, deskY);
+    var deskIsReader = desk === readerEl || (desk && !desk.closest(".vs-spread"));
+    press(desk, deskX, deskY);
+    var closed = readerEl.hidden;
+    /* A selection dragged from the page out onto the desk must not close it. */
+    __vs.openBook(__vs.addresses()[0], null);
+    onBook = document.elementFromPoint(box.left + box.width * 0.7, box.top + box.height * 0.5);
+    onBook.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: box.left + 300, clientY: deskY }));
+    desk.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, clientX: deskX, clientY: deskY }));
+    desk.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: deskX, clientY: deskY }));
+    var survivedDrag = !readerEl.hidden;
+    __vs.closeReader();
+    return { stillOpen: stillOpen, deskIsReader: deskIsReader, closed: closed,
+             survivedDrag: survivedDrag, gutter: Math.round(box.left - host.left) };
+  })()`);
+  const ok = r.stillOpen && r.deskIsReader && r.closed && r.survivedDrag;
+  return {
+    ok,
+    detail: `a click on the page leaves the book open (${r.stillOpen}); a click on the desk ` +
+            `${r.gutter}px to its left (${r.deskIsReader ? "off the book" : "NOT off the book"}) ` +
+            `puts it down (${r.closed}); a selection dragged off the cover does not (${r.survivedDrag})`
+  };
 });
 
 check("escape closes the reader and leaves the shelf where it was", async (p) => {
