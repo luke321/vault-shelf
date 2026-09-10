@@ -89,7 +89,7 @@ export function recipes(): Recipe[] {
  * decisions/0001
  */
 
-export const SETTINGS_SCHEMA = 4;
+export const SETTINGS_SCHEMA = 5;
 
 export interface Persisted {
   schema: number;
@@ -102,7 +102,14 @@ export interface Persisted {
    */
   wear: Record<string, number>;
   dateFields: string[];
-  peopleProperty: string;
+  /**
+   * decisions/0003 -- the frontmatter properties that name people, tried in order and merged.
+   * A list rather than one name because a vault does not use one: meeting notes carry
+   * `attendees`, a 1-on-1 carries `person`, and something written by hand carries `people`.
+   * Naming only the first of those is how the People shelf comes up empty in a vault that is
+   * full of people.
+   */
+  peopleFields: string[];
   /**
    * decisions/0003 -- ON since schema 3: a note with no declared date takes the earliest stamp
    * the filesystem has for it rather than going to Undated. `dates.stampOf` is what makes that
@@ -166,7 +173,7 @@ export function emptySettings(): Persisted {
     reading: [],
     wear: {},
     dateFields: ["date", "created"],
-    peopleProperty: "people",
+    peopleFields: ["people", "attendees", "person"],
     useFileStamp: true,
     noteOrder: "oldest",
     look: "",
@@ -196,8 +203,7 @@ export function migrate(raw: unknown): Persisted {
     dateFields: Array.isArray(data.dateFields) && data.dateFields.length
       ? data.dateFields.filter((f): f is string => typeof f === "string")
       : base.dateFields,
-    peopleProperty: typeof data.peopleProperty === "string" && data.peopleProperty
-      ? data.peopleProperty : base.peopleProperty,
+    peopleFields: peopleFieldsOf(data, base.peopleFields),
     /* Schema 3 turned the file-stamp fallback on. A file written under it says `false`,
      * which was the default rather than a decision -- the same argument `decadesOn` makes
      * about plaques -- so it comes up on, and a file that already says 3 means what it says. */
@@ -231,6 +237,22 @@ function weeksAway(shelf: Shelf, from: number): Shelf {
 function decadesOn(shelf: Shelf, from: number): Shelf {
   if (from >= 2 || shelf.classifier !== "year" || shelf.plaques) return shelf;
   return { ...shelf, plaques: true };
+}
+
+/**
+ * Schema 5 turned the single `peopleProperty` into a list. A file written under it carries the
+ * one name it was set to, which is kept -- that WAS a decision, unlike the defaults schema 2
+ * and 3 and 4 changed -- and joined by the two conventions the default now also reads, so a
+ * vault whose meeting notes use `attendees` stops having an empty People shelf.
+ */
+function peopleFieldsOf(data: Partial<Persisted> & { peopleProperty?: unknown },
+                        fallback: string[]): string[] {
+  const listed = Array.isArray(data.peopleFields)
+    ? data.peopleFields.filter((f): f is string => typeof f === "string" && f.trim() !== "")
+    : [];
+  if (listed.length) return [...new Set(listed.map((f) => f.trim()))];
+  const one = typeof data.peopleProperty === "string" ? data.peopleProperty.trim() : "";
+  return one ? [...new Set([one, ...fallback])] : fallback.slice();
 }
 
 /** Only positive finite counts survive: a hand-edited file cannot make a spine infinitely worn. */

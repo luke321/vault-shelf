@@ -76,7 +76,7 @@ export function buildData(app, settings) {
     /** @type {Record<string,string>} */
     const props = {};
     for (const key of Object.keys(fm)) {
-      if (key === "position" || key === "tags" || key === settings.peopleProperty) continue;
+      if (key === "position" || key === "tags" || settings.peopleFields.indexOf(key) >= 0) continue;
       const value = fm[key];
       if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
         props[key] = String(value);
@@ -98,13 +98,19 @@ export function buildData(app, settings) {
       for (const t of fmTags.split(/[,\s]+/)) if (t) tags.push(t.replace(/^#/, ""));
     }
 
-    /** @type {string[]} */
+    /* decisions/0003 -- EVERY people property, merged. A vault does not use one name for
+     * them: meeting notes carry `attendees`, a 1-on-1 carries `person`, something written by
+     * hand carries `people`. Reading only the first is how a People shelf comes up empty in a
+     * vault that is full of people.
+     * @type {string[]} */
     const people = [];
-    const raw = fm[settings.peopleProperty];
-    if (Array.isArray(raw)) {
-      for (const p of raw) if (typeof p === "string") people.push(cleanLink(p));
-    } else if (typeof raw === "string") {
-      people.push(cleanLink(raw));
+    for (const field of settings.peopleFields) {
+      const raw = fm[field];
+      if (Array.isArray(raw)) {
+        for (const p of raw) if (typeof p === "string") people.push(core.cleanPerson(p));
+      } else if (typeof raw === "string") {
+        people.push(core.cleanPerson(raw));
+      }
     }
 
     folderCounts.set(folder, (folderCounts.get(folder) || 0) + 1);
@@ -114,7 +120,7 @@ export function buildData(app, settings) {
       title: file.basename,
       folder,
       date,
-      people: [...new Set(people)].sort(),
+      people: [...new Set(people.filter(Boolean))].sort(),
       tags: [...new Set(tags)].sort(),
       props,
       excerpt: "",
@@ -140,17 +146,6 @@ export function buildData(app, settings) {
   };
 }
 
-/**
- * decisions/0003 -- a wikilink to a person note is the person; the brackets are not.
- * @param {string} value
- * @returns {string}
- */
-function cleanLink(value) {
-  const inner = value.replace(/^\[\[|\]\]$/g, "");
-  const label = inner.split("|").pop() || inner;
-  const leaf = label.split("/").pop() || label;
-  return leaf.trim();
-}
 
 /* ================================================================= the view == */
 
@@ -331,17 +326,18 @@ export default class VaultShelfPlugin extends Plugin {
  * which serves both hosts and is where you are standing when you want to change it. A setting
  * that lives two places drifts, and a third look would have needed a dropdown here anyway.
  *
- * @type {{ key: "dateFields" | "peopleProperty" | "useFileStamp", name: string, desc: string, kind: "text" | "toggle" }[]}
+ * @type {{ key: "dateFields" | "peopleFields" | "useFileStamp", name: string, desc: string, kind: "text" | "toggle" }[]}
  */
 const SETTINGS = [
   { key: "dateFields", kind: "text",
     name: "Date properties",
     desc: "Comma-separated frontmatter fields, tried in order. A note with none of them " +
           "falls back to a date in its title." },
-  { key: "peopleProperty", kind: "text",
-    name: "People property",
-    desc: "The frontmatter property that names people. People are never inferred from a " +
-          "note's prose." },
+  { key: "peopleFields", kind: "text",
+    name: "People properties",
+    desc: "Comma-separated frontmatter properties that name people, merged -- `people, " +
+          "attendees, person` by default, because a vault rarely uses one of them. Values " +
+          "may be wikilinks. People are never inferred from a note's prose." },
   { key: "useFileStamp", kind: "toggle",
     name: "Fall back to the file's creation date",
     desc: "On by default. A note with no date property and no date in its title takes the " +
@@ -376,7 +372,7 @@ class ShelfSettingTab extends PluginSettingTab {
   /** @param {string} key @returns {unknown} */
   getControlValue(key) {
     if (key === "dateFields") return this.plugin.config.dateFields.join(", ");
-    if (key === "peopleProperty") return this.plugin.config.peopleProperty;
+    if (key === "peopleFields") return this.plugin.config.peopleFields.join(", ");
     if (key === "useFileStamp") return this.plugin.config.useFileStamp;
     return undefined;
   }
@@ -398,8 +394,9 @@ class ShelfSettingTab extends PluginSettingTab {
       this.plugin.config.dateFields = fields.length ? fields : ["date"];
       return;
     }
-    if (key === "peopleProperty") {
-      this.plugin.config.peopleProperty = String(value).trim() || "people";
+    if (key === "peopleFields") {
+      const fields = String(value).split(",").map((f) => f.trim()).filter(Boolean);
+      this.plugin.config.peopleFields = fields.length ? fields : ["people"];
       return;
     }
     if (key === "useFileStamp") this.plugin.config.useFileStamp = value === true;

@@ -71,6 +71,27 @@ export function keysFor(note: Note, shelf: Shelf): string[] {
  * The Encyclopedia's 0-9 volume is a decision, not a fallback: a vault whose titles start
  * with a date would otherwise open with ten single-note books before it reached A.
  */
+/**
+ * decisions/0003 -- ONE READING OF A PERSON'S NAME, for the plugin and the exporter both.
+ *
+ * A people property in a real vault is rarely a bare name. It is `"[[Ada Lovelace]]"`, or
+ * `"[[People/Ada Lovelace|Ada]]"`, or a quoted scalar, or an entry in a block list -- and the
+ * two hosts each used to unwrap it their own way, which is the shape of bug that once had the
+ * exporter inventing a fifteenth month (design/0013).
+ *
+ * A `{{placeholder}}` is not a person. Templater and the core template plugin leave those in
+ * the template file itself, and a vault that keeps its templates alongside its notes would
+ * otherwise grow a person called `{{VALUE}}` with a book of its own.
+ */
+export function cleanPerson(value: string): string {
+  const trimmed = String(value).trim().replace(/^["']|["']$/g, "").trim();
+  const inner = trimmed.replace(/^\[\[/, "").replace(/\]\]$/, "");
+  const label = inner.split("|").pop() ?? inner;
+  const leaf = label.split("/").pop() ?? label;
+  const name = leaf.trim();
+  return /\{\{|\}\}/.test(name) ? "" : name;
+}
+
 export function firstLetter(title: string): string {
   const trimmed = title.replace(/^[^\p{L}\p{N}]+/u, "");
   const ch = trimmed.slice(0, 1).toUpperCase();

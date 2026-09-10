@@ -74,3 +74,26 @@ and never a silently smaller number.
   string, so `date: 2026-13-45` is not a date and the note goes to Undated.
 - *people come from the property alone, never from prose* is the check, and it works by
   planting a known name in note bodies in the fixture and asserting that no note picked it up.
+
+### Revised 2026-09-10 — one people property was never enough
+
+> "how does the people not work? does it need a tag or what? it does not work in my vault"
+
+It did not, and the reason was a default. `peopleProperty` was the single string `"people"`,
+and the vault it was being asked about does not have that property on a single note. Measured
+across its 545 files: **`attendees` on 187, `person` on 74, `people` on none**. The People
+shelf was correctly reporting that nobody was named in a property nobody used.
+
+So the setting is a **list**, `peopleFields`, defaulting to `people, attendees, person` and
+merged — the same shape `dateFields` has always had, and for the same reason. A settings file
+that named one property keeps it, joined by the conventions; that one WAS a decision, unlike
+the defaults schemas 2, 3 and 4 changed. With the list in place that vault yields **124
+people** where it yielded none.
+
+`core.cleanPerson` is the other half. A people property in a real vault is rarely a bare name:
+it is `"[[Ada Lovelace]]"`, or `"[[People/Ada Lovelace|Ada]]"`, or a quoted scalar in a block
+list. The plugin unwrapped those and the exporter did not, which is the same two-implementation
+shape that once had the exporter inventing a fifteenth month. Now both call one function — and
+it also refuses a `{{placeholder}}`, because a vault that keeps its templates alongside its
+notes would otherwise grow a person called `{{VALUE}}` with a book of their own.
+

@@ -18,7 +18,8 @@ const arg = (name, fallback) => {
 const VAULT = resolve(arg("vault", join(ROOT, "demo-vault")));
 const OUT = resolve(arg("out", join(ROOT, "vault-shelf.html")));
 const DATE_FIELDS = arg("date-fields", "date,created").split(",").map((s) => s.trim()).filter(Boolean);
-const PEOPLE_PROP = arg("people-prop", "people");
+const PEOPLE_FIELDS = arg("people-props", "people,attendees,person")
+  .split(",").map((f) => f.trim()).filter(Boolean);
 const EXCLUDE = arg("exclude", "99 - Templates,.obsidian,.trash")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
@@ -146,8 +147,13 @@ for (const file of files) {
   else if (title.trim().slice(0, 10) === date) sources.title++;
   else sources.stamp++;
 
-  const people = (lists[PEOPLE_PROP] || []).slice();
-  if (props[PEOPLE_PROP]) people.push(props[PEOPLE_PROP]);
+  /* decisions/0003 -- every people property, merged, and read through core.cleanPerson so a
+   * wikilink, an alias and a quoted scalar mean here exactly what they mean in the plugin. */
+  const people = [];
+  for (const field of PEOPLE_FIELDS) {
+    for (const v of lists[field] || []) people.push(CORE.cleanPerson(v));
+    if (props[field]) people.push(CORE.cleanPerson(props[field]));
+  }
 
   const tags = (lists.tags || []).slice();
   if (props.tags) tags.push(...props.tags.split(/[,\s]+/).filter(Boolean));
@@ -155,7 +161,7 @@ for (const file of files) {
 
   const scalar = {};
   for (const [k, v] of Object.entries(props)) {
-    if (k === "tags" || k === PEOPLE_PROP) continue;
+    if (k === "tags" || PEOPLE_FIELDS.indexOf(k) >= 0) continue;
     scalar[k] = v;
   }
 
@@ -166,7 +172,7 @@ for (const file of files) {
     title,
     folder,
     date,
-    people: [...new Set(people)].sort(),
+    people: [...new Set(people.filter(Boolean))].sort(),
     tags: [...new Set(tags.map((t) => t.replace(/^#/, "")))].sort(),
     props: scalar,
     excerpt: body.trim().split("\n").slice(0, 2).join(" ").slice(0, 240),

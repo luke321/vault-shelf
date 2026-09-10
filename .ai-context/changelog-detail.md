@@ -531,3 +531,35 @@ viewport, every shelf row fits, and reader pages, reader toolbar and Manage dial
 now verifies 120% spine height and compares semantic counts separately from repeated plaques,
 since larger bindings can produce more rows. Inspected screenshots are
 `vault-shelf-leather-oWY351/scaled-{1440,390,manage}.png`.
+
+## The People shelf was empty, and the default was why
+
+> "how does the people not work? does it need a tag or what? it does not work in my vault"
+
+`peopleProperty` was one string, `"people"`. Measured across the 545 files of the vault it was
+being asked about:
+
+| property | notes carrying it |
+|---|---|
+| `attendees` | **187** |
+| `person` | **74** |
+| `partner` / `partners` | 83 / 52 (organisations, not people) |
+| `people` | **0** |
+
+So the shelf was right and the default was wrong. `peopleFields` is now a list —
+`people, attendees, person`, merged — the same shape `dateFields` has always had. That vault
+now yields **124 people** where it yielded **0**.
+
+`core.cleanPerson` is the other half, called by the plugin and the exporter both: it unwraps
+`"[[People/Ada Lovelace|Ada]]"` to `Ada`, a quoted `"[[Ada Lovelace]]"` to `Ada Lovelace`, and
+returns nothing for `[[{{VALUE}}]]`, so a vault that keeps its templates among its notes does
+not grow a person called `{{VALUE}}`. The plugin had a private unwrapper and the exporter had
+none — the same split that produced the fifteenth month.
+
+## Ribbons are visible from inside the book
+
+A ribbon showed on a spine and on the Reading shelf, and vanished the moment you opened the
+book — which is backwards, since a ribbon is what you put in a book to get back to a page
+*while reading it*. Up to **3** now hang over the top of the spread, named with their note
+titles and clickable; beyond that they become a count (`+2 more`), because the full list of a
+book's notes is already the left-hand page.

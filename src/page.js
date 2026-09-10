@@ -79,6 +79,9 @@ var SLOT_KEYS = ["--g1", "--g2", "--g3", "--g4", "--g5", "--g6",
  * year, years under a decade. core.plaqueFor is the other half and the two agree by test. */
 var PLAQUABLE = { month: true, week: true, year: true };
 
+/* design/0008 -- how many ribbons hang over an open book before the rest become a count. */
+var MARKS_SHOWN = 3;
+
 var SPINE_GAP = 3;
 var SPINE_MIN = 22;
 var SPINE_MAX = 58;
@@ -742,8 +745,48 @@ function mountVaultShelf(root, data, options) {
     $("prevcollection").disabled = !history.length;
 
     renderContents();
+    renderMarks();
     renderTabs();
     renderNote();
+  }
+
+  /**
+   * design/0008 -- THE RIBBONS THIS BOOK HOLDS, hanging over the top of the spread and named.
+   *
+   * A ribbon used to be visible only from outside: a strip of colour on a spine, and a shelf
+   * of marked books at the head of the library. Once a book was open the marks it held were
+   * gone -- which is backwards, because a ribbon is a thing you put in a book precisely so you
+   * can get back to that page while you are reading it.
+   *
+   * THREE, AT MOST. Every note in a book can be marked, and a row of forty tabs is a
+   * different feature -- a table of contents, which is already on the left-hand page. Three is
+   * what a real book holds without falling open at the wrong place, and the count says how
+   * many more there are.
+   * @returns {void}
+   */
+  function renderMarks() {
+    var box = $("marks");
+    clear(box);
+    var here = reader.book.notes
+      .map(function (note, i) { return { note: note, at: i }; })
+      .filter(function (row) { return isBookmarked(row.note.id); });
+    box.hidden = here.length === 0;
+    if (!here.length) return;
+
+    here.slice(0, MARKS_SHOWN).forEach(function (row) {
+      var b = /** @type {HTMLButtonElement} */ (el("button", "vs-mark"));
+      b.type = "button";
+      b.appendChild(el("span", "vs-markribbon"));
+      b.appendChild(el("span", "vs-markname", row.note.title));
+      b.title = "Go to " + row.note.title;
+      if (row.at === reader.index) b.setAttribute("aria-current", "true");
+      on(b, "click", function () { goTo(row.at); });
+      box.appendChild(b);
+    });
+    if (here.length > MARKS_SHOWN) {
+      box.appendChild(el("span", "vs-markmore",
+        "+" + (here.length - MARKS_SHOWN) + " more"));
+    }
   }
 
   function renderContents() {
@@ -1027,6 +1070,7 @@ function mountVaultShelf(root, data, options) {
     return settings.reading.some(function (m) { return m.noteId === noteId; });
   }
 
+  /** @returns {void} */
   function toggleBookmark() {
     if (!reader) return;
     var note = reader.book.notes[reader.index];
@@ -1038,6 +1082,7 @@ function mountVaultShelf(root, data, options) {
                                  bookId: reader.book.id, at: Date.now() });
     persist();
     $("ribbon").setAttribute("aria-pressed", isBookmarked(note.id) ? "true" : "false");
+    renderMarks();   // the row over the spread is this book's ribbons, so it changes here too
     renderLibrary();
     applyQuery();
   }

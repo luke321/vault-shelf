@@ -378,7 +378,7 @@ check("a settings file from an older schema comes up with the newer defaults", a
           direction: "alphabetical", hidden: false, position: 2, plaques: false }
       ],
       reading: [], wear: { "years/2026": 3 }, dateFields: ["date"],
-      peopleProperty: "people", useFileStamp: false
+      peopleFields: ["people"], useFileStamp: false
     };
     var up = core.migrate(old);
     var byId = {};
@@ -415,7 +415,7 @@ check("a settings file from an older schema comes up with the newer defaults", a
                hidden: false, position: 0, plaques: true }] }).shelves[0].hidden,
              keptShown: shown ? shown.hidden === false : false };
   })()`);
-  const ok = r.schema === 4 && r.years === true && r.months === true && r.people === false &&
+  const ok = r.schema === 5 && r.years === true && r.months === true && r.people === false &&
              r.wear === 3 && r.fields === "date" && r.keptOff === false &&
              r.stamp === true && r.keptStampOff === false && r.order === "oldest" &&
              r.weeksHidden === true && r.keptShown === true;
@@ -818,26 +818,47 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
                addresses: __vs.addresses().join("|"),
                counts: JSON.stringify(counts) };
     };
+    /* design/0016 -- EVERY look core offers, through the control a person uses. The selector
+     * is built from core.LOOKS, so a look added there is checked here without editing this. */
+    var sel = document.getElementById("vs-look");
+    var pick = function (value) {
+      sel.value = value;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      return read();
+    };
+    var offered = [].slice.call(sel.options).map(function (o) { return o.value; });
     var off = read();
-    var sw = document.getElementById("vs-lookswitch");
-    sw.click();
-    var on = read();
-    sw.click();
-    var back = read();
-    return { off: off, on: on, back: back, pressed: sw.getAttribute("aria-pressed") };
+    var seen = offered.filter(function (v) { return v !== ""; }).map(function (v) {
+      return { value: v, state: pick(v) };
+    });
+    var back = pick("");
+    return { off: off, seen: seen, back: back, offered: offered.join(",") };
   })()`);
-  const moved = r.off.addresses !== r.on.addresses || r.off.counts !== r.on.counts;
-  const repainted = r.off.dye !== r.on.dye && r.off.slots !== r.on.slots &&
-                    r.off.ground !== r.on.ground;
+
+  const moved = r.seen.some((l) => l.state.addresses !== r.off.addresses ||
+                                   l.state.counts !== r.off.counts);
+  const named = r.seen.every((l) => l.state.look === l.value);
+  const repainted = r.seen.every((l) => l.state.dye !== r.off.dye &&
+                                        l.state.slots !== r.off.slots &&
+                                        l.state.ground !== r.off.ground);
+  const distinct = new Set(r.seen.map((l) => l.state.ground)).size === r.seen.length;
   const restored = r.back.look === "" && r.back.dye === r.off.dye &&
                    r.back.slots === r.off.slots;
-  const scaled = Math.abs(r.on.height - r.off.height * 1.2) < 0.1;
-  return { ok: r.off.look === "" && r.on.look === "leather" && !moved && repainted && restored && scaled,
-           detail: `data-look "${r.off.look}" -> "${r.on.look}" -> "${r.back.look}"; ` +
-                   `the first spine is ${r.off.dye} then ${r.on.dye}; ` +
-                   `${bookCount(r.off.addresses)} book addresses, identical in both ` +
-                   `(${!moved}); the twelve slots changed (${r.off.slots !== r.on.slots}) ` +
-                   `and came back (${restored}); 120% scale ${scaled}` };
+  /* THE 20% IS AN INVARIANT, not a detail of the stylesheet. The leather look zooms the page
+   * so its type is readable at a normal viewing distance rather than merely correct, and a
+   * spine that stops being 20% taller under it is that having been lost. */
+  const leather = r.seen.filter((l) => l.value === "leather")[0];
+  const scaled = !leather || Math.abs(leather.state.height - r.off.height * 1.2) < 0.6;
+  return {
+    ok: r.off.look === "" && r.seen.length >= 2 && named && !moved && repainted &&
+        distinct && restored && scaled,
+    detail: `the selector offers "${r.offered}"; each one paints its own ground ` +
+            `(${r.seen.map((l) => l.value + " " + l.state.ground).join(", ")}) over the ` +
+            `default's ${r.off.ground}, ${bookCount(r.off.addresses)} book addresses ` +
+            `identical throughout (${!moved}), the twelve slots change under every look ` +
+            `and come back (${restored}); leather stands 20% taller (${scaled}: ` +
+            `${r.off.height.toFixed(1)}px -> ${leather ? leather.state.height.toFixed(1) : "n/a"}px)`
+  };
 });
 
 /* design/0008 -- MAGIC 1. A book you open often looks handled. */
@@ -864,6 +885,61 @@ check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
 });
 
 /* design/0008 -- MAGIC 2. A ribbon hangs out of the book, visible from the shelf. */
+check("an open book shows the ribbons in it, three at most", async (p) => {
+  const r = await p.j(`(function(){
+    var months = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0];
+    var book = months.books.filter(function (b) { return b.notes.length >= 5; })[0];
+    __vs.openBook(book.id, null);
+
+    var row = function () {
+      var box = document.getElementById("vs-marks");
+      return { hidden: box.hidden,
+               names: [].slice.call(box.querySelectorAll(".vs-markname"))
+                 .map(function (e) { return e.textContent; }),
+               more: (box.querySelector(".vs-markmore") || {}).textContent || "",
+               current: [].slice.call(box.querySelectorAll('[aria-current="true"]')).length };
+    };
+    var empty = row();
+
+    /* Mark five notes of this book, from inside it, the way a person does. */
+    var marked = [];
+    for (var i = 0; i < 5; i++) {
+      __vs.openBook(book.id, book.notes[i].id);
+      document.getElementById("vs-ribbon").click();
+      marked.push(book.notes[i].title);
+    }
+    var full = row();
+
+    /* The row is this book's ribbons: the first one goes to the first marked note. */
+    var before = __vs.reader().index;
+    var first = document.querySelector("#vs-marks .vs-mark");
+    if (first) first.click();
+    var jumped = __vs.reader().index;
+
+    for (var k = 0; k < 5; k++) {
+      __vs.openBook(book.id, book.notes[k].id);
+      document.getElementById("vs-ribbon").click();
+    }
+    var cleared = row();
+    __vs.closeReader();
+    return { book: book.key, notes: book.notes.length, empty: empty, full: full,
+             cleared: cleared, marked: marked, before: before, jumped: jumped };
+  })()`);
+  const capped = r.full.names.length === 3;
+  const counted = r.full.more === "+2 more";
+  const named = r.full.names.every((n, i) => n === r.marked[i]);
+  const ok = r.empty.hidden === true && capped && counted && named &&
+             r.jumped !== r.before && r.cleared.hidden === true;
+  return {
+    ok,
+    detail: `${r.book} holds ${r.notes} notes; with none marked the row is hidden ` +
+            `(${r.empty.hidden}), with five it shows ${r.full.names.length} named ribbons ` +
+            `and "${r.full.more}", in the order they sit in the book (${named}); clicking ` +
+            `the first moved the reader ${r.before} -> ${r.jumped}; unmarking all five hides ` +
+            `it again (${r.cleared.hidden})`
+  };
+});
+
 check("a ribbon hangs from every book that holds a marked note", async (p) => {
   const r = await p.j(`(function(){
     __vs.settings().reading.length = 0;
@@ -1299,6 +1375,40 @@ check("parent tag inclusion is a setting, and it changes the answer", async (p) 
 /* The fixtures name PROSE_ONLY in note bodies and never in a people property. If it ever
  * reaches a note's people list, or earns a book of its own, something started reading prose. */
 const PROSE_ONLY = "Dagny Halvorsen";
+
+check("a person is read from every people property, and out of a wikilink", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    return {
+      plain: core.cleanPerson("Ada Lovelace"),
+      link: core.cleanPerson("[[Ada Lovelace]]"),
+      quoted: core.cleanPerson('"[[Ada Lovelace]]"'),
+      aliased: core.cleanPerson("[[People/Ada Lovelace|Ada]]"),
+      pathed: core.cleanPerson("[[07 - People/Ada Lovelace]]"),
+      /* A template placeholder is not a person, and a vault that keeps its templates
+       * alongside its notes would otherwise grow a book for one. */
+      placeholder: core.cleanPerson("[[{{VALUE}}]]"),
+      blank: core.cleanPerson("   "),
+      /* The setting is a LIST: a vault carries attendees on a meeting note and person on a
+       * 1-on-1, and naming one of them leaves the shelf empty. */
+      fields: core.migrate({ schema: 5 }).peopleFields.join(","),
+      /* An older file named one property; it is kept, and joined by the conventions. */
+      kept: core.migrate({ schema: 4, peopleProperty: "guests" }).peopleFields.join(","),
+      chosen: core.migrate({ schema: 5, peopleFields: ["with"] }).peopleFields.join(",")
+    };
+  })()`);
+  const ok = r.plain === "Ada Lovelace" && r.link === "Ada Lovelace" &&
+             r.quoted === "Ada Lovelace" && r.aliased === "Ada" &&
+             r.pathed === "Ada Lovelace" && r.placeholder === "" && r.blank === "" &&
+             r.fields === "people,attendees,person" &&
+             r.kept === "guests,people,attendees,person" && r.chosen === "with";
+  return {
+    ok,
+    detail: `"[[People/Ada Lovelace|Ada]]" reads as "${r.aliased}", "[[{{VALUE}}]]" as ` +
+            `"${r.placeholder}"; the default properties are ${r.fields}; a file that named ` +
+            `"guests" comes up with ${r.kept}, and one that names its own keeps ${r.chosen}`
+  };
+});
 
 check("people come from the property alone, never from prose", async (p) => {
   const r = await p.j(`(function(){

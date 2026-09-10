@@ -220,6 +220,31 @@
 
 .vault-shelf #vs-q:focus { border-color: var(--accent); outline: none; }
 
+/* design/0016 -- THE LOOK SELECTOR IS A CONTROL, NOT A COLUMN. A bare `<select>` in a flex row
+ * takes whatever is going, and under the leather look -- which zooms the page 20% -- it grew
+ * wide enough to squeeze the vault's name down to an ellipsis and push half the shelf jumps
+ * out of the rail. It is sized like the search box beside it: fixed, and it does not shrink
+ * the things that carry the actual information. */
+.vault-shelf #vs-look {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 132px;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 3px 6px;
+}
+
+.vault-shelf #vs-look:focus { border-color: var(--accent); outline: none; }
+
+/* The name is the first thing to go when the rail is tight, and it is the one thing in there
+ * that cannot be worked out from anything else. */
+.vault-shelf .vs-railname { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.vault-shelf #vs-order, .vault-shelf #vs-manageopen { flex: 0 0 auto; white-space: nowrap; }
+
 .vault-shelf #vs-hits {
   flex: 0 0 auto;
   font-size: 11.5px;
@@ -940,4 +965,66 @@
   .vault-shelf .vs-spine:hover, .vault-shelf .vs-spine:focus-visible { transform: none; }
   .vault-shelf[data-query="1"] .vs-spine[data-match="1"] { transform: none; }
   .vault-shelf .vs-shelfhead .vs-mini { transition: none; }
+}
+
+/* design/0008 -- THE RIBBONS AN OPEN BOOK HOLDS, hanging over the top of the spread the way
+ * a marker sticks out of the pages rather than sitting in a toolbar. Three at most; the rest
+ * are a count, because the full list of a book's notes is the left-hand page. */
+.vault-shelf .vs-marks {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  width: 100%;
+  max-width: var(--measure);
+  margin: 6px auto -1px;
+  padding: 0 26px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.vault-shelf .vs-mark {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  min-width: 0;
+  max-width: 240px;
+  padding: 4px 10px 6px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+  background: var(--surface-1);
+  color: var(--text-2);
+  font-size: 11.5px;
+  box-shadow: none;
+}
+
+.vault-shelf .vs-mark:hover { color: var(--text-1); }
+.vault-shelf .vs-mark[aria-current="true"] {
+  color: var(--text-1);
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+/* The marker itself: a strip of the accent, the same idea as the one on a spine. */
+.vault-shelf .vs-markribbon {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 12px;
+  border-radius: 0 0 2px 2px;
+  background: var(--accent);
+}
+
+.vault-shelf .vs-markname {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-shelf .vs-markmore {
+  align-self: center;
+  color: var(--text-3);
+  font-size: 10.5px;
+  padding-bottom: 4px;
 }
