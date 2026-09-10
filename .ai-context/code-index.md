@@ -9,7 +9,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 
 | issue | code sites | prose sites |
 |---|---|---|
-| #0 | src/page.js:1066, src/page.js:1207 | — |
+| #0 | src/page.js:1070, src/page.js:1211 | — |
 
 ## Decision and design records cited in code — 23
 
@@ -24,15 +24,15 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `decisions/0007` | scripts/check-comments.mjs:2, scripts/check-comments.mjs:14, scripts/check-comments.mjs:140, scripts/code-map.mjs:2 |
 | `decisions/0008` | scripts/smoke.mjs:1202 |
 | `design/0001` | src/core/dates.ts:2, src/core/types.ts:2 |
-| `design/0002` | src/core/defaults.ts:4, src/core/defaults.ts:45, src/core/shelves.ts:22, src/core/shelves.ts:37, src/core/shelves.ts:125, src/core/types.ts:35, src/page.js:240, src/page.js:1026, scripts/smoke.mjs:882 |
+| `design/0002` | src/core/defaults.ts:4, src/core/defaults.ts:45, src/core/shelves.ts:22, src/core/shelves.ts:37, src/core/shelves.ts:125, src/core/types.ts:35, src/page.js:240, src/page.js:1030, scripts/smoke.mjs:882 |
 | `design/0003` | src/core/shelves.ts:97, src/core/types.ts:60, src/core/types.ts:73, src/page.css:377, src/page.js:78, src/page.js:514, scripts/smoke.mjs:270 |
 | `design/0004` | src/core/shelves.ts:208, src/core/shelves.ts:263, src/core/types.ts:94, src/page.js:652 |
-| `design/0005` | src/page.css:4, src/page.css:8, src/page.css:107, src/page.css:426, src/page.css:613, src/page.js:62, src/page.js:226, src/page.js:554, src/page.js:1402, plugin/main.js:10, plugin/main.js:199, scripts/check-scope.mjs:64, scripts/smoke.mjs:514 |
+| `design/0005` | src/page.css:4, src/page.css:8, src/page.css:107, src/page.css:426, src/page.css:613, src/page.js:62, src/page.js:226, src/page.js:554, src/page.js:1406, plugin/main.js:10, plugin/main.js:199, scripts/check-scope.mjs:64, scripts/smoke.mjs:514 |
 | `design/0006` | scripts/obsidian-smoke.mjs:3, scripts/screen.mjs:1, scripts/screen.mjs:42 |
 | `design/0007` | scripts/record-demo.mjs:2, scripts/record-demo.mjs:23, scripts/record-demo.mjs:139, scripts/record-demo.mjs:172, scripts/record-demo.mjs:419, scripts/record-demo.mjs:442, scripts/record-demo.mjs:451, scripts/record-demo.mjs:562 |
-| `design/0008` | src/core/defaults.ts:95, src/core/defaults.ts:165, src/core/shelves.ts:223, src/core/types.ts:79, src/core/types.ts:105, src/page.css:497, src/page.css:525, src/page.css:545, src/page.js:202, src/page.js:284, src/page.js:561, src/page.js:614, src/page.js:666, src/page.js:1404, scripts/smoke.mjs:566, scripts/smoke.mjs:589, scripts/smoke.mjs:615 |
+| `design/0008` | src/core/defaults.ts:95, src/core/defaults.ts:165, src/core/shelves.ts:223, src/core/types.ts:79, src/core/types.ts:105, src/page.css:497, src/page.css:525, src/page.css:545, src/page.js:202, src/page.js:284, src/page.js:561, src/page.js:614, src/page.js:666, src/page.js:1408, scripts/smoke.mjs:566, scripts/smoke.mjs:589, scripts/smoke.mjs:615 |
 | `design/0009` | src/page.css:91, src/page.css:101, src/page.css:296, src/page.js:262, scripts/smoke.mjs:489, scripts/smoke.mjs:646 |
-| `design/0010` | src/page.css:739, src/page.js:55, src/page.js:886, plugin/main.js:211 |
+| `design/0010` | src/page.css:740, src/page.js:55, src/page.js:890, plugin/main.js:211 |
 | `design/0011` | src/page.css:95, src/page.js:71, src/page.js:593, scripts/make-demo-vault.mjs:166 |
 | `design/0012` | src/page.css:609, src/page.js:722 |
 | `design/0013` | src/build-shelf.mjs:121, scripts/make-mirror-vault.mjs:2, scripts/make-mirror-vault.mjs:114, scripts/make-mirror-vault.mjs:204, scripts/make-mirror-vault.mjs:423, scripts/make-sparse-vault.mjs:153, scripts/record-demo.mjs:77 |

@@ -706,6 +706,7 @@
 .vault-shelf .vs-contents button {
   display: flex;
   align-items: baseline;
+  justify-content: flex-start;   /* app.css centres every button; a row of an index is not */
   gap: 5px;
   width: 100%;
   text-align: left;

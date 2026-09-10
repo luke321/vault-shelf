@@ -4,7 +4,7 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 1524 lines, 16 sections, 69 functions
+## `src/page.js` — 1528 lines, 16 sections, 69 functions
 
 ### Sections
 
@@ -18,14 +18,14 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 283–303 | the reading shelf |
 | 304–612 | library |
 | 613–650 | the shelf parts as you type |
-| 651–1024 | reader |
-| 1025–1198 | builder |
-| 1199–1273 | manage |
-| 1274–1295 | filters |
-| 1296–1316 | refresh |
-| 1317–1370 | the wiring |
-| 1371–1491 | debug api — stripped from the plugin build |
-| 1492–1524 | the wiring (continued) |
+| 651–1028 | reader |
+| 1029–1202 | builder |
+| 1203–1277 | manage |
+| 1278–1299 | filters |
+| 1300–1320 | refresh |
+| 1321–1374 | the wiring |
+| 1375–1495 | debug api — stripped from the plugin build |
+| 1496–1528 | the wiring (continued) |
 
 ### Functions
 
@@ -72,34 +72,34 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 786 | `cutBy` |
 | 810 | `letterTabs` |
 | 831 | `titlePrefix` |
-| 845 | `spanTabs` |
-| 856 | `renderTabs` |
-| 868 | `renderNote` |
-| 926 | `renderMeta` |
-| 940 | `renderMarkdownInto` |
-| 967 | `goTo` |
-| 976 | `shelfById` |
-| 984 | `isBookmarked` |
-| 988 | `toggleBookmark` |
-| 1003 | `previousCollection` |
-| 1016 | `findBook` |
-| 1031 | `openBuilder` |
-| 1051 | `closeBuilder` |
-| 1057 | `writeBuilderFields` |
-| 1081 | `readBuilderFields` |
-| 1100 | `fillSourceValues` |
-| 1119 | `fillProperties` |
-| 1138 | `fillRecipes` |
-| 1157 | `previewBuilder` |
-| 1175 | `saveBuilder` |
-| 1193 | `uniqueId` |
-| 1201 | `openManage` |
-| 1210 | `newShelfFromManage` |
-| 1215 | `renderManage` |
-| 1260 | `reorder` |
-| 1276 | `renderActiveFilters` |
-| 1289 | `clearFilters` |
-| 1298 | `refresh` |
+| 849 | `spanTabs` |
+| 860 | `renderTabs` |
+| 872 | `renderNote` |
+| 930 | `renderMeta` |
+| 944 | `renderMarkdownInto` |
+| 971 | `goTo` |
+| 980 | `shelfById` |
+| 988 | `isBookmarked` |
+| 992 | `toggleBookmark` |
+| 1007 | `previousCollection` |
+| 1020 | `findBook` |
+| 1035 | `openBuilder` |
+| 1055 | `closeBuilder` |
+| 1061 | `writeBuilderFields` |
+| 1085 | `readBuilderFields` |
+| 1104 | `fillSourceValues` |
+| 1123 | `fillProperties` |
+| 1142 | `fillRecipes` |
+| 1161 | `previewBuilder` |
+| 1179 | `saveBuilder` |
+| 1197 | `uniqueId` |
+| 1205 | `openManage` |
+| 1214 | `newShelfFromManage` |
+| 1219 | `renderManage` |
+| 1264 | `reorder` |
+| 1280 | `renderActiveFilters` |
+| 1293 | `clearFilters` |
+| 1302 | `refresh` |
 
 ## `scripts/smoke.mjs` — 1479 lines, 6 sections, 11 functions, 42 checks
 

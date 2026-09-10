@@ -54,3 +54,18 @@ setting.
 Above 26 tabs the list is collapsed into twelve ranges (`Ub–Ug`), unchanged from the first
 version: a tab you cannot hit is decoration, and the 10k library's U volume has 404 notes in
 it.
+
+## Two things only a screenshot showed
+
+**The 0-9 volume is indexed by year.** It is one book of 351 notes in a vault of daily notes,
+and a letter cut can only ever give it the single tab `0-9`. What a title beginning
+`2023-02-16` is filed under is 2023, so a numeric head takes the leading four digits and the
+volume tabs read 2023, 2024, 2025, 2026.
+
+**Obsidian centres every button, and a contents row is a button.** `app.css` sets
+`justify-content: center` on `button`; our rule set `display: flex` and never said otherwise,
+so a row with nothing after its title -- one whose date is already in the title, and therefore
+has no leader (design/0012) -- floated to the middle of the column. Rows with a leader filled
+the width and hid it. `justify-content: flex-start` settles it, and it is the same lesson as
+`.spread`: the host styles the elements we build.
+

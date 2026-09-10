@@ -830,9 +830,13 @@ function mountVaultShelf(root, data, options) {
    */
   function titlePrefix(title, depth) {
     var head = core.firstLetter(title);
-    if (depth <= 1 || head === "0-9" || head === "#") return head;
+    if (depth <= 1 || head === "#") return head;
     var word = /^[\p{L}\p{N}]+/u.exec(title.replace(/^[^\p{L}\p{N}]+/u, ""));
     if (!word) return head;
+    /* THE 0-9 VOLUME IS INDEXED BY YEAR. It is one book of 351 notes in a vault of daily
+     * notes, and "0-9" is the only tab a letter cut can give it. What a title beginning
+     * `2023-02-16` is actually filed under is 2023. */
+    if (head === "0-9") return /^\d{4}/.test(word[0]) ? word[0].slice(0, 4) : head;
     return head + word[0].slice(1, depth).toLowerCase();
   }
 
