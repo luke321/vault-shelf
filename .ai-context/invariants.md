@@ -420,31 +420,25 @@ stacked over the shelves. `changelog-detail.md` has the whole story.
 
 ## The plugin behaves inside a real Obsidian
 
-`scripts/obsidian-smoke.mjs`, opt-in, 10 checks. Measured 2026-09-10 on the demo fixture:
+**Not checked any more.** `scripts/obsidian-smoke.mjs` launched a real Obsidian, enabled the
+plugin in a throwaway vault and drove ten checks through it — the ribbon icon, the view
+lifecycle, the settings tab on both paths, Obsidian's own markdown renderer. It was removed on
+2026-09-10 at the request of the person it kept interrupting: it opens Obsidian windows on a
+machine somebody is working on.
 
-| Check | Measured |
-|---|---|
-| the plugin loads | 394 markdown files; ready 0–1,600 ms after enabling |
-| the bookshelf icon is in the ribbon | 4 shapes at 18×18px, rail stroked |
-| the view opens and the library renders | 6 shelves, 182 spines, 6 year plaques, 1,250 ms |
-| the tab carries the same icon | 4 shapes in the tab header |
-| people and tags came from the metadata cache | 9 people books, 16 tag books |
-| the debug surface is not shipped | `window.__vs` is `undefined` inside Obsidian |
-| three close-and-reopen cycles | 1 mounted root; DOM nodes 2,675 → 2,675 |
-| the settings tab renders on both paths | 4 declarative definitions, 4 rows from `display()` |
-| the note is rendered by Obsidian's own renderer | 238 characters in 7 elements, no fallback text |
-| a long note wraps instead of widening the reader | reader 1,216px, note 495px, nothing scrolls sideways |
-
-`--look leather` writes the plugin's own `data.json` before Obsidian starts, so `--shot` can
-photograph either look as a person would actually have it. Re-measured 2026-09-10 on the
-mirror vault under leather: **10/10, 543 files, 417 spines, 22 plaques, 4 settings rows.**
+What it covered is now covered by hand, and the two things it caught that nothing else could
+are worth keeping in mind when changing the plugin: **Obsidian styles bare elements** (it
+centres every `<button>` and gives `select` a full width), and **it will not load a plugin in
+a vault it has not been told to trust** — a fresh vault asks *Trust author and enable
+plugins?* behind a Settings window, and until that is confirmed the plugin does not load at
+all, which looks exactly like a broken plugin.
 
 ## Not covered here
 
 - **Anything about how it looks.** Every check above asserts a number; none of them can see
   that something is ugly, misaligned or the wrong colour. **Both** of the bugs in
   `changelog-detail.md` were found by looking at a screenshot while the suite was green.
-  `node scripts/obsidian-smoke.mjs --shot out.png` takes it.
+  `node scripts/smoke.mjs --only "<one check>" --shot out.png` takes it.
 - **Popout windows.** The page takes its document from `root.ownerDocument` and `check-scope`
   enforces that, but nothing yet drives a popout.
 - **What a theme other than the default does to it.** The suite checks Obsidian's light and

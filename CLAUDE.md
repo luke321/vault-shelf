@@ -59,7 +59,8 @@ of measuring it.** Build the page, drive it, read the numbers.
   over the library while every attribute-reading check passed), and a third only because the
   person the plugin is for said "does not remind me of vault graph yet" — a design record had
   claimed palette parity that nobody had ever verified. **Look at it.**
-  `node scripts/obsidian-smoke.mjs --shot out.png` writes the library and the reading spread.
+  `node scripts/smoke.mjs --only "<one check>" --shot out.png` writes the library and, beside
+  it, `out-reader.png` of an open book — from the same Chrome the checks drive.
 - **Two things may not run twice at once, and `scripts/lock.mjs` is how you know.** A **screen
   recording** grabs a display region, so a second take captures the first one's window; the
   **full suite** drives Chrome over CDP, so two runs fight for ports and each blames the code.
@@ -76,7 +77,7 @@ of measuring it.** Build the page, drive it, read the numbers.
   They did not until 2026-09-10: each repo had its own directory, so each held a lock the
   other could not see and the two ran together anyway. A machine has one Chrome and one
   screen no matter which repository the suite belongs to.
-  Screenshots need no lock — `obsidian-smoke.mjs` captures over CDP — but it takes its own port.
+  `--shot` is part of a suite run, so it is inside the lock like everything else.
 - `git push` and merging into `develop` are separate asks, every time. `main` only ever
   receives `develop`.
 - **A release is the range, not the work in hand.** Everything it needs — a `CHANGELOG.md`
@@ -86,12 +87,6 @@ of measuring it.** Build the page, drive it, read the numbers.
   version. `.ai-context/releasing.md` opens with the commands that enumerate a range.
 - Measure before and after; the numbers go into `.ai-context/changelog-detail.md`, which is
   the regression suite. A changed constant means `invariants.md` changes in the same commit.
-- **Obsidian does not load the plugin in a vault it has not been told to trust.** Open any
-  vault that is not the daily one and Obsidian asks *Trust author and enable plugins?* the
-  first time, behind a Settings window. Until that is confirmed the plugin does not load **at
-  all**, so skipping it leaves you staring at a plugin that looks broken for a reason that is
-  nowhere in the code. `scripts/obsidian-smoke.mjs` handles this itself; a hand-launched
-  Obsidian does not.
 - Fixtures: three generated vaults (`scripts/make-*-vault.mjs`) in the shared store; never a
   real vault, never a built `vault-shelf.html`, in anything that reaches the repo.
 - **Films are shot in a mirror, not in a fixture.** `scripts/make-mirror-vault.mjs` rebuilds a
@@ -116,7 +111,6 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
 | `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 47 checks over three vault shapes |
-| `scripts/obsidian-smoke.mjs` | the same plugin inside a real Obsidian: ribbon icon, view lifecycle, settings tab, Obsidian's markdown renderer, `--shot` for two pictures |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
 | `.ai-context/code-map.md` | **generated**: sections and functions of the two big files, with line numbers |
 | `.ai-context/code-index.md` | **generated**: issue → code sites, ADR/DDR → code sites, invariant → check, `__vs.*` → callers |

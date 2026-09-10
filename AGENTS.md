@@ -14,7 +14,7 @@ Four things are worth knowing before you touch anything, all expanded in `CLAUDE
   that something looks wrong. Two real bugs in this repo were found only by looking at a
   screenshot — an invisible control character inside a string constant, and `[hidden]` losing
   to a class selector so the reader painted over the library while every check passed.
-  `node scripts/obsidian-smoke.mjs --shot out.png` takes the picture.
+  `node scripts/smoke.mjs --only "<one check>" --shot out.png` takes the picture.
 - **Two things may not run twice at once.** A **screen recording** grabs a display region, so
   a second take captures the first one's window; the **full suite** drives Chrome over CDP, so
   two runs fight for ports and each blames the code. Both are guarded by one machine-wide

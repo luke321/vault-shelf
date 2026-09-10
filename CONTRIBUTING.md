@@ -62,9 +62,8 @@ cache, the view lifecycle, the ribbon icon, the settings tab:
 
 ```bash
 node scripts/build-plugin.mjs
-node scripts/obsidian-smoke.mjs                    # the demo fixture; --fixture sparse | 10k
-node scripts/obsidian-smoke.mjs --only "settings"  # one check by substring, like smoke.mjs
-node scripts/obsidian-smoke.mjs --shot out.png     # and a picture of it
+node scripts/smoke.mjs --only "settings"           # one check by substring
+node scripts/smoke.mjs --only "the room" --shot out.png   # and a picture of it
 ```
 
 It copies a store fixture into a throwaway vault under `%TEMP%`, installs the three built
@@ -168,7 +167,7 @@ links without closing, and is right for a commit that only touches an issue in p
 For a visual change, take before-and-after screenshots of the same vault and compare them:
 
 ```bash
-node scripts/obsidian-smoke.mjs --shot before.png --only "view opens"
+node scripts/smoke.mjs --shot before.png --only "the room has a width"
 ```
 
 ## Code of conduct

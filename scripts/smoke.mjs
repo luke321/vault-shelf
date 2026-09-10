@@ -21,7 +21,10 @@ const argAll = (n) => {
   return out;
 };
 const PINNED_PORT = arg("port", "") ? Number(arg("port", "")) : 0;
+/* Kept as the flag that says "leave the window where I can see it"; the position is now the
+ * left screen either way (design/0006), so this only reads as documentation of intent. */
 const HEADED = argv.includes("--headed");
+if (HEADED) process.env.VS_HEADED = "1";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function freePorts(k) {
@@ -78,6 +81,12 @@ const selected = () => (ONLY.length
   : all);
 
 const JOBS = Math.max(1, Number(arg("jobs", "4")) || 4);
+/* NUMBERS CANNOT SEE, and this is the only thing in the repo that can. `--shot out.png` writes
+ * the library and, beside it, `out-reader.png` of an open book -- from the same Chrome the
+ * checks are driving, with no Obsidian involved. Use it with `--only` and one vault, or you
+ * will be looking at whichever of three shapes finished last. */
+const SHOT = arg("shot", "");
+const LOOK = arg("look", "");
 const GRID = argv.includes("--no-grid") ? false
           : argv.includes("--grid") ? true
           : JOBS > 1;
@@ -812,7 +821,11 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
       delete counts.plaques;
       return { look: root.getAttribute("data-look"),
                height: spine().getBoundingClientRect().height,
-               ground: getComputedStyle(root).backgroundColor,
+               /* THE GROUND IS WHATEVER PAINTS IT. A look that lays its room down as a
+                * gradient leaves backgroundColor transparent, so reading only the colour
+                * says two looks are identical when they could not look less alike. */
+               ground: getComputedStyle(root).backgroundColor + " | " +
+                       getComputedStyle(root).backgroundImage.slice(0, 90),
                dye: getComputedStyle(spine()).backgroundColor,
                slots: __vs.slots().join(","),
                addresses: __vs.addresses().join("|"),
@@ -1674,8 +1687,11 @@ async function runOne(vault, work) {
     "--disable-backgrounding-occluded-windows",
     "--disable-renderer-backgrounding",
     "--disable-background-timer-throttling",
-    ...(slot ? [`--window-position=${slot.x},${slot.y}`]
-             : HEADED ? [] : [leftWindowPos()]),
+    /* design/0006 -- ON THE LEFT SCREEN, headed or not. A headless window is invisible and a
+     * headed one is not: leaving Chrome to place itself put a test window on top of whatever
+     * the person is actually doing. There is one machine here and it has a monitor the
+     * harness is allowed to use. */
+    ...(slot ? [`--window-position=${slot.x},${slot.y}`] : [leftWindowPos()]),
     slot ? `--window-size=${slot.w},${slot.h}` : "--window-size=1600,1000", `--app=${url}`
   ], { stdio: ["ignore", "ignore", "pipe"], detached: false });
 
@@ -1735,6 +1751,16 @@ async function runOne(vault, work) {
     page.j = async (expr) => JSON.parse(await page.eval(`JSON.stringify(${expr})`));
     const ctx = { errors };
 
+    if (LOOK) {
+      await page.eval(`(function(){
+        var sel = document.getElementById("vs-look");
+        if (!sel) return;
+        sel.value = ${JSON.stringify(LOOK)};
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      })(); void 0`);
+      await sleep(200);
+    }
+
     let failed = 0;
     const timings = [];
     for (const c of mine) {
@@ -1767,6 +1793,13 @@ async function runOne(vault, work) {
       log(`${r.ok ? "  ok  " : " FAIL "} ${c.name}${secs}\n         ${r.detail}`);
     }
 
+    /* One file per vault shape when more than one is running, or three runs write three
+     * pictures to one name and you are looking at whichever finished last. */
+    if (SHOT) {
+      await capture(page, work && work.vault && work.vault.label
+        ? tagged(SHOT, work.vault.label) : SHOT);
+    }
+
     const total = timings.reduce((a, t) => a + t.ms, 0);
     const slow = timings.slice().sort((a, b) => b.ms - a.ms).slice(0, 5);
     log(`\n${mine.length - failed}/${mine.length} passed in ${(total / 1000).toFixed(0)}s`);
@@ -1778,6 +1811,37 @@ async function runOne(vault, work) {
     await killBrowser(chrome, PORT);
     try { rmSync(profile, { recursive: true, force: true }); } catch {}
     if (scratch) { try { rmSync(dirname(scratch), { recursive: true, force: true }); } catch {} }
+  }
+}
+
+/**
+ * design/0006 -- THE ONE THING IN HERE THAT CAN SEE. Two pictures, because the two halves of
+ * the product fail differently and both have done: the library, and a book open at a note.
+ * Taken from the same page the checks just drove, so what is in the picture is what was
+ * measured rather than a second run that might differ.
+ */
+/** "out.png" + "the sparse vault (...)" -> "out-sparse.png". */
+function tagged(out, label) {
+  const m = /^the (\w+)/.exec(label);
+  const word = m ? m[1] : "vault";
+  return out.replace(/(\.png)?$/i, "-" + word + ".png");
+}
+
+async function capture(page, out) {
+  const shoot = async (file) => {
+    const r = await page.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+    writeFileSync(file, Buffer.from(r.data, "base64"));
+    console.log("wrote " + file);
+  };
+  await page.eval('__vs.closeReader(); document.getElementById("vs-library").scrollTop = 0; void 0');
+  await sleep(250);
+  await shoot(out);
+
+  const opened = await page.j('__vs.openBook(__vs.addresses()[0], null)');
+  if (opened) {
+    await sleep(400);
+    await shoot(out.replace(/(\.png)?$/i, "-reader.png"));
+    await page.eval("__vs.closeReader(); void 0");
   }
 }
 
@@ -1914,8 +1978,8 @@ async function main() {
   }
   if (worst) {
     console.log("");
-    console.log("Not covered here, check by hand: anything about how it looks, and the plugin");
-    console.log("inside a real Obsidian (node scripts/obsidian-smoke.mjs).");
+    console.log("Not covered here, check by hand: anything about how it LOOKS.");
+    console.log('Take a picture: node scripts/smoke.mjs --only "<one check>" --shot out.png');
   }
   return worst ? 1 : 0;
 }

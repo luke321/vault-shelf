@@ -1469,7 +1469,11 @@ function mountVaultShelf(root, data, options) {
   on($("look"), "change", function () {
     settings.look = /** @type {import("./core/index").Look} */ (field("look").value);
     persist();
-    applyLook();
+    /* design/0016 -- REFRESH, NOT applyLook. A spine's dye is an inline `--spine-tint` written
+     * when it was drawn, so swapping the stylesheet under it leaves every book wearing the
+     * previous look's colour until something else happens to rebuild. `refresh()` calls
+     * `applyLook()` first, so the attribute is still set before the slots are re-read. */
+    refresh();
   });
 
   on($("q"), "input", function () {

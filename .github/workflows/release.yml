@@ -15,7 +15,7 @@
 #   gh attestation verify main.js --repo luke321/vault-shelf
 #
 # WHAT STAYED LOCAL. The invariant suite drives a real Chrome against three generated vaults
-# for minutes, and scripts/obsidian-smoke.mjs needs Obsidian installed; release.ps1 runs the
+# for minutes and needs a desktop Chrome; release.ps1 runs the
 # suite before it writes the tag, and .githooks/pre-push runs it again on the push of main
 # that carries the tagged commit. This workflow TRUSTS THE TAG and runs the static gates
 # instead -- lint, scope, network, PII, the comment rule, the code map -- which need no vault
