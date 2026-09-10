@@ -116,6 +116,23 @@ The `min-width: 0` on both the spread and the page stayed, because both were als
 item and a grid item each default to `min-width: auto`, and fixing only one left the other
 doing it.
 
+## The room got a width
+
+Measured at 2560px wide (a WQHD screen, less Obsidian's ~270px sidebar), before:
+
+| | before | after |
+|---|---|---|
+| shelf board, Years shelf (4 books) | ~1,800px | 1,180px |
+| the reading spread | ~2,000px, note a 380px column at the far left | 1,180px, centred |
+| index tabs to the text they index | ~1,500px | adjacent |
+
+`--measure: 1180px`, centred, on the shelves, the rail's contents, the reader bar's contents
+and the spread. It is a `max-width`, so at 1,440px and below it does not bind: measured in
+Obsidian at a 1,560px window, the room still fills the leaf.
+
+After, at 2560: shelves 1180 (683/698 gutters — the 15px difference is the scrollbar), rail
+1180, board 1180, spread 1180 (690/690).
+
 ## The query stopped narrowing
 
 Before: `filters.search` removed notes, so a search rebuilt every shelf and books vanished.

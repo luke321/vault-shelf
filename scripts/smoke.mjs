@@ -101,6 +101,7 @@ const POINTER_DRIVEN = [
   "keyboard",
   "plaque sits",
   "tabs",
+  "has a width",
 ];
 const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
 
@@ -308,7 +309,7 @@ check("the library is the whole surface, with no sidebar", async (p) => {
     var c = __vs.counts();
     return { jump: c.jump, newshelf: c.newshelf, spines: c.spines,
              sidebars: document.querySelectorAll("#vs-app aside").length,
-             railChildren: document.querySelectorAll("#vs-rail > *").length,
+             railChildren: document.querySelectorAll("#vs-rail .vs-inner > *").length,
              search: !!document.getElementById("vs-q"),
              topFirst: (function(){
                var lib = document.getElementById("vs-library");
@@ -449,6 +450,56 @@ check("the shelf parts as you type, and no book leaves the room", async (p) => {
            detail: `${r.before} spines before, during and after; "${r.needle}" drew ${r.forward} ` +
                    `forward and thinned ${r.ghosts} to ghosts without removing one ` +
                    `(hits read "${r.hits}")` };
+});
+
+/* design/0009 -- A ROOM HAS A WIDTH. Measured by overriding the viewport rather than by
+ * resizing a window, so the number is the same on a laptop and on the WQHD screen this was
+ * reported from. */
+check("the room has a width, however wide the window is", async (p) => {
+  await p.send("Emulation.setDeviceMetricsOverride",
+               { width: 2560, height: 1400, deviceScaleFactor: 1, mobile: false });
+  await sleep(250);
+  const r = await p.j(`(function(){
+    var app = document.getElementById("vs-app");
+    var measure = parseInt(getComputedStyle(app).getPropertyValue("--measure"), 10);
+    var box = function (el) {
+      if (!el) return null;
+      var b = el.getBoundingClientRect();
+      var host = app.getBoundingClientRect();
+      return { w: Math.round(b.width),
+               left: Math.round(b.left - host.left),
+               right: Math.round(host.right - b.right) };
+    };
+    __vs.closeReader();
+    var shelves = box(document.getElementById("vs-shelves"));
+    var rail = box(document.querySelector("#vs-rail .vs-inner"));
+    var track = box(document.querySelector("#vs-shelves .vs-track"));
+    __vs.openBook(__vs.addresses()[0], null);
+    var spread = box(document.querySelector("#vs-reader .vs-spread"));
+    __vs.closeReader();
+    return { measure: measure, app: Math.round(app.getBoundingClientRect().width),
+             shelves: shelves, rail: rail, track: track, spread: spread };
+  })()`);
+  await p.send("Emulation.clearDeviceMetricsOverride");
+  await sleep(250);
+
+  const fits = (b) => b && b.w <= r.measure + 2;
+  /* A SCROLLBAR IS NOT AN OFF-CENTRE LAYOUT. The library scrolls, so its right gutter is
+   * narrower than its left by whatever the platform's scrollbar costs -- 15px on Windows,
+   * 0 on an overlay scrollbar. The tolerance is for that, not for sloppiness: 20px cannot
+   * hide a genuinely left- or right-aligned column, which would be off by hundreds. */
+  const centred = (b) => b && Math.abs(b.left - b.right) <= 20;
+  const wide = r.app > r.measure + 400;
+  const ok = wide && fits(r.shelves) && fits(r.rail) && fits(r.spread) &&
+             fits(r.track) && centred(r.shelves) && centred(r.spread);
+  return {
+    ok,
+    detail: !wide
+      ? `the viewport override did not take: the app is only ${r.app}px wide`
+      : `in a ${r.app}px view with --measure ${r.measure}: shelves ${r.shelves.w} ` +
+        `(${r.shelves.left}/${r.shelves.right}), rail ${r.rail.w}, board ${r.track.w}, ` +
+        `spread ${r.spread.w} (${r.spread.left}/${r.spread.right}) -- nothing runs to the edge`
+  };
 });
 
 check("the reader and the sheets are not painted until they are opened", async (p) => {

@@ -38,6 +38,38 @@ the opposite point.
 `"the library is the whole surface, with no sidebar"` asserts zero `<aside>` elements, exactly
 two New shelf buttons, and that they bracket the shelves in document order.
 
+## A room has a width
+
+Full-bleed was wrong, and it took a WQHD screen to see it. Measured at 2560px, with Obsidian's
+own sidebar taking ~270px of it:
+
+- the **Years** shelf put four books on an 1,800px board;
+- the **note** was a 380px column of text on the far left of a 2,000px page, with its index
+  tabs pinned to the opposite edge of the screen, 1,500px from the text they index.
+
+`--measure: 1180px`, centred. That number is two constraints meeting:
+
+| | |
+|---|---|
+| the library | ~28 spines at 41px each — a shelf you can take in at a glance, and the Months shelf's 27 books very nearly fit without scrolling |
+| the reader | a 220–300px contents page **plus** a 66ch note (495px at 15px serif) **plus** its index tabs — so the spread closes up into something that reads as one open book rather than two things at opposite ends of a desk |
+
+**Chrome stays full-bleed; its contents do not.** The top rail and the reader bar keep their
+background and their bottom border across the whole view — a toolbar that stops mid-screen
+looks broken — but each wraps its children in `.vs-inner`, which carries the same measure. So
+the search box sits above the shelves rather than a screen away from them.
+
+**Centred, not left-aligned**, which is what Obsidian's own readable-line-length does to a
+note. The measure is a `max-width`, so on a narrow leaf it does not bind at all and the room
+simply fills what it has.
+
+`"the room has a width, however wide the window is"` overrides the viewport to 2560px rather
+than resizing a window, so the number is the same on a laptop as on the screen this was
+reported from, and asserts the shelves, the rail, the board and the spread all fit the measure
+and sit centred. Its centring tolerance is 20px, for the scrollbar: the library scrolls, so its
+right gutter is narrower than its left by whatever the platform charges — and 20px cannot hide
+a column that is genuinely aligned to one side, which would be off by hundreds.
+
 ## What the rail carries
 
 | | |
