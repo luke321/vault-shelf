@@ -1,0 +1,56 @@
+/* design/0016 -- THE CYBERPUNK LOOK.
+ *
+ * A third look, opt-in like the leather one and under the same rule: it may repaint anything
+ * and move nothing. Every selector below is scoped to `.vault-shelf[data-look="cyber"]`, so
+ * the default look and the leather one cannot see a line of it.
+ *
+ * This file is the starting palette only. The look itself is being built out; until then it
+ * is a legible dark neon that already reads as a different room rather than a placeholder.
+ */
+
+.vault-shelf[data-look="cyber"] {
+  --ink: #e9f6ff;
+  --text-1: #e9f6ff;
+  --text-2: #8fb6cc;
+  --text-3: #5b7d92;
+  --surface-0: #070b14;
+  --surface-1: #0c1322;
+  --surface-2: #111a2d;
+  --border: #1d2b45;
+  --border-strong: #2a3f63;
+  --accent: #35f0d0;
+  --measure: 1180px;
+}
+
+.vault-shelf[data-look="cyber"] {
+  background: radial-gradient(120% 90% at 50% 0%, #0d1526 0%, #070b14 62%);
+  color: var(--text-1);
+}
+
+/* The board a shelf's books stand on: a lit edge rather than a rule. */
+.vault-shelf[data-look="cyber"] .vs-track {
+  background-image: linear-gradient(90deg,
+    color-mix(in srgb, var(--accent) 55%, transparent),
+    color-mix(in srgb, #ff3d9a 45%, transparent));
+}
+
+.vault-shelf[data-look="cyber"] .vs-spine {
+  border-color: color-mix(in srgb, var(--spine-tint, #35f0d0) 45%, var(--border-strong));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #000 40%, transparent);
+}
+
+.vault-shelf[data-look="cyber"] .vs-spine:hover,
+.vault-shelf[data-look="cyber"] .vs-spine:focus-visible {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--spine-tint, #35f0d0) 55%, transparent);
+}
+
+.vault-shelf[data-look="cyber"] .vs-plaque {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-1));
+}
+
+.vault-shelf[data-look="cyber"] .vs-spread {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-strong));
+  box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 14%, transparent);
+}

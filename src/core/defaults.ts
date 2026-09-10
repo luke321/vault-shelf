@@ -24,8 +24,12 @@ export function defaultShelves(): Shelf[] {
       plaques: true,
     },
     {
+      /* HIDDEN, AND STILL THERE. A vault of any age has hundreds of ISO weeks, which under
+       * design/0014 is a shelf a dozen rows deep between Months and People -- the longest
+       * thing in the library and the one nobody opened. It keeps its definition and one
+       * click in Manage brings it back; hiding never deletes (decisions/0002). */
       id: "weeks", name: "Weeks", source: { kind: "all" },
-      classifier: "week", direction: "chronological", hidden: false, position: 3,
+      classifier: "week", direction: "chronological", hidden: true, position: 3,
       plaques: true,
     },
     {
@@ -85,7 +89,7 @@ export function recipes(): Recipe[] {
  * decisions/0001
  */
 
-export const SETTINGS_SCHEMA = 3;
+export const SETTINGS_SCHEMA = 4;
 
 export interface Persisted {
   schema: number;
@@ -123,7 +127,23 @@ export interface Persisted {
 }
 
 /** design/0016 -- the looks that exist. A blob naming any other one falls back to "". */
-export type Look = "" | "leather";
+export type Look = "" | "leather" | "cyber";
+
+/**
+ * design/0016 -- THE ONE LIST OF LOOKS, in the order the selector offers them. The page builds
+ * its control from this, `migrate` validates against it, and a look that is not here cannot be
+ * asked for -- which is the whole reason a page never ends up asking for a stylesheet nobody
+ * shipped.
+ */
+export const LOOKS: { value: Look; name: string }[] = [
+  { value: "", name: "Default" },
+  { value: "leather", name: "Leather" },
+  { value: "cyber", name: "Cyberpunk" },
+];
+
+export function isLook(value: unknown): value is Look {
+  return LOOKS.some((l) => l.value === value);
+}
 
 /** design/0015 -- the order the notes inside a date-ordered book are read in. */
 export type NoteOrder = "oldest" | "newest";
@@ -166,7 +186,7 @@ export function migrate(raw: unknown): Persisted {
   return {
     schema: SETTINGS_SCHEMA,
     shelves: shelves.length
-      ? shelves.map((s, i) => ({ ...decadesOn(s, from), position: i }))
+      ? shelves.map((s, i) => ({ ...weeksAway(decadesOn(s, from), from), position: i }))
       : base.shelves,
     reading: Array.isArray(data.reading) ? data.reading.filter(isMark) : [],
     wear: wearOf(data.wear),
@@ -180,7 +200,7 @@ export function migrate(raw: unknown): Persisted {
      * about plaques -- so it comes up on, and a file that already says 3 means what it says. */
     useFileStamp: from >= 3 ? data.useFileStamp === true : true,
     noteOrder: data.noteOrder === "newest" ? "newest" : "oldest",
-    look: data.look === "leather" ? "leather" : "",
+    look: isLook(data.look) ? data.look : "",
   };
 }
 
@@ -193,6 +213,17 @@ export function migrate(raw: unknown): Persisted {
  * year. A shelf somebody has since turned the plaques off on keeps them off, because by then
  * its file says schema 2.
  */
+/**
+ * Schema 4 hid the Weeks shelf. `hidden: false` on it under an earlier schema was the default
+ * rather than a decision -- the same argument `decadesOn` makes about plaques -- and the shelf
+ * it applies to is the one that got a dozen rows long when the bookcase replaced the scroller.
+ * Un-hiding it is one click in Manage, and a file that already says 4 means what it says.
+ */
+function weeksAway(shelf: Shelf, from: number): Shelf {
+  if (from >= 4 || shelf.id !== "weeks" || shelf.hidden) return shelf;
+  return { ...shelf, hidden: true };
+}
+
 function decadesOn(shelf: Shelf, from: number): Shelf {
   if (from >= 2 || shelf.classifier !== "year" || shelf.plaques) return shelf;
   return { ...shelf, plaques: true };

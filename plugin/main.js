@@ -325,7 +325,14 @@ export default class VaultShelfPlugin extends Plugin {
  * same table (SETTINGS), so what one path shows the other shows too.
  */
 
-/** @type {{ key: "dateFields" | "peopleProperty" | "useFileStamp" | "look", name: string, desc: string, kind: "text" | "toggle" }[]} */
+/**
+ * design/0016 -- THE LOOK IS NOT IN HERE. It used to be a toggle on this tab and a button
+ * bolted to the standalone's chrome; it is now one selector in the library's own top bar,
+ * which serves both hosts and is where you are standing when you want to change it. A setting
+ * that lives two places drifts, and a third look would have needed a dropdown here anyway.
+ *
+ * @type {{ key: "dateFields" | "peopleProperty" | "useFileStamp", name: string, desc: string, kind: "text" | "toggle" }[]}
+ */
 const SETTINGS = [
   { key: "dateFields", kind: "text",
     name: "Date properties",
@@ -341,12 +348,6 @@ const SETTINGS = [
           "earliest stamp the filesystem has for it -- which survives a bulk reformat and a " +
           "copied vault better than either stamp alone. Turn it off to send those notes to " +
           "Undated instead, where you can see how many there are." },
-  { key: "look", kind: "toggle",
-    name: "Leather binding",
-    desc: "Off by default. Binds the library in leather and gilt instead of following your " +
-          "Obsidian theme: dyed spines with raised bands, a stained plank, brass plaques and " +
-          "an open book on marbled endpapers. It changes paint only -- the same shelves, the " +
-          "same books, the same addresses." },
 ];
 
 class ShelfSettingTab extends PluginSettingTab {
@@ -377,7 +378,6 @@ class ShelfSettingTab extends PluginSettingTab {
     if (key === "dateFields") return this.plugin.config.dateFields.join(", ");
     if (key === "peopleProperty") return this.plugin.config.peopleProperty;
     if (key === "useFileStamp") return this.plugin.config.useFileStamp;
-    if (key === "look") return this.plugin.config.look === "leather";
     return undefined;
   }
 
@@ -403,9 +403,6 @@ class ShelfSettingTab extends PluginSettingTab {
       return;
     }
     if (key === "useFileStamp") this.plugin.config.useFileStamp = value === true;
-    /* design/0016 -- one field, two states, and anything else migrates back to the default
-     * look rather than leaving the page asking for a stylesheet nobody shipped. */
-    if (key === "look") this.plugin.config.look = value === true ? "leather" : "";
   }
 
   display() {

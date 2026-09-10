@@ -43,9 +43,10 @@ of measuring it.** Build the page, drive it, read the numbers.
   and gets dates.
 - **A book opens on its oldest note.** A notebook that starts on its last page reads as if it
   were written backwards; the top bar carries the one toggle that says otherwise.
-- **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` the
-  opt-in binding — and it may repaint anything and move nothing: not a shelf's order, not a
-  book's address, not a count. `design/0016`.
+- **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` and
+  `"cyber"` the opt-in ones — and it may repaint anything and move nothing: not a shelf's
+  order, not a book's address, not a count. `core.LOOKS` is the one list of them, the selector
+  in the top bar is built from it, and `migrate` validates against it. `design/0016`.
 
 ## How to work here
 
@@ -111,7 +112,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 |---|---|
 | `src/core/` | the membership engine (TypeScript, `strict`): eight classifiers, source predicates, ISO-week and month keys, stable addresses, filters, settings migration. Notes in, books out; no DOM |
 | `src/page.js` | the page: directory, shelf rails, builder, manage sheet, reading spread — one `mountVaultShelf()`. **Do not read it top to bottom**; open `.ai-context/code-map.md` and go to the line range |
-| `src/leather.css` | the opt-in second look (`design/0016`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
+| `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
 | `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 47 checks over three vault shapes |

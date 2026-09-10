@@ -1353,6 +1353,25 @@ function mountVaultShelf(root, data, options) {
         "Click for newest first.";
   }
 
+  /**
+   * design/0016 -- THE LOOK IS PICKED WHERE IT IS SEEN. It was a toggle in the plugin's
+   * settings tab and a button bolted to the standalone's chrome -- two controls, in two
+   * places, neither of them the room being repainted. One selector in the top bar serves both
+   * hosts, and its options come from `core.LOOKS`, so a fourth look is one list entry and one
+   * stylesheet.
+   */
+  function fillLooks() {
+    var select = field("look");
+    clear(select);
+    core.LOOKS.forEach(function (look) {
+      var o = DOC.createElement("option");
+      o.value = look.value;
+      o.textContent = look.name;
+      select.appendChild(o);
+    });
+    select.value = core.isLook(settings.look) ? settings.look : "";
+  }
+
   function toggleOrder() {
     settings.noteOrder = settings.noteOrder === "newest" ? "oldest" : "newest";
     persist();
@@ -1363,7 +1382,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   function applyLook() {
-    var want = settings.look === "leather" ? "leather" : "";
+    var want = core.isLook(settings.look) ? settings.look : "";
     if (root.getAttribute("data-look") === want) return;
     root.setAttribute("data-look", want);
     readTheme();
@@ -1394,6 +1413,12 @@ function mountVaultShelf(root, data, options) {
   watchRoom();
   paintOrder();
   on($("order"), "click", toggleOrder);
+  fillLooks();
+  on($("look"), "change", function () {
+    settings.look = /** @type {import("./core/index").Look} */ (field("look").value);
+    persist();
+    applyLook();
+  });
 
   on($("q"), "input", function () {
     query = field("q").value;

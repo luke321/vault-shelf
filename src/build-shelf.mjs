@@ -195,13 +195,18 @@ const data = {
 
 
 const part = (f) => readFileSync(join(HERE, f), "utf8");
+
+/* design/0016 -- every look but the default one, in the order core.LOOKS offers them. Each
+ * paints nothing until `data-look` names it, so shipping them all costs a few KB and no
+ * behaviour. */
+const LOOK_SHEETS = ["leather.css", "cyber.css"];
 const asScript = (js) => js.replace(/^export \{[^}]*\};?\s*$/m, "").trimEnd();
 
 const html = part("shell.html")
   .replace("<!--CSS-->", () => part("page.css").trimEnd())
   /* design/0016 -- the opt-in look travels with the page, off unless the setting says so.
    * A second stylesheet rather than a second copy of the first one. */
-  .replace("<!--LOOKS-->", () => part("leather.css").trimEnd())
+  .replace("<!--LOOKS-->", () => LOOK_SHEETS.map((f) => part(f).trimEnd()).join("\n\n"))
   .replace("<!--MARKUP-->", () => part("page.html").trimEnd())
   .replace("<!--SCRIPT-->", () => asScript(part("page.js")))
   .replace("<!--LIBS-->", () => `<script>\n${core.trimEnd()}\n</script>`)

@@ -396,22 +396,38 @@ check("a settings file from an older schema comes up with the newer defaults", a
     atThree.schema = 3;
     atThree.useFileStamp = false;
 
+    /* Schema 4 hid the Weeks shelf the same way. A blob already at 4 keeps it shown. */
+    var atFour = core.clone(old);
+    atFour.schema = 4;
+    atFour.shelves.push({ id: "weeks", name: "Weeks", source: { kind: "all" },
+      classifier: "week", direction: "chronological", hidden: false, position: 3,
+      plaques: true });
+    var shown = core.migrate(atFour).shelves
+      .filter(function (sh) { return sh.id === "weeks"; })[0];
+
     return { schema: up.schema, years: byId.years.plaques, months: byId.months.plaques,
              people: byId.people.plaques, wear: up.wear["years/2026"],
              fields: up.dateFields.join(","), keptOff: keptYears.plaques,
              stamp: up.useFileStamp, keptStampOff: core.migrate(atThree).useFileStamp,
-             order: up.noteOrder };
+             order: up.noteOrder,
+             weeksHidden: core.migrate({ schema: 1, shelves: [{ id: "weeks", name: "Weeks",
+               source: { kind: "all" }, classifier: "week", direction: "chronological",
+               hidden: false, position: 0, plaques: true }] }).shelves[0].hidden,
+             keptShown: shown ? shown.hidden === false : false };
   })()`);
-  const ok = r.schema === 3 && r.years === true && r.months === true && r.people === false &&
+  const ok = r.schema === 4 && r.years === true && r.months === true && r.people === false &&
              r.wear === 3 && r.fields === "date" && r.keptOff === false &&
-             r.stamp === true && r.keptStampOff === false && r.order === "oldest";
+             r.stamp === true && r.keptStampOff === false && r.order === "oldest" &&
+             r.weeksHidden === true && r.keptShown === true;
   return {
     ok,
     detail: `schema 1 -> ${r.schema}: Years plaques ${r.years}, Months ${r.months}, People ` +
             `${r.people}; the file-stamp fallback comes up ${r.stamp} and the reading order ` +
             `"${r.order}"; wear and date fields survive (${r.wear} opens, "${r.fields}"). ` +
             `A file already at schema 2 keeps its Years plaques off: ${r.keptOff === false}; ` +
-            `one at 3 keeps its stamp fallback off: ${r.keptStampOff === false}`
+            `one at 3 keeps its stamp fallback off: ${r.keptStampOff === false}; the Weeks ` +
+            `shelf comes up hidden (${r.weeksHidden}) unless the file already says 4 ` +
+            `(${r.keptShown})`
   };
 });
 

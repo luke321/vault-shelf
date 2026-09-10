@@ -16,7 +16,7 @@ const problems = [];
 /* EVERY stylesheet that ships, not just the first one. design/0016 added a second (the opt-in
  * leather look) and an unscoped rule in it would style Obsidian exactly as one in page.css
  * does -- the guarantee is about what the plugin loads, not about a filename. */
-const STYLESHEETS = ["page.css", "leather.css"];
+const STYLESHEETS = ["page.css", "leather.css", "cyber.css"];
 const sheets = STYLESHEETS.map((name) => ({ name, text: readFileSync(join(SRC, name), "utf8") }));
 let rules = 0;
 

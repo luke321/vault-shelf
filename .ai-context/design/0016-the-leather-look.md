@@ -156,3 +156,26 @@ hides the switch, because it belongs to the standalone rather than to the plugin
 that is not in the product should not be in the film. The recorder throws rather than shooting
 98 seconds of the wrong look if the attribute does not come back as asked.
 
+## Picking one
+
+The look started as a toggle on the plugin's settings tab plus a button bolted to the
+standalone's chrome — two controls, in two places, neither of them the room being repainted.
+It is now **one selector in the library's own top bar**, which serves both hosts and is where
+you are standing when you want to change it. `core.LOOKS` is the single list it is built from,
+so a further look is one entry and one stylesheet:
+
+```ts
+export const LOOKS: { value: Look; name: string }[] = [
+  { value: "", name: "Default" },
+  { value: "leather", name: "Leather" },
+  { value: "cyber", name: "Cyberpunk" },
+];
+```
+
+`migrate` validates against that same list, which is what stops a settings file from asking
+for a stylesheet nobody shipped. Every look but the default one ships in the same bundle and
+paints nothing until `data-look` names it, so the cost of carrying them is a few KB of CSS and
+no behaviour at all.
+
+The third look is `design/0017`.
+
