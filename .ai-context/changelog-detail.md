@@ -323,3 +323,18 @@ appears on hover.
 the labels said "Alphabetical" and "Newest first", so a Years shelf appeared to offer no way to
 read oldest-first. They now read "Oldest first / Newest first" on a date classifier and
 "A to Z / Z to A" on any other.
+
+## Settings schema 2
+
+Turning on decade plaques by default reached nobody who had already opened the plugin: a
+settings file written under schema 1 carries `plaques: false` on its Years shelf, and defaults
+only apply to a vault with no file.
+
+That `false` was never a choice. Under schema 1 the plaques checkbox was **disabled** for a
+year classifier, so it was the only value the option could hold. `migrate` now turns it on when
+it comes up from a schema below 2, and only for a shelf still classified by year; a file that
+already says schema 2 keeps whatever it says, including plaques somebody has since turned off.
+
+Measured on a schema-1 blob: `schema 1 -> 2`, Years plaques **false → true**, Months **true**
+(unchanged), People **false** (unchanged), wear `years/2026: 3` and `dateFields: ["date"]`
+carried through untouched. 43 checks.

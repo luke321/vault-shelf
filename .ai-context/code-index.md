@@ -22,21 +22,21 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `decisions/0005` | plugin/main.js:50, plugin/main.js:213, scripts/make-mirror-vault.mjs:344 |
 | `decisions/0006` | scripts/check-network.mjs:97 |
 | `decisions/0007` | scripts/check-comments.mjs:2, scripts/check-comments.mjs:14, scripts/check-comments.mjs:140, scripts/code-map.mjs:2 |
-| `decisions/0008` | scripts/smoke.mjs:1202 |
+| `decisions/0008` | scripts/smoke.mjs:1242 |
 | `design/0001` | src/core/dates.ts:2, src/core/types.ts:2 |
-| `design/0002` | src/core/defaults.ts:4, src/core/defaults.ts:45, src/core/shelves.ts:22, src/core/shelves.ts:37, src/core/shelves.ts:125, src/core/types.ts:35, src/page.js:240, src/page.js:1030, scripts/smoke.mjs:882 |
-| `design/0003` | src/core/shelves.ts:97, src/core/types.ts:60, src/core/types.ts:73, src/page.css:377, src/page.js:78, src/page.js:514, scripts/smoke.mjs:270 |
+| `design/0002` | src/core/defaults.ts:4, src/core/defaults.ts:45, src/core/shelves.ts:22, src/core/shelves.ts:37, src/core/shelves.ts:125, src/core/types.ts:35, src/page.js:240, src/page.js:1030, scripts/smoke.mjs:922 |
+| `design/0003` | src/core/defaults.ts:156, src/core/shelves.ts:97, src/core/types.ts:60, src/core/types.ts:73, src/page.css:377, src/page.js:78, src/page.js:514, scripts/smoke.mjs:270 |
 | `design/0004` | src/core/shelves.ts:208, src/core/shelves.ts:263, src/core/types.ts:94, src/page.js:652 |
-| `design/0005` | src/page.css:4, src/page.css:8, src/page.css:107, src/page.css:426, src/page.css:613, src/page.js:62, src/page.js:226, src/page.js:554, src/page.js:1406, plugin/main.js:10, plugin/main.js:199, scripts/check-scope.mjs:64, scripts/smoke.mjs:514 |
+| `design/0005` | src/page.css:4, src/page.css:8, src/page.css:107, src/page.css:426, src/page.css:613, src/page.js:62, src/page.js:226, src/page.js:554, src/page.js:1406, plugin/main.js:10, plugin/main.js:199, scripts/check-scope.mjs:64, scripts/smoke.mjs:554 |
 | `design/0006` | scripts/obsidian-smoke.mjs:3, scripts/screen.mjs:1, scripts/screen.mjs:42 |
 | `design/0007` | scripts/record-demo.mjs:2, scripts/record-demo.mjs:23, scripts/record-demo.mjs:139, scripts/record-demo.mjs:172, scripts/record-demo.mjs:419, scripts/record-demo.mjs:442, scripts/record-demo.mjs:451, scripts/record-demo.mjs:562 |
-| `design/0008` | src/core/defaults.ts:95, src/core/defaults.ts:165, src/core/shelves.ts:223, src/core/types.ts:79, src/core/types.ts:105, src/page.css:497, src/page.css:525, src/page.css:545, src/page.js:202, src/page.js:284, src/page.js:561, src/page.js:614, src/page.js:666, src/page.js:1408, scripts/smoke.mjs:566, scripts/smoke.mjs:589, scripts/smoke.mjs:615 |
-| `design/0009` | src/page.css:91, src/page.css:101, src/page.css:296, src/page.js:262, scripts/smoke.mjs:489, scripts/smoke.mjs:646 |
+| `design/0008` | src/core/defaults.ts:95, src/core/defaults.ts:182, src/core/shelves.ts:223, src/core/types.ts:79, src/core/types.ts:105, src/page.css:497, src/page.css:525, src/page.css:545, src/page.js:202, src/page.js:284, src/page.js:561, src/page.js:614, src/page.js:666, src/page.js:1408, scripts/smoke.mjs:606, scripts/smoke.mjs:629, scripts/smoke.mjs:655 |
+| `design/0009` | src/page.css:91, src/page.css:101, src/page.css:296, src/page.js:262, scripts/smoke.mjs:529, scripts/smoke.mjs:686 |
 | `design/0010` | src/page.css:740, src/page.js:55, src/page.js:890, plugin/main.js:211 |
 | `design/0011` | src/page.css:95, src/page.js:71, src/page.js:593, scripts/make-demo-vault.mjs:166 |
 | `design/0012` | src/page.css:609, src/page.js:722 |
 | `design/0013` | src/build-shelf.mjs:121, scripts/make-mirror-vault.mjs:2, scripts/make-mirror-vault.mjs:114, scripts/make-mirror-vault.mjs:204, scripts/make-mirror-vault.mjs:423, scripts/make-sparse-vault.mjs:153, scripts/record-demo.mjs:77 |
-| `design/0014` | src/page.css:365, src/page.css:387, src/page.js:76, src/page.js:192, src/page.js:306, src/page.js:354, src/page.js:405, src/page.js:518, scripts/smoke.mjs:669 |
+| `design/0014` | src/page.css:365, src/page.css:387, src/page.js:76, src/page.js:192, src/page.js:306, src/page.js:354, src/page.js:405, src/page.js:518, scripts/smoke.mjs:709 |
 | `design/0015` | src/core/shelves.ts:175, src/page.js:745, src/page.js:801 |
 
 ## Invariants → checks — 26 sections in `.ai-context/invariants.md`
@@ -50,25 +50,25 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | Undated is a book, not a guess (51) | an undated note lands in Undated, not in a guessed year (158) |
 | The ISO week keeps its week-year (65) | an ISO week keeps its week-year across a January boundary (210) |
 | The Encyclopedia opens with 0-9 (74) | the Encyclopedia opens with a 0-9 volume, not ten one-note books (226) |
-| Plaques are date-only and asked for (81) | year plaques only appear on date classifiers, and only when asked for (237); a plaque sits under the books it names, in the same scroller (254); years group under decade plaques, and a run that wraps is named on both rows (279) |
-| A book is as thick as it is full (110) | a spine's thickness is its note count (383) |
-| An impossible date is not a date (124) | an impossible date is not a date, and never a fifteenth month (170) |
-| Book addresses are stable across a rebuild (141) | book addresses are stable across a rebuild (417) |
-| Filters change membership and nothing else (147) | a filter changes membership without moving a shelf (428) |
-| Hiding a shelf hides it, and never deletes it (157) | a hidden shelf keeps its definition and its books (449); also shelved in moves to another book and keeps the note (785); hiding every shelf offers a way back rather than an empty room (467) |
-| The reader (169) | clicking a spine opens a book on the note it names (729); the index tabs cut the book the way the book is ordered (322); the reader's index tabs stay countable on the biggest book (746); previous and next walk the book and stop at its ends (760); also shelved in moves to another book and keeps the note (785); previous collection walks back, and Alt+Left does the same (816); escape closes the reader and leaves the shelf where it was (835) |
-| The reading table survives (204) | a saved reading place re-resolves after its own book is gone (890) |
-| The builder previews the truth (215) | the builder previews the shelf it would actually save (905); a saved shelf gets a stable id and joins the library (924) |
-| Metadata is declared, never inferred (226) | parent tag inclusion is a setting, and it changes the answer (945); people come from the property alone, never from prose (965) |
-| The palette is Vault Graph's, and the theme is the host's (239) | the twelve colour slots are Vault Graph's own (518); the theme follows the host, and the slots are re-read when it changes (547) |
-| The magic (252) | shelf wear is recorded and drawn, and survives a rebuild (567); a ribbon hangs from every book that holds a marked note (590); the shelf parts as you type, and no book leaves the room (616) |
-| The room (271) | the room has a width, however wide the window is (649); the library is the whole surface, with no sidebar (491) |
-| Accessibility and scale (289) | plain list mode keeps every book reachable (986); every control the keyboard can reach has a name (1003) |
-| Nothing reaches the network (299) | nothing on the page reaches the network (1025) |
-| A spine holds its size (306) | a spine lifts on hover and holds its size (1035) |
-| Hidden means hidden (315) | the reader and the sheets are not painted until they are opened (712) |
-| The plugin behaves inside a real Obsidian (329) | — no check named in the section |
-| Not covered here (346) | — no check named in the section |
+| Plaques are date-only and asked for (81) | year plaques only appear on date classifiers, and only when asked for (237); a plaque sits under the books it names, in the same scroller (254); years group under decade plaques, and a run that wraps is named on both rows (319); a settings file from schema 1 comes up with its decades on (279) |
+| A book is as thick as it is full (120) | a spine's thickness is its note count (423) |
+| An impossible date is not a date (134) | an impossible date is not a date, and never a fifteenth month (170) |
+| Book addresses are stable across a rebuild (151) | book addresses are stable across a rebuild (457) |
+| Filters change membership and nothing else (157) | a filter changes membership without moving a shelf (468) |
+| Hiding a shelf hides it, and never deletes it (167) | a hidden shelf keeps its definition and its books (489); also shelved in moves to another book and keeps the note (825); hiding every shelf offers a way back rather than an empty room (507) |
+| The reader (179) | clicking a spine opens a book on the note it names (769); the index tabs cut the book the way the book is ordered (362); the reader's index tabs stay countable on the biggest book (786); previous and next walk the book and stop at its ends (800); also shelved in moves to another book and keeps the note (825); previous collection walks back, and Alt+Left does the same (856); escape closes the reader and leaves the shelf where it was (875) |
+| The reading table survives (214) | a saved reading place re-resolves after its own book is gone (930) |
+| The builder previews the truth (225) | the builder previews the shelf it would actually save (945); a saved shelf gets a stable id and joins the library (964) |
+| Metadata is declared, never inferred (236) | parent tag inclusion is a setting, and it changes the answer (985); people come from the property alone, never from prose (1005) |
+| The palette is Vault Graph's, and the theme is the host's (249) | the twelve colour slots are Vault Graph's own (558); the theme follows the host, and the slots are re-read when it changes (587) |
+| The magic (262) | shelf wear is recorded and drawn, and survives a rebuild (607); a ribbon hangs from every book that holds a marked note (630); the shelf parts as you type, and no book leaves the room (656) |
+| The room (281) | the room has a width, however wide the window is (689); the library is the whole surface, with no sidebar (531) |
+| Accessibility and scale (299) | plain list mode keeps every book reachable (1026); every control the keyboard can reach has a name (1043) |
+| Nothing reaches the network (309) | nothing on the page reaches the network (1065) |
+| A spine holds its size (316) | a spine lifts on hover and holds its size (1075) |
+| Hidden means hidden (325) | the reader and the sheets are not painted until they are opened (752) |
+| The plugin behaves inside a real Obsidian (339) | — no check named in the section |
+| Not covered here (356) | — no check named in the section |
 
 ## `__vs.*` entry points → callers outside page.js — 17
 

@@ -102,7 +102,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/page.js` | the page: directory, shelf rails, builder, manage sheet, reading spread — one `mountVaultShelf()`. **Do not read it top to bottom**; open `.ai-context/code-map.md` and go to the line range |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 42 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 43 checks over three vault shapes |
 | `scripts/obsidian-smoke.mjs` | the same plugin inside a real Obsidian: ribbon icon, view lifecycle, settings tab, Obsidian's markdown renderer, `--shot` for two pictures |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
 | `.ai-context/code-map.md` | **generated**: sections and functions of the two big files, with line numbers |

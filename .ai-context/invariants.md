@@ -100,6 +100,16 @@ no plate anywhere in the library is drawn over an empty run. Measured on the dem
 dated year books under `2010-2019` and `2020-2029`, 40 plates across every shelf, 0 of them
 orphaned**.
 
+`"a settings file from schema 1 comes up with its decades on"` migrates a schema-1 blob and
+asserts the Years shelf comes back with **plaques on**, that Months keeps its own and People
+stays off, that wear and date fields survive untouched, and that a file **already at schema 2
+keeps its plaques off** -- once the option can be expressed, the file means what it says.
+Measured: `schema 1 -> 2: Years plaques true, Months true, People false, 3 opens survive`.
+
+Under schema 1 the plaques checkbox was disabled for a year classifier, so `plaques: false`
+on a Years shelf was the only value the option could hold and never a decision anybody made.
+Turning it on is finishing the migration, not overriding a preference.
+
 The label is the decade it holds, not `2000-2010`. The friendlier form is a lie: 2010 belongs
 to the next plaque's run, and two plates claiming the same year is worse than an unfamiliar
 label.

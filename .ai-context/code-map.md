@@ -101,7 +101,7 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1293 | `clearFilters` |
 | 1302 | `refresh` |
 
-## `scripts/smoke.mjs` — 1479 lines, 6 sections, 11 functions, 42 checks
+## `scripts/smoke.mjs` — 1519 lines, 6 sections, 11 functions, 43 checks
 
 ### Sections
 
@@ -109,10 +109,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 |---|---|
 | 54–69 | chrome |
 | 70–107 | the checks |
-| 108–1048 | the invariants |
-| 1049–1176 | which vaults, and why |
-| 1177–1377 | one run |
-| 1378–1479 | main |
+| 108–1088 | the invariants |
+| 1089–1216 | which vaults, and why |
+| 1217–1417 | one run |
+| 1418–1519 | main |
 
 ### Functions
 
@@ -122,13 +122,13 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 43 | `freePort` |
 | 56 | `findChrome` |
 | 87 | `gridSlot` |
-| 324 | · `tabsFor` |
-| 656 | · `box` |
-| 1081 | `resolveVaults` |
-| 1163 | `buildFor` |
-| 1179 | `runOne` |
-| 1336 | `killBrowser` |
-| 1380 | `main` |
+| 364 | · `tabsFor` |
+| 696 | · `box` |
+| 1121 | `resolveVaults` |
+| 1203 | `buildFor` |
+| 1219 | `runOne` |
+| 1376 | `killBrowser` |
+| 1420 | `main` |
 
 ### Checks
 
@@ -145,34 +145,35 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 226 | the Encyclopedia opens with a 0-9 volume, not ten one-note books |
 | 237 | year plaques only appear on date classifiers, and only when asked for |
 | 254 | a plaque sits under the books it names, in the same scroller |
-| 279 | years group under decade plaques, and a run that wraps is named on both rows |
-| 322 | the index tabs cut the book the way the book is ordered |
-| 383 | a spine's thickness is its note count |
-| 417 | book addresses are stable across a rebuild |
-| 428 | a filter changes membership without moving a shelf |
-| 449 | a hidden shelf keeps its definition and its books |
-| 467 | hiding every shelf offers a way back rather than an empty room |
-| 491 | the library is the whole surface, with no sidebar |
-| 518 | the twelve colour slots are Vault Graph's own |
-| 547 | the theme follows the host, and the slots are re-read when it changes |
-| 567 | shelf wear is recorded and drawn, and survives a rebuild |
-| 590 | a ribbon hangs from every book that holds a marked note |
-| 616 | the shelf parts as you type, and no book leaves the room |
-| 649 | the room has a width, however wide the window is |
-| 712 | the reader and the sheets are not painted until they are opened |
-| 729 | clicking a spine opens a book on the note it names |
-| 746 | the reader's index tabs stay countable on the biggest book |
-| 760 | previous and next walk the book and stop at its ends |
-| 785 | also shelved in moves to another book and keeps the note |
-| 816 | previous collection walks back, and Alt+Left does the same |
-| 835 | escape closes the reader and leaves the shelf where it was |
-| 854 | the reading shelf survives its own shelf being hidden |
-| 890 | a saved reading place re-resolves after its own book is gone |
-| 905 | the builder previews the shelf it would actually save |
-| 924 | a saved shelf gets a stable id and joins the library |
-| 945 | parent tag inclusion is a setting, and it changes the answer |
-| 965 | people come from the property alone, never from prose |
-| 986 | plain list mode keeps every book reachable |
-| 1003 | every control the keyboard can reach has a name |
-| 1025 | nothing on the page reaches the network |
-| 1035 | a spine lifts on hover and holds its size |
+| 279 | a settings file from schema 1 comes up with its decades on |
+| 319 | years group under decade plaques, and a run that wraps is named on both rows |
+| 362 | the index tabs cut the book the way the book is ordered |
+| 423 | a spine's thickness is its note count |
+| 457 | book addresses are stable across a rebuild |
+| 468 | a filter changes membership without moving a shelf |
+| 489 | a hidden shelf keeps its definition and its books |
+| 507 | hiding every shelf offers a way back rather than an empty room |
+| 531 | the library is the whole surface, with no sidebar |
+| 558 | the twelve colour slots are Vault Graph's own |
+| 587 | the theme follows the host, and the slots are re-read when it changes |
+| 607 | shelf wear is recorded and drawn, and survives a rebuild |
+| 630 | a ribbon hangs from every book that holds a marked note |
+| 656 | the shelf parts as you type, and no book leaves the room |
+| 689 | the room has a width, however wide the window is |
+| 752 | the reader and the sheets are not painted until they are opened |
+| 769 | clicking a spine opens a book on the note it names |
+| 786 | the reader's index tabs stay countable on the biggest book |
+| 800 | previous and next walk the book and stop at its ends |
+| 825 | also shelved in moves to another book and keeps the note |
+| 856 | previous collection walks back, and Alt+Left does the same |
+| 875 | escape closes the reader and leaves the shelf where it was |
+| 894 | the reading shelf survives its own shelf being hidden |
+| 930 | a saved reading place re-resolves after its own book is gone |
+| 945 | the builder previews the shelf it would actually save |
+| 964 | a saved shelf gets a stable id and joins the library |
+| 985 | parent tag inclusion is a setting, and it changes the answer |
+| 1005 | people come from the property alone, never from prose |
+| 1026 | plain list mode keeps every book reachable |
+| 1043 | every control the keyboard can reach has a name |
+| 1065 | nothing on the page reaches the network |
+| 1075 | a spine lifts on hover and holds its size |

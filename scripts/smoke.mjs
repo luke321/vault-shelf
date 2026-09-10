@@ -276,6 +276,46 @@ check("a plaque sits under the books it names, in the same scroller", async (p) 
                    `floor; same scroller: ${r.sameRail}; width differs by ${r.widthDiff}px` };
 });
 
+check("a settings file from schema 1 comes up with its decades on", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var old = {
+      schema: 1,
+      shelves: [
+        { id: "years", name: "Years", source: { kind: "all" }, classifier: "year",
+          direction: "chronological", hidden: false, position: 0, plaques: false },
+        { id: "months", name: "Months", source: { kind: "all" }, classifier: "month",
+          direction: "chronological", hidden: false, position: 1, plaques: true },
+        { id: "people", name: "People", source: { kind: "all" }, classifier: "person",
+          direction: "alphabetical", hidden: false, position: 2, plaques: false }
+      ],
+      reading: [], wear: { "years/2026": 3 }, dateFields: ["date"],
+      peopleProperty: "people", useFileStamp: false
+    };
+    var up = core.migrate(old);
+    var byId = {};
+    up.shelves.forEach(function (s) { byId[s.id] = s; });
+
+    // ...and a file that already says schema 2 keeps whatever it says.
+    var chosen = core.clone(old);
+    chosen.schema = 2;
+    var kept = core.migrate(chosen);
+    var keptYears = kept.shelves.filter(function (s) { return s.id === "years"; })[0];
+
+    return { schema: up.schema, years: byId.years.plaques, months: byId.months.plaques,
+             people: byId.people.plaques, wear: up.wear["years/2026"],
+             fields: up.dateFields.join(","), keptOff: keptYears.plaques };
+  })()`);
+  const ok = r.schema === 2 && r.years === true && r.months === true && r.people === false &&
+             r.wear === 3 && r.fields === "date" && r.keptOff === false;
+  return {
+    ok,
+    detail: `schema 1 -> ${r.schema}: Years plaques ${r.years}, Months ${r.months}, People ` +
+            `${r.people}; wear and date fields survive (${r.wear} opens, "${r.fields}"). ` +
+            `A file already at schema 2 keeps its Years plaques off: ${r.keptOff === false}`
+  };
+});
+
 check("years group under decade plaques, and a run that wraps is named on both rows",
       async (p) => {
   const r = await p.j(`(function(){

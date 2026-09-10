@@ -85,7 +85,7 @@ export function recipes(): Recipe[] {
  * decisions/0001
  */
 
-export const SETTINGS_SCHEMA = 1;
+export const SETTINGS_SCHEMA = 2;
 
 export interface Persisted {
   schema: number;
@@ -135,9 +135,12 @@ export function migrate(raw: unknown): Persisted {
   if (!raw || typeof raw !== "object") return base;
   const data = raw as Partial<Persisted>;
   const shelves = Array.isArray(data.shelves) ? data.shelves.filter(isShelf) : base.shelves;
+  const from = typeof data.schema === "number" ? data.schema : 0;
   return {
     schema: SETTINGS_SCHEMA,
-    shelves: shelves.length ? shelves.map((s, i) => ({ ...s, position: i })) : base.shelves,
+    shelves: shelves.length
+      ? shelves.map((s, i) => ({ ...decadesOn(s, from), position: i }))
+      : base.shelves,
     reading: Array.isArray(data.reading) ? data.reading.filter(isMark) : [],
     wear: wearOf(data.wear),
     dateFields: Array.isArray(data.dateFields) && data.dateFields.length
@@ -147,6 +150,20 @@ export function migrate(raw: unknown): Persisted {
       ? data.peopleProperty : base.peopleProperty,
     useFileStamp: data.useFileStamp === true,
   };
+}
+
+/**
+ * design/0003 -- SCHEMA 2 GAVE THE YEAR CLASSIFIER A PLAQUE, and a settings file written under
+ * schema 1 has `plaques: false` on its Years shelf. That was never a decision anybody made:
+ * under schema 1 the checkbox was disabled for a year shelf, so `false` was the only value the
+ * option could hold. Turning it on is finishing the migration, not overriding a preference --
+ * which is why it is done once, on the way up from 1, and only for a shelf still classified by
+ * year. A shelf somebody has since turned the plaques off on keeps them off, because by then
+ * its file says schema 2.
+ */
+function decadesOn(shelf: Shelf, from: number): Shelf {
+  if (from >= 2 || shelf.classifier !== "year" || shelf.plaques) return shelf;
+  return { ...shelf, plaques: true };
 }
 
 /** Only positive finite counts survive: a hand-edited file cannot make a spine infinitely worn. */
