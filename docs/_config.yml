@@ -1,0 +1,6 @@
+theme: jekyll-theme-midnight
+title: Vault Shelf
+description: Your Obsidian vault as a browsable library.
+show_downloads: false
+exclude:
+  - "features/"

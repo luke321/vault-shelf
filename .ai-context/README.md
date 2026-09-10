@@ -27,6 +27,7 @@ changing what a shelf contains or how a book is addressed.
 | `0006-zero-network-calls` | Both artifacts are offline objects, and the check that keeps them so |
 | `0007-comments-are-pointers` | Why the reasoning lives here and not in the code |
 | `0008-one-browser-per-run` | Why the suite takes a free port per run |
+| `0009-the-docs-site-is-a-live-demo` | Why `docs/` is a Pages site with a real export in it, why the export is built from the fixture rather than the mirror, and the one rule that bends |
 
 ### DDRs — `design/`
 
