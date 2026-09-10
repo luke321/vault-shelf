@@ -48,6 +48,7 @@ changing what a shelf contains or how a book is addressed.
 | `0014-the-bookcase` | Rows instead of a horizontal scroller: why the packing is arithmetic, and how a plaque earns its width |
 | `0015-the-index` | The tabs are cut the way the book is ordered, and as deep as its titles need |
 | `0016-the-leather-look` | The opt-in leather binding: why a texture is allowed once it stops claiming to follow the theme |
+| `0017-the-cyberpunk-look` | The third look, and the selector that picks it: neon is the light in the room, never the paint on the objects |
 
 **ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
 it explains *why not the other thing*. A DDR describes how a part actually works and the

@@ -563,3 +563,82 @@ book — which is backwards, since a ribbon is what you put in a book to get bac
 *while reading it*. Up to **3** now hang over the top of the spread, named with their note
 titles and clickable; beyond that they become a count (`+2 more`), because the full list of a
 book's notes is already the left-hand page.
+
+## A third look, and the check that walks the list
+
+> "add a theme selector at the top, make a 3rd cyberpunky theme please"
+
+`src/cyber.css` — a rain-lit archive at 3am. `design/0017` carries the design; these are the
+numbers. Measured on the 543-note mirror vault and the three fixtures, 2026-09-10.
+
+### Nothing moved, which is the law
+
+| | Default | Leather | Cyber |
+|---|---|---|---|
+| book addresses, demo vault | 194 | 194 | 194 |
+| book addresses, sparse vault | 419 | 419 | 419 |
+| book addresses, 10k library | 709 | 709 | 709 |
+| every count in `__vs.counts()` | — | byte-identical | byte-identical |
+
+Two local constants move under cyber and neither is measured by an invariant: `--board`
+`3px → 7px` on the track, and the `.vs-spread` margin `10px/14px → 22px/26px`. The hover lift
+is 6px against `design/0005`'s 5px budget, with no rotation.
+
+### The tint, which the screenshots settled
+
+`--tint` is how much of its folder's slot a spine's face takes. Rendered at three values on the
+mirror vault and looked at:
+
+| `--tint` | What the shelf looked like |
+|---|---|
+| 100% (leather's) | twelve saturated slabs — a bar chart with a glow filter, the failure `design/0005` records for the stacked bar |
+| 30% (the first cut) | **one colour.** Against a ground this dark, cyan, azure and teal collapse into the same slab; 341 spines photographed as identical blue-green rectangles |
+| **42%** | `#176780`, `#744835`, `#1c7362`, `#745f31`, `#3d6a34`, `#74215b`, `#433587`, `#742f42`, `#1b5087`, `#5b3287`, `#43526e`, `#2f3d5c` — still metal, and twelve of them |
+
+The default look separates the same folders *less*: it sits at `--tint: 14%` in dark.
+
+### Four more things only a picture could see
+
+| | Before | After |
+|---|---|---|
+| the rain | 6 strokes, opacity 0.5, displacement 26 — read as cracks in the screen | 0.13, hairlines, displacement 13 |
+| the spines | brushing down + scanline across = a crosshatch on all 341 | scanline off the spine, on the room's surfaces only |
+| the shelf-jump strip | `.vs-railname` at 0.22em made the name 130px against the default's 75px; **141px of 434px of chips showing** | 0.12em |
+| the board | 9px, two lit pixels over a saturated tube, blooms 16px/22px | 7px, one lit pixel over a deep one, blooms 11px/14px |
+
+### The look selector paints itself, and only inside Obsidian did that matter
+
+`#vs-look` measured `rgba(5, 10, 20, 0.85)` in the standalone and photographed as a **white
+slab** in the plugin: `appearance: auto` hands the box to the platform and the app's own
+form-field rules land on top. `appearance: none` plus an authored chevron takes it back.
+`design/0016`'s lesson — the standalone is not a preview of the plugin — for the third time.
+
+### The check grew a third assertion, and it failed
+
+`"a look is opt-in, repaints everything and moves nothing"` now walks `core.LOOKS` and drives
+the top bar's `<select>`. Its new assertion — **the first spine's inline `--spine-tint` is one
+of the twelve the cascade currently resolves** — fails on all three vault shapes, and the
+failure is real and is not the look's:
+
+| | `--spine-tint` on the first spine |
+|---|---|
+| after picking cyber from the selector | `#d95926` — Vault Graph's **dark `--g2`** |
+| after any rebuild | `#ff8a3d` — **cyber's `--g2`** |
+
+`applyLook()` sets the attribute and re-reads the palette but never re-renders, so every spine
+keeps the hex written under the previous look. It affects **leather too** (`#3987e5` on the
+demo vault, where leather's `--g1` is `#6d2024`), and the old check could not see it: `--tint`
+and `--surface-2` move with the look as well, so the mixed `backgroundColor` changes anyway and
+a check comparing only that colour passes. Reported rather than fixed — `src/page.js` is not
+this change's file.
+
+### Gates
+
+| | Before | After |
+|---|---|---|
+| `check-scope` css rules | 219 | 290 |
+| `check-scope` prefixed classes | 52 | 52 |
+| `check-network` files | 13 | 15 |
+| `check-comments` baseline | 746 | 746 (CSS is not scanned) |
+| `npm run lint` | 0 errors, 0 warnings | 0 errors, 0 warnings |
+| built `styles.css` | 61 KB | 90 KB |

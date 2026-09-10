@@ -809,14 +809,22 @@ check("book colors are optional, encyclopedia volumes match and new notes never 
 
 const bookCount = (joined) => (joined ? joined.split("|").length : 0);
 
-/* design/0016 -- A LOOK IS PAINT. The leather binding is a second stylesheet and a setting; it
- * may repaint anything and it may move nothing. This drives the standalone's own switch rather
- * than poking the attribute, so what is measured is the path a person actually takes. */
+/* design/0016, design/0017 -- A LOOK IS PAINT. Each look is a stylesheet and a setting; it may
+ * repaint anything and it may move nothing.
+ *
+ * IT WALKS core.LOOKS RATHER THAN A LIST OF ITS OWN, so a fourth look is covered the day it is
+ * added instead of the day somebody remembers to widen this. And it drives the top bar's
+ * `<select>` rather than poking the attribute, so what is measured is the path a person takes:
+ * the selector is the only control either host offers.
+ */
 check("a look is opt-in, repaints everything and moves nothing", async (p) => {
   const r = await p.j(`(function(){
     var root = document.getElementById("vs-app");
+    var sel = document.getElementById("vs-look");
     var spine = function () { return document.querySelector("#vs-shelves .vs-spine"); };
     var read = function () {
+      var cs = getComputedStyle(spine());
+      var tint = (cs.getPropertyValue("--spine-tint") || "").trim();
       var counts = __vs.counts();
       delete counts.plaques;
       return { look: root.getAttribute("data-look"),
@@ -826,52 +834,67 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
                 * says two looks are identical when they could not look less alike. */
                ground: getComputedStyle(root).backgroundColor + " | " +
                        getComputedStyle(root).backgroundImage.slice(0, 90),
-               dye: getComputedStyle(spine()).backgroundColor,
+               dye: cs.backgroundColor,
+               tint: tint,
+               /* design/0005 -- the dye a person LOOKS AT has to be one of the twelve the
+                * cascade currently resolves. Comparing only the mixed backgroundColor cannot
+                * see a stale one: --tint and --surface-2 move with the look too, so a spine
+                * still carrying the previous look's hex reports a different colour and passes. */
+               tintIsASlot: !tint || __vs.slots().indexOf(tint) >= 0,
                slots: __vs.slots().join(","),
                addresses: __vs.addresses().join("|"),
                counts: JSON.stringify(counts) };
     };
     /* design/0016 -- EVERY look core offers, through the control a person uses. The selector
      * is built from core.LOOKS, so a look added there is checked here without editing this. */
-    var sel = document.getElementById("vs-look");
     var pick = function (value) {
       sel.value = value;
       sel.dispatchEvent(new Event("change", { bubbles: true }));
       return read();
     };
     var offered = [].slice.call(sel.options).map(function (o) { return o.value; });
-    var off = read();
-    var seen = offered.filter(function (v) { return v !== ""; }).map(function (v) {
-      return { value: v, state: pick(v) };
-    });
+    var start = read();
+    var seen = offered.map(function (v) { return { value: v, state: pick(v) }; });
     var back = pick("");
-    return { off: off, seen: seen, back: back, offered: offered.join(",") };
+    return { offered: offered, start: start, seen: seen, back: back };
   })()`);
 
-  const moved = r.seen.some((l) => l.state.addresses !== r.off.addresses ||
-                                   l.state.counts !== r.off.counts);
-  const named = r.seen.every((l) => l.state.look === l.value);
-  const repainted = r.seen.every((l) => l.state.dye !== r.off.dye &&
-                                        l.state.slots !== r.off.slots &&
-                                        l.state.ground !== r.off.ground);
-  const distinct = new Set(r.seen.map((l) => l.state.ground)).size === r.seen.length;
-  const restored = r.back.look === "" && r.back.dye === r.off.dye &&
-                   r.back.slots === r.off.slots;
-  /* THE 20% IS AN INVARIANT, not a detail of the stylesheet. The leather look zooms the page
-   * so its type is readable at a normal viewing distance rather than merely correct, and a
-   * spine that stops being 20% taller under it is that having been lost. */
-  const leather = r.seen.filter((l) => l.value === "leather")[0];
-  const scaled = !leather || Math.abs(leather.state.height - r.off.height * 1.2) < 0.6;
-  return {
-    ok: r.off.look === "" && r.seen.length >= 2 && named && !moved && repainted &&
-        distinct && restored && scaled,
-    detail: `the selector offers "${r.offered}"; each one paints its own ground ` +
-            `(${r.seen.map((l) => l.value + " " + l.state.ground).join(", ")}) over the ` +
-            `default's ${r.off.ground}, ${bookCount(r.off.addresses)} book addresses ` +
-            `identical throughout (${!moved}), the twelve slots change under every look ` +
-            `and come back (${restored}); leather stands 20% taller (${scaled}: ` +
-            `${r.off.height.toFixed(1)}px -> ${leather ? leather.state.height.toFixed(1) : "n/a"}px)`
-  };
+  const base = r.seen.find((s) => s.value === "");
+  const looks = r.seen.filter((s) => s.value !== "");
+  /* THE ADDRESSES AND THE COUNTS ARE THE LAW, and they are compared against the default look's
+   * own reading rather than pairwise, so one look drifting is one failure and not two. */
+  const moved = r.seen.filter((s) => s.state.addresses !== base.state.addresses ||
+                                     s.state.counts !== base.state.counts);
+  /* Each look must differ from the DEFAULT and from EVERY OTHER look: two looks that resolve to
+   * the same ground and the same twelve slots are one look shipped twice. */
+  const paint = (s) => s.state.ground + "|" + s.state.slots + "|" + s.state.dye;
+  const flat = looks.filter((s) => paint(s) === paint(base));
+  const twins = looks.filter((s, i) => looks.some((o, j) => j < i && paint(o) === paint(s)));
+  const named = r.seen.every((s) => s.state.look === s.value);
+  const stale = r.seen.filter((s) => !s.state.tintIsASlot);
+  const restored = r.back.look === "" && r.back.dye === base.state.dye &&
+                   r.back.slots === base.state.slots && r.back.ground === base.state.ground;
+  /* THE 20% IS AN INVARIANT, not a detail of the stylesheet. The leather look zooms the page so
+   * its type is readable at a normal viewing distance rather than merely correct, and a spine
+   * that stops being 20% taller under it is that having been lost. */
+  const leather = looks.find((s) => s.value === "leather");
+  const scaled = !leather || Math.abs(leather.state.height - base.state.height * 1.2) < 0.6;
+  const ok = r.offered.length >= 3 && r.offered[0] === "" && named && scaled &&
+             !moved.length && !flat.length && !twins.length && !stale.length && restored;
+  return { ok,
+           detail: `the selector offers ${r.offered.length} looks ` +
+                   `(${r.offered.map((v) => v || "default").join(", ")}); each set data-look ` +
+                   `to its own value (${named}); ` +
+                   looks.map((s) => `${s.value} dyes the first spine ${s.state.dye}`).join(", ") +
+                   ` against the default's ${base.state.dye}; ` +
+                   `${bookCount(base.state.addresses)} book addresses and every count ` +
+                   `identical in all ${r.seen.length} (${!moved.length}` +
+                   (moved.length ? `; moved under ${moved.map((s) => s.value).join(", ")}` : "") +
+                   `); no look is a twin of another (${!twins.length}); every spine carries a ` +
+                   `live slot (${!stale.length}); leather stands 20% taller (${scaled}: ` +
+                   `${base.state.height.toFixed(1)}px -> ` +
+                   `${leather ? leather.state.height.toFixed(1) : "n/a"}px); back to the ` +
+                   `default unchanged (${restored})` };
 });
 
 /* design/0008 -- MAGIC 1. A book you open often looks handled. */
