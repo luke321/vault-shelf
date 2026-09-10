@@ -377,7 +377,7 @@ function mountVaultShelf(root, data, options) {
       var line = el("div", "vs-books");
       row.forEach(function (book) {
         var shelf = shelfById(book.shelfId);
-        line.appendChild(renderSpine(book, shelf || { name: "Reading" }));
+        line.appendChild(renderSpine(book, shelf || { name: "Reading" }, false));
       });
       track.appendChild(line);
       rail.appendChild(track);
@@ -414,7 +414,7 @@ function mountVaultShelf(root, data, options) {
 
     var rail = el("div", "vs-shelfrail");
     rowsOf(view.books).forEach(function (row) {
-      rail.appendChild(renderTrack(row, view.shelf));
+      rail.appendChild(renderTrack(row, view.shelf, true));
     });
     wrap.appendChild(rail);
     return wrap;
@@ -588,23 +588,32 @@ function mountVaultShelf(root, data, options) {
    * of them, naming the same year twice, because each plate says what is on the board it is
    * screwed to.
    */
-  /** @param {Book[]} books @param {Shelf} shelf @returns {HTMLElement} */
-  function renderTrack(books, shelf) {
+  /**
+   * design/0018 -- A RUN IS WHAT IS ADJACENT, not what shares a label. The groups were
+   * collected into a map keyed by the plaque, so two books with the same year anywhere in the
+   * row were drawn side by side under one plate -- which was invisible while every shelf was
+   * sorted by key, because same-plaque books were always neighbours, and which would silently
+   * re-order a shelf arranged by hand. `rowsOf` has always packed on adjacency; this now
+   * agrees with it, and the cost is that a decade a person has split shows two plates.
+   */
+  /** @param {Book[]} books @param {Shelf} shelf @param {boolean} hand @returns {HTMLElement} */
+  function renderTrack(books, shelf, hand) {
     var track = el("div", "vs-track");
     /** @type {{ plaque: string|null, books: Book[] }[]} */
     var groups = [];
-    /** @type {Record<string, { plaque: string|null, books: Book[] }>} */
-    var byPlaque = {};
     books.forEach(function (book) {
-      var key = book.plaque === null ? "" : book.plaque;
-      if (!byPlaque[key]) { byPlaque[key] = { plaque: book.plaque, books: [] }; groups.push(byPlaque[key]); }
-      byPlaque[key].books.push(book);
+      var last = groups.length ? groups[groups.length - 1] : null;
+      if (!last || last.plaque !== book.plaque) {
+        last = { plaque: book.plaque, books: [] };
+        groups.push(last);
+      }
+      last.books.push(book);
     });
 
     groups.forEach(function (group) {
       var g = el("div", "vs-group");
       var row = el("div", "vs-books");
-      group.books.forEach(function (book) { row.appendChild(renderSpine(book, shelf)); });
+      group.books.forEach(function (book) { row.appendChild(renderSpine(book, shelf, hand)); });
       g.appendChild(row);
       if (group.plaque !== null) g.appendChild(el("div", "vs-plaque", group.plaque));
       track.appendChild(g);
@@ -612,8 +621,8 @@ function mountVaultShelf(root, data, options) {
     return track;
   }
 
-  /** @param {Book} book @param {Shelf} shelf @returns {HTMLElement} */
-  function renderSpine(book, shelf) {
+  /** @param {Book} book @param {Shelf} shelf @param {boolean} hand @returns {HTMLElement} */
+  function renderSpine(book, shelf, hand) {
     var b = el("button", "vs-spine");
     b.type = "button";
     b.setAttribute("data-book", book.id);
@@ -662,7 +671,149 @@ function mountVaultShelf(root, data, options) {
     b.setAttribute("aria-label", shelf.name + ": " + peek.split("\n")[0]);
 
     on(b, "click", function () { openBook(book, null); });
+    if (hand && shelf.direction === "manual") handleOf(b, book, shelf);
     return b;
+  }
+
+  /* ---- a shelf arranged by hand ---------------------------------------------
+   * design/0018 -- native HTML5 drag and drop, which is what a browser already has: no
+   * library, no pointer bookkeeping, and a drag that starts on a spine is a drag the operating
+   * system draws for you. What is added here is the one thing it does not do -- say where the
+   * book would land -- and a keyboard path that does the same move without a pointer.
+   */
+
+  /** @type {{ shelfId: string, key: string }|null} */
+  var dragging = null;
+  /** @type {HTMLElement|null} */
+  var dropMark = null;
+
+  /** @param {HTMLElement} b @param {Book} book @param {Shelf} shelf */
+  function handleOf(b, book, shelf) {
+    b.draggable = true;
+    b.setAttribute("data-hand", "1");
+    b.title = b.title + "\n\nDrag to move it along the shelf; Alt+Left and Alt+Right do the " +
+              "same from the keyboard.";
+    on(b, "dragstart", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      dragging = { shelfId: shelf.id, key: book.key };
+      if (de.dataTransfer) {
+        de.dataTransfer.effectAllowed = "move";
+        /* The payload is the address, not the label: the same thing a drop between two hosts
+         * would have to mean (decisions/0002). Nothing reads it back -- `dragging` does that,
+         * because `getData` is deliberately unreadable during a dragover. */
+        de.dataTransfer.setData("text/plain", book.id);
+      }
+      b.setAttribute("data-dragging", "1");
+    });
+    on(b, "dragend", function () {
+      dragging = null;
+      clearDrop();
+      b.removeAttribute("data-dragging");
+    });
+    on(b, "dragover", function (e) {
+      if (!dragging || dragging.shelfId !== shelf.id || dragging.key === book.key) return;
+      var de = /** @type {DragEvent} */ (e);
+      de.preventDefault();
+      if (de.dataTransfer) de.dataTransfer.dropEffect = "move";
+      markDrop(b, sideOf(b, de.clientX));
+    });
+    on(b, "dragleave", function () { if (dropMark === b) clearDrop(); });
+    on(b, "drop", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      de.preventDefault();
+      if (!dragging || dragging.shelfId !== shelf.id) return;
+      var moved = dragging.key;
+      var side = sideOf(b, de.clientX);
+      dragging = null;
+      clearDrop();
+      if (moved === book.key) return;
+      arrangeBook(shelf, moved, neighbour(shelf, book.key, side, moved),
+                  core.bookId(shelf.id, moved));
+    });
+  }
+
+  /** @param {HTMLElement} b @param {number} x @returns {"before"|"after"} */
+  function sideOf(b, x) {
+    var box = b.getBoundingClientRect();
+    return x >= box.left + box.width / 2 ? "after" : "before";
+  }
+
+  /** @param {HTMLElement} b @param {"before"|"after"} side */
+  function markDrop(b, side) {
+    if (dropMark === b && b.getAttribute("data-drop") === side) return;
+    clearDrop();
+    dropMark = b;
+    b.setAttribute("data-drop", side);
+    var bar = el("span", "vs-drop");
+    bar.setAttribute("data-side", side);
+    b.appendChild(bar);
+  }
+
+  function clearDrop() {
+    if (dropMark) {
+      dropMark.removeAttribute("data-drop");
+      var bar = dropMark.querySelector(".vs-drop");
+      if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
+    }
+    dropMark = null;
+  }
+
+  /**
+   * Which book the moved one has to come BEFORE, read off the shelf as it is currently drawn
+   * and with the moved book taken out of it first -- otherwise "after my right-hand neighbour"
+   * names the book being carried and lands it at the end of the shelf.
+   * @param {Shelf} shelf @param {string} targetKey @param {"before"|"after"} side
+   * @param {string} movedKey @returns {string|null}
+   */
+  function neighbour(shelf, targetKey, side, movedKey) {
+    var view = views.filter(function (v) { return v.shelf.id === shelf.id; })[0];
+    if (!view) return null;
+    var keys = view.books.map(function (bk) { return bk.key; })
+      .filter(function (k) { return k !== movedKey; });
+    var i = keys.indexOf(targetKey);
+    if (i < 0) return null;
+    if (side === "before") return targetKey;
+    return i + 1 < keys.length ? keys[i + 1] : null;
+  }
+
+  /**
+   * design/0018 -- THE SEQUENCE IS SAVED AGAINST THE WHOLE VAULT, not against what a filter is
+   * currently showing: the shelf is rebuilt here from the unfiltered notes, so a key a filter
+   * has hidden keeps its place and a key the vault no longer has is dropped -- on save, which
+   * is the only moment either question has an answer nobody has to guess.
+   * @param {Shelf} shelf @param {string} key @param {string|null} before @param {string} [refocus]
+   */
+  function arrangeBook(shelf, key, before, refocus) {
+    var live = core.buildShelf(shelf, notes, settings.noteOrder).books
+      .map(function (bk) { return bk.key; });
+    shelf.order = core.moveBefore(live, key, before);
+    persist();
+    refresh();
+    if (!refocus) return;
+    var again = /** @type {HTMLElement|null} */ (root.querySelector(
+      "#" + ID + 'shelves .vs-spine[data-book="' + cssEscape(refocus) + '"]'));
+    if (again) again.focus();
+  }
+
+  /**
+   * The accessibility path, and the one a check can drive: one place left or right, off the
+   * shelf as it is drawn, which is the same move a drop makes.
+   * @param {HTMLElement} spine @param {number} delta @returns {boolean}
+   */
+  function nudge(spine, delta) {
+    var book = bookIndex[spine.getAttribute("data-book") || ""];
+    if (!book) return false;
+    var shelf = shelfById(book.shelfId);
+    if (!shelf || shelf.direction !== "manual") return false;
+    var view = views.filter(function (v) { return v.shelf.id === shelf.id; })[0];
+    if (!view) return false;
+    var i = -1;
+    view.books.forEach(function (bk, k) { if (bk.key === book.key) i = k; });
+    var target = view.books[i + delta];
+    if (i < 0 || !target) return false;
+    arrangeBook(shelf, book.key, neighbour(shelf, target.key, delta > 0 ? "after" : "before",
+                                           book.key), book.id);
+    return true;
   }
 
   /**
@@ -1330,13 +1481,19 @@ function mountVaultShelf(root, data, options) {
      * have always been ascending and descending; only the words were wrong. */
     var dated = d.classifier === "year" || d.classifier === "month" || d.classifier === "week";
     var order = /** @type {HTMLSelectElement} */ ($("bdirection"));
-    order.options[0].textContent = dated ? "Oldest first" : "A to Z";
+    order.options[0].textContent = dated ? "Reading order (top bar)" : "A to Z";
     order.options[1].textContent = dated ? "Newest first" : "Z to A";
-    order.value = d.direction;
-    /* design/0015 -- a date shelf takes its direction from the top bar, so the control here
-     * would be a second answer to a question already answered. */
-    order.disabled = dated;
-    order.title = dated ? "Date shelves follow the reading order in the top bar." : "";
+    /* design/0015 -- a date shelf takes its direction from the top bar, so the second automatic
+     * answer here is not a second answer, it is the same one written twice. It is taken off the
+     * list rather than greyed, because the control itself is no longer disabled: design/0018
+     * puts a third option under it that every classifier can be given. */
+    order.options[1].hidden = dated;
+    order.value = d.direction === "manual" ? "manual"
+                : dated && d.direction === "chronological" ? "alphabetical" : d.direction;
+    order.title = d.direction === "manual"
+      ? "The books stay where you put them. Drag a spine along the shelf, or Alt+Left and " +
+        "Alt+Right from the keyboard."
+      : dated ? "Date shelves follow the reading order in the top bar." : "";
     field("bplaques").checked = !!d.plaques;
     field("bplaques").disabled = !PLAQUABLE[d.classifier];
     field("bsubtags").checked = d.includeSubtags !== false;
@@ -1357,7 +1514,9 @@ function mountVaultShelf(root, data, options) {
       fillProperties();
       d.property = field("bproperty").value;
     }
-    d.direction = field("bdirection").value === "chronological" ? "chronological" : "alphabetical";
+    var picked = field("bdirection").value;
+    d.direction = picked === "manual" ? "manual"
+                : picked === "chronological" ? "chronological" : "alphabetical";
     d.plaques = !!PLAQUABLE[d.classifier] && field("bplaques").checked;
     d.includeSubtags = field("bsubtags").checked;
     d.varyColors = field("bvary").checked;
@@ -1436,12 +1595,13 @@ function mountVaultShelf(root, data, options) {
       (draft.plaques ? " \u00b7 " + plaques + " under year plaques" : "");
     var box = $("preview");
     clear(box);
-    box.appendChild(renderTrack(view.books.slice(0, 60), draft));
+    box.appendChild(renderTrack(view.books.slice(0, 60), draft, false));
   }
 
   function saveBuilder() {
     readBuilderFields();
     var draft = builder.draft;
+    seedOrder(draft, builder.editing ? shelfById(builder.editing) : null);
     if (builder.editing) {
       var i = -1;
       settings.shelves.forEach(function (s, k) { if (s.id === builder.editing) i = k; });
@@ -1454,6 +1614,25 @@ function mountVaultShelf(root, data, options) {
     persist();
     closeBuilder();
     refresh();
+  }
+
+  /**
+   * design/0018 -- SWITCHING TO "ARRANGED BY HAND" MOVES NOTHING. The sequence is written out
+   * the moment the shelf becomes manual, from the order it was standing in a second earlier, so
+   * the books do not shuffle on the way in and the reading order in the top bar cannot reach
+   * them afterwards. Built over the unfiltered notes, for the same reason `arrangeBook` is.
+   * A shelf switched back to A-to-Z keeps its list, because switching back again should return
+   * the arrangement rather than lose it -- hiding never deletes, and neither does this.
+   * @param {Shelf} draft @param {Shelf|null} previous
+   */
+  function seedOrder(draft, previous) {
+    if (draft.direction !== "manual") return;
+    if (draft.order && draft.order.length) return;
+    var was = core.clone(draft);
+    was.direction = previous && previous.direction !== "manual"
+      ? previous.direction : "alphabetical";
+    draft.order = core.buildShelf(was, notes, settings.noteOrder).books
+      .map(function (bk) { return bk.key; });
   }
 
   /** @param {string} base @returns {string} */
@@ -1783,6 +1962,14 @@ function mountVaultShelf(root, data, options) {
       if (reader) closeReader();
       return;
     }
+    /* design/0018 -- the same move as a drop, without a pointer. It is read off the FOCUSED
+     * spine, so it can only ever move the book the person is standing on, and it is tried
+     * before the reader's own Alt+Left because a spine cannot be focused while a book is open. */
+    if (!reader && e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+      var at = e.target instanceof Element
+        ? /** @type {HTMLElement|null} */ (e.target.closest(".vs-spine[data-hand]")) : null;
+      if (at && nudge(at, e.key === "ArrowRight" ? 1 : -1)) { e.preventDefault(); return; }
+    }
     if (!reader) return;
     if (e.altKey && e.key === "ArrowLeft") { previousCollection(); e.preventDefault(); return; }
     if (e.key === "ArrowLeft") { goTo(reader.index - 1); e.preventDefault(); }
@@ -1889,6 +2076,16 @@ function mountVaultShelf(root, data, options) {
         });
       });
       return report;
+    },
+    /**
+     * design/0018 -- one shelf's books in the order they are standing in, as keys. The
+     * addresses are in `addresses()`; this is the other half of the same question, and the
+     * only thing a manual shelf is allowed to change.
+     * @param {string} shelfId
+     */
+    sequence: function (shelfId) {
+      var view = views.filter(function (v) { return v.shelf.id === shelfId; })[0];
+      return view ? view.books.map(function (b) { return b.key; }) : [];
     },
     /** Every book's address, so a check can assert they are stable across a rebuild. */
     addresses: function () {

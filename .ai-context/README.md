@@ -50,6 +50,7 @@ changing what a shelf contains or how a book is addressed.
 | `0015-the-index` | The tabs are cut the way the book is ordered, and as deep as its titles need |
 | `0016-the-leather-look` | The opt-in leather binding: why a texture is allowed once it stops claiming to follow the theme |
 | `0017-the-cyberpunk-look` | The third look, and the selector that picks it: neon is the light in the room, never the paint on the objects |
+| `0018-the-manual-shelf` | A shelf with no rule: the order a person dragged the books into, stored as keys, and what a plaque means once a run is whatever is adjacent |
 
 **ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
 it explains *why not the other thing*. A DDR describes how a part actually works and the
@@ -88,6 +89,7 @@ node src/build-shelf.mjs --vault ./demo-vault --out ./vault-shelf.html
 __vs.counts()             // notes, shelves, books, spines and plaques on screen
 __vs.checkMembership()    // unique notes per shelf vs what the shelf claims
 __vs.addresses()          // every book's stable address, in order
+__vs.sequence("people")   // one shelf's books in the order they stand, as keys (design/0018)
 __vs.setFilters({ search: "garden" })
 __vs.openBook("months/2026-09", null)
 __vs.setQuery("garden")   // the shelf parts; nothing is removed

@@ -189,6 +189,54 @@ under `04 - Daily Notes`, back to 394.
 A filter that reorders shelves would break the one thing the product promises about
 orientation: a shelf lives at a stable address in the room.
 
+## A shelf arranged by hand moves nothing but the sequence
+
+`design/0018`. Six checks, one per thing the feature is not allowed to break. Every one of them
+puts the shelf back the way it found it, because the checks in a shard share one page.
+
+`"a shelf arranged by hand keeps every address and starts where it stood"` switches People to
+`manual` and asserts the sequence and the whole library's address list are unchanged, that
+every spine on that shelf became draggable and none on the automatic Tags shelf did, and that
+nothing has been written to `order` yet. Measured — demo / sparse / library:
+**10 / 8 / 11 books**, **451 / 194 / 709 addresses** unchanged, **10/10, 8/8, 11/11** spines
+draggable, **0** elsewhere.
+
+`"Alt+Right moves a book one place, and it survives a rebuild and a reload"` focuses the first
+spine, sends `Alt+ArrowRight`, and asserts the first two books swapped, the rest did not move,
+the whole sequence was saved as keys, a rebuild reads back the same sequence, `core.migrate`
+over the settings blob returns the same `order`, and focus followed the book. Measured:
+`Halvor Estrin, Ines Calder, …` → `Ines Calder, Halvor Estrin, …`, **10 / 8 / 11 keys** saved,
+focus on `people/Halvor Estrin`.
+
+`"a drag and drop moves a book the same way a key does, across rows"` picks the shelf with the
+most books, scrolls it into view, and dispatches a real `dragstart` / `dragover` / `drop` with
+a `DataTransfer`, dropping the first spine on the right half of the last one. It asserts the
+book landed at the end, the mark was drawn on the right side and is **3px** wide, the carried
+spine was flagged as lifted, the payload was the address, and no mark was left behind.
+Measured on Months: **136 books over 4 rows** (demo), **30 over 2** (sparse), **122 over 5**
+(library) — a different row in all three, so the cross-row case is the one being measured.
+
+`"the reading order in the top bar leaves an arranged shelf alone"` gives the Years shelf a
+hand-made sequence, clicks the top bar's order button twice, and asserts the sequence did not
+move — with the automatic Months shelf as the control, which must turn round. Measured:
+**17 / 6 / 12** year books held still while **136 / 30 / 122** month books reversed.
+
+`"a book nobody has arranged stands at the end of the shelf"` leaves the first key out of
+`order`, which is what a note that arrived after the arrangement looks like. Measured:
+**9 of 10**, **7 of 8**, **10 of 11** named; the unnamed book stands last and every address is
+still there.
+
+`"a filter narrows an arranged shelf without shuffling it"` arranges People, applies the
+**smallest** folder — the first is usually the one holding most of the vault, and a filter that
+removes nothing proves nothing — and asserts every surviving book is still in the arranged
+order, then that clearing puts all of them back in it. Measured: **10 → 1** under
+`(vault root)`, **8 → 1** under `journal`, **11 → 11** under `Journal`.
+
+Not covered by a number: that a decade a person splits shows two plates in one row rather than
+one plate over two runs. That was checked by looking — dropping *Marta Ortiz* between two A
+names on the mirror vault's People shelf gives `A | M | A`, ten plates over ten groups in the
+first row.
+
 ## Hiding a shelf hides it, and never deletes it
 
 `"a hidden shelf keeps its definition and its books"` hides the Tags shelf, asserts the

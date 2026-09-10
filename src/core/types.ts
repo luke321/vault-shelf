@@ -54,7 +54,15 @@ export interface Shelf {
   classifier: ClassifierKind;
   /** Frontmatter property name, for the "property" classifier. */
   property?: string;
-  direction: "alphabetical" | "chronological";
+  /** design/0018 -- "manual" is the order a person put the books in, held in `order`. */
+  direction: "alphabetical" | "chronological" | "manual";
+  /**
+   * design/0018 -- the sequence, as classifier KEYS rather than addresses or indices: a key is
+   * what `decisions/0002` says survives, and the same list therefore still means something
+   * after a rebuild, a filter or a rename. A key here that the vault no longer has is dropped
+   * when the sequence is next saved; a key the vault has that is not here goes to the end.
+   */
+  order?: string[];
   hidden: boolean;
   position: number;
   /** design/0003 */
