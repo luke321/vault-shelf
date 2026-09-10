@@ -12,6 +12,11 @@ each shelf is another useful address into one vault.
 Sister project to [Vault Graph](https://github.com/luke321/vault-graph), which draws the same
 vault as one disc. Both are deterministic, local, and make no network requests at all.
 
+![Vault Shelf](assets/demo.webp)
+
+*Six shelves over a 394-note vault. The full 83-second walkthrough is
+`node scripts/record-demo.mjs`.*
+
 ---
 
 ## What it does

@@ -38,6 +38,7 @@ changing what a shelf contains or how a book is addressed.
 | `0004-the-reading-spread` | The two pages, the index tabs, the reading table, and cross-shelf history |
 | `0005-colour-and-the-two-skins` | Twelve slots shared with Vault Graph; Graphite and Paper & cloth as one feature set |
 | `0006-the-harness` | Where a driven browser goes, and the mutex two of them share |
+| `0007-the-recorder` | Why the demo is captured frame by frame over CDP rather than recorded off a screen |
 
 **ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
 it explains *why not the other thing*. A DDR describes how a part actually works and the

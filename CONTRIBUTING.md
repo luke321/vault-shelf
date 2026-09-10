@@ -80,6 +80,20 @@ plugin checks `view instanceof ShelfView` before touching one, and so should any
 **`--shot` is not optional in spirit.** Sixteen of the seventeen things that can go wrong here
 are numbers, and the seventeenth is what it looks like. Take the picture.
 
+## The demo
+
+```bash
+node scripts/record-demo.mjs                      # the whole storyboard -> demo-vault-shelf.mp4
+node scripts/record-demo.mjs --act read --fps 4   # one act, fast, for iterating on it
+node scripts/record-demo.mjs --hero assets/demo.webp
+```
+
+It builds the standalone page from the demo fixture, drives it through twelve acts, and
+captures every frame over CDP — **headless, so it cannot capture the wrong window and needs no
+`record` lock**, unlike a screen grab. 83 seconds at 24fps takes about a minute and a half to
+shoot. `design/0007` has the reasoning, including why the captions are injected by the
+recorder rather than added to the page.
+
 `git config core.hooksPath .githooks` once per clone runs those on every push to `develop` or
 `main`, along with a check that refuses to publish other people's names, two that keep the
 generated fixtures deterministic, and one that keeps the generated navigation files

@@ -10,7 +10,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | issue | code sites | prose sites |
 |---|---|---|
 
-## Decision and design records cited in code — 14
+## Decision and design records cited in code — 15
 
 | record | code sites |
 |---|---|
@@ -28,6 +28,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `design/0004` | src/core/shelves.ts:170, src/core/shelves.ts:190, src/core/types.ts:88, src/page.js:497 |
 | `design/0005` | src/page.css:4, src/page.css:398, src/page.js:57, src/page.js:458, plugin/main.js:10 |
 | `design/0006` | scripts/obsidian-smoke.mjs:3, scripts/screen.mjs:1, scripts/screen.mjs:42 |
+| `design/0007` | scripts/record-demo.mjs:2, scripts/record-demo.mjs:23, scripts/record-demo.mjs:97, scripts/record-demo.mjs:130, scripts/record-demo.mjs:315, scripts/record-demo.mjs:338, scripts/record-demo.mjs:347 |
 
 ## Invariants → checks — 23 sections in `.ai-context/invariants.md`
 
@@ -66,12 +67,12 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `__vs.addresses` | scripts/smoke.mjs ×3 |
 | `__vs.checkMembership` | scripts/smoke.mjs ×1 |
 | `__vs.closeReader` | scripts/smoke.mjs ×3 |
-| `__vs.counts` | scripts/smoke.mjs ×13 |
+| `__vs.counts` | scripts/record-demo.mjs ×1, scripts/smoke.mjs ×13 |
 | `__vs.data` | scripts/smoke.mjs ×7 |
 | `__vs.openBook` | scripts/smoke.mjs ×7 |
 | `__vs.reader` | scripts/smoke.mjs ×10 |
 | `__vs.setFilters` | scripts/smoke.mjs ×13 |
 | `__vs.setListMode` | scripts/smoke.mjs ×2 |
-| `__vs.setSkin` | scripts/smoke.mjs ×3 |
+| `__vs.setSkin` | scripts/record-demo.mjs ×2, scripts/smoke.mjs ×3 |
 | `__vs.settings` | scripts/smoke.mjs ×11 |
 | `__vs.views` | scripts/smoke.mjs ×19 |
