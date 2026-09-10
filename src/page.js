@@ -2049,13 +2049,13 @@ function mountVaultShelf(root, data, options) {
   function fillLooks() {
     var select = field("look");
     clear(select);
-    core.LOOKS.forEach(function (look) {
+    core.offeredLooks().forEach(function (look) {
       var o = DOC.createElement("option");
       o.value = look.value;
       o.textContent = look.name;
       select.appendChild(o);
     });
-    select.value = core.isLook(settings.look) ? settings.look : "";
+    select.value = core.isOffered(settings.look) ? settings.look : "";
   }
 
   function toggleOrder() {
@@ -2068,6 +2068,8 @@ function mountVaultShelf(root, data, options) {
   }
 
   function applyLook() {
+    /* isLook, not isOffered: a shelved look can still be painted through the debug handle so
+     * the suite keeps measuring it (design/0017); a person only ever reaches an offered one. */
     var want = core.isLook(settings.look) ? settings.look : "";
     if (root.getAttribute("data-look") === want) return;
     root.setAttribute("data-look", want);
@@ -2233,6 +2235,17 @@ function mountVaultShelf(root, data, options) {
     closeReader: closeReader,
     /** design/0004 -- where a link went: "book", "shelf", "near" or null. */
     openNote: openNote,
+    /**
+     * design/0017 -- paint any look core knows, offered or shelved, without saving it. The
+     * selector is the person's path and only lists offered looks; this is the suite's, so a
+     * shelved stylesheet keeps being measured. @param {string} value
+     */
+    setLook: function (value) {
+      if (!core.isLook(value)) return false;
+      settings.look = value;
+      refresh();
+      return true;
+    },
     /** @param {string} skin */
     /** @param {string} theme */
     setTheme: function (theme) {

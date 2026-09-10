@@ -29,7 +29,7 @@ standalone exporter ships: the same page, off a disk, with no Obsidian at all.
 ## Every feature, in the words of its design record
 
 The bookcase, plaques, thickness, the reading spread, ribbons, shelf wear, the shelf that parts
-as you type, and the three looks — each with what it does and where the reasoning lives.
+as you type, and the two looks — each with what it does and where the reasoning lives.
 **[See the full feature list →](features.html)**
 
 ## Install the plugin

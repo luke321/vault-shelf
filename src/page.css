@@ -214,6 +214,10 @@
   flex: 0 0 auto;
   width: 232px;
   font: inherit;
+  /* Explicit, so a look that raises the page's base size for its prose (leather, 17px) does
+   * not raise the box: a search field is the same height in every look. */
+  font-size: 13px;
+  line-height: 1.5;
   color: var(--text-1);
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -263,9 +267,14 @@
 
 /* ---- buttons ------------------------------------------------------------- */
 
+/* design/0016 -- THE GEOMETRY OF A CONTROL IS SET HERE, ONCE. A look may repaint a button
+ * and may not resize it; the line-height is explicit so a look's face -- serif, mono -- lands
+ * in the same box as the default's. The "same size" check measures every control in every
+ * look against this sheet's reading. */
 .vault-shelf button {
   font: inherit;
   font-size: 11.5px;
+  line-height: 1.5;
   color: var(--text-2);
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -295,6 +304,8 @@
 .vault-shelf input[type="text"],
 .vault-shelf select {
   font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
   width: 100%;
   color: var(--text-1);
   background: var(--surface-2);

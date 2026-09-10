@@ -652,9 +652,9 @@
 
 /* THE FRAME IS A SHADOW, NOT A BORDER, for the reason design/0016 gives: a box-shadow ring
  * frames the spread without adding a pixel to the grid, so the two pages keep the widths
- * design/0009 measured. Only the margin grows, to give the frame somewhere to sit. */
+ * design/0009 measured. The margin is page.css's too: a book is the same height in every
+ * look, and the ring sits in the 14px every look leaves. */
 .vault-shelf[data-look="cyber"] .vs-spread {
-  margin: 0 auto 26px;
   border: 1px solid #101c30;
   border-radius: 3px;
   box-shadow:

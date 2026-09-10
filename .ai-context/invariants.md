@@ -394,13 +394,23 @@ variation on/off preserves all addresses and counts.
 (`src/leather.css`) and the cyberpunk archive (`src/cyber.css`) — each one a stylesheet and a
 value of one setting. A look may repaint anything and it may move nothing.
 
+**One of them is shelved.** Since 2026-09-11 `core.LOOKS` marks cyberpunk `shelved: true`
+(`design/0017`, addendum): `core.offeredLooks()` is what the selector lists — leather and
+modern — and `core.isOffered()` is what `migrate` accepts, so a settings file naming `cyber`
+comes up in leather (**schema 9**). The stylesheet still ships, `check-scope` and
+`check-network` still read it, and every look check still paints it through
+`__vs.setLook()`, so a change to what the looks share reaches it and is measured there.
+The migration check asserts `{ schema: 8, look: "cyber" } → "leather"` and
+`{ schema: 8, look: "" } → ""`.
+
 `"a look is opt-in, repaints everything and moves nothing"` drives the top bar's
 `<select id="vs-look">` rather than poking the attribute, because that selector is now the
 only control either host offers. It **walks `core.LOOKS`** rather than a list of its own, so a
 fourth look is covered the day it is added, and it asserts:
 
-- the selector offers every look in the list, the default first, and each one sets `data-look`
-  to its own value;
+- the selector offers every look in the list that is not shelved and none that is, and each
+  one — offered through the selector, shelved through the handle — sets `data-look` to its own
+  value;
 - each look's ground, twelve slots and first-spine dye differ from the default's **and from
   every other look's** — two looks that resolve alike are one look shipped twice;
 - every book address and every count is **byte-identical across all three**;
@@ -438,6 +448,29 @@ the track (still the background line at `var(--spine-h)`, so the plaque still ha
 and the `.vs-spread` margin `10px/14px → 22px/26px` (the frame is a `box-shadow` ring, which
 costs the grid nothing). The hover lift is **6px and no rotation**, one pixel over
 `design/0005`'s budget and still nothing but a transform.
+### Every control is the same size in every look
+
+`"every control is the same size in every look"` (2026-09-11, "make sure all components
+buttons etc have the same size in all themes, some seem off") measures **28 controls** —
+the search box, the order button, the look selector, Manage, a shelf jump, the rail, New shelf,
+a shelf head, a plaque, a spine; the reader bar and its four buttons, the find-within box, an
+index tab, a contents row, the ribbon row, a ribbon and the stub, the spread, an also-in
+button; a Manage row and its button, the Vary switch's knob, Done, a palette swatch and the
+reset; a dye swatch — in every look `core.LOOKS` knows, shelved included, against the modern
+look's reading. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
+(a button that sizes to its text may be a different width in a different face).
+
+Measured before: **21 controls off under leather** — the rail 60.5 vs 46.5px and the reader
+bar 53.8 vs 44.3 (12px of padding the rework added), every button 28.8 vs 27.3 (a 12.5px
+face), the search box 35.5 vs 29.5 and the find box 37.5 vs 31.5 (the rework's 17px base size
+reaching `font: inherit`, plus a 32px floor), index tabs 28.8 vs 27.3, contents rows 28.1 vs
+25.6, the Manage sheet 566 vs 574 wide (26px of padding), the spread 27px shorter — and **one
+under cyber**, the spread 12px shorter (a 26px margin for its ring). After: **0 off** in all
+three shapes. The fix is one rule: `page.css` owns a control's geometry — `line-height: 1.5`
+on buttons and boxes, `font-size: 13px` on boxes — and a look sets colour, border, shadow and
+face only. Modern's own numbers did not move: button **27.3px**, search box **232×29.5**,
+tab **27.3**, ribbon **30**, swatch **25.5** wide.
+
 ## Whose colour a book wears
 
 `"a book's colour is the person's, then the shelf's, then the folder's"` reads `--spine-tint`

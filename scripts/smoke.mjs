@@ -119,6 +119,7 @@ const POINTER_DRIVEN = [
   "plaque sits",
   "tabs",
   "has a width",
+  "same size",
   /* design/0018 -- a drop is a pointer position against a box, and it has to scroll a shelf
    * into view before it can read one. */
   "drag and drop",
@@ -426,7 +427,11 @@ check("a settings file from an older schema comes up with the newer defaults", a
     var shown = core.migrate(atFour).shelves
       .filter(function (sh) { return sh.id === "weeks"; })[0];
 
+    var shelvedLook = core.migrate({ schema: 8, shelves: [], look: "cyber" }).look;
+    var keptLook = core.migrate({ schema: 8, shelves: [], look: "" }).look;
+
     return { schema: up.schema, years: byId.years.plaques, months: byId.months.plaques,
+             shelvedLook: shelvedLook, keptLook: keptLook,
              people: byId.people.plaques, wear: up.wear["years/2026"],
              fields: up.dateFields.join(","), keptOff: keptYears.plaques,
              stamp: up.useFileStamp, keptStampOff: core.migrate(atThree).useFileStamp,
@@ -442,10 +447,11 @@ check("a settings file from an older schema comes up with the newer defaults", a
   /* People carries plaques from schema 6 too -- the alphabet is a unit above the book like a
    * decade is (design/0003) -- so the shelf that proves a migration does not touch everything
    * is Months, which asked for plaques before any of this and still has them. */
-  const ok = r.schema === 8 && r.years === true && r.months === true && r.people === true &&
+  const ok = r.schema === 9 && r.years === true && r.months === true && r.people === true &&
              r.wear === 3 && r.fields === "date" && r.keptOff === false &&
              r.stamp === true && r.keptStampOff === false && r.order === "oldest" &&
-             r.weeksHidden === true && r.keptShown === true && r.lettered === true;
+             r.weeksHidden === true && r.keptShown === true && r.lettered === true &&
+             r.shelvedLook === "leather" && r.keptLook === "";
   return {
     ok,
     detail: `schema 1 -> ${r.schema}: Years plaques ${r.years}, Months ${r.months}, People ` +
@@ -455,7 +461,8 @@ check("a settings file from an older schema comes up with the newer defaults", a
             `one at 3 keeps its stamp fallback off: ${r.keptStampOff === false}; the Weeks ` +
             `shelf comes up hidden (${r.weeksHidden}) unless the file already says 4 ` +
             `(${r.keptShown}); a People shelf written before schema 6 comes up with the ` +
-            `alphabet on its plaques (${r.lettered})`
+            `alphabet on its plaques (${r.lettered}); a file naming the shelved cyberpunk ` +
+            `look comes up in ${r.shelvedLook}, one naming modern keeps it ("${r.keptLook}")`
   };
 });
 
@@ -1043,16 +1050,26 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
     };
     /* design/0016 -- EVERY look core offers, through the control a person uses. The selector
      * is built from core.LOOKS, so a look added there is checked here without editing this. */
+    var offered = [].slice.call(sel.options).map(function (o) { return o.value; });
+    /* design/0017 -- A SHELVED LOOK IS STILL MEASURED. The selector lists only the offered
+     * looks, so a shelved one is painted through the handle instead; it has to keep every law
+     * a look keeps, or the redesign starts from a broken sheet. */
     var pick = function (value) {
-      sel.value = value;
-      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      if (offered.indexOf(value) >= 0) {
+        sel.value = value;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      } else {
+        __vs.setLook(value);
+      }
       return read();
     };
-    var offered = [].slice.call(sel.options).map(function (o) { return o.value; });
+    var core = window.VaultShelfCore;
+    var known = core.LOOKS.map(function (l) { return l.value; });
+    var shelved = core.LOOKS.filter(function (l) { return l.shelved; }).map(function (l) { return l.value; });
     var start = read();
-    var seen = offered.map(function (v) { return { value: v, state: pick(v) }; });
+    var seen = known.map(function (v) { return { value: v, state: pick(v) }; });
     var back = pick("");
-    return { offered: offered, start: start, seen: seen, back: back };
+    return { offered: offered, shelved: shelved, start: start, seen: seen, back: back };
   })()`);
 
   /* The MODERN look is the yardstick, not the first in the list: leather is what a fresh
@@ -1079,12 +1096,16 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
   const sameSize = looks.every((s) => Math.abs(s.state.height - base.state.height) < 0.6 &&
                                       Math.abs(s.state.width - base.state.width) < 0.6);
   const sameRoom = looks.every((s) => Math.abs(s.state.room - base.state.room) < 1);
-  const ok = r.offered.length >= 3 && named &&
+  /* The selector offers every look that is not shelved and none that is (design/0017). */
+  const listed = r.seen.map((s) => s.value).filter((v) => !r.shelved.includes(v));
+  const offersRight = r.offered.join("|") === listed.join("|");
+  const ok = r.offered.length >= 2 && offersRight && named &&
              sameSize && sameRoom &&
              !moved.length && !flat.length && !twins.length && !stale.length && restored;
   return { ok,
-           detail: `the selector offers ${r.offered.length} looks ` +
-                   `(${r.offered.map((v) => v || "default").join(", ")}); each set data-look ` +
+           detail: `the selector offers ${r.offered.length} of ${r.seen.length} looks ` +
+                   `(${r.offered.map((v) => v || "default").join(", ")}; shelved: ` +
+                   `${r.shelved.join(", ") || "none"}) (${offersRight}); each set data-look ` +
                    `to its own value (${named}); ` +
                    looks.map((s) => `${s.value} dyes the first spine ${s.state.dye}`).join(", ") +
                    ` against the default's ${base.state.dye}; ` +
@@ -1097,6 +1118,96 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
                    `${base.state.height.toFixed(0)}) in a room of the same width ` +
                    `(${sameRoom}: ${base.state.room.toFixed(0)}px); back to the first look ` +
                    `unchanged (${restored})` };
+});
+
+/* design/0016 -- A LOOK MAY NOT RESIZE A CONTROL EITHER. Every button, box, tab, ribbon,
+ * swatch and switch is measured in every look core knows, against the modern look's reading:
+ * the same height everywhere, and the same width wherever the width is not the text's to
+ * decide. "Some seem off" was the complaint, and a list of numbers is how it stops being a
+ * feeling. Reads laid-out boxes, so it runs in the serial lane ("same size"). */
+check("every control is the same size in every look", async (p) => {
+  const r = await p.j(`(function(){
+    var looks = window.VaultShelfCore.LOOKS.map(function (l) { return l.value; });
+    var q = function (sel) { return document.querySelector(sel); };
+    var box = function (sel) {
+      var e = q(sel);
+      if (!e) return null;
+      var b = e.getBoundingClientRect();
+      return { w: Math.round(b.width * 10) / 10, h: Math.round(b.height * 10) / 10 };
+    };
+    /* [selector, widthMatters]. A width follows its text unless the rule fixes it. */
+    var library = [
+      ["#vs-q", true], ["#vs-order", true], ["#vs-look", false], ["#vs-manageopen", false],
+      ["#vs-jump .vs-jump", false], ["#vs-rail", true], ["#vs-newshelf", true],
+      ["#vs-shelves .vs-shelfhead", true], ["#vs-shelves .vs-plaque", false],
+      ["#vs-shelves .vs-spine", true]
+    ];
+    var reading = [
+      [".vs-readerbar", true], ["#vs-back", false], ["#vs-prevcollection", false],
+      ["#vs-prevnote", false], ["#vs-nextnote", false], ["#vs-within", true],
+      ["#vs-tabs button", false], ["#vs-contents button", true], ["#vs-marks", true],
+      ["#vs-marks .vs-mark", false], ["#vs-marks .vs-markstub", true], [".vs-spread", true],
+      [".vs-alsoin button", false]
+    ];
+    var managing = [
+      ["#vs-managelist .vs-managerow", true], ["#vs-managelist .vs-managerow button", false],
+      ["#vs-managelist .vs-toggle .vs-knob", true], ["#vs-mclose", false],
+      ["#vs-mpalette .vs-swatch", true], ["#vs-mpalettereset", false]
+    ];
+    var dyeing = [["#vs-dye .vs-swatch", true]];
+    var out = {};
+    var book = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0].books[0];
+    looks.forEach(function (look) {
+      __vs.setLook(look);
+      var row = {};
+      library.forEach(function (c) { row[c[0]] = { fixed: c[1], box: box(c[0]) }; });
+      __vs.openBook(book.id, null);
+      /* A ribbon on this page, so a ribbon and the stub are both measured. */
+      var stub = q("#vs-marks .vs-markstub");
+      if (stub) stub.click();
+      reading.forEach(function (c) { row[c[0]] = { fixed: c[1], box: box(c[0]) }; });
+      var mark = q("#vs-marks .vs-mark");
+      if (mark) mark.click();
+      __vs.closeReader();
+      document.getElementById("vs-manageopen").click();
+      managing.forEach(function (c) { row[c[0]] = { fixed: c[1], box: box(c[0]) }; });
+      document.getElementById("vs-mclose").click();
+      var spine = q('[data-book="' + book.id + '"]');
+      spine.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true,
+                                                          clientX: 300, clientY: 300 }));
+      dyeing.forEach(function (c) { row[c[0]] = { fixed: c[1], box: box(c[0]) }; });
+      document.body.click();
+      document.getElementById("vs-dye").hidden = true;
+      out[look || "modern"] = row;
+    });
+    __vs.setLook(looks[0]);
+    return out;
+  })()`);
+  const base = r.modern;
+  const names = Object.keys(base);
+  const off = [];
+  Object.keys(r).filter((l) => l !== "modern").forEach((look) => {
+    names.forEach((n) => {
+      const a = base[n], b = r[look][n];
+      if (!a.box || !b.box) { if (!!a.box !== !!b.box) off.push(`${look} ${n}: missing`); return; }
+      const dh = Math.abs(a.box.h - b.box.h), dw = Math.abs(a.box.w - b.box.w);
+      if (dh > 1 || (a.fixed && dw > 1)) {
+        off.push(`${look} ${n}: ${b.box.w}x${b.box.h} vs ${a.box.w}x${a.box.h}`);
+      }
+    });
+  });
+  const measured = names.filter((n) => base[n].box).length;
+  return {
+    ok: off.length === 0 && measured >= 26,
+    detail: `${measured} controls measured in ${Object.keys(r).length} looks against modern ` +
+            `(search ${base["#vs-q"].box.w}x${base["#vs-q"].box.h}, button ` +
+            `${base["#vs-manageopen"].box.w}x${base["#vs-manageopen"].box.h}, tab ` +
+            `${base["#vs-tabs button"].box ? base["#vs-tabs button"].box.h : "-"} high, ribbon ` +
+            `${base["#vs-marks .vs-mark"].box ? base["#vs-marks .vs-mark"].box.h : "-"} high, ` +
+            `swatch ${base["#vs-dye .vs-swatch"].box ? base["#vs-dye .vs-swatch"].box.w : "-"}` +
+            ` wide); ${off.length} off by more than a pixel` +
+            (off.length ? `: ${off.join("; ")}` : "")
+  };
 });
 
 /* design/0008 -- MAGIC 1. A book you open often looks handled. */
@@ -1529,12 +1640,10 @@ check("scrolling the library stays smooth in every look", async (p) => {
   /* p.eval, not p.j: this one is a promise, and eval awaits it while j would stringify it. */
   const r = await p.eval(`(async function(){
     var lib = document.getElementById("vs-library");
-    var sel = document.getElementById("vs-look");
-    var looks = [].slice.call(sel.options).map(function (o) { return o.value; });
+    var looks = window.VaultShelfCore.LOOKS.map(function (l) { return l.value; });
     var out = {};
     for (var i = 0; i < looks.length; i++) {
-      sel.value = looks[i];
-      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      __vs.setLook(looks[i]);
       await new Promise(function (r) { setTimeout(r, 120); });
       lib.scrollTop = 0;
       var span = lib.scrollHeight - lib.clientHeight;
@@ -1562,8 +1671,7 @@ check("scrolling the library stays smooth in every look", async (p) => {
       };
       lib.scrollTop = 0;
     }
-    sel.value = looks[0];
-    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    __vs.setLook(looks[0]);
     return { looks: out, spines: document.querySelectorAll("#vs-shelves .vs-spine").length };
   })()`);
   const names = Object.keys(r.looks);

@@ -89,7 +89,7 @@ export function recipes(): Recipe[] {
  * decisions/0001
  */
 
-export const SETTINGS_SCHEMA = 8;
+export const SETTINGS_SCHEMA = 9;
 
 export interface Persisted {
   schema: number;
@@ -162,14 +162,28 @@ export type Look = "" | "leather" | "cyber";
  * asked for -- which is the whole reason a page never ends up asking for a stylesheet nobody
  * shipped.
  */
-export const LOOKS: { value: Look; name: string }[] = [
+export const LOOKS: { value: Look; name: string; shelved?: true }[] = [
   { value: "leather", name: "Leather" },
   { value: "", name: "Modern" },
-  { value: "cyber", name: "Cyberpunk" },
+  /* design/0017 -- SHELVED, NOT REMOVED. The stylesheet ships and every check still paints
+   * it, but the selector does not offer it and a saved file asking for it comes up in leather
+   * until the redesign lands. */
+  { value: "cyber", name: "Cyberpunk", shelved: true },
 ];
 
+/** A look that exists: a stylesheet is shipped for it, whether or not it is offered. */
 export function isLook(value: unknown): value is Look {
   return LOOKS.some((l) => l.value === value);
+}
+
+/** The looks the selector offers, in its order. */
+export function offeredLooks(): { value: Look; name: string }[] {
+  return LOOKS.filter((l) => !l.shelved).map((l) => ({ value: l.value, name: l.name }));
+}
+
+/** A look a person may have, so the one a settings file names. */
+export function isOffered(value: unknown): value is Look {
+  return LOOKS.some((l) => l.value === value && !l.shelved);
 }
 
 /** design/0015 -- the order the notes inside a date-ordered book are read in. */
@@ -239,7 +253,10 @@ export function migrate(raw: unknown): Persisted {
      * decision -- the same argument `decadesOn` makes about plaques -- so it comes up in
      * leather, and one that already says 6 means what it says. Changing it back is one
      * selector in the top bar. */
-    look: isLook(data.look) ? (from >= 6 || data.look ? data.look : "leather") : base.look,
+    /* Schema 9 shelved the cyberpunk look: a file that names a look the selector no longer
+     * offers comes up in the default one, since a look a person cannot pick is not a
+     * preference they can keep. */
+    look: isOffered(data.look) ? (from >= 6 || data.look ? data.look : "leather") : base.look,
     palette: paletteOf(data.palette),
     ribbon: isHex(data.ribbon) ? String(data.ribbon) : "",
     bookColors: bookColorsOf(data.bookColors),

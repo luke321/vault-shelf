@@ -16,7 +16,7 @@ can do to a real 394-note vault in the page itself.
 | **The bookcase** | [A shelf is a bookcase, not a conveyor belt](#a-shelf-is-a-bookcase-not-a-conveyor-belt) · [Thickness is the note count](#thickness-is-the-note-count) · [Year and decade plaques](#year-and-decade-plaques) · [A spine tells you where its notes came from](#a-spine-tells-you-where-its-notes-came-from) |
 | **Reading a book** | [The two-page spread](#the-two-page-spread) · [Index tabs, cut the way the book is ordered](#index-tabs-cut-the-way-the-book-is-ordered) · [Also shelved in](#also-shelved-in) · [Which end you open](#which-end-you-open) · [Obsidian's own renderer](#obsidians-own-renderer) |
 | **The magic** | [Ribbons that hang out of the book](#ribbons-that-hang-out-of-the-book) · [Shelf wear](#shelf-wear) · [The shelf parts as you type](#the-shelf-parts-as-you-type) |
-| **Paint** | [Three looks, and none of them moves anything](#three-looks-and-none-of-them-moves-anything) · [The theme is your Obsidian's](#the-theme-is-your-obsidians) |
+| **Paint** | [Two looks on offer, and none of them moves anything](#two-looks-on-offer-and-none-of-them-moves-anything) · [The theme is your Obsidian's](#the-theme-is-your-obsidians) |
 | **What it promises** | [It never writes to your notes](#it-never-writes-to-your-notes) · [It makes no network requests](#it-makes-no-network-requests) · [It never guesses](#it-never-guesses) |
 
 The reasoning behind every entry lives in
@@ -356,7 +356,7 @@ book's contents list only.
 
 ## Paint
 
-### Three looks, and none of them moves anything
+### Two looks on offer, and none of them moves anything
 
 A look is paint, and the selector for it is in the library's own top bar — where you are
 standing when you want to change the room.
@@ -365,13 +365,17 @@ standing when you want to change the room.
 |---|---|
 | **Leather** | what a fresh library opens in: bindings, gilt stamping, raised bands, walnut boards, brass plaques and an open book on ivory pages. It has its own colours, its own light and its own furniture, and it ignores the theme on purpose |
 | **Modern** | the library belongs to your Obsidian: it reads the host's theme and repaints when the theme changes |
-| **Cyberpunk** | a rain-lit archive at 3am — anodised spines with a tube of the folder's colour down the leading edge, one lit seam per board, the reader as two sheets of dark glass. Neon is the light in the room, never the paint on the objects |
+| **Cyberpunk** *(shelved until its redesign)* | a rain-lit archive at 3am — anodised spines with a tube of the folder's colour down the leading edge, one lit seam per board, the reader as two sheets of dark glass. It ships, every check still paints it, and the selector does not offer it yet |
 
 A look **may repaint anything and move nothing**: not a shelf's order, not a book's address,
 not a count. That is a check rather than an intention — it drives the switch the way a person
 does and asserts that **every book address and every count is byte-identical** before and
 after, on all three vault shapes, while the spine colours, the twelve slots and the ground all
 change.
+
+**And every control is the same size in every look.** A button, a box, a tab, a ribbon, a
+swatch, a switch: the same height everywhere, measured — a look paints a control and does not
+resize it.
 
 The dyes are the ones a binder had, in slot order: oxblood, tan, dark green, ochre, forest,
 plum, navy, vermilion, teal, aubergine, chestnut and near-black calf. Nothing is fetched to

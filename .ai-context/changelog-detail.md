@@ -1,5 +1,27 @@
 # Changelog detail
 
+## 2026-09-11 — Cyberpunk shelved, and every control the same size in every look
+
+> "disable cyberpunk for now until redesign, make sure though to make changes to it aswell,
+> make sure all componentes buttons etc have the same size in all themes, some seem off"
+
+**Shelved, not removed.** `core.LOOKS` marks the look `shelved`; the selector lists **2 of 3**
+looks (leather, modern) on every shape, the look check still paints all **3** through
+`__vs.setLook()` and finds them distinct, and **194 / 419 / 709** addresses identical under
+each. Schema **8 → 9**: `{ look: "cyber" }` migrates to `leather`, `{ look: "" }` stays.
+
+**"Some seem off" became 21 numbers.** A new check measures 28 controls in every look against
+modern (`invariants.md`, *Every control is the same size in every look*). Before: **21 off
+under leather** (rail +14px, reader bar +9.5, every button +1.5, the search box +6, the find
+box +6, tabs +1.5, contents rows +2.5, the Manage sheet 8px narrower, the spread 27px shorter)
+and **1 under cyber** (the spread 12px shorter). After: **0 off** on all three shapes, and
+modern's own sizes unchanged (button 27.3px, search 232×29.5, tab 27.3, ribbon 30, swatch
+25.5). `page.css` now owns a control's geometry; a look sets colour, border, shadow and face.
+Scrolling: leather **16.7/16.8/17**, modern **16.7/16.8/33**, cyber **16.7/16.8/67** p50/p95/
+worst on the demo — unchanged within noise.
+
+The suite is **65 → 66** checks.
+
 ## 2026-09-11 — A shelf you can arrange by hand
 
 > "add the option for a shelf without automatic order where you can drag and drop stuff"

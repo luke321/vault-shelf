@@ -51,11 +51,13 @@ of measuring it.** Build the page, drive it, read the numbers.
   and nothing else: not an address, not membership, not what is inside a book. A key it does
   not name goes to the end, a key the vault has lost is dropped on save, and the toggle in the
   top bar cannot reach it. `design/0018`.
-- **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` and
-  `"cyber"` the opt-in ones — and it may repaint anything and move nothing: not a shelf's
-  order, not a book's address, not a count, **and not a book's size** — a spine is the same
-  width and height in all three, in a room of the same width, so switching does not move the
-  furniture. `core.LOOKS` is the one list of them, in the order the selector offers them
+- **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` the
+  other one on offer, `"cyber"` shelved until its redesign but still shipped and still
+  measured — and it may repaint anything and move nothing: not a shelf's
+  order, not a book's address, not a count, **not a book's size and not a control's** — a
+  spine is the same width and height in all three, in a room of the same width, and every
+  button, box, tab, ribbon and swatch is the same height, so switching does not move the
+  furniture. `page.css` owns a control's geometry; a look sets colour, border, shadow and face. `core.LOOKS` is the one list of them, in the order the selector offers them
   (leather first, which is what a fresh library opens in), and `migrate` validates against it.
   `design/0016`.
 
@@ -91,6 +93,15 @@ of measuring it.** Build the page, drive it, read the numbers.
   `--shot` is part of a suite run, so it is inside the lock like everything else.
 - `git push` and merging into `develop` are separate asks, every time. `main` only ever
   receives `develop`.
+- **Only the orchestrator session pushes to `develop` or cuts a release.** A dispatched
+  worktree — an Orca worktree of its own, never a child of the orchestrator's, one per piece of
+  work — implements, runs its own gates, and stops at its own branch: it never pushes past that
+  branch, never merges into `develop`, and never tags, no matter how clean the result.
+  Integrating finished branches and shipping them is the orchestrator's job alone, so one place
+  is answerable for what is actually on `develop` and what a release contains. The orchestrator
+  itself never implements: it stays on the integration branch, surveys, dispatches, reviews and
+  merges. "Merge to `develop`" authorises the local merge and nothing more; the push is its own
+  ask. (Copied from Vault Graph, 2026-09-11.)
 - **A release is the range, not the work in hand.** Everything it needs — a `CHANGELOG.md`
   section accounting for every merge since the last tag, every clip it embeds, every doc naming
   the version, the release body itself — is finished on `release/<version>` and read there
@@ -121,7 +132,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 65 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 66 checks over three vault shapes |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
 | `.ai-context/code-map.md` | **generated**: sections and functions of the two big files, with line numbers |
 | `.ai-context/code-index.md` | **generated**: issue → code sites, ADR/DDR → code sites, invariant → check, `__vs.*` → callers |

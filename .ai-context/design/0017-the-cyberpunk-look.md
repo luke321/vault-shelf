@@ -142,6 +142,21 @@ Measured under a light host: body `theme-light`, the app's own ground `rgb(255,2
 page reading `data-theme="light"` under `data-look="cyber"`, and the note's ink still
 `rgb(232,245,255)` on dark glass. No light-theme bug; the reader is identical in both.
 
+## Addendum, 2026-09-11 — shelved until the redesign
+
+> "disable cyberpunk for now until redesign, make sure though to make changes to it aswell"
+
+The look is **shelved, not removed**: `core.LOOKS` carries `shelved: true` on it, the selector
+lists only `core.offeredLooks()`, and `migrate` (schema 9) accepts only `core.isOffered()`
+values, so a file that says `cyber` comes up in leather. Everything else stays: the stylesheet
+ships, `check-scope` and `check-network` read it, `build-shelf.mjs` inlines it, and the look
+check, the scroll check and the same-size check paint it through `__vs.setLook()` — so the
+"changes to it as well" half of the ask is enforced rather than remembered. The two constants
+that "move under cyber" above are now one: the spread margin is `page.css`'s 14px in every
+look (the ring still fits), because a look may not resize the book either.
+
+Bringing it back is one flag.
+
 ## What was not built
 
 - **An animated scanline, a flicker, or a glitch.** All three are the page-turn argument from

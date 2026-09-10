@@ -68,12 +68,16 @@
   background: linear-gradient(90deg, #0000000d, transparent 15% 85%, #0000000d);
 }
 
+/* design/0016 -- A LOOK PAINTS A CONTROL AND DOES NOT SIZE IT. The rail, the reader bar, every
+ * button, box, tab and row take their height, padding and type size from page.css, in every
+ * look; this sheet sets colour, border, shadow and face. The rework gave the bars 12px of
+ * padding, the buttons a 12.5px face and the boxes a 32px floor, and the same control was a
+ * different size in each look -- which is what "some seem off" was. Measured by the "same
+ * size" check. */
 .vault-shelf[data-look="leather"] #vs-rail,
 .vault-shelf[data-look="leather"] .vs-readerbar {
   background: #242520;
   border-bottom: 1px solid #55503e;
-  padding-top: 12px;
-  padding-bottom: 12px;
   box-shadow: 0 4px 18px #00000018;
 }
 
@@ -87,7 +91,6 @@
 }
 
 .vault-shelf[data-look="leather"] button {
-  font-size: 12.5px;
   color: var(--text-2);
   background: var(--vs-control);
   border: 1px solid var(--border);
@@ -111,8 +114,6 @@
 .vault-shelf[data-look="leather"] .vs-jump {
   background: transparent;
   border-color: transparent;
-  padding-left: 6px;
-  padding-right: 6px;
 }
 
 .vault-shelf[data-look="leather"] .vs-jump .vs-n { color: var(--text-3); }
@@ -126,7 +127,6 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   box-shadow: inset 0 1px 2px #00000012;
-  min-height: 32px;
 }
 
 .vault-shelf[data-look="leather"] input::placeholder { color: var(--text-3); opacity: 1; }
@@ -155,9 +155,11 @@
 .vault-shelf[data-look="leather"] .vs-newshelf .vs-plus { color: var(--vs-gilt); }
 .vault-shelf[data-look="leather"] .vs-shelf { margin-bottom: 32px; }
 .vault-shelf[data-look="leather"] .vs-shelfhead { margin-bottom: 14px; }
+/* Line-height 1, so a 22px serif heading sits in the same 32px head the 12.5px capitals do:
+ * the head's height is its buttons', and the heading may not push it. */
 .vault-shelf[data-look="leather"] .vs-shelfhead h2 {
   color: var(--text-1);
-  font: 400 22px/1.2 var(--prose);
+  font: 400 22px/1 var(--prose);
   letter-spacing: 0;
   text-transform: none;
 }
@@ -280,7 +282,6 @@
 }
 .vault-shelf[data-look="leather"] .vs-spread {
   width: calc(100% - 48px);
-  margin: 0 auto 32px;
   border: 1px solid #362a20;
   border-radius: 3px;
   box-shadow: 0 0 0 6px #502f30, 0 0 0 7px #b0976066, 0 0 0 11px #3b2526, 0 16px 32px #00000055;
@@ -341,8 +342,6 @@
   border: 0;
   box-shadow: none;
   justify-content: flex-start;
-  padding-top: 5px;
-  padding-bottom: 5px;
 }
 .vault-shelf[data-look="leather"] .vs-contents button:hover { color: var(--text-1); background: #6d51330c; }
 .vault-shelf[data-look="leather"] .vs-contents button[aria-current="true"] {
@@ -378,7 +377,6 @@
   border: 1px solid #a59880;
   border-radius: 5px;
   box-shadow: 0 20px 60px #00000055;
-  padding: 26px;
 }
 .vault-shelf[data-look="leather"] .vs-sheetbody h2 { font: 400 26px/1.2 var(--prose); }
 .vault-shelf[data-look="leather"] .vs-sheetbody button.vs-primary {

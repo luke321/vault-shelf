@@ -5,7 +5,7 @@ exists so an agent that looks for `AGENTS.md` by convention finds its way there 
 guessing, and it deliberately does not restate the laws: two copies of a rule become two
 different rules.
 
-Four things are worth knowing before you touch anything, all expanded in `CLAUDE.md`:
+Five things are worth knowing before you touch anything, all expanded in `CLAUDE.md`:
 
 - **Measure, don't reason.** The recurring failure here is arguing about the code instead of
   driving it: build the page, drive it, read the numbers. `node scripts/smoke.mjs --only
@@ -31,7 +31,9 @@ Four things are worth knowing before you touch anything, all expanded in `CLAUDE
   Obsidian raises *Trust author and enable plugins?* on first open; confirm it and close the
   Settings window it opens, or you will misread an untrusted vault as a broken plugin.
 - **`git push`, merging into `develop`, and a full-suite run are each a separate ask, every
-  time.** None of them is implied by permission to do the work, or by how the last one went.
+  time.** None of them is implied by permission to do the work, or by how the last one went. A
+  dispatched worktree stops at its own branch regardless — only the orchestrator pushes to
+  `develop` or cuts a release.
 
 `.ai-context/README.md` maps the design records; `.ai-context/code-map.md` and `code-index.md`
 are generated and let you jump to a line range instead of reading a 1,200-line file top to
