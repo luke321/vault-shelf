@@ -131,6 +131,7 @@ export function buildShelf(shelf: Shelf, notes: Note[]): ShelfView {
       plaque: plaqueFor(key, shelf),
       notes: list.slice().sort(byDateThenTitle),
       bands: bandsOf(list),
+      matches: 0,
     });
   }
 
@@ -171,19 +172,54 @@ function bandsOf(notes: Note[]): Book["bands"] {
  */
 
 export function applyFilters(notes: Note[], filters: Filters): Note[] {
-  const needle = filters.search.trim().toLowerCase();
   const folders = filters.folders;
+  if (!folders.length && filters.from === null && filters.to === null) return notes;
   return notes.filter((n) => {
     if (folders.length && !folders.some((f) => n.folder === f || n.folder.startsWith(f + "/"))) return false;
     if (filters.from !== null && (n.date === null || n.date < filters.from)) return false;
     if (filters.to !== null && (n.date === null || n.date > filters.to)) return false;
-    if (!needle) return true;
-    if (n.title.toLowerCase().indexOf(needle) >= 0) return true;
-    if (n.path.toLowerCase().indexOf(needle) >= 0) return true;
-    if (n.tags.some((t) => t.toLowerCase().indexOf(needle) >= 0)) return true;
-    if (n.people.some((p) => p.toLowerCase().indexOf(needle) >= 0)) return true;
-    return n.body.toLowerCase().indexOf(needle) >= 0;
+    return true;
   });
+}
+
+/* ---- the query -----------------------------------------------------------
+ * design/0008
+ */
+
+/** One note against one already-lowercased needle. Title, path, tags, people, then body. */
+export function matchesQuery(note: Note, needle: string): boolean {
+  if (!needle) return false;
+  if (note.title.toLowerCase().indexOf(needle) >= 0) return true;
+  if (note.path.toLowerCase().indexOf(needle) >= 0) return true;
+  if (note.tags.some((t) => t.toLowerCase().indexOf(needle) >= 0)) return true;
+  if (note.people.some((p) => p.toLowerCase().indexOf(needle) >= 0)) return true;
+  return note.body.toLowerCase().indexOf(needle) >= 0;
+}
+
+/**
+ * Score every book on every shelf against the query, in place, and report the totals.
+ * An empty query zeroes every score, which is what makes clearing the box put the room
+ * back exactly as it was rather than rebuilding it.
+ */
+export function markMatches(views: ShelfView[], query: string): { books: number; notes: number } {
+  const needle = query.trim().toLowerCase();
+  const seen = new Set<string>();
+  let books = 0;
+  for (const view of views) {
+    for (const book of view.books) {
+      let n = 0;
+      if (needle) {
+        for (const note of book.notes) {
+          if (!matchesQuery(note, needle)) continue;
+          n++;
+          seen.add(note.id);
+        }
+      }
+      book.matches = n;
+      if (n > 0) books++;
+    }
+  }
+  return { books, notes: seen.size };
 }
 
 /* ---- also shelved in -----------------------------------------------------

@@ -96,7 +96,7 @@ function gridSlot(i, k) {
 const POINTER_DRIVEN = [
   "opens a book",
   "spine lifts",
-  "reading table",
+  "reading shelf",
   "escape",
   "keyboard",
   "plaque sits",
@@ -212,13 +212,13 @@ check("year plaques only appear on date classifiers, and only when asked for", a
 
 check("a plaque sits under the books it names, in the same scroller", async (p) => {
   const r = await p.j(`(function(){
-    var group = document.querySelector('[data-shelf="months"] .group');
+    var group = document.querySelector('[data-shelf="months"] .vs-group');
     if (!group) return { found: false };
-    var plaque = group.querySelector(".plaque");
-    var books = group.querySelector(".books");
+    var plaque = group.querySelector(".vs-plaque");
+    var books = group.querySelector(".vs-books");
     if (!plaque || !books) return { found: false };
     var pb = plaque.getBoundingClientRect(), bb = books.getBoundingClientRect();
-    var rail = group.closest(".shelfrail");
+    var rail = group.closest(".vs-shelfrail");
     return { found: true, below: Math.round(pb.top - bb.bottom),
              sameRail: rail !== null && rail.contains(plaque) && rail.contains(books),
              widthDiff: Math.round(Math.abs(pb.width - bb.width)) };
@@ -261,16 +261,6 @@ check("a filter changes membership without moving a shelf", async (p) => {
                        `${JSON.stringify(after.order) === JSON.stringify(r.order)}` };
 });
 
-check("a search narrows every shelf and clears back to the whole vault", async (p) => {
-  const before = await p.j("__vs.counts()");
-  await p.eval("__vs.setFilters({ search: 'a' })");
-  const during = await p.j("__vs.counts()");
-  await p.eval("__vs.setFilters({ search: '' })");
-  const after = await p.j("__vs.counts()");
-  return { ok: during.filtered <= before.filtered && after.filtered === before.filtered,
-           detail: `${before.filtered} -> ${during.filtered} on "a" -> ${after.filtered} cleared` };
-});
-
 check("a hidden shelf keeps its definition and its books", async (p) => {
   const r = await p.j(`(function(){
     var before = __vs.counts();
@@ -293,12 +283,13 @@ check("hiding every shelf offers a way back rather than an empty room", async (p
   const r = await p.j(`(function(){
     __vs.settings().shelves.forEach(function (s) { s.hidden = true; });
     __vs.setFilters({});
-    var card = document.querySelector("#vs-shelves .endcard");
-    var out = { card: !!card, button: card ? !!card.querySelector("button") : false,
-                spines: document.querySelectorAll("#vs-shelves .spine").length };
+    var card = document.getElementById("vs-endcard");
+    var shown = card && !card.hidden;
+    var out = { card: !!shown, button: shown ? !!card.querySelector("button") : false,
+                spines: document.querySelectorAll("#vs-shelves .vs-spine").length };
     __vs.settings().shelves.forEach(function (s) { s.hidden = false; });
     __vs.setFilters({});
-    out.restored = document.querySelectorAll("#vs-shelves .spine").length;
+    out.restored = document.querySelectorAll("#vs-shelves .vs-spine").length;
     return out;
   })()`);
   return { ok: r.card && r.button && r.spines === 0 && r.restored > 0,
@@ -310,6 +301,156 @@ check("hiding every shelf offers a way back rather than an empty room", async (p
  * reader and both sheets are laid out by a class, which outranks the user agent's
  * `[hidden] { display: none }`, so all three painted over the library while every
  * attribute-reading check passed. This reads the computed style instead. */
+/* design/0009 -- the room is the surface. There is no sidebar to check any more; what has to
+ * be true is that everything the sidebar used to carry is still reachable. */
+check("the library is the whole surface, with no sidebar", async (p) => {
+  const r = await p.j(`(function(){
+    var c = __vs.counts();
+    return { jump: c.jump, newshelf: c.newshelf, spines: c.spines,
+             sidebars: document.querySelectorAll("#vs-app aside").length,
+             railChildren: document.querySelectorAll("#vs-rail > *").length,
+             search: !!document.getElementById("vs-q"),
+             topFirst: (function(){
+               var lib = document.getElementById("vs-library");
+               var adds = lib.querySelectorAll(".vs-newshelf");
+               if (adds.length !== 2) return false;
+               var shelves = document.getElementById("vs-shelves");
+               return lib.firstElementChild !== shelves &&
+                      adds[0].compareDocumentPosition(shelves) === 4 &&
+                      shelves.compareDocumentPosition(adds[1]) === 4;
+             })() };
+  })()`);
+  return { ok: r.sidebars === 0 && r.newshelf === 2 && r.topFirst && r.jump > 0 && r.search,
+           detail: `${r.sidebars} sidebars, ${r.jump} shelves in the jump rail, ` +
+                   `${r.newshelf} New shelf buttons bracketing the scroll (in order: ` +
+                   `${r.topFirst}), ${r.spines} spines` };
+});
+
+/* design/0005 -- the twelve slots are Vault Graph's. This reads what the cascade actually
+ * resolved rather than what a comment claims, because a comment claiming parity is exactly
+ * what was wrong before: the slots were twelve invented pastels and nobody had opened the
+ * other project's stylesheet. */
+check("the twelve colour slots are Vault Graph's own", async (p) => {
+  const LIGHT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#008300", "#d3006e",
+                 "#4a3aa7", "#e34948", "#00aecb", "#9412ad", "#6f6e67", "#45443f"];
+  const DARK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#008300", "#eb1580",
+                "#9085e9", "#e66767", "#009fbb", "#b429d1", "#8d8c84", "#bdbcb2"];
+  const r = await p.j(`(function(){
+    __vs.setTheme("light");
+    var light = __vs.slots();
+    __vs.setTheme("dark");
+    var dark = __vs.slots();
+    var band = document.querySelector("#vs-shelves .vs-spine .vs-band i");
+    var painted = band ? getComputedStyle(band).backgroundColor : "";
+    return { light: light, dark: dark, painted: painted };
+  })()`);
+  const same = (a, b) => JSON.stringify(a.map((v) => v.toLowerCase())) === JSON.stringify(b);
+  return { ok: same(r.light, LIGHT) && same(r.dark, DARK),
+           detail: same(r.light, LIGHT) && same(r.dark, DARK)
+             ? `all twelve match in both themes (light g1 ${r.light[0]}, dark g1 ${r.dark[0]}); ` +
+               `a spine's band paints ${r.painted}`
+             : `light ${r.light.slice(0, 3).join(",")} dark ${r.dark.slice(0, 3).join(",")}` };
+});
+
+check("the theme follows the host, and the slots are re-read when it changes", async (p) => {
+  const r = await p.j(`(function(){
+    __vs.setTheme("light");
+    var lightBg = getComputedStyle(document.getElementById("vs-app")).backgroundColor;
+    var lightSlots = __vs.slots().join(",");
+    var lightCounts = __vs.counts();
+    __vs.setTheme("dark");
+    var darkBg = getComputedStyle(document.getElementById("vs-app")).backgroundColor;
+    var darkSlots = __vs.slots().join(",");
+    var darkCounts = __vs.counts();
+    return { lightBg: lightBg, darkBg: darkBg,
+             slotsChanged: lightSlots !== darkSlots,
+             same: JSON.stringify(lightCounts) === JSON.stringify(darkCounts) };
+  })()`);
+  return { ok: r.lightBg !== r.darkBg && r.slotsChanged && r.same,
+           detail: `ground ${r.lightBg} vs ${r.darkBg}; the slots were re-read ` +
+                   `(${r.slotsChanged}); the library is identical in both (${r.same})` };
+});
+
+/* design/0008 -- MAGIC 1. A book you open often looks handled. */
+check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
+  const r = await p.j(`(function(){
+    var book = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { if (!book && b.notes.length) book = b; });
+    });
+    var before = __vs.magic().wornSpines;
+    for (var i = 0; i < 13; i++) { __vs.openBook(book.id, null); __vs.closeReader(); }
+    var after = __vs.magic();
+    var level = document.querySelector('[data-book="' + book.id.replace(/"/g, '\\"') + '"]');
+    var drawn = level ? level.getAttribute("data-wear") : null;
+    __vs.setFilters({});
+    var still = document.querySelector('[data-book="' + book.id.replace(/"/g, '\\"') + '"]');
+    return { before: before, worn: after.worn, wornSpines: after.wornSpines,
+             drawn: drawn, afterRebuild: still ? still.getAttribute("data-wear") : null,
+             book: book.id };
+  })()`);
+  return { ok: r.before === 0 && r.worn >= 1 && r.drawn === "3" && r.afterRebuild === "3",
+           detail: `${r.book} opened 13 times reads wear level ${r.drawn} (of 3) and still ` +
+                   `${r.afterRebuild} after a rebuild; ${r.wornSpines} worn spines on screen` };
+});
+
+/* design/0008 -- MAGIC 2. A ribbon hangs out of the book, visible from the shelf. */
+check("a ribbon hangs from every book that holds a marked note", async (p) => {
+  const r = await p.j(`(function(){
+    __vs.settings().reading.length = 0;
+    __vs.setFilters({});
+    var before = __vs.magic().ribbonSpines;
+    var book = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { if (!book && b.notes.length) book = b; });
+    });
+    __vs.openBook(book.id, null);
+    document.getElementById("vs-ribbon").click();
+    var after = __vs.magic();
+    var reading = document.querySelectorAll('#vs-shelves [data-shelf="-reading"] .vs-spine').length;
+    var noteId = __vs.reader().note;
+    __vs.closeReader();
+    return { before: before, ribbons: after.ribbons, ribbonSpines: after.ribbonSpines,
+             reading: reading, noteId: noteId };
+  })()`);
+  /* One note, but it is in several books at once -- that is the product -- so every book that
+   * holds it grows a ribbon, and the Reading shelf collects them. */
+  return { ok: r.before === 0 && r.ribbonSpines >= 1 && r.reading >= 1,
+           detail: `marking one note put ribbons on ${r.ribbons} book(s) and drew ` +
+                   `${r.ribbonSpines} of them; the Reading shelf collected ${r.reading}` };
+});
+
+/* design/0008 -- MAGIC 3. The query marks; it never narrows. */
+check("the shelf parts as you type, and no book leaves the room", async (p) => {
+  const r = await p.j(`(function(){
+    __vs.setQuery("");
+    var before = __vs.counts();
+    /* THE NEEDLE COMES FROM THE VAULT, not from the demo fixture. Hard-coding "garden" passed
+     * on the demo vault and matched nothing on the sparse one, where the check then asserted
+     * that a query which finds nothing still draws something forward. */
+    var tags = {};
+    __vs.data().notes.forEach(function (n) {
+      n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+    });
+    var needle = Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] ||
+                 __vs.data().notes[0].title.slice(0, 4);
+    __vs.setQuery(needle);
+    var during = __vs.counts();
+    var m = __vs.magic();
+    var hits = document.getElementById("vs-hits").textContent;
+    __vs.setQuery("");
+    var after = __vs.counts();
+    return { before: before.spines, during: during.spines, after: after.spines,
+             books: before.books, forward: m.forward, ghosts: m.ghosts, needle: needle,
+             parting: m.parting, hits: hits };
+  })()`);
+  return { ok: r.before === r.during && r.during === r.after && r.parting &&
+               r.forward > 0 && r.ghosts > 0,
+           detail: `${r.before} spines before, during and after; "${r.needle}" drew ${r.forward} ` +
+                   `forward and thinned ${r.ghosts} to ghosts without removing one ` +
+                   `(hits read "${r.hits}")` };
+});
+
 check("the reader and the sheets are not painted until they are opened", async (p) => {
   const r = await p.j(`(function(){
     __vs.closeReader();
@@ -330,7 +471,7 @@ check("the reader and the sheets are not painted until they are opened", async (
 check("clicking a spine opens a book on the note it names", async (p) => {
   await p.eval("__vs.closeReader()");
   const r = await p.j(`(function(){
-    var spine = document.querySelector('#vs-shelves [data-shelf="years"] .spine');
+    var spine = document.querySelector('#vs-shelves [data-shelf="years"] .vs-spine');
     if (!spine) return { found: false };
     var id = spine.getAttribute("data-book");
     spine.click();
@@ -438,7 +579,7 @@ check("escape closes the reader and leaves the shelf where it was", async (p) =>
     var library = document.getElementById("vs-library");
     library.scrollTop = 80;
     var before = library.scrollTop;
-    var spine = document.querySelector("#vs-shelves .spine");
+    var spine = document.querySelector("#vs-shelves .vs-spine");
     spine.focus();
     spine.click();
     var open = !document.getElementById("vs-reader").hidden;
@@ -452,8 +593,10 @@ check("escape closes the reader and leaves the shelf where it was", async (p) =>
                    `focus back on the spine: ${r.refocused}` };
 });
 
-check("the reading table survives a shelf being hidden", async (p) => {
+check("the reading shelf survives its own shelf being hidden", async (p) => {
   const r = await p.j(`(function(){
+    __vs.settings().reading.length = 0;
+    __vs.setFilters({});
     var book = null;
     __vs.views().forEach(function (v) {
       v.books.forEach(function (b) { if (!book && b.notes.length && v.shelf.id === "tags") book = b; });
@@ -461,23 +604,29 @@ check("the reading table survives a shelf being hidden", async (p) => {
     if (!book) return { found: false };
     __vs.openBook(book.id, null);
     document.getElementById("vs-ribbon").click();
-    var saved = __vs.settings().reading.length;
     var noteId = __vs.reader().note;
     __vs.closeReader();
+    var before = document.querySelectorAll('#vs-shelves [data-shelf="-reading"] .vs-spine').length;
     __vs.settings().shelves.filter(function (s) { return s.id === "tags"; })[0].hidden = true;
     __vs.setFilters({});
-    var rows = document.querySelectorAll("#vs-reading .readingrow");
-    var enabled = 0;
-    rows.forEach(function (r) { if (!r.disabled) enabled++; });
+    var after = document.querySelectorAll('#vs-shelves [data-shelf="-reading"] .vs-spine').length;
+    var where = __vs.views().filter(function (v) {
+      return !v.shelf.hidden && v.books.some(function (b) {
+        return b.notes.some(function (n) { return n.id === noteId; });
+      });
+    }).length;
     __vs.settings().shelves.filter(function (s) { return s.id === "tags"; })[0].hidden = false;
     __vs.settings().reading.length = 0;
     __vs.setFilters({});
-    return { found: true, saved: saved, noteId: noteId, rows: rows.length, enabled: enabled };
+    return { found: true, before: before, after: after, where: where, noteId: noteId };
   })()`);
-  if (!r.found) return { ok: false, detail: "no tag book to bookmark from" };
-  return { ok: r.saved === 1 && r.rows === 1 && r.enabled === 1,
-           detail: `bookmarked ${r.noteId}; with its shelf hidden the row is still there ` +
-                   `(${r.rows}) and still opens (${r.enabled}) via another shelf` };
+  if (!r.found) return { ok: false, detail: "no tag book to leave a ribbon in" };
+  /* design/0002 -- the mark names a note, and resolveReading re-threads it through whatever
+   * visible shelf still holds that note. Hiding the shelf it was marked on must not lose it. */
+  return { ok: r.before >= 1 && r.after >= 1,
+           detail: `a ribbon in ${r.noteId} put ${r.before} book(s) on the Reading shelf; with ` +
+                   `the Tags shelf hidden it still shows ${r.after}, re-threaded through ` +
+                   `${r.where} other visible shelves` };
 });
 
 check("a saved reading place re-resolves after its own book is gone", async (p) => {
@@ -501,7 +650,7 @@ check("the builder previews the shelf it would actually save", async (p) => {
     document.getElementById("vs-bclassifier").value = "person";
     document.getElementById("vs-bclassifier").dispatchEvent(new Event("change", { bubbles: true }));
     var text = document.getElementById("vs-previewcount").textContent;
-    var spines = document.querySelectorAll("#vs-preview .spine").length;
+    var spines = document.querySelectorAll("#vs-preview .vs-spine").length;
     var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
     document.getElementById("vs-bcancel").click();
     return { text: text, spines: spines, real: people.books.length,
@@ -522,7 +671,7 @@ check("a saved shelf gets a stable id and joins the library", async (p) => {
                     direction: "alphabetical", hidden: false, plaques: false });
     var view = __vs.views().filter(function (v) { return v.shelf.id === "smoke-status"; })[0];
     var addresses = __vs.addresses().filter(function (a) { return a.indexOf("smoke-status/") === 0; });
-    var drawn = document.querySelectorAll('[data-shelf="smoke-status"] .spine').length;
+    var drawn = document.querySelectorAll('[data-shelf="smoke-status"] .vs-spine').length;
     var settings = __vs.settings();
     settings.shelves.splice(settings.shelves.findIndex(function (s) { return s.id === "smoke-status"; }), 1);
     __vs.setFilters({});
@@ -576,32 +725,14 @@ check("people come from the property alone, never from prose", async (p) => {
                    `${r.books} books and ${r.unfiled} notes name no one` };
 });
 
-check("the two skins change nothing but the paint", async (p) => {
-  const r = await p.j(`(function(){
-    __vs.setSkin("graphite");
-    var a = __vs.counts();
-    var aSpines = document.querySelectorAll("#vs-shelves .spine").length;
-    var aBg = getComputedStyle(document.getElementById("vs-app")).backgroundColor;
-    __vs.setSkin("paper");
-    var b = __vs.counts();
-    var bSpines = document.querySelectorAll("#vs-shelves .spine").length;
-    var bBg = getComputedStyle(document.getElementById("vs-app")).backgroundColor;
-    __vs.setSkin("graphite");
-    return { a: a, b: b, aSpines: aSpines, bSpines: bSpines, aBg: aBg, bBg: bBg };
-  })()`);
-  return { ok: JSON.stringify(r.a) === JSON.stringify(r.b) && r.aSpines === r.bSpines && r.aBg !== r.bBg,
-           detail: `both skins draw ${r.aSpines} spines over the same counts; ground ` +
-                   `${r.aBg} vs ${r.bBg}` };
-});
-
 check("plain list mode keeps every book reachable", async (p) => {
   const r = await p.j(`(function(){
-    var before = document.querySelectorAll("#vs-shelves .spine").length;
+    var before = document.querySelectorAll("#vs-shelves .vs-spine").length;
     __vs.setListMode(true);
-    var after = document.querySelectorAll("#vs-shelves .spine").length;
-    var spine = document.querySelector("#vs-shelves .spine");
+    var after = document.querySelectorAll("#vs-shelves .vs-spine").length;
+    var spine = document.querySelector("#vs-shelves .vs-spine");
     var box = spine.getBoundingClientRect();
-    var horizontal = getComputedStyle(spine.querySelector(".title")).writingMode;
+    var horizontal = getComputedStyle(spine.querySelector(".vs-title")).writingMode;
     __vs.setListMode(false);
     return { before: before, after: after, width: Math.round(box.width),
              height: Math.round(box.height), writingMode: horizontal };
@@ -643,27 +774,9 @@ check("nothing on the page reaches the network", async (p) => {
            detail: `${r.requests} remote resource(s) requested by the loaded page` };
 });
 
-check("the activity calendar paints the days the vault actually has", async (p) => {
-  const r = await p.j(`(function(){
-    var year = document.querySelector("#vs-years button[aria-pressed='true']");
-    var key = year ? year.textContent : null;
-    var cells = document.querySelectorAll("#vs-calendar .day[data-day]");
-    var lit = 0;
-    cells.forEach(function (c) { if (c.getAttribute("data-level") !== "0") lit++; });
-    var real = {};
-    __vs.data().notes.forEach(function (n) {
-      if (n.date && n.date.slice(0, 4) === key) real[n.date] = 1;
-    });
-    return { year: key, cells: cells.length, lit: lit, real: Object.keys(real).length };
-  })()`);
-  return { ok: r.year !== null && r.lit === r.real && r.cells >= 365,
-           detail: `${r.year}: ${r.cells} day cells, ${r.lit} lit against ${r.real} days that ` +
-                   `hold a note` };
-});
-
 check("a spine lifts on hover and holds its size", async (p) => {
   const r = await p.j(`(function(){
-    var spine = document.querySelector("#vs-shelves .spine");
+    var spine = document.querySelector("#vs-shelves .vs-spine");
     var before = spine.getBoundingClientRect();
     spine.focus();
     var after = spine.getBoundingClientRect();

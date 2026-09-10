@@ -107,9 +107,6 @@ and asserts three things: the filtered note count went down, the shelf **order**
 and clearing returns to exactly the starting count. Measured on the demo vault: 394 -> **112**
 under `04 - Daily Notes`, back to 394.
 
-`"a search narrows every shelf and clears back to the whole vault"` is the same shape for the
-search box.
-
 A filter that reorders shelves would break the one thing the product promises about
 orientation: a shelf lives at a stable address in the room.
 
@@ -186,13 +183,43 @@ earns **no book of its own**. It also asserts the name really is in some bodies,
 cannot pass by finding nothing. `decisions/0003` is why an invented person is worse than a
 missing one.
 
-## The skins are paint
+## The palette is Vault Graph's, and the theme is the host's
 
-`"the two skins change nothing but the paint"` asserts identical counts and an identical
-number of spines drawn under both, and a **different** computed background colour. Measured on
-the demo vault: **182 spines** either way, ground `rgb(23, 24, 26)` against
-`rgb(231, 224, 210)`. `design/0005` is why "just a theme" is a claim that has to be checked
-rather than stated.
+`"the twelve colour slots are Vault Graph's own"` asserts all **twenty-four** values — twelve
+light, twelve dark — against literals copied out of the other project's stylesheet. It reads
+what the cascade actually resolved rather than what a comment claims, because a comment
+claiming parity is exactly what was wrong: the slots were twelve invented pastels and nobody
+had opened that stylesheet. `design/0005` and `changelog-detail.md` have the whole story.
+
+`"the theme follows the host, and the slots are re-read when it changes"` asserts a different
+ground colour in each theme, that the twelve slots came back **different** after the switch —
+a hardcoded array could only ever be one of them — and that the library is otherwise
+identical.
+
+## The magic
+
+`design/0008`. Three things a real shelf cannot do, and each has a check.
+
+`"shelf wear is recorded and drawn, and survives a rebuild"` opens one book **thirteen** times
+and asserts it reaches wear level **3 of 3**, that the level is drawn on the spine, and that it
+is still drawn after the library is rebuilt — the wear is on the book's *address*, so a book
+re-made from different notes still remembers it is the one you keep coming back to.
+
+`"a ribbon hangs from every book that holds a marked note"` marks one note and asserts a ribbon
+appears on **every** book that holds it, not just the one it was marked in, and that the
+Reading shelf collected them. One note is in six books; that is the product.
+
+`"the shelf parts as you type, and no book leaves the room"` asserts the spine count is
+**identical before, during and after** a query, that some books drew forward and some thinned
+to ghosts, and that the room came back exactly. It takes its search term from the vault it is
+running against: hard-coding one passed on the demo vault and, on the sparse one, asserted
+that a query finding nothing still drew something forward.
+
+## The room
+
+`"the library is the whole surface, with no sidebar"` asserts **zero** `<aside>` elements,
+exactly **two** New shelf buttons, and that they bracket the shelves in document order — the
+affordance is at both ends of the scroll, which is the point `design/0009` makes.
 
 ## Accessibility and scale
 
@@ -210,14 +237,6 @@ vault: **647 controls, all named**.
 entries with an `http` scheme after the page has loaded and been driven, and asserts zero. The
 static half is `scripts/check-network.mjs`, which is unskippable in the pre-push hook.
 `decisions/0006`.
-
-## The activity calendar paints real days
-
-`"the activity calendar paints the days the vault actually has"` asserts the selected year's
-grid has at least 365 day cells and that the number of lit cells equals the number of distinct
-days in that year that hold a note. Measured on the demo vault: 2026, **365 cells, 104 lit
-against 104 days** that hold a note. A calendar that lights a day with nothing on it is a
-calendar nobody can use to navigate.
 
 ## A spine holds its size
 
@@ -242,7 +261,7 @@ stacked over the shelves. `changelog-detail.md` has the whole story.
 
 ## The plugin behaves inside a real Obsidian
 
-`scripts/obsidian-smoke.mjs`, opt-in, 8 checks. Measured 2026-09-09 on the demo fixture:
+`scripts/obsidian-smoke.mjs`, opt-in, 10 checks. Measured 2026-09-10 on the demo fixture:
 
 | Check | Measured |
 |---|---|
@@ -253,7 +272,9 @@ stacked over the shelves. `changelog-detail.md` has the whole story.
 | people and tags came from the metadata cache | 9 people books, 16 tag books |
 | the debug surface is not shipped | `window.__vs` is `undefined` inside Obsidian |
 | three close-and-reopen cycles | 1 mounted root; DOM nodes 2,675 → 2,675 |
-| the settings tab renders on both paths | 4 declarative definitions, 4 rows from `display()` |
+| the settings tab renders on both paths | 3 declarative definitions, 3 rows from `display()` |
+| the note is rendered by Obsidian's own renderer | 238 characters in 7 elements, no fallback text |
+| a long note wraps instead of widening the reader | reader 1,216px, note 495px, nothing scrolls sideways |
 
 ## Not covered here
 
@@ -261,7 +282,10 @@ stacked over the shelves. `changelog-detail.md` has the whole story.
   that something is ugly, misaligned or the wrong colour. **Both** of the bugs in
   `changelog-detail.md` were found by looking at a screenshot while the suite was green.
   `node scripts/obsidian-smoke.mjs --shot out.png` takes it.
-- **Popout windows and the theme switch.** The page takes its document from
-  `root.ownerDocument` and `check-scope` enforces that, but nothing yet drives a popout.
+- **Popout windows.** The page takes its document from `root.ownerDocument` and `check-scope`
+  enforces that, but nothing yet drives a popout.
+- **What a theme other than the default does to it.** The suite checks Obsidian's light and
+  dark; a community theme can restyle anything it likes, and the `vs-` class prefix is what
+  stands between it and this page.
 - **Performance at scale.** The library fixture proves 10,000 notes *render*; nothing yet
   measures how long they take to, or what a virtualised rail would save.

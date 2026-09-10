@@ -60,6 +60,41 @@ if (!html.includes('class="vault-shelf"')) {
   problems.push('page.html  the root element does not carry class="vault-shelf"');
 }
 
+/* ---- 2b. the host cannot style US either --------------------------------
+ * design/0005 -- the OTHER half of "the page cannot style, or be styled by, its host", and
+ * for a long time only the first half was guarded.
+ *
+ * Obsidian's app.css contains `.pdfViewer.scrollHorizontal, .spread { white-space: nowrap }`.
+ * The reading spread was a `<div class="spread">`, so the app's PDF viewer styled it, one long
+ * paragraph stopped wrapping, and the reader grew a horizontal scrollbar. Nothing in this repo
+ * was wrong; the class name was simply a word somebody else had already claimed.
+ *
+ * So every class the page puts in the document carries the same `vs-` prefix its ids do. The
+ * root `.vault-shelf` is the deliberate exception -- it is the scope handle, and the plugin's
+ * own stylesheet needs to name it.
+ */
+const CLASS_EXEMPT = new Set(["vault-shelf", "vault-shelf-view"]);
+const classAttrs = [...html.matchAll(/class="([^"]+)"/g)].flatMap((m) => m[1].split(/\s+/));
+for (const name of [...new Set(classAttrs)].filter(Boolean)) {
+  if (CLASS_EXEMPT.has(name) || name.startsWith(PREFIX)) continue;
+  problems.push(`page.html  unprefixed class: ${name} -- the host can claim that name`);
+}
+
+const cssClasses = [];
+{
+  let scan = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const block of scan.split("}")) {
+    const sel = block.slice(0, block.indexOf("{"));
+    if (!sel || sel.trim().startsWith("@")) continue;
+    for (const m of sel.matchAll(/\.([A-Za-z][\w-]*)/g)) cssClasses.push(m[1]);
+  }
+}
+for (const name of [...new Set(cssClasses)]) {
+  if (CLASS_EXEMPT.has(name) || name.startsWith(PREFIX)) continue;
+  problems.push(`page.css  unprefixed class: .${name} -- the host can claim that name`);
+}
+
+
 /* ---- 3. script ----------------------------------------------------------
  * The page mounts inside Obsidian's own document -- and inside a POPOUT WINDOW's document,
  * which is a different object again. `document` in this file is whichever one the module was
@@ -83,6 +118,13 @@ if (!js.includes('var ID = "' + PREFIX + '"')) {
 }
 if (!/export \{[^}]*mountVaultShelf[^}]*\}/.test(js)) {
   problems.push("page.js  does not export mountVaultShelf");
+}
+
+const jsClasses = [...js.matchAll(/(?<![\w$.])el\("[a-zA-Z0-9]+",\s*"([a-z0-9][a-z0-9 -]*)"/g)]
+  .flatMap((m) => m[1].split(/\s+/));
+for (const name of [...new Set(jsClasses)].filter(Boolean)) {
+  if (CLASS_EXEMPT.has(name) || name.startsWith(PREFIX)) continue;
+  problems.push(`page.js  unprefixed class: ${name} -- the host can claim that name`);
 }
 
 /* ---- 4. every id the page asks for exists in the markup ------------------
@@ -139,6 +181,7 @@ for (const dir of SHIPPED) {
 
 if (!problems.length) {
   console.log(`check-scope: clean (${rules} css rules, ${ids.length} ids, ` +
+              `${new Set([...classAttrs, ...cssClasses, ...jsClasses]).size} prefixed classes, ` +
               `${new Set(asked).size} id lookup${new Set(asked).size === 1 ? "" : "s"}, ` +
               `${scanned} shipped files with no invisible characters)`);
   process.exit(0);

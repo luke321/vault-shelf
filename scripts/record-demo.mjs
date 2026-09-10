@@ -397,17 +397,17 @@ try {
     return Math.max(0, el.offsetTop + ${pad});
   })()`);
 
-  const railOf = async (id) => `document.querySelector('[data-shelf="${id}"] .shelfrail')`;
+  const railOf = async (id) => `document.querySelector('[data-shelf="${id}"] .vs-shelfrail')`;
 
   const scrollTo = (px) => go(`document.getElementById("vs-library").scrollTop = ${Math.round(px)}; void 0`);
   const railTo = (rail, px) => go(`(function(){ var r = ${rail}; if (r) r.scrollLeft = ${Math.round(px)}; })(); void 0`);
 
   const spineIn = async (id, n) => j(`(function(){
-    var s = document.querySelectorAll('[data-shelf="${id}"] .spine')[${n}];
+    var s = document.querySelectorAll('[data-shelf="${id}"] .vs-spine')[${n}];
     if (!s) return null;
     var b = s.getBoundingClientRect();
     return { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2),
-             sel: '[data-shelf="${id}"] .spine:nth-of-type(${n + 1})' };
+             sel: '[data-shelf="${id}"] .vs-spine:nth-of-type(${n + 1})' };
   })()`);
 
   const hover = async (p) => {
@@ -420,7 +420,7 @@ try {
     await hover(p);
     await go(`(function(){
       var el = document.elementFromPoint(${p.x}, ${p.y});
-      while (el && !el.classList.contains("spine")) el = el.parentElement;
+      while (el && !el.classList.contains("vs-spine")) el = el.parentElement;
       if (el) el.click();
     })(); void 0`);
   };

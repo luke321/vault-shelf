@@ -39,15 +39,26 @@ collapse to ranges past 26. **Also shelved in** moves to another book on the sam
 **Previous collection** and `Alt+←` walk back; a bookmark saves to the Reading table and
 re-resolves through another shelf if its own is hidden.
 
-**Orientation.** An activity calendar of the days that hold notes, folder filters in Vault
-Graph's twelve colours, a search over titles, paths, tags, people and body text, and a visible
-active-filter row.
+**It is painted from Vault Graph.** The same twelve slots, surfaces and text ramp, value for
+value, read from the cascade rather than copied so a theme switch re-reads them. Light and dark
+follow Obsidian's own theme; there are no skins.
 
-**Two skins.** Graphite and Paper & cloth, differing only in a block of custom properties.
+**No sidebar.** The library is the whole surface, with one rail across the top carrying the
+shelf jump-list and the search box, and **New shelf at both ends of the scroll**. The reading
+table became a shelf of its own.
+
+**Three things a real shelf cannot do.** Books you open often look handled; a saved note leaves
+a ribbon hanging out of every book that holds it, and re-threads itself when the library
+changes; and searching parts the shelf instead of emptying it — matches draw forward, the rest
+thin to ghosts, and clearing puts the room back exactly.
+
+**The note is rendered by Obsidian.** `MarkdownRenderer` over the file's own text: wikilinks,
+embeds, callouts, tasks, code.
 
 **Accessibility.** Every control named, visible focus, `prefers-reduced-motion` respected, and
 a plain list mode that keeps every book reachable without a horizontal rail.
 
-**The tooling.** 33 invariant checks over three generated vault shapes; 8 more inside a real
-Obsidian; a comment ratchet, a PII gate, a scope gate that also refuses invisible characters,
-a network gate, and two determinism gates.
+**The tooling.** 37 invariant checks over three generated vault shapes; 10 more inside a real
+Obsidian; a comment ratchet, a PII gate, a scope gate that refuses an unscoped rule, an
+unprefixed class, and an invisible character, a network gate, and two determinism gates. Plus
+`scripts/record-demo.mjs`, which shoots the 83-second walkthrough frame by frame over CDP.

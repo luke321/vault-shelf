@@ -75,6 +75,12 @@ export interface Book {
   notes: Note[];
   /** Source-folder mix, biggest first: the fingerprint band on a spine. */
   bands: { folder: string; slot: number; count: number }[];
+  /**
+   * design/0008 -- how many of this book's notes answer the current query. A search MARKS,
+   * it does not filter: every book stays on the shelf and this is what decides whether it
+   * draws forward or thins to a ghost.
+   */
+  matches: number;
 }
 
 export interface ShelfView {
@@ -95,8 +101,13 @@ export interface ReadingMark {
   at: number;
 }
 
+/**
+ * design/0008 -- FILTERS NARROW, THE QUERY MARKS, and they are different things.
+ * A filter removes notes from a shelf before its books are built. The query never does: it
+ * is applied afterwards, to books that already exist, so the shelf keeps its shape while you
+ * type and the room parts instead of emptying.
+ */
 export interface Filters {
-  search: string;
   folders: string[];
   /** ISO `YYYY-MM-DD`, inclusive. */
   from: string | null;

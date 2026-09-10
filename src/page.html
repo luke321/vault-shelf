@@ -1,97 +1,73 @@
-<div id="vs-app" class="vault-shelf" data-skin="graphite">
-  <aside id="vs-directory" aria-label="Library directory">
-    <div class="brand">
-      <h1 id="vs-vname">Vault Shelf</h1>
-      <div class="mini">
-        <button id="vs-skin" title="Switch between Graphite and Paper &amp; cloth">Paper</button>
-      </div>
-    </div>
-
-    <div class="block">
-      <div class="lbl">Shelves <span id="vs-shelfcount" class="val"></span></div>
-      <nav id="vs-shelflist" aria-label="Shelves"></nav>
-      <div class="mini wide">
-        <button id="vs-newshelf" class="primary">New shelf</button>
-        <button id="vs-manageopen">Manage</button>
-      </div>
-    </div>
-
-    <div class="block">
-      <div class="lbl"><label for="vs-q">Search</label></div>
-      <input type="search" id="vs-q" placeholder="Title, tag, person, text...">
-      <div id="vs-hits" class="hint" role="status"></div>
-    </div>
-
-    <div class="block">
-      <div class="row">
-        <div class="lbl" id="vs-calyear-label">Activity</div>
-        <div class="mini" id="vs-years" role="group" aria-labelledby="vs-calyear-label"></div>
-      </div>
-      <div id="vs-calendar" aria-label="Days with notes"></div>
-    </div>
-
-    <div class="block">
-      <div class="row">
-        <div class="lbl">Folders</div>
-        <div class="mini"><button id="vs-folderclear">All</button></div>
-      </div>
-      <div id="vs-folders"></div>
-    </div>
-
-    <div class="block">
-      <div class="lbl">Reading</div>
-      <div id="vs-reading"></div>
-    </div>
-  </aside>
+<div id="vs-app" class="vault-shelf">
+  <header id="vs-rail">
+    <span id="vs-vname" class="vs-railname">Vault Shelf</span>
+    <nav id="vs-jump" aria-label="Jump to a shelf"></nav>
+    <label class="vs-sr" for="vs-q">Search the library</label>
+    <input type="search" id="vs-q" placeholder="Search the library...">
+    <span id="vs-hits" role="status"></span>
+    <button id="vs-manageopen">Manage</button>
+  </header>
 
   <main id="vs-library" tabindex="-1">
-    <div id="vs-activefilters" class="activefilters" hidden>
+    <div id="vs-activefilters" class="vs-activefilters" hidden>
       <span id="vs-filtertext"></span>
-      <button id="vs-clearfilters">Clear filters</button>
+      <button id="vs-clearfilters">Clear</button>
     </div>
+
+    <button id="vs-newshelf" class="vs-newshelf">
+      <span class="vs-plus" aria-hidden="true">&plus;</span>
+      <span>New shelf</span>
+    </button>
+
     <div id="vs-shelves"></div>
-    <div id="vs-endcard" class="endcard">
-      <p id="vs-endtext">That is the whole library.</p>
-      <button id="vs-newshelf2" class="primary">New shelf</button>
+
+    <div id="vs-endcard" class="vs-endcard" hidden>
+      <p id="vs-endtext"></p>
     </div>
+
+    <button id="vs-newshelf2" class="vs-newshelf">
+      <span class="vs-plus" aria-hidden="true">&plus;</span>
+      <span>New shelf</span>
+    </button>
   </main>
 
-  <section id="vs-reader" class="reader" hidden aria-label="Reading a book" tabindex="-1">
-    <header class="readerbar">
+  <section id="vs-reader" class="vs-reader" hidden aria-label="Reading a book" tabindex="-1">
+    <header class="vs-readerbar">
       <button id="vs-back">Back to shelves</button>
       <button id="vs-prevcollection" title="Previous collection (Alt+Left)">Previous collection</button>
-      <span id="vs-readertitle" class="readertitle"></span>
-      <span class="spacer"></span>
+      <span id="vs-readertitle" class="vs-readertitle"></span>
+      <span class="vs-spacer"></span>
       <button id="vs-prevnote" title="Previous note">Previous</button>
       <button id="vs-nextnote" title="Next note">Next</button>
-      <button id="vs-ribbon" class="ribbon" aria-pressed="false" title="Save this note to the Reading table">Bookmark</button>
+      <button id="vs-ribbon" class="vs-ribbon" aria-pressed="false" title="Leave a ribbon in this book">Ribbon</button>
     </header>
-    <div class="spread">
-      <div class="page left">
+    <div class="vs-spread">
+      <div class="vs-page vs-left">
         <h2 id="vs-bookname"></h2>
-        <p id="vs-bookmeta" class="hint"></p>
-        <label class="sr" for="vs-within">Find within this book</label>
+        <p id="vs-bookmeta" class="vs-hint"></p>
+        <label class="vs-sr" for="vs-within">Find within this book</label>
         <input type="search" id="vs-within" placeholder="Find within this book...">
-        <ol id="vs-contents" class="contents"></ol>
+        <ol id="vs-contents" class="vs-contents"></ol>
       </div>
-      <div class="page right">
-        <article id="vs-note" class="prose"></article>
-        <div id="vs-alsoin" class="alsoin"></div>
+      <div class="vs-page vs-right">
+        <p id="vs-notemeta" class="vs-notemeta"></p>
+        <article id="vs-note" class="vs-prose"></article>
+        <div id="vs-alsoin" class="vs-alsoin"></div>
       </div>
-      <nav id="vs-tabs" class="tabs" aria-label="Index"></nav>
+      <nav id="vs-tabs" class="vs-tabs" aria-label="Index"></nav>
     </div>
   </section>
 
-  <div id="vs-builder" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="vs-buildertitle">
-    <div class="sheetbody">
+  <div id="vs-builder" class="vs-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="vs-buildertitle">
+    <div class="vs-sheetbody">
       <h2 id="vs-buildertitle">New shelf</h2>
 
-      <div class="field">
+      <div class="vs-field">
         <label for="vs-bname">Name</label>
         <input type="text" id="vs-bname" value="New shelf">
       </div>
 
-      <fieldset class="field">
+      <fieldset class="vs-field">
         <legend>Which notes belong here?</legend>
         <select id="vs-bsource">
           <option value="all">The whole vault</option>
@@ -102,7 +78,7 @@
         <select id="vs-bsourceval" aria-label="Which tag, person or folder" hidden></select>
       </fieldset>
 
-      <fieldset class="field">
+      <fieldset class="vs-field">
         <legend>What makes a book?</legend>
         <select id="vs-bclassifier">
           <option value="initial">Title initial</option>
@@ -117,7 +93,7 @@
         <select id="vs-bproperty" aria-label="Which note property" hidden></select>
       </fieldset>
 
-      <div class="field row">
+      <div class="vs-field vs-row">
         <label><input type="checkbox" id="vs-bplaques"> Year plaques</label>
         <label><input type="checkbox" id="vs-bsubtags" checked> Parent tags include their children</label>
         <label><span>Order</span>
@@ -128,32 +104,32 @@
         </label>
       </div>
 
-      <div class="field">
-        <div class="lbl">Recipes</div>
-        <div id="vs-recipes" class="mini wide"></div>
+      <div class="vs-field">
+        <div class="vs-lbl">Recipes</div>
+        <div id="vs-recipes" class="vs-mini vs-wide"></div>
       </div>
 
-      <div class="preview">
-        <div class="lbl">Preview <span id="vs-previewcount" class="val"></span></div>
-        <div id="vs-preview" class="shelfrail" aria-live="polite"></div>
+      <div class="vs-preview">
+        <div class="vs-lbl">Preview <span id="vs-previewcount" class="vs-val"></span></div>
+        <div id="vs-preview" class="vs-shelfrail" aria-live="polite"></div>
       </div>
 
-      <div class="mini wide sheetactions">
-        <button id="vs-bsave" class="primary">Save shelf</button>
+      <div class="vs-mini vs-wide vs-sheetactions">
+        <button id="vs-bsave" class="vs-primary">Save shelf</button>
         <button id="vs-bcancel">Cancel</button>
       </div>
     </div>
   </div>
 
-  <div id="vs-manage" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="vs-managetitle">
-    <div class="sheetbody">
+  <div id="vs-manage" class="vs-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="vs-managetitle">
+    <div class="vs-sheetbody">
       <h2 id="vs-managetitle">Manage shelves</h2>
-      <p class="hint">Hiding a shelf never deletes it. Reorder with the arrows; the order here
+      <p class="vs-hint">Hiding a shelf never deletes it. Reorder with the arrows; the order here
         is the order of the library.</p>
       <div id="vs-managelist"></div>
-      <div class="mini wide sheetactions">
+      <div class="vs-mini vs-wide vs-sheetactions">
         <button id="vs-mrestore">Show every shelf</button>
-        <button id="vs-mclose" class="primary">Done</button>
+        <button id="vs-mclose" class="vs-primary">Done</button>
       </div>
     </div>
   </div>

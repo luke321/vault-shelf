@@ -38,18 +38,29 @@ person, tag, folder, or any frontmatter property you have. The builder previews 
 answer before you save: the actual note count, the actual books, the actual spines.
 
 **Reading a book** opens a spread without losing your place on the shelf. Contents and a
-*find within this book* on the left, the note on the right, index tabs down the edge — months
+*find within this book* on the left, **the note rendered by Obsidian's own renderer** on the
+right — wikilinks, embeds, callouts, tasks and code, exactly as the app draws them — index
+tabs down the edge: months
 for a year, days for a month, initial ranges for anything alphabetical. **Also shelved in**
 steps sideways to another book while staying on the same note. **Previous collection** and
 `Alt+←` walk back. A bookmark saves the note to the Reading table, and re-resolves itself if
 that shelf is later hidden.
 
-**Orientation, borrowed from the sister project.** An activity calendar of the days that hold
-notes, folder filters in the same twelve colours the disc uses, a search over titles, tags,
-people and text, and a visible active-filter row with **Clear filters**.
+**Three things a real shelf cannot do.**
 
-**Two skins, one feature set.** *Graphite* is a charcoal archive; *Paper & cloth* is the same
-library in warm paper. Neither has a feature the other lacks.
+- **Shelf wear.** Books you open often look handled — the boards darken, the corners soften,
+  and they never sit quite flush again. The room remembers your habits without a dashboard.
+- **Ribbons that hang.** A saved note leaves a ribbon out of the bottom of the book, visible
+  from across the room. Because one note is in six books, one ribbon shows in six places — and
+  it re-threads itself if you rename the note or hide the shelf.
+- **The shelf parts as you type.** Searching does not empty the library. Matching books draw
+  forward and gain air; the rest thin to ghosts and stay exactly where they were. Clear the box
+  and the room is back, because it was never taken apart.
+
+**It looks like Vault Graph, because it is painted from Vault Graph.** The same twelve colour
+slots, the same surfaces, the same text ramp — read from the stylesheet rather than copied, so
+a folder that is `#2a78d6` on the disc is `#2a78d6` on a spine. Light and dark follow
+Obsidian's own theme.
 
 ---
 
@@ -77,11 +88,13 @@ gh attestation verify main.js --repo luke321/vault-shelf
 | **Date properties** | comma-separated frontmatter fields, tried in order. A note with none of them falls back to a date at the start of its title |
 | **People property** | the property that names people. People are **never** inferred from a note's prose |
 | **Fall back to the file's own date** | off by default. A file's modification time is almost never the date the note is about — a sync or a bulk reformat restamps the whole vault — so a note with no date goes to **Undated** instead, where you can see it |
-| **Skin** | Graphite, or Paper & cloth |
+The theme is not a setting: the library follows Obsidian's, and re-reads its palette when
+you change it.
 
 ## What it promises
 
-- **It never writes to your notes.** It reads Obsidian's metadata cache and nothing else.
+- **It never writes to your notes.** Shelves are built from Obsidian's metadata cache alone;
+  the only file it ever reads is the one note you have open, to render it.
 - **It makes no network requests.** Not one, and
   [`scripts/check-network.mjs`](scripts/check-network.mjs) refuses a push that adds one.
 - **It never guesses.** A note with no date is Undated; a note with nobody named names nobody.

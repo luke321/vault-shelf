@@ -4,86 +4,91 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 1207 lines, 14 sections, 53 functions
+## `src/page.js` — 1277 lines, 16 sections, 56 functions
 
 ### Sections
 
 | lines | section |
 |---|---|
-| 1–55 | types |
-| 56–166 | palette |
-| 167–196 | state |
-| 197–213 | membership |
-| 214–345 | chrome |
-| 346–495 | library |
-| 496–754 | reader |
-| 755–920 | builder |
-| 921–987 | manage |
-| 988–1012 | filters |
-| 1013–1032 | refresh |
-| 1033–1093 | the wiring |
-| 1094–1175 | debug api — stripped from the plugin build |
-| 1176–1207 | the wiring (continued) |
+| 1–60 | types |
+| 61–171 | palette |
+| 172–218 | state |
+| 219–238 | membership |
+| 239–260 | the rail |
+| 261–281 | the reading shelf |
+| 282–460 | library |
+| 461–498 | the shelf parts as you type |
+| 499–794 | reader |
+| 795–960 | builder |
+| 961–1027 | manage |
+| 1028–1049 | filters |
+| 1050–1070 | refresh |
+| 1071–1123 | the wiring |
+| 1124–1244 | debug api — stripped from the plugin build |
+| 1245–1277 | the wiring (continued) |
 
 ### Functions
 
 | line | function |
 |---|---|
-| 75 | `mountVaultShelf` |
-| 82 | `$` |
-| 92 | `attempt` |
-| 102 | `on` |
-| 113 | `el` |
-| 121 | `clear` |
-| 129 | `node` |
-| 139 | `field` |
-| 147 | `flat` |
-| 158 | `uniqueSorted` |
-| 193 | `persist` |
-| 202 | `rebuild` |
-| 216 | `renderDirectory` |
-| 241 | `renderFolders` |
-| 267 | `renderCalendar` |
-| 319 | `renderReading` |
-| 341 | `noteById` |
-| 348 | `renderLibrary` |
-| 382 | `renderShelf` |
-| 419 | `renderTrack` |
-| 443 | `renderSpine` |
-| 483 | `scrollToShelf` |
-| 492 | `cssEscape` |
-| 501 | `openBook` |
-| 516 | `closeReader` |
-| 526 | `renderReader` |
-| 542 | `renderContents` |
-| 571 | `indexSections` |
-| 607 | `renderTabs` |
-| 619 | `renderNote` |
-| 658 | `renderMarkdownInto` |
-| 698 | `goTo` |
-| 707 | `shelfById` |
-| 715 | `isBookmarked` |
-| 719 | `toggleBookmark` |
-| 733 | `previousCollection` |
-| 746 | `findBook` |
-| 761 | `openBuilder` |
-| 781 | `closeBuilder` |
-| 787 | `writeBuilderFields` |
-| 803 | `readBuilderFields` |
-| 822 | `fillSourceValues` |
-| 841 | `fillProperties` |
-| 860 | `fillRecipes` |
-| 879 | `previewBuilder` |
-| 897 | `saveBuilder` |
-| 915 | `uniqueId` |
-| 923 | `openManage` |
-| 929 | `renderManage` |
-| 974 | `reorder` |
-| 990 | `renderActiveFilters` |
-| 1007 | `clearFilters` |
-| 1015 | `refresh` |
+| 80 | `mountVaultShelf` |
+| 87 | `$` |
+| 97 | `attempt` |
+| 107 | `on` |
+| 118 | `el` |
+| 126 | `clear` |
+| 134 | `node` |
+| 144 | `field` |
+| 152 | `flat` |
+| 163 | `uniqueSorted` |
+| 201 | `persist` |
+| 210 | `readTheme` |
+| 224 | `rebuild` |
+| 244 | `renderRail` |
+| 268 | `readingBooks` |
+| 284 | `renderLibrary` |
+| 316 | `renderReadingShelf` |
+| 338 | `renderShelf` |
+| 375 | `renderTrack` |
+| 399 | `renderSpine` |
+| 453 | `ribbonsIn` |
+| 466 | `applyQuery` |
+| 486 | `scrollToShelf` |
+| 495 | `cssEscape` |
+| 504 | `openBook` |
+| 524 | `markWear` |
+| 533 | `closeReader` |
+| 543 | `renderReader` |
+| 559 | `renderContents` |
+| 590 | `indexSections` |
+| 626 | `renderTabs` |
+| 638 | `renderNote` |
+| 696 | `renderMeta` |
+| 710 | `renderMarkdownInto` |
+| 737 | `goTo` |
+| 746 | `shelfById` |
+| 754 | `isBookmarked` |
+| 758 | `toggleBookmark` |
+| 773 | `previousCollection` |
+| 786 | `findBook` |
+| 801 | `openBuilder` |
+| 821 | `closeBuilder` |
+| 827 | `writeBuilderFields` |
+| 843 | `readBuilderFields` |
+| 862 | `fillSourceValues` |
+| 881 | `fillProperties` |
+| 900 | `fillRecipes` |
+| 919 | `previewBuilder` |
+| 937 | `saveBuilder` |
+| 955 | `uniqueId` |
+| 963 | `openManage` |
+| 969 | `renderManage` |
+| 1014 | `reorder` |
+| 1030 | `renderActiveFilters` |
+| 1043 | `clearFilters` |
+| 1052 | `refresh` |
 
-## `scripts/smoke.mjs` — 1108 lines, 6 sections, 9 functions, 34 checks
+## `scripts/smoke.mjs` — 1221 lines, 6 sections, 9 functions, 37 checks
 
 ### Sections
 
@@ -91,10 +96,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 |---|---|
 | 54–69 | chrome |
 | 70–106 | the checks |
-| 107–677 | the invariants |
-| 678–805 | which vaults, and why |
-| 806–1006 | one run |
-| 1007–1108 | main |
+| 107–790 | the invariants |
+| 791–918 | which vaults, and why |
+| 919–1119 | one run |
+| 1120–1221 | main |
 
 ### Functions
 
@@ -104,11 +109,11 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 43 | `freePort` |
 | 56 | `findChrome` |
 | 87 | `gridSlot` |
-| 710 | `resolveVaults` |
-| 792 | `buildFor` |
-| 808 | `runOne` |
-| 965 | `killBrowser` |
-| 1009 | `main` |
+| 823 | `resolveVaults` |
+| 905 | `buildFor` |
+| 921 | `runOne` |
+| 1078 | `killBrowser` |
+| 1122 | `main` |
 
 ### Checks
 
@@ -126,25 +131,28 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 213 | a plaque sits under the books it names, in the same scroller |
 | 232 | book addresses are stable across a rebuild |
 | 243 | a filter changes membership without moving a shelf |
-| 264 | a search narrows every shelf and clears back to the whole vault |
-| 274 | a hidden shelf keeps its definition and its books |
-| 292 | hiding every shelf offers a way back rather than an empty room |
-| 313 | the reader and the sheets are not painted until they are opened |
-| 330 | clicking a spine opens a book on the note it names |
-| 347 | the reader's index tabs stay countable on the biggest book |
-| 361 | previous and next walk the book and stop at its ends |
-| 386 | also shelved in moves to another book and keeps the note |
-| 417 | previous collection walks back, and Alt+Left does the same |
-| 436 | escape closes the reader and leaves the shelf where it was |
-| 455 | the reading table survives a shelf being hidden |
-| 483 | a saved reading place re-resolves after its own book is gone |
-| 498 | the builder previews the shelf it would actually save |
-| 517 | a saved shelf gets a stable id and joins the library |
-| 538 | parent tag inclusion is a setting, and it changes the answer |
-| 558 | people come from the property alone, never from prose |
-| 579 | the two skins change nothing but the paint |
-| 597 | plain list mode keeps every book reachable |
-| 614 | every control the keyboard can reach has a name |
-| 636 | nothing on the page reaches the network |
-| 646 | the activity calendar paints the days the vault actually has |
-| 664 | a spine lifts on hover and holds its size |
+| 264 | a hidden shelf keeps its definition and its books |
+| 282 | hiding every shelf offers a way back rather than an empty room |
+| 306 | the library is the whole surface, with no sidebar |
+| 333 | the twelve colour slots are Vault Graph's own |
+| 355 | the theme follows the host, and the slots are re-read when it changes |
+| 375 | shelf wear is recorded and drawn, and survives a rebuild |
+| 398 | a ribbon hangs from every book that holds a marked note |
+| 424 | the shelf parts as you type, and no book leaves the room |
+| 454 | the reader and the sheets are not painted until they are opened |
+| 471 | clicking a spine opens a book on the note it names |
+| 488 | the reader's index tabs stay countable on the biggest book |
+| 502 | previous and next walk the book and stop at its ends |
+| 527 | also shelved in moves to another book and keeps the note |
+| 558 | previous collection walks back, and Alt+Left does the same |
+| 577 | escape closes the reader and leaves the shelf where it was |
+| 596 | the reading shelf survives its own shelf being hidden |
+| 632 | a saved reading place re-resolves after its own book is gone |
+| 647 | the builder previews the shelf it would actually save |
+| 666 | a saved shelf gets a stable id and joins the library |
+| 687 | parent tag inclusion is a setting, and it changes the answer |
+| 707 | people come from the property alone, never from prose |
+| 728 | plain list mode keeps every book reachable |
+| 745 | every control the keyboard can reach has a name |
+| 767 | nothing on the page reaches the network |
+| 777 | a spine lifts on hover and holds its size |

@@ -51,17 +51,22 @@
  * @property {unknown} [settings]        persisted settings, migrated on the way in
  * @property {(next: Persisted) => void} [onSettings]
  * @property {(path: string) => void} [onOpenNote]  "Edit in Obsidian", host-supplied
+ * @property {(into: HTMLElement, note: ShelfNote) => (void | Promise<void>)} [renderNote]
+ *   design/0010 -- the host's own markdown renderer. Inside Obsidian this is
+ *   MarkdownRenderer.render over the file's real text, so a note in the reading spread is
+ *   the note: wikilinks, embeds, callouts, tasks, code. Absent, the page falls back to its
+ *   own small renderer over whatever `body` the producer supplied.
  */
 
 /* ================================================================== palette ==
- * design/0005 -- the twelve slots are Vault Graph's, by name and by value, because a folder
- * that is teal on the disc has to be teal on a spine or the two views describe different
- * vaults.
+ * design/0005 -- the twelve slots are VAULT GRAPH'S, and they are read out of the stylesheet
+ * rather than written down here, because a copy of a palette is a palette that drifts. The
+ * names are --g1..--g12 in src/page.css, which are that project's values verbatim; readTheme()
+ * snapshots whatever the cascade currently resolves them to, so a theme switch re-reads them
+ * instead of repainting from a stale array.
  */
-var SLOTS = [
-  "#7fb3c8", "#c8a06a", "#8fbf88", "#c98f8f", "#a89fd0", "#9a8fc9",
-  "#c9b06a", "#6fae9c", "#c07fa8", "#8a9fc9", "#b0a37f", "#7fc9b8"
-];
+var SLOT_KEYS = ["--g1", "--g2", "--g3", "--g4", "--g5", "--g6",
+                 "--g7", "--g8", "--g9", "--g10", "--g11", "--g12"];
 
 var ID = "vs-";
 
@@ -169,22 +174,25 @@ function mountVaultShelf(root, data, options) {
   var settings = core.migrate(opts.settings || null);
   var notes = data.notes.slice();
   var folders = data.folders.slice();
+  /** @type {string[]} */
+  var SLOTS = [];
   /** @type {Record<string, string>} */
   var slotOf = {};
-  folders.forEach(function (f) { slotOf[f.path] = SLOTS[f.slot % SLOTS.length]; });
 
   /** @type {import("./core/index").Filters} */
-  var filters = { search: "", folders: [], from: null, to: null };
+  var filters = { folders: [], from: null, to: null };
+  /** design/0008 -- the query MARKS; it never narrows. See applyQuery(). */
+  var query = "";
   /** @type {ShelfView[]} */
   var views = [];
+  /** @type {Record<string, Book>} */
+  var bookIndex = {};
   /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
   var history = [];
   /** @type {{ editing: string|null, draft: Shelf }|null} */
   var builder = null;
-  /** @type {string|null} */
-  var calYear = null;
 
   var reduceMotion = WIN.matchMedia
     ? WIN.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -192,6 +200,20 @@ function mountVaultShelf(root, data, options) {
 
   function persist() {
     if (opts.onSettings) opts.onSettings(core.clone(settings));
+  }
+
+  /**
+   * design/0005 -- snapshot the twelve slots from the cascade. Called once at mount and again
+   * whenever the host says the theme changed, so light and dark each get their own values
+   * rather than one set tinted twice.
+   */
+  function readTheme() {
+    var cs = WIN.getComputedStyle(root);
+    SLOTS = SLOT_KEYS.map(function (k) {
+      return (cs.getPropertyValue(k) || "").trim() || "#6f6e67";
+    });
+    slotOf = {};
+    folders.forEach(function (f) { slotOf[f.path] = SLOTS[f.slot % SLOTS.length]; });
   }
 
   /* =============================================================== membership ==
@@ -202,145 +224,59 @@ function mountVaultShelf(root, data, options) {
   function rebuild() {
     var visible = core.applyFilters(notes, filters);
     var ordered = settings.shelves.slice().sort(function (a, b) { return a.position - b.position; });
+    bookIndex = {};
     views = ordered.map(function (shelf) {
       var view = core.buildShelf(shelf, visible);
       view.books.forEach(function (book) {
-        book.bands.forEach(function (band) { band.slot = slotOf[band.folder] || "#6f6c66"; });
+        book.bands.forEach(function (band) { band.slot = slotOf[band.folder] || "#6f6e67"; });
+        bookIndex[book.id] = book;
       });
       return view;
     });
+    core.markMatches(views, query);
   }
 
-  /* ==================================================================== chrome == */
+  /* ================================================================= the rail ==
+   * design/0009 -- the only chrome in the room. A shelf jump-list, a search box, and the
+   * number the search found; no panel, no filters, no calendar.
+   */
 
-  function renderDirectory() {
+  function renderRail() {
     $("vname").textContent = data.vault || "Vault Shelf";
-    $("skin").textContent = settings.skin === "paper" ? "Graphite" : "Paper";
 
-    var list = $("shelflist");
-    clear(list);
-    var shown = 0;
+    var jump = $("jump");
+    clear(jump);
     views.forEach(function (view) {
       if (view.shelf.hidden) return;
-      shown++;
-      var b = el("button", "shelflink");
+      var b = el("button", "vs-jump");
       b.type = "button";
-      b.setAttribute("data-shelf", view.shelf.id);
-      b.appendChild(el("span", "name", view.shelf.name));
-      b.appendChild(el("span", "count", view.books.length + " / " + view.noteCount));
+      b.setAttribute("data-jump", view.shelf.id);
+      b.appendChild(el("span", "", view.shelf.name));
+      b.appendChild(el("span", "vs-n", String(view.books.length)));
       on(b, "click", function () { scrollToShelf(view.shelf.id); });
-      list.appendChild(b);
-    });
-    $("shelfcount").textContent = shown + " of " + views.length;
-
-    renderFolders();
-    renderCalendar();
-    renderReading();
-  }
-
-  function renderFolders() {
-    var box = $("folders");
-    clear(box);
-    folders.forEach(function (f) {
-      var b = el("button", "folderrow");
-      b.type = "button";
-      var pressed = filters.folders.indexOf(f.path) >= 0;
-      b.setAttribute("aria-pressed", pressed ? "true" : "false");
-      var sw = el("span", "swatch");
-      sw.style.setProperty("--slot", slotOf[f.path]);
-      b.appendChild(sw);
-      b.appendChild(el("span", "name", f.path));
-      b.appendChild(el("span", "count", String(f.count)));
-      on(b, "click", function () {
-        var i = filters.folders.indexOf(f.path);
-        if (i >= 0) filters.folders.splice(i, 1); else filters.folders.push(f.path);
-        refresh();
-      });
-      box.appendChild(b);
+      jump.appendChild(b);
     });
   }
 
-  /**
-   * The activity calendar is the year's own days, seven rows of a week each, so a gap in
-   * the vault is a gap on screen rather than a number nobody reads.
+  /* ---- the reading shelf --------------------------------------------------
+   * design/0008 -- the places you left a ribbon, as a shelf of their own at the head of the
+   * room rather than a list in a panel. Every book here is a real book on a real shelf; this
+   * one just collects the ones with something hanging out of them.
    */
-  function renderCalendar() {
-    var years = {};
-    notes.forEach(function (n) { if (n.date) years[n.date.slice(0, 4)] = true; });
-    var list = Object.keys(years).sort().reverse();
-    if (calYear === null || list.indexOf(calYear) < 0) calYear = list[0] || null;
 
-    var bar = $("years");
-    clear(bar);
-    list.forEach(function (y) {
-      var b = el("button", "", y);
-      b.type = "button";
-      b.setAttribute("aria-pressed", y === calYear ? "true" : "false");
-      on(b, "click", function () { calYear = y; renderCalendar(); });
-      bar.appendChild(b);
-    });
-
-    var grid = $("calendar");
-    clear(grid);
-    if (!calYear) return;
-
-    /** @type {Record<string, number>} */
-    var counts = {};
-    notes.forEach(function (n) {
-      if (n.date && n.date.slice(0, 4) === calYear) counts[n.date] = (counts[n.date] || 0) + 1;
-    });
-
-    var day = calYear + "-01-01";
-    var end = calYear + "-12-31";
-    var lead = new Date(day + "T00:00:00Z").getUTCDay();
-    lead = (lead + 6) % 7;
-    for (var i = 0; i < lead; i++) grid.appendChild(el("span", "day"));
-
-    while (day <= end) {
-      var n = counts[day] || 0;
-      var cell = el("button", "day");
-      cell.type = "button";
-      cell.setAttribute("data-level", n === 0 ? "0" : n === 1 ? "1" : n <= 3 ? "2" : n <= 6 ? "3" : "4");
-      cell.setAttribute("data-day", day);
-      cell.title = day + " -- " + n + (n === 1 ? " note" : " notes");
-      cell.setAttribute("aria-label", cell.title);
-      (function (d) {
-        on(cell, "click", function () {
-          if (filters.from === d && filters.to === d) { filters.from = null; filters.to = null; }
-          else { filters.from = d; filters.to = d; }
-          refresh();
-        });
-      })(day);
-      grid.appendChild(cell);
-      day = core.addDays(day, 1);
-    }
-  }
-
-  function renderReading() {
-    var box = $("reading");
-    clear(box);
-    if (!settings.reading.length) {
-      box.appendChild(el("p", "hint", "Nothing saved yet. The bookmark in a book puts a note here."));
-      return;
-    }
+  /** @returns {Book[]} */
+  function readingBooks() {
+    /** @type {Book[]} */
+    var out = [];
+    /** @type {Record<string, boolean>} */
+    var seen = {};
     settings.reading.slice().sort(function (a, b) { return b.at - a.at; }).forEach(function (mark) {
-      var note = noteById(mark.noteId);
-      if (!note) return;
       var book = core.resolveReading(mark.noteId, mark.bookId, views);
-      var b = el("button", "readingrow");
-      b.type = "button";
-      b.appendChild(el("span", "name", note.title));
-      b.appendChild(el("span", "where", book ? book.label : "no shelf holds it"));
-      b.disabled = !book;
-      on(b, "click", function () { if (book) openBook(book, mark.noteId); });
-      box.appendChild(b);
+      if (!book || seen[book.id]) return;
+      seen[book.id] = true;
+      out.push(book);
     });
-  }
-
-  /** @param {string} id @returns {ShelfNote|null} */
-  function noteById(id) {
-    for (var i = 0; i < notes.length; i++) if (notes[i].id === id) return notes[i];
-    return null;
+    return out;
   }
 
   /* ================================================================= library == */
@@ -350,17 +286,22 @@ function mountVaultShelf(root, data, options) {
     clear(box);
     var anyVisible = false;
 
+    var marked = readingBooks();
+    if (marked.length) box.appendChild(renderReadingShelf(marked));
+
     views.forEach(function (view) {
       if (view.shelf.hidden) return;
       anyVisible = true;
       box.appendChild(renderShelf(view));
     });
 
+    var card = $("endcard");
+    card.hidden = anyVisible;
     if (!anyVisible) {
-      var card = el("div", "endcard");
+      clear(card);
       card.appendChild(el("p", "", "Every shelf is hidden. Nothing was deleted -- Manage " +
-                                   "shelves brings them back."));
-      var restore = el("button", "primary", "Show every shelf");
+                                   "brings them back."));
+      var restore = el("button", "vs-primary", "Show every shelf");
       restore.type = "button";
       on(restore, "click", function () {
         settings.shelves.forEach(function (s) { s.hidden = false; });
@@ -368,27 +309,42 @@ function mountVaultShelf(root, data, options) {
         refresh();
       });
       card.appendChild(restore);
-      box.appendChild(card);
     }
+  }
 
-    var filtered = core.applyFilters(notes, filters).length;
-    $("endtext").textContent = anyVisible
-      ? "That is the whole library -- " + filtered + " of " + notes.length + " notes on " +
-        views.filter(function (v) { return !v.shelf.hidden; }).length + " shelves."
-      : "";
+  /** @param {Book[]} books @returns {HTMLElement} */
+  function renderReadingShelf(books) {
+    var wrap = el("section", "vs-shelf");
+    wrap.setAttribute("data-shelf", "-reading");
+    var head = el("header", "vs-shelfhead");
+    head.appendChild(el("h2", "", "Reading"));
+    head.appendChild(el("span", "vs-meta",
+      books.length + (books.length === 1 ? " book" : " books") + " with a ribbon in it"));
+    wrap.appendChild(head);
+    var rail = el("div", "vs-shelfrail");
+    var track = el("div", "vs-track");
+    var row = el("div", "vs-books");
+    books.forEach(function (book) {
+      var shelf = shelfById(book.shelfId);
+      row.appendChild(renderSpine(book, shelf || { name: "Reading" }));
+    });
+    track.appendChild(row);
+    rail.appendChild(track);
+    wrap.appendChild(rail);
+    return wrap;
   }
 
   /** @param {ShelfView} view @returns {HTMLElement} */
   function renderShelf(view) {
-    var wrap = el("section", "shelf");
+    var wrap = el("section", "vs-shelf");
     wrap.setAttribute("data-shelf", view.shelf.id);
 
-    var head = el("header", "shelfhead");
+    var head = el("header", "vs-shelfhead");
     head.appendChild(el("h2", "", view.shelf.name));
-    head.appendChild(el("span", "meta",
+    head.appendChild(el("span", "vs-meta",
       view.books.length + (view.books.length === 1 ? " book" : " books") + " \u00b7 " +
       view.noteCount + (view.noteCount === 1 ? " note" : " notes")));
-    var menu = el("div", "mini");
+    var menu = el("div", "vs-mini");
     var edit = el("button", "", "Edit");
     edit.type = "button";
     on(edit, "click", function () { openBuilder(view.shelf); });
@@ -404,7 +360,7 @@ function mountVaultShelf(root, data, options) {
     head.appendChild(menu);
     wrap.appendChild(head);
 
-    var rail = el("div", "shelfrail");
+    var rail = el("div", "vs-shelfrail");
     rail.appendChild(renderTrack(view.books, view.shelf));
     wrap.appendChild(rail);
     return wrap;
@@ -417,7 +373,7 @@ function mountVaultShelf(root, data, options) {
    */
   /** @param {Book[]} books @param {Shelf} shelf @returns {HTMLElement} */
   function renderTrack(books, shelf) {
-    var track = el("div", "track");
+    var track = el("div", "vs-track");
     /** @type {{ plaque: string|null, books: Book[] }[]} */
     var groups = [];
     /** @type {Record<string, { plaque: string|null, books: Book[] }>} */
@@ -429,11 +385,11 @@ function mountVaultShelf(root, data, options) {
     });
 
     groups.forEach(function (group) {
-      var g = el("div", "group");
-      var row = el("div", "books");
+      var g = el("div", "vs-group");
+      var row = el("div", "vs-books");
       group.books.forEach(function (book) { row.appendChild(renderSpine(book, shelf)); });
       g.appendChild(row);
-      if (group.plaque !== null) g.appendChild(el("div", "plaque", group.plaque));
+      if (group.plaque !== null) g.appendChild(el("div", "vs-plaque", group.plaque));
       track.appendChild(g);
     });
     return track;
@@ -441,12 +397,12 @@ function mountVaultShelf(root, data, options) {
 
   /** @param {Book} book @param {Shelf} shelf @returns {HTMLElement} */
   function renderSpine(book, shelf) {
-    var b = el("button", "spine");
+    var b = el("button", "vs-spine");
     b.type = "button";
     b.setAttribute("data-book", book.id);
     if (!book.notes.length) b.setAttribute("data-empty", "1");
 
-    var band = el("span", "band");
+    var band = el("span", "vs-band");
     var total = book.bands.slice(0, 3).reduce(function (n, part) { return n + part.count; }, 0) || 1;
     book.bands.slice(0, 3).forEach(function (part) {
       var i = el("i");
@@ -459,11 +415,25 @@ function mountVaultShelf(root, data, options) {
      * reads as books rather than slats; little enough that the band at the head is still the
      * thing carrying the information. */
     if (book.bands.length) b.style.setProperty("--spine-tint", book.bands[0].slot);
-    b.appendChild(el("span", "title", book.label));
-    b.appendChild(el("span", "n", String(book.notes.length)));
+    b.appendChild(el("span", "vs-title", book.label));
+    b.appendChild(el("span", "vs-n", String(book.notes.length)));
+
+    /* design/0008 -- the three things that make a shelf look used rather than printed. */
+    var opens = settings.wear[book.id] || 0;
+    var level = core.wearLevel(opens);
+    if (level) b.setAttribute("data-wear", String(level));
+    var ribbons = ribbonsIn(book);
+    if (ribbons) {
+      var r = el("span", "vs-ribbon");
+      if (ribbons > 1) r.setAttribute("data-many", "1");
+      b.appendChild(r);
+    }
+    b.setAttribute("data-match", book.matches > 0 ? "1" : "0");
 
     var peek = book.label + " -- " + book.notes.length +
       (book.notes.length === 1 ? " note" : " notes");
+    if (ribbons) peek += " \u00b7 " + ribbons + (ribbons === 1 ? " ribbon" : " ribbons");
+    if (opens) peek += " \u00b7 opened " + opens + (opens === 1 ? " time" : " times");
     if (book.bands.length) {
       peek += " \u00b7 " + book.bands.slice(0, 3).map(function (p) {
         return p.folder + " " + p.count;
@@ -477,6 +447,39 @@ function mountVaultShelf(root, data, options) {
 
     on(b, "click", function () { openBook(book, null); });
     return b;
+  }
+
+  /** @param {Book} book @returns {number} */
+  function ribbonsIn(book) {
+    var n = 0;
+    settings.reading.forEach(function (mark) {
+      if (book.notes.some(function (note) { return note.id === mark.noteId; })) n++;
+    });
+    return n;
+  }
+
+  /* ---- the shelf parts as you type ---------------------------------------
+   * design/0008 -- nothing is rebuilt and nothing is removed. Every spine already knows how
+   * many of its notes answer the query; this walks them and says so, so the books move where
+   * they stand instead of the room being replaced under you.
+   */
+  function applyQuery() {
+    var totals = core.markMatches(views, query);
+    var live = query.trim().length > 0;
+    if (live) root.setAttribute("data-query", "1");
+    else root.removeAttribute("data-query");
+
+    var spines = root.querySelectorAll("#" + ID + "shelves .vs-spine");
+    for (var i = 0; i < spines.length; i++) {
+      var id = spines[i].getAttribute("data-book");
+      var book = id ? bookIndex[id] : null;
+      spines[i].setAttribute("data-match", book && book.matches > 0 ? "1" : "0");
+    }
+
+    $("hits").textContent = live
+      ? totals.notes + (totals.notes === 1 ? " note" : " notes") + " in " +
+        totals.books + (totals.books === 1 ? " book" : " books")
+      : "";
   }
 
   /** @param {string} id */
@@ -508,9 +511,23 @@ function mountVaultShelf(root, data, options) {
     }
     reader = { book: book, index: index, noteId: book.notes.length ? book.notes[index].id : null,
                within: "", opener: /** @type {HTMLElement|null} */ (DOC.activeElement) };
+    /* design/0008 -- the book is handled now, and the shelf will show it. */
+    settings.wear[book.id] = (settings.wear[book.id] || 0) + 1;
+    persist();
+    markWear(book.id);
     $("reader").hidden = false;
     renderReader();
     node("reader").focus();
+  }
+
+  /** @param {string} bookId */
+  function markWear(bookId) {
+    var level = core.wearLevel(settings.wear[bookId] || 0);
+    var spines = root.querySelectorAll('#' + ID + 'shelves [data-book="' + cssEscape(bookId) + '"]');
+    for (var i = 0; i < spines.length; i++) {
+      if (level) spines[i].setAttribute("data-wear", String(level));
+      else spines[i].removeAttribute("data-wear");
+    }
   }
 
   function closeReader() {
@@ -549,15 +566,17 @@ function mountVaultShelf(root, data, options) {
       var b = el("button");
       b.type = "button";
       if (note.id === reader.noteId) b.setAttribute("aria-current", "true");
-      b.appendChild(el("span", "t", note.title));
-      if (note.date) b.appendChild(el("span", "when", note.date));
+      b.appendChild(el("span", "vs-t", note.title));
+      if (note.date && note.title.indexOf(note.date) !== 0) {
+        b.appendChild(el("span", "vs-when", note.date));
+      }
       on(b, "click", function () { goTo(i); });
       li.appendChild(b);
       box.appendChild(li);
     });
     if (!box.firstChild) {
       var empty = el("li");
-      empty.appendChild(el("span", "hint", needle ? "Nothing in this book matches." : "This book is empty."));
+      empty.appendChild(el("span", "vs-hint", needle ? "Nothing in this book matches." : "This book is empty."));
       box.appendChild(empty);
     }
   }
@@ -621,24 +640,43 @@ function mountVaultShelf(root, data, options) {
     clear(box);
     var note = reader.book.notes[reader.index];
     if (!note) {
-      box.appendChild(el("p", "hint", "This book has no notes under the current filters."));
+      box.appendChild(el("p", "vs-hint", "This book has no notes under the current filters."));
       clear($("alsoin"));
-      $("ribbon").disabled = true;
+      $("notemeta").textContent = "";
+      field("ribbon").disabled = true;
       return;
     }
     reader.noteId = note.id;
-    $("ribbon").disabled = false;
+    field("ribbon").disabled = false;
     $("ribbon").setAttribute("aria-pressed", isBookmarked(note.id) ? "true" : "false");
-    $("prevnote").disabled = reader.index <= 0;
-    $("nextnote").disabled = reader.index >= reader.book.notes.length - 1;
+    field("prevnote").disabled = reader.index <= 0;
+    field("nextnote").disabled = reader.index >= reader.book.notes.length - 1;
 
-    renderMarkdownInto(box, note);
+    renderMeta(note);
+    /* design/0010 -- A PER-RENDER HOST, and it is what makes the async renderer safe without
+     * a sequence number: renderNote() clears `box` first, which DETACHES the previous host, so
+     * a slow render that resolves after the reader has moved on writes into an element that is
+     * no longer in the document. Nothing to cancel and nothing to compare. */
+    var host = el("div");
+    box.appendChild(host);
+    if (opts.renderNote) {
+      attempt(function () { void opts.renderNote(host, note); });
+    } else {
+      renderMarkdownInto(host, note);
+    }
+    if (opts.onOpenNote) {
+      var open = /** @type {HTMLButtonElement} */ (el("button", "vs-editin", "Edit in Obsidian"));
+      open.type = "button";
+      var openNote = opts.onOpenNote;
+      on(open, "click", function () { openNote(note.path); });
+      box.appendChild(open);
+    }
 
     var also = $("alsoin");
     clear(also);
     var others = core.alsoShelvedIn(note.id, views, reader.book.id);
     if (!others.length) return;
-    also.appendChild(el("span", "lbl", "Also shelved in"));
+    also.appendChild(el("span", "vs-lbl", "Also shelved in"));
     others.slice(0, 8).forEach(function (other) {
       var shelf = shelfById(other.shelfId);
       var b = el("button", "", (shelf ? shelf.name + ": " : "") + other.label);
@@ -654,17 +692,22 @@ function mountVaultShelf(root, data, options) {
    * The host can hand in a real renderer through options.renderMarkdown; this is the
    * standalone's fallback and covers headings, lists, quotes and paragraphs.
    */
-  /** @param {HTMLElement} box @param {ShelfNote} note */
-  function renderMarkdownInto(box, note) {
-    box.appendChild(el("h1", "", note.title));
+  /** @param {ShelfNote} note */
+  function renderMeta(note) {
+    var box = $("notemeta");
+    clear(box);
+    box.appendChild(el("strong", "", note.title));
     /** @type {string[]} */
     var meta = [];
-    if (note.date) meta.push(note.date);
+    if (note.date && note.title.indexOf(note.date) !== 0) meta.push(note.date);
     if (note.folder) meta.push(note.folder);
     if (note.people.length) meta.push(note.people.join(", "));
     if (note.tags.length) meta.push(note.tags.map(function (t) { return "#" + t; }).join(" "));
-    if (meta.length) box.appendChild(el("p", "hint", meta.join(" \u00b7 ")));
+    if (meta.length) box.appendChild(el("span", "", "  " + meta.join(" \u00b7 ")));
+  }
 
+  /** @param {HTMLElement} box @param {ShelfNote} note */
+  function renderMarkdownInto(box, note) {
     var lines = String(note.body || note.excerpt || "").split("\n");
     /** @type {HTMLElement|null} */
     var list = null;
@@ -684,13 +727,9 @@ function mountVaultShelf(root, data, options) {
       if (quote) { box.appendChild(el("blockquote", "", quote[1])); return; }
       if (line.trim()) box.appendChild(el("p", "", line));
     });
-
-    if (opts.onOpenNote) {
-      var open = /** @type {HTMLButtonElement} */ (el("button", "", "Edit in Obsidian"));
-      open.type = "button";
-      var openNote = opts.onOpenNote;
-      on(open, "click", function () { openNote(note.path); });
-      box.appendChild(open);
+    if (!box.firstChild) {
+      box.appendChild(el("p", "vs-hint",
+        "No text for this note here -- open it in Obsidian to read it."));
     }
   }
 
@@ -727,7 +766,8 @@ function mountVaultShelf(root, data, options) {
                                  bookId: reader.book.id, at: Date.now() });
     persist();
     $("ribbon").setAttribute("aria-pressed", isBookmarked(note.id) ? "true" : "false");
-    renderReading();
+    renderLibrary();
+    applyQuery();
   }
 
   function previousCollection() {
@@ -931,9 +971,9 @@ function mountVaultShelf(root, data, options) {
     clear(box);
     var ordered = settings.shelves.slice().sort(function (a, b) { return a.position - b.position; });
     ordered.forEach(function (shelf, i) {
-      var row = el("div", "managerow");
-      row.appendChild(el("span", "name", shelf.name));
-      row.appendChild(el("span", "meta", shelf.classifier + (shelf.hidden ? " \u00b7 hidden" : "")));
+      var row = el("div", "vs-managerow");
+      row.appendChild(el("span", "vs-name", shelf.name));
+      row.appendChild(el("span", "vs-meta", shelf.classifier + (shelf.hidden ? " \u00b7 hidden" : "")));
 
       var up = el("button", "", "\u2191");
       up.type = "button";
@@ -989,23 +1029,20 @@ function mountVaultShelf(root, data, options) {
 
   function renderActiveFilters() {
     var parts = [];
-    if (filters.search) parts.push('search "' + filters.search + '"');
     if (filters.folders.length) parts.push(filters.folders.length + " folder" +
       (filters.folders.length === 1 ? "" : "s"));
     if (filters.from || filters.to) parts.push((filters.from || "\u2026") + " to " + (filters.to || "\u2026"));
     var bar = $("activefilters");
     bar.hidden = !parts.length;
     $("filtertext").textContent = parts.length
-      ? "Filtered by " + parts.join(", ") + " \u2014 " +
+      ? "Narrowed to " + parts.join(", ") + " \u2014 " +
         core.applyFilters(notes, filters).length + " of " + notes.length + " notes"
-      : "";
-    $("hits").textContent = filters.search
-      ? core.applyFilters(notes, filters).length + " notes match"
       : "";
   }
 
   function clearFilters() {
-    filters = { search: "", folders: [], from: null, to: null };
+    filters = { folders: [], from: null, to: null };
+    query = "";
     field("q").value = "";
     refresh();
   }
@@ -1014,9 +1051,10 @@ function mountVaultShelf(root, data, options) {
 
   function refresh() {
     rebuild();
-    renderDirectory();
+    renderRail();
     renderLibrary();
     renderActiveFilters();
+    applyQuery();
     if (builder) previewBuilder();
     if (reader) {
       var again = findBook(reader.book.id);
@@ -1033,10 +1071,9 @@ function mountVaultShelf(root, data, options) {
   /* ============================================================ the wiring == */
 
   on($("q"), "input", function () {
-    filters.search = field("q").value;
-    refresh();
+    query = field("q").value;
+    applyQuery();
   });
-  on($("folderclear"), "click", clearFilters);
   on($("clearfilters"), "click", clearFilters);
   on($("newshelf"), "click", function () { openBuilder(null); });
   on($("newshelf2"), "click", function () { openBuilder(null); });
@@ -1048,13 +1085,6 @@ function mountVaultShelf(root, data, options) {
     renderManage();
     refresh();
   });
-  on($("skin"), "click", function () {
-    settings.skin = settings.skin === "paper" ? "graphite" : "paper";
-    root.setAttribute("data-skin", settings.skin);
-    $("skin").textContent = settings.skin === "paper" ? "Graphite" : "Paper";
-    persist();
-  });
-
   on($("bsave"), "click", saveBuilder);
   on($("bcancel"), "click", closeBuilder);
   ["bname", "bsource", "bsourceval", "bclassifier", "bproperty", "bdirection",
@@ -1088,7 +1118,7 @@ function mountVaultShelf(root, data, options) {
     if (e.key === "ArrowRight") { goTo(reader.index + 1); e.preventDefault(); }
   });
 
-  root.setAttribute("data-skin", settings.skin);
+  readTheme();
   refresh();
 
   /* ---- BEGIN: debug api -- stripped from the plugin build, see scripts/build-plugin.mjs (stripDebug) ---- */
@@ -1109,10 +1139,46 @@ function mountVaultShelf(root, data, options) {
     },
     closeReader: closeReader,
     /** @param {string} skin */
-    setSkin: function (skin) {
-      settings.skin = skin === "paper" ? "paper" : "graphite";
-      root.setAttribute("data-skin", settings.skin);
-      persist();
+    /** @param {string} theme */
+    setTheme: function (theme) {
+      root.setAttribute("data-theme", theme === "light" ? "light" : "dark");
+      readTheme();
+      refresh();
+    },
+    readTheme: function () { readTheme(); refresh(); },
+    /** @param {string} q */
+    setQuery: function (q) {
+      query = q;
+      field("q").value = q;
+      applyQuery();
+    },
+    /** The twelve slots as the cascade currently resolves them. design/0005. */
+    slots: function () { return SLOTS.slice(); },
+    /** design/0008 -- what the room currently looks like it has been used for. */
+    magic: function () {
+      var worn = {};
+      var withRibbon = 0, ghosts = 0, forward = 0;
+      views.forEach(function (v) {
+        v.books.forEach(function (b) {
+          var lv = core.wearLevel(settings.wear[b.id] || 0);
+          if (lv) worn[b.id] = lv;
+          if (ribbonsIn(b)) withRibbon++;
+        });
+      });
+      var spines = root.querySelectorAll("#" + ID + "shelves .vs-spine");
+      for (var i = 0; i < spines.length; i++) {
+        if (spines[i].getAttribute("data-match") === "1") forward++; else ghosts++;
+      }
+      return {
+        query: query,
+        parting: root.getAttribute("data-query") === "1",
+        worn: Object.keys(worn).length,
+        wornSpines: root.querySelectorAll("#" + ID + "shelves .vs-spine[data-wear]").length,
+        ribbons: withRibbon,
+        ribbonSpines: root.querySelectorAll("#" + ID + "shelves .vs-spine .vs-ribbon").length,
+        forward: forward,
+        ghosts: ghosts
+      };
     },
     /** @param {boolean} on_ */
     setListMode: function (on_) {
@@ -1167,8 +1233,11 @@ function mountVaultShelf(root, data, options) {
         shelves: views.length,
         visible: views.filter(function (v) { return !v.shelf.hidden; }).length,
         books: views.reduce(function (n, v) { return n + v.books.length; }, 0),
-        spines: root.querySelectorAll("#" + ID + "shelves .spine").length,
-        plaques: root.querySelectorAll("#" + ID + "shelves .plaque").length
+        spines: root.querySelectorAll("#" + ID + "shelves .vs-spine").length,
+        plaques: root.querySelectorAll("#" + ID + "shelves .vs-plaque").length,
+        jump: root.querySelectorAll("#" + ID + "jump .vs-jump").length,
+        newshelf: root.querySelectorAll("#" + ID + "library .vs-newshelf").length,
+        readingShelf: root.querySelectorAll('#' + ID + 'shelves [data-shelf="-reading"]').length
       };
     }
   };
@@ -1183,16 +1252,17 @@ function mountVaultShelf(root, data, options) {
         notes = next.notes.slice();
         folders = next.folders.slice();
         slotOf = {};
-        folders.forEach(function (f) { slotOf[f.path] = SLOTS[f.slot % SLOTS.length]; });
+        readTheme();
       }
       refresh();
     },
     /** @param {unknown} next */
     setSettings: function (next) {
       settings = core.migrate(next);
-      root.setAttribute("data-skin", settings.skin);
       refresh();
     },
+    /** The host says the theme changed; re-read the twelve slots and repaint. */
+    readTheme: function () { readTheme(); refresh(); },
     destroy: function () {
       for (var i = onDestroy.length - 1; i >= 0; i--) attempt(onDestroy[i]);
       onDestroy.length = 0;

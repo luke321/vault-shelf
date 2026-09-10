@@ -245,9 +245,9 @@ try {
       var leaves = app.workspace.getLeavesOfType("vault-shelf-view");
       var root = document.querySelector(".vault-shelf");
       return { leaves: leaves.length, mounted: !!root,
-               spines: document.querySelectorAll("#vs-shelves .spine").length,
-               shelves: document.querySelectorAll("#vs-shelves .shelf").length,
-               plaques: document.querySelectorAll("#vs-shelves .plaque").length,
+               spines: document.querySelectorAll("#vs-shelves .vs-spine").length,
+               shelves: document.querySelectorAll("#vs-shelves .vs-shelf").length,
+               plaques: document.querySelectorAll("#vs-shelves .vs-plaque").length,
                tabTitle: leaves.length ? leaves[0].getDisplayText() : "" };
     })()`);
     report(r.leaves === 1 && r.mounted && r.spines > 0,
@@ -272,9 +272,9 @@ try {
     const r = await E(`(function(){
       var api = app.plugins.getPlugin("${PLUGIN_ID}");
       var files = app.vault.getMarkdownFiles().length;
-      var spines = document.querySelectorAll("#vs-shelves .spine").length;
-      var people = [].slice.call(document.querySelectorAll('#vs-shelves [data-shelf="people"] .spine')).length;
-      var tags = [].slice.call(document.querySelectorAll('#vs-shelves [data-shelf="tags"] .spine')).length;
+      var spines = document.querySelectorAll("#vs-shelves .vs-spine").length;
+      var people = [].slice.call(document.querySelectorAll('#vs-shelves [data-shelf="people"] .vs-spine')).length;
+      var tags = [].slice.call(document.querySelectorAll('#vs-shelves [data-shelf="tags"] .vs-spine')).length;
       return { files: files, spines: spines, people: people, tags: tags, hasApi: !!api };
     })()`);
     report(r.people > 0 && r.tags > 0,
@@ -305,7 +305,7 @@ try {
     const after = await E(`(function(){
       return { nodes: document.getElementsByTagName("*").length,
                roots: document.querySelectorAll(".vault-shelf").length,
-               spines: document.querySelectorAll("#vs-shelves .spine").length };
+               spines: document.querySelectorAll("#vs-shelves .vs-spine").length };
     })()`);
     report(after.roots === 1 && after.spines > 0,
            "three close-and-reopen cycles leave one library behind",
@@ -343,13 +343,77 @@ try {
       app.setting.close();
       return { n: n, names: names, attached: attached };
     })()`);
-    report(r.found && r.declarative >= 4 && rows.n >= 4,
+    report(r.found && r.declarative >= 3 && rows.n >= 3,
            "the settings tab renders on both paths",
            r.found
              ? `${r.declarative} declarative definitions for 1.13 and later; display() renders ` +
                `${rows.n} rows for 1.7.2 through 1.12: ${rows.names.slice(0, 6).join(", ")} ` +
                `(tab active: ${r.active}, container attached: ${rows.attached})`
              : "no settings tab registered");
+  }
+
+  if (selected("markdown")) {
+    const r = await E(`(function(){
+      var leaf = app.workspace.getLeavesOfType("vault-shelf-view")[0];
+      var view = leaf ? leaf.view : null;
+      if (!view || !view.handle) return { ok: false, why: "the view is not mounted" };
+      var spine = document.querySelector("#vs-shelves .vs-spine");
+      if (!spine) return { ok: false, why: "no spine on any shelf" };
+      spine.click();
+      return { ok: !document.getElementById("vs-reader").hidden, why: "the reader did not open" };
+    })()`);
+    /* MarkdownRenderer is async and Obsidian post-processes after it resolves, so the note is
+     * read a beat later rather than in the same expression -- the mistake that made the
+     * settings check report an empty tab that was on screen. */
+    await sleep(1400);
+    const note = await E(`(function(){
+      var box = document.getElementById("vs-note");
+      var meta = document.getElementById("vs-notemeta");
+      return {
+        chars: box ? box.textContent.trim().length : 0,
+        /* Markup only Obsidian's renderer produces -- our fallback emits none of these. */
+        obsidian: box ? box.querySelectorAll(
+          ".markdown-rendered, .internal-link, .tag, .task-list-item, .callout, " +
+          "pre.language-, .list-bullet, ul, ol, h1, h2, h3, p").length : 0,
+        elements: box ? box.querySelectorAll("*").length : 0,
+        fallback: box ? box.textContent.indexOf("open it in Obsidian to read it") >= 0 : false,
+        title: meta ? meta.textContent.trim().slice(0, 60) : ""
+      };
+    })()`);
+    /* A long paragraph must WRAP, not widen the reader. Both the spread (a flex item) and the
+     * page (a grid item) default to min-width:auto, which means "never shrink below your
+     * content" -- so one unbroken line grew a horizontal scrollbar across the whole spread. */
+    const fit = await E(`(function(){
+      var ids = ["vs-reader", "vs-note"];
+      var out = {};
+      ids.forEach(function (id) {
+        var n = document.getElementById(id);
+        if (n) out[id] = { c: Math.round(n.clientWidth), s: Math.round(n.scrollWidth) };
+      });
+      [".vs-spread", ".vs-page.vs-right", ".vs-prose"].forEach(function (sel) {
+        var n = document.querySelector("#vs-reader " + sel);
+        if (n) out[sel] = { c: Math.round(n.clientWidth), s: Math.round(n.scrollWidth) };
+      });
+      var p = document.querySelector("#vs-note p");
+      if (p) out.p = { c: Math.round(p.clientWidth), s: Math.round(p.scrollWidth),
+                       ws: getComputedStyle(p).whiteSpace };
+      return out;
+    })()`);
+    const over = Object.keys(fit).filter((k) => fit[k].s > fit[k].c + 1);
+    report(over.length === 0, "a long note wraps instead of widening the reader",
+           over.length
+             ? over.map((k) => `${k} ${fit[k].c}px wide but ${fit[k].s}px of content`).join("; ") +
+               `; the paragraph's white-space is ${fit.p ? fit.p.ws : "?"}`
+             : Object.keys(fit).map((k) => `${k} ${fit[k].c}`).join(", ") + " -- nothing scrolls sideways");
+    report(r.ok && note.chars > 40 && note.elements > 2 && !note.fallback,
+           "the note is rendered by Obsidian's own markdown renderer",
+           r.ok
+             ? `${note.chars} characters in ${note.elements} elements, ${note.obsidian} of them ` +
+               `markdown structure; the fallback text is ${note.fallback ? "showing" : "not showing"}; ` +
+               `meta reads "${note.title}"`
+             : "could not open a book: " + r.why);
+    await c.eval(`(function(){ var b = document.getElementById("vs-back"); if (b) b.click(); })(); void 0`);
+    await sleep(400);
   }
 
   /* ---- a picture -------------------------------------------------------- */
@@ -362,6 +426,18 @@ try {
     const shot = await c.send("Page.captureScreenshot", { format: "png" });
     writeFileSync(SHOT, Buffer.from(shot.data, "base64"));
     console.log("\nwrote " + SHOT);
+
+    /* The reading spread is half the product and never appears in a picture of the
+     * shelves, so --shot takes both. */
+    await c.eval(`(function(){
+      var s = document.querySelector("#vs-shelves .vs-spine");
+      if (s) s.click();
+    })(); void 0`);
+    await sleep(1600);
+    const two = SHOT.replace(/\.png$/i, "") + "-reader.png";
+    const shot2 = await c.send("Page.captureScreenshot", { format: "png" });
+    writeFileSync(two, Buffer.from(shot2.data, "base64"));
+    console.log("wrote " + two);
   }
 
   console.log(`\n${ran - failed}/${ran} passed`);

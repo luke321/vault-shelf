@@ -90,8 +90,13 @@ export const SETTINGS_SCHEMA = 1;
 export interface Persisted {
   schema: number;
   shelves: Shelf[];
-  skin: "graphite" | "paper";
   reading: { noteId: string; shelfId: string; bookId: string; at: number }[];
+  /**
+   * design/0008 -- how many times each book has been opened, keyed by its stable address.
+   * This is the only state the library keeps ABOUT you rather than about your notes, and it
+   * is what makes a shelf look handled instead of printed.
+   */
+  wear: Record<string, number>;
   dateFields: string[];
   peopleProperty: string;
   /** decisions/0003 -- off by default; a file's mtime is almost never the note's date. */
@@ -111,8 +116,8 @@ export function emptySettings(): Persisted {
   return {
     schema: SETTINGS_SCHEMA,
     shelves: defaultShelves(),
-    skin: "graphite",
     reading: [],
+    wear: {},
     dateFields: ["date", "created"],
     peopleProperty: "people",
     useFileStamp: false,
@@ -133,8 +138,8 @@ export function migrate(raw: unknown): Persisted {
   return {
     schema: SETTINGS_SCHEMA,
     shelves: shelves.length ? shelves.map((s, i) => ({ ...s, position: i })) : base.shelves,
-    skin: data.skin === "paper" ? "paper" : "graphite",
     reading: Array.isArray(data.reading) ? data.reading.filter(isMark) : [],
+    wear: wearOf(data.wear),
     dateFields: Array.isArray(data.dateFields) && data.dateFields.length
       ? data.dateFields.filter((f): f is string => typeof f === "string")
       : base.dateFields,
@@ -142,6 +147,30 @@ export function migrate(raw: unknown): Persisted {
       ? data.peopleProperty : base.peopleProperty,
     useFileStamp: data.useFileStamp === true,
   };
+}
+
+/** Only positive finite counts survive: a hand-edited file cannot make a spine infinitely worn. */
+function wearOf(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      out[key] = Math.min(Math.round(value), 9999);
+    }
+  }
+  return out;
+}
+
+/* ---- shelf wear ----------------------------------------------------------
+ * design/0008
+ */
+
+/** Four steps and a floor, so a shelf reads as handled rather than as a bar chart. */
+export function wearLevel(opens: number): 0 | 1 | 2 | 3 {
+  if (opens >= 12) return 3;
+  if (opens >= 5) return 2;
+  if (opens >= 2) return 1;
+  return 0;
 }
 
 function isShelf(value: unknown): value is Shelf {

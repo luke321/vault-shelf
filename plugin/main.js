@@ -1,4 +1,4 @@
-import { addIcon, ItemView, Plugin, PluginSettingTab, Setting, TFile } from "obsidian";
+import { addIcon, ItemView, MarkdownRenderer, Plugin, PluginSettingTab, Setting, TFile } from "obsidian";
 import { mountVaultShelf } from "../src/page.js";
 import * as core from "../src/core/index";
 import PAGE_HTML from "raw:../src/page.html";
@@ -160,6 +160,8 @@ export class ShelfView extends ItemView {
     super(leaf);
     this.plugin = plugin;
     this.handle = null;
+    /** @type {HTMLElement|null} */
+    this.page = null;
   }
 
   getViewType() { return VIEW_TYPE; }
@@ -178,6 +180,10 @@ export class ShelfView extends ItemView {
     if (!page) throw new Error("page markup did not parse to an element");
     root.appendChild(page);
 
+    this.page = page;
+    this.syncTheme();
+    this.registerEvent(this.app.workspace.on("css-change", () => this.syncTheme()));
+
     this.handle = mountVaultShelf(page, buildData(this.app, this.plugin.config), {
       core,
       settings: this.plugin.config,
@@ -186,7 +192,41 @@ export class ShelfView extends ItemView {
         const file = this.app.vault.getAbstractFileByPath(path);
         if (file instanceof TFile) void this.app.workspace.getLeaf(false).openFile(file);
       },
+      renderNote: (into, note) => this.renderNote(into, note),
     });
+  }
+
+  /* design/0005 -- the library follows the app. Obsidian fires css-change when the theme or
+   * a snippet changes, which is the only signal that the twelve slots may now resolve to
+   * different values; the page re-reads them rather than repainting from a stale array. */
+  syncTheme() {
+    if (!this.page) return;
+    const want = document.body.classList.contains("theme-dark") ? "dark" : "light";
+    if (this.page.getAttribute("data-theme") === want) return;
+    this.page.setAttribute("data-theme", want);
+    if (this.handle) attempt(() => this.handle.readTheme());
+  }
+
+  /**
+   * design/0010 -- OBSIDIAN'S OWN RENDERER, over the file's own text.
+   *
+   * buildData deliberately never reads a file (decisions/0005): the metadata cache holds
+   * everything a shelf needs and reading the vault behind the app's back is how a plugin ends
+   * up disagreeing with it. Rendering ONE open note is the other case entirely -- it is one
+   * file, on demand, through the app's own cachedRead, and the alternative is showing a
+   * two-line excerpt of a note the reader is looking straight at.
+   *
+   * @param {HTMLElement} into @param {import("../src/page.js").ShelfNote} note
+   */
+  async renderNote(into, note) {
+    const file = this.app.vault.getAbstractFileByPath(note.path);
+    if (!(file instanceof TFile)) {
+      into.createEl("p", { text: "That note is no longer in the vault." });
+      return;
+    }
+    const text = await this.app.vault.cachedRead(file);
+    const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+    await MarkdownRenderer.render(this.app, body, into, note.path, this);
   }
 
   /** The Refresh command and the metadata-cache listener both land here. */
@@ -197,6 +237,7 @@ export class ShelfView extends ItemView {
   onClose() {
     if (this.handle) attempt(() => this.handle.destroy());
     this.handle = null;
+    this.page = null;
     this.contentEl.empty();
   }
 }
@@ -276,7 +317,7 @@ export default class VaultShelfPlugin extends Plugin {
  * same table (SETTINGS), so what one path shows the other shows too.
  */
 
-/** @type {{ key: "dateFields" | "peopleProperty" | "useFileStamp" | "skin", name: string, desc: string, kind: "text" | "toggle" | "dropdown", options?: [string, string][] }[]} */
+/** @type {{ key: "dateFields" | "peopleProperty" | "useFileStamp", name: string, desc: string, kind: "text" | "toggle" }[]} */
 const SETTINGS = [
   { key: "dateFields", kind: "text",
     name: "Date properties",
@@ -291,11 +332,6 @@ const SETTINGS = [
     desc: "Off by default. A file's modification time is almost never the date the note is " +
           "about -- a sync or a bulk reformat restamps the whole vault -- so a note with no " +
           "date property and no date in its title goes to Undated instead." },
-  { key: "skin", kind: "dropdown",
-    name: "Skin",
-    desc: "Graphite is the charcoal archive; Paper & cloth is the same library in warm " +
-          "paper. Both have every feature.",
-    options: [["graphite", "Graphite"], ["paper", "Paper & cloth"]] },
 ];
 
 class ShelfSettingTab extends PluginSettingTab {
@@ -316,12 +352,6 @@ class ShelfSettingTab extends PluginSettingTab {
                  control: { type: /** @type {"toggle"} */ ("toggle"), key: s.key,
                             defaultValue: false } };
       }
-      if (s.kind === "dropdown") {
-        return { name: s.name, desc: s.desc,
-                 control: { type: /** @type {"dropdown"} */ ("dropdown"), key: s.key,
-                            defaultValue: "graphite",
-                            options: (s.options || []).map(([value, label]) => ({ value, label })) } };
-      }
       return { name: s.name, desc: s.desc,
                control: { type: /** @type {"text"} */ ("text"), key: s.key, defaultValue: "" } };
     });
@@ -332,7 +362,6 @@ class ShelfSettingTab extends PluginSettingTab {
     if (key === "dateFields") return this.plugin.config.dateFields.join(", ");
     if (key === "peopleProperty") return this.plugin.config.peopleProperty;
     if (key === "useFileStamp") return this.plugin.config.useFileStamp;
-    if (key === "skin") return this.plugin.config.skin;
     return undefined;
   }
 
@@ -356,8 +385,7 @@ class ShelfSettingTab extends PluginSettingTab {
       this.plugin.config.peopleProperty = String(value).trim() || "people";
       return;
     }
-    if (key === "useFileStamp") { this.plugin.config.useFileStamp = value === true; return; }
-    if (key === "skin") this.plugin.config.skin = value === "paper" ? "paper" : "graphite";
+    if (key === "useFileStamp") this.plugin.config.useFileStamp = value === true;
   }
 
   display() {
@@ -374,11 +402,6 @@ class ShelfSettingTab extends PluginSettingTab {
         setting.addToggle((toggle) => toggle
           .setValue(this.getControlValue(def.key) === true)
           .onChange(save));
-      } else if (def.kind === "dropdown") {
-        setting.addDropdown((drop) => {
-          for (const [value, label] of def.options || []) drop.addOption(value, label);
-          drop.setValue(String(this.getControlValue(def.key))).onChange(save);
-        });
       } else {
         setting.addText((text) => text
           .setValue(String(this.getControlValue(def.key)))

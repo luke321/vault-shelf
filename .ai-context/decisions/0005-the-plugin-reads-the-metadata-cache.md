@@ -34,6 +34,15 @@ host happened to enumerate.
 deferred: the leaf is real and `getLeavesOfType` finds it, but `leaf.view` is a placeholder
 until something reveals it. `eachView` tests `view instanceof ShelfView` before touching it.
 
+## Amended 2026-09-10: the note being READ is fetched, and that is not a contradiction
+
+`buildData` still reads the cache and no file. But the reading spread now renders the open
+note with `MarkdownRenderer` over its real text, fetched with `app.vault.cachedRead` — one
+file, on demand, through the app's own cache, for the one note somebody is looking straight
+at. The rule this record sets is about *building the shelf data*, and it is unchanged: `body`
+and `excerpt` are still empty strings from this host, and a note's text never enters the shelf
+data. `design/0010` has the reasoning.
+
 ## Consequences
 
 - Full-text search works in the standalone and not in the plugin, and the search box says so

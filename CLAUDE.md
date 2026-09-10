@@ -23,12 +23,16 @@ of measuring it.** Build the page, drive it, read the numbers.
 - **The ISO week keeps its week-year.** 2027-01-01 is 2026-W53.
 - **Plaques are date classifiers only, and only when asked for**, and a plaque lives inside
   the same horizontal scroller as the books it names.
+- **A filter narrows; the query marks.** A filter removes notes before books are built. The
+  search query never does: every book stays on the shelf and draws forward or thins to a ghost.
 - **A filter changes membership and nothing else.** Shelf order and book addresses do not move.
 - **A hidden shelf keeps its definition and its books.** Hiding never deletes; hiding
   everything still offers a way back.
-- **The page is scoped**: every CSS rule under `.vault-shelf`, every id through `$()`, every
-  document through `root.ownerDocument`; nothing shipped reaches the network.
-- **The two skins change nothing but the paint.**
+- **The page is scoped, in both directions**: every CSS rule under `.vault-shelf`, every id
+  and **every class** prefixed `vs-`, every document through `root.ownerDocument`; nothing
+  shipped reaches the network. Obsidian's own `app.css` claims `.spread`, and it claimed ours.
+- **The twelve colour slots are Vault Graph's**, read from the cascade rather than copied, and
+  the theme is whatever the host says it is.
 
 ## How to work here
 
@@ -38,8 +42,10 @@ of measuring it.** Build the page, drive it, read the numbers.
   that something looks wrong. Two real bugs here were found only by taking a screenshot: a
   stray `DEL` byte inside `"-undated"` (printed identically, compared unequal, emptied every
   Undated book) and `[hidden]` losing to a class selector (the reader and both sheets painted
-  over the library while every attribute-reading check passed). **Look at it.**
-  `node scripts/obsidian-smoke.mjs --shot out.png` is the fastest way.
+  over the library while every attribute-reading check passed), and a third only because the
+  person the plugin is for said "does not remind me of vault graph yet" — a design record had
+  claimed palette parity that nobody had ever verified. **Look at it.**
+  `node scripts/obsidian-smoke.mjs --shot out.png` writes the library and the reading spread.
 - **Two things may not run twice at once, and `scripts/lock.mjs` is how you know.** A **screen
   recording** grabs a display region, so a second take captures the first one's window; the
   **full suite** drives Chrome over CDP, so two runs fight for ports and each blames the code.
@@ -84,8 +90,9 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/page.js` | the page: directory, shelf rails, builder, manage sheet, reading spread — one `mountVaultShelf()`. **Do not read it top to bottom**; open `.ai-context/code-map.md` and go to the line range |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 33 checks over three vault shapes |
-| `scripts/obsidian-smoke.mjs` | the same plugin inside a real Obsidian: ribbon icon, view lifecycle, settings tab, `--shot` for a picture |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 37 checks over three vault shapes |
+| `scripts/obsidian-smoke.mjs` | the same plugin inside a real Obsidian: ribbon icon, view lifecycle, settings tab, Obsidian's markdown renderer, `--shot` for two pictures |
+| `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
 | `.ai-context/code-map.md` | **generated**: sections and functions of the two big files, with line numbers |
 | `.ai-context/code-index.md` | **generated**: issue → code sites, ADR/DDR → code sites, invariant → check, `__vs.*` → callers |
 | `.ai-context/README.md` | the map of the design records: `decisions/` (ADRs, why not the other thing), `design/` (DDRs, how a part works), `invariants.md`, `changelog-detail.md` |

@@ -72,6 +72,63 @@ the debug surface is stripped from the plugin bundle.
 
 ---
 
+## The palette was never Vault Graph's
+
+`design/0005` asserted that the twelve colour slots were "Vault Graph's, by name and by value".
+They were twelve invented pastels — `#7fb3c8`, `#c8a06a`, `#8fbf88` — and nobody had opened the
+other project's stylesheet. Measured 2026-09-10, the real values:
+
+| | Vault Graph, light | Vault Graph, dark | what was here |
+|---|---|---|---|
+| `--g1` | `#2a78d6` | `#3987e5` | `#7fb3c8` |
+| `--g2` | `#eb6834` | `#d95926` | `#c8a06a` |
+| `--g3` | `#1baf7a` | `#199e70` | `#8fbf88` |
+| `--surface-0` | `#f4f3f0` | `#121211` | `#17181a`, dark only |
+
+Not a near miss: a saturated, light-first palette against twelve desaturated pastels on a
+charcoal ground. Caught by the person the plugin is for, looking at it.
+
+The slots are now **read from the cascade** rather than written down — `readTheme()` resolves
+`--g1`..`--g12` — so a theme switch re-reads them and a copy cannot drift. The suite asserts
+all twenty-four values, twelve light and twelve dark, against literals.
+
+## Obsidian owns `.spread`
+
+Measured 2026-09-10, in the reading spread: the note pane was **495px wide with 1,324px of
+content**, the page 916 against 1,346, and the whole spread had a horizontal scrollbar.
+
+Two rounds of `min-width: 0` on the grid item and then the flex item did not fix it, because
+neither was the cause. The browser was asked directly which rule was responsible:
+
+```
+white-space on .spread set by: app.css  {.pdfViewer.scrollHorizontal, .spread} -> nowrap
+```
+
+**Obsidian's PDF viewer owns the class name `.spread`.** Nothing in this repository was wrong;
+the class name was a word somebody else had already claimed — and `ribbon`, `page`, `title`,
+`contents`, `tabs`, `prose` and `sheet` were all sitting there waiting to be claimed next.
+
+Every class the page emits now carries the `vs-` prefix its ids always had — 51 of them — and
+`check-scope.mjs` enforces it across the markup, the stylesheet and the page. After: nothing
+scrolls sideways, at 1,216px of reader and 495px of note.
+
+The `min-width: 0` on both the spread and the page stayed, because both were also true: a flex
+item and a grid item each default to `min-width: auto`, and fixing only one left the other
+doing it.
+
+## The query stopped narrowing
+
+Before: `filters.search` removed notes, so a search rebuilt every shelf and books vanished.
+After: `core.markMatches` scores books that already exist and `applyQuery()` sets `data-match`
+on the existing spines. Measured on the demo vault: **182 spines before, during and after** a
+query; 6 drew forward and 176 thinned to ghosts. Nothing is rebuilt and nothing is removed.
+
+The check that guards it takes its search term **from the vault it is running against**.
+Hard-coding `garden` passed on the demo vault and, on the sparse one — which has no such tag —
+asserted that a query finding nothing still drew something forward.
+
+---
+
 ## Two bugs a number could not see
 
 Both were found by taking a screenshot while every automated check was green. They are here

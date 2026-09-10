@@ -49,15 +49,26 @@ function saveSettings(next) {
   try { window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch (e) { }
 }
 
-mountVaultShelf(
-  document.getElementById("vs-app"),
-  window.VAULT_DATA,
-  {
-    core: window.VaultShelfCore,
-    settings: loadSettings(),
-    onSettings: saveSettings
-  }
-);
+/* The standalone has no host to ask, so it follows the operating system and re-reads the
+ * twelve slots when that changes -- the same signal the plugin gets from Obsidian. */
+function followSystemTheme(handle, root) {
+  if (!window.matchMedia) return;
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var apply = function () {
+    root.setAttribute("data-theme", mq.matches ? "dark" : "light");
+    if (handle && handle.readTheme) handle.readTheme();
+  };
+  if (mq.addEventListener) mq.addEventListener("change", apply);
+  apply();
+}
+
+var vsRoot = document.getElementById("vs-app");
+var vsHandle = mountVaultShelf(vsRoot, window.VAULT_DATA, {
+  core: window.VaultShelfCore,
+  settings: loadSettings(),
+  onSettings: saveSettings
+});
+followSystemTheme(vsHandle, vsRoot);
 </script>
 </body>
 </html>

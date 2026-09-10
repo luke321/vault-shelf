@@ -36,9 +36,12 @@ changing what a shelf contains or how a book is addressed.
 | `0002-shelves-books-and-the-builder` | Two questions, eight classifiers, and the live preview |
 | `0003-year-plaques` | Why the plaque is inside the scroller, and when it is not drawn at all |
 | `0004-the-reading-spread` | The two pages, the index tabs, the reading table, and cross-shelf history |
-| `0005-colour-and-the-two-skins` | Twelve slots shared with Vault Graph; Graphite and Paper & cloth as one feature set |
+| `0005-colour-and-the-theme` | Vault Graph's own tokens, read from the cascade; the theme is the host's; why every class is prefixed |
 | `0006-the-harness` | Where a driven browser goes, and the mutex two of them share |
 | `0007-the-recorder` | Why the demo is captured frame by frame over CDP rather than recorded off a screen |
+| `0008-the-magic` | Shelf wear, ribbons that hang, and the shelf parting as you type |
+| `0009-the-room` | No sidebar: the library is the surface, and New shelf is at both ends of it |
+| `0010-the-note` | Obsidian's own markdown renderer, and why that is not a filesystem read |
 
 **ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
 it explains *why not the other thing*. A DDR describes how a part actually works and the
@@ -79,7 +82,10 @@ __vs.checkMembership()    // unique notes per shelf vs what the shelf claims
 __vs.addresses()          // every book's stable address, in order
 __vs.setFilters({ search: "garden" })
 __vs.openBook("months/2026-09", null)
-__vs.setSkin("paper")
+__vs.setQuery("garden")   // the shelf parts; nothing is removed
+__vs.magic()              // wear, ribbons, what drew forward and what went to ghosts
+__vs.slots()              // the twelve colour slots, as the cascade resolved them
+__vs.setTheme("light")    // light and dark are Vault Graph's own
 __vs.setListMode(true)    // the assistive-technology view
 ```
 
