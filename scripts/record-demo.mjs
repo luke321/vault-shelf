@@ -483,6 +483,28 @@ try {
   }
   await cdp.send("Emulation.setDeviceMetricsOverride",
                  { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+
+  /* design/0016 -- SHOOT IN WHICHEVER LOOK WAS ASKED FOR. The look is a setting, so the film
+   * takes it the way a person does: by pressing the standalone's own switch. Then the switch
+   * is hidden, because it belongs to the standalone rather than to the plugin and a control
+   * that is not in the product should not be in the film. */
+  const look = arg("look", "");
+  if (look) {
+    const applied = await j(`(function(){
+      var b = document.getElementById("vs-lookswitch");
+      if (!b) return "no switch";
+      var want = ${JSON.stringify(look)};
+      for (var i = 0; i < 3; i++) {
+        if (document.getElementById("vs-app").getAttribute("data-look") === want) break;
+        b.click();
+      }
+      b.style.display = "none";
+      return document.getElementById("vs-app").getAttribute("data-look") || "";
+    })()`);
+    if (applied !== look) throw new Error(`--look ${look}: the page came up as "${applied}"`);
+    say("look: " + look);
+  }
+
   await go(`(function(){
     var s = document.createElement("style");
     s.textContent = ${JSON.stringify(CAPTION_CSS)};

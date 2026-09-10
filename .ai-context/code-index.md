@@ -29,7 +29,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `design/0004` | src/core/shelves.ts:208, src/core/shelves.ts:263, src/core/types.ts:94, src/page.js:684 |
 | `design/0005` | src/leather.css:7, src/leather.css:19, src/leather.css:62, src/leather.css:448, src/leather.css:729, src/page.css:4, src/page.css:8, src/page.css:107, src/page.css:426, src/page.css:613, src/page.js:62, src/page.js:226, src/page.js:586, src/page.js:1450, plugin/main.js:10, plugin/main.js:199, scripts/check-scope.mjs:72, scripts/smoke.mjs:554 |
 | `design/0006` | scripts/obsidian-smoke.mjs:3, scripts/screen.mjs:1, scripts/screen.mjs:42 |
-| `design/0007` | scripts/record-demo.mjs:2, scripts/record-demo.mjs:23, scripts/record-demo.mjs:139, scripts/record-demo.mjs:172, scripts/record-demo.mjs:419, scripts/record-demo.mjs:442, scripts/record-demo.mjs:451, scripts/record-demo.mjs:562 |
+| `design/0007` | scripts/record-demo.mjs:2, scripts/record-demo.mjs:23, scripts/record-demo.mjs:139, scripts/record-demo.mjs:172, scripts/record-demo.mjs:419, scripts/record-demo.mjs:442, scripts/record-demo.mjs:451, scripts/record-demo.mjs:584 |
 | `design/0008` | src/core/defaults.ts:95, src/core/defaults.ts:193, src/core/shelves.ts:223, src/core/types.ts:79, src/core/types.ts:105, src/leather.css:468, src/leather.css:511, src/page.css:497, src/page.css:525, src/page.css:545, src/page.js:202, src/page.js:284, src/page.js:593, src/page.js:646, src/page.js:698, src/page.js:1452, scripts/smoke.mjs:644, scripts/smoke.mjs:667, scripts/smoke.mjs:693 |
 | `design/0009` | src/leather.css:263, src/leather.css:560, src/page.css:91, src/page.css:101, src/page.css:296, src/page.js:262, scripts/smoke.mjs:529, scripts/smoke.mjs:724 |
 | `design/0010` | src/page.css:740, src/page.js:55, src/page.js:922, plugin/main.js:211 |
@@ -38,7 +38,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `design/0013` | src/build-shelf.mjs:121, scripts/make-mirror-vault.mjs:2, scripts/make-mirror-vault.mjs:114, scripts/make-mirror-vault.mjs:204, scripts/make-mirror-vault.mjs:423, scripts/make-sparse-vault.mjs:153, scripts/record-demo.mjs:77 |
 | `design/0014` | src/page.css:365, src/page.css:387, src/page.js:76, src/page.js:192, src/page.js:306, src/page.js:354, src/page.js:405, src/page.js:514, src/page.js:550, scripts/smoke.mjs:808 |
 | `design/0015` | src/core/shelves.ts:175, src/page.js:777, src/page.js:833 |
-| `design/0016` | src/build-shelf.mjs:200, src/core/defaults.ts:105, src/core/defaults.ts:112, src/leather.css:6, src/page.js:1334, src/shell.html:22, src/shell.html:102, plugin/main.js:237, plugin/main.js:405, scripts/build-plugin.mjs:109, scripts/check-scope.mjs:16, scripts/obsidian-smoke.mjs:110, scripts/smoke.mjs:608 |
+| `design/0016` | src/build-shelf.mjs:200, src/core/defaults.ts:105, src/core/defaults.ts:112, src/leather.css:6, src/page.js:1334, src/shell.html:22, src/shell.html:102, plugin/main.js:237, plugin/main.js:405, scripts/build-plugin.mjs:109, scripts/check-scope.mjs:16, scripts/obsidian-smoke.mjs:110, scripts/record-demo.mjs:487, scripts/smoke.mjs:608 |
 
 ## Invariants → checks — 27 sections in `.ai-context/invariants.md`
 

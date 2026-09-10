@@ -147,3 +147,12 @@ allowed to exist under, stated as a number.
 - **A page-turn.** Still rejected, for the reason `design/0012` gives: it is a delay between a
   person and their note. The leather look spends its motion budget on a book tipping out of the
   shelf, which is a way of pointing at the thing you are about to open.
+
+## Filming it
+
+`node scripts/record-demo.mjs --look leather` shoots the storyboard in the binding. The film
+takes the look the way a person does -- by pressing the standalone's own switch -- and then
+hides the switch, because it belongs to the standalone rather than to the plugin and a control
+that is not in the product should not be in the film. The recorder throws rather than shooting
+98 seconds of the wrong look if the attribute does not come back as asked.
+
