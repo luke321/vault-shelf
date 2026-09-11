@@ -14,7 +14,7 @@ suite. An entry here says what changed; that file says what it was before and af
 
 ---
 
-## 0.1.0 — "Six addresses" — unreleased
+## 0.1.0 — "Beginning" — 2026-09-11
 
 **Your vault as a library.** Shelves of books built from titles, dates, people, tags, folders
 or any note property, read as a two-page spread — and the notes never move. Shelves and books
