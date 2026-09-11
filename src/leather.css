@@ -51,7 +51,10 @@
   --vs-gilt-hi: #fff0c9;
   --vs-control: #30312b;
   --vs-control-hover: #3a3a31;
-  --vs-input: #20211e;
+  /* github#2 -- the field a box or a dropdown is filled with in the room, and the arrow on
+   * it; the paper sheet and the reading page declare their own below. */
+  --vs-field: #20211e;
+  --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%23ccc5b5' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
   --vs-grain: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.14'/%3E%3C/svg%3E");
   --vs-woodgrain: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='40'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='40' filter='url(%23w)' opacity='0.18'/%3E%3C/svg%3E");
 }
@@ -118,12 +121,14 @@
 
 .vault-shelf[data-look="leather"] .vs-jump .vs-n { color: var(--text-3); }
 
+/* github#2 -- background-color, never the shorthand: the dropdown's chevron is a background
+ * image page.css paints from --vs-chevron, and `background:` would wipe it. */
 .vault-shelf[data-look="leather"] input[type="search"],
 .vault-shelf[data-look="leather"] input[type="text"],
 .vault-shelf[data-look="leather"] select,
 .vault-shelf[data-look="leather"] #vs-q {
   color: var(--text-1);
-  background: var(--vs-input);
+  background-color: var(--vs-field);
   border: 1px solid var(--border);
   border-radius: 4px;
   box-shadow: inset 0 1px 2px #00000012;
@@ -305,7 +310,9 @@
   --accent: #793b3d;
   --vs-control: #efe8d8;
   --vs-control-hover: #e5dbc6;
-  --vs-input: #faf6ee;
+  /* github#2 -- ON PAPER, A BOX IS PAPER: a light field, dark ink, a dark arrow. */
+  --vs-field: #faf6ee;
+  --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%23575247' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
   color: var(--text-1);
   scrollbar-color: #b3a78f #eee7d8;
 }

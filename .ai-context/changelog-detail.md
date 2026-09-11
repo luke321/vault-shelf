@@ -1,5 +1,92 @@
 # Changelog detail
 
+## 2026-09-11 — A ribbon per book colour, and the colours block became a table
+
+> "make it ribbons so you can choose a color per book color, so basically a table, use
+> complimentary colors by default"
+
+**One ribbon could not serve twelve bindings.** `settings.ribbon` was a single colour for the
+whole library; it is now `settings.ribbons`, twelve entries, one per palette slot
+(**schema 9 → 10**). A file at 9 carries a colour every book wore, so it migrates to all
+twelve: **12 of 12** on the check, with the old field gone. A file with none comes up 12 empty,
+a sparse twelve keeps what it names, and a junk array comes back 12 long with 0 set.
+
+**The Manage block is a table**: twelve rows, the dye on the left and the thread that hangs off
+it on the right, **four columns of three** in a Manage sheet widened to 760px, so the whole
+block and the buttons under it are on screen at once. The ribbon
+column is drawn with the spine's own notch, so the table needs no legend. Each swatch keeps its
+own mark and its own reset.
+
+**The default ribbon is the dye's complement, computed not stored**, so it follows the look and
+the theme the way the twelve do. The lightness rule was measured rather than argued: a fixed
+subtraction left **8 of 12** separated from their dyes on the demo vault, because a
+mid-lightness dye lands inside the clamp and comes back the same weight as its board. Moving
+whichever way has more room inside `[0.32, 0.78]` gives **12 of 12**, and the bounds are set by
+the *rooms* — cyber's ground is near-black and modern's near-white, so a thread may go neither
+very dark nor very pale. A ribbon set on slot 7 reaches the spine wearing that dye and no other:
+measured `#ca9a5f` before and `#aa3355` after, with 1 of 12 stored.
+
+**`--ribbon` moved off the root.** It is written per spine from that book's dye and on the
+reader's mark row from the open book's, so every ribbon in one book is one thread.
+
+**The same-size check caught the new furniture immediately.** `.vs-slot` is `inline-flex`, so a
+swatch in a table cell sits on the baseline and the row grows by the face's descender: under
+leather the table was **309px against modern's 291**. Two more followed from the four-column
+layout: a column **heading** is text, so the column was **109.9px under leather against
+107.3** (the headings are gone), and under `table-layout: fixed` a cell 10px too narrow took
+the 10px off the swatch rather than overflowing, **36 wide became 26** (columns pinned, swatch
+`flex: 0 0 auto`). Block-level cells, pinned line-heights and pinned columns bring it back to
+**0 off**, and the table (**92** wide) and the ribbon swatch
+(**22×30**) are in the measured list now — 38 controls, 37 on the demo vault.
+
+Crossed two files this worktree's brief had fenced off, both flagged for the orchestrator:
+`src/core/defaults.ts` for the schema, and `renderSpine`/`renderMarks` in `src/page.js` for
+the paint. The suite is **68 → 69** checks.
+
+## 2026-09-11 — Dropdowns paint themselves, and the Manage sheet reads as one thing
+
+> "dropdowns in manage do not show the correct background color, looks like dark theme"
+> (github#2); "colors in manage look terrible to select, also there needs to be a reset
+> button", "make hide show a toggle as well", "all settings persistent naturally" (github#4)
+
+**The host's select rule, measured rather than guessed.** Obsidian's `app.css` rule for
+`select` was read out of the shipped bundle and put into the page by a new check. On the page
+from the previous commit, with that rule in: **34 wrong** — the rail selector **28 → 40px**
+high, the builder's dropdown **29 → 40**, no chevron on any of the twelve dropdowns, the
+leather rail selector wearing `--surface-2`. After: **0 wrong**, **28 → 28** and
+**31.5 → 31.5**, every field the look's own, on all three shapes. `page.css` now sets every
+property the host sets on a `select`; each look supplies `--vs-field` and `--vs-chevron`
+(leather twice: the dark rail and the paper sheet), and the cyberpunk look's private fix for
+`#vs-look` is gone. Leather paper reads `rgb(250, 246, 238)` on `rgb(48, 46, 39)`, the rail
+`rgb(32, 33, 30)` on `rgb(204, 197, 181)`. The builder's dropdown is **31.5** now rather
+than 29 because the box is ours: the same height as the Name box above it.
+
+**Twelve bare colour wells became twelve painted, numbered slots**, drawn by the dye menu's
+three-deep rule, each marked with a × once it is not the look's own — the mark is that slot's
+reset — with the ribbon beside them and one *Reset colours* that is disabled when nothing is
+customised. The look's own twelve are read off the cascade with the person's overrides lifted
+(`OWN` in `readTheme()`), and twelve that are all the look's own again save as none, so a
+reset under one look never pins its colours under another. Hide/Show on a Manage row is a
+**Shown** switch beside Vary colours. Everything goes through `persist()` and back through
+`core.migrate`: **12 hex** saved after one pick, `#3355aa` in slot 3 and in the cascade,
+**0** saved after that slot's ×, **12** after two picks and one ×, **0 / ""** after Reset
+colours, `hidden: true` then `false` from the switch with **5 → 4 → 5** visible on the demo
+and the hidden shelf still holding **16** books, **0** Hide/Show buttons left.
+
+**The same size in every look, still.** The same-size check grew from 28 to **37 controls** —
+the Shown knob, a palette slot (**36×28**), a slot's reset mark, the ribbon slot, Reset
+colours, and the builder's Name box, three dropdowns and Save — and reads **0 off** under
+leather and cyber on all three shapes. Modern's own numbers did not move: button 27.3, search
+232×29.5, ribbon 30, dye swatch 25.5.
+
+Looked at: Manage open under leather, modern and cyber, and the builder under leather and
+modern (`--shot-open manage|builder`, new). What the pictures changed: *Reset colours* was
+a bar across the whole row because the sheet's wide-row rule outranked the colour row's; it is
+one button at the end of the row now. What could not be looked at: the real Obsidian
+rendering — the check injects the host's rule, and the plugin was not installed into a vault.
+
+The suite is **66 → 68** checks.
+
 ## 2026-09-11 — The docs site wears the product's dark look, and it is Vault Graph's sheet
 
 > github#1: "a theme close to vault-shelf's own dark look ... not a generic off-the-shelf

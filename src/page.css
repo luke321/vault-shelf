@@ -39,6 +39,12 @@
   --n2: #45443f;
   --n3: #8a897f;
   --accent: #2a78d6;
+  /* github#2 -- WHAT A BOX IS FILLED WITH, AND THE ARROW ON A DROPDOWN. Written as literals
+   * rather than `var(--surface-2)` because a custom property substitutes where it is declared:
+   * a look's paper sheet re-declares --surface-2 under the root and a token that pointed at it
+   * would still hold the room's value there. Every block that changes the field says so. */
+  --vs-field: #ffffff;
+  --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%2352514e' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
@@ -62,6 +68,8 @@
     --n1: #8d8c84; --n2: #bdbcb2; --n3: #77766d;
     --accent: #3987e5;
     --tint: 14%;
+    --vs-field: #232322;
+    --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%23c3c2b7' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
   }
 }
 
@@ -85,6 +93,8 @@
   --n1: #8d8c84; --n2: #bdbcb2; --n3: #77766d;
   --accent: #3987e5;
   --tint: 14%;
+  --vs-field: #232322;
+  --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%23c3c2b7' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 /* ---- the room ------------------------------------------------------------
@@ -240,10 +250,11 @@
   font: inherit;
   font-size: 11.5px;
   color: var(--text-2);
-  background: var(--surface-2);
+  background-color: var(--vs-field);
   border: 1px solid var(--border);
   border-radius: 3px;
-  padding: 3px 6px;
+  padding: 3px 22px 3px 6px;
+  background-position: right 7px center;
 }
 
 .vault-shelf #vs-look:focus { border-color: var(--accent); outline: none; }
@@ -308,12 +319,42 @@
   line-height: 1.5;
   width: 100%;
   color: var(--text-1);
-  background: var(--surface-2);
+  background-color: var(--vs-field);
   border: 1px solid var(--border);
   border-radius: 3px;
   padding: 5px 8px;
   min-height: 28px;
 }
+
+/* github#2 -- A DROPDOWN PAINTS ITSELF, IN EVERY LOOK. Obsidian's app.css styles every
+ * `select` in the app: `appearance: none`, its own height, padding, no border, a box-shadow,
+ * a chevron drawn as two background layers with a blend mode, and a field colour from the
+ * host theme. Every one of those a rule here leaves unset lands on our dropdowns inside the
+ * plugin and not in the standalone, which is how the Manage sheet's dropdowns came up dark on
+ * leather's paper (design/0016's lesson that the standalone is not a preview of the plugin,
+ * for the fourth time; the cyberpunk look had solved it for #vs-look alone, design/0017).
+ * So every property the host sets is set here: the box is ours, the arrow is drawn, and each
+ * look supplies the field and the stroke through --vs-field and --vs-chevron. */
+.vault-shelf select {
+  appearance: none;
+  -webkit-appearance: none;
+  height: auto;
+  padding-right: 26px;
+  background-image: var(--vs-chevron);
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 10px 7px;
+  background-blend-mode: normal;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.vault-shelf select:focus { border-color: var(--accent); outline: none; }
+
+/* The list the platform drops down is the platform's; `color-scheme` on the token block is
+ * what makes it light or dark, and the options carry the field's own colours for the hosts
+ * that honour them. */
+.vault-shelf select option { color: var(--text-1); background-color: var(--vs-field); }
 
 .vault-shelf .vs-lbl {
   font-size: 11px;
@@ -985,6 +1026,12 @@
   background: color-mix(in srgb, var(--surface-0) 82%, transparent);
 }
 
+/* github#4 -- THE MANAGE SHEET IS WIDER THAN THE BUILDER, and only it. Twelve dyes and
+ * their twelve threads are a table, and a table wants columns: at 620px it stood six rows
+ * deep in two columns, at 860 it is three rows in four. The builder is a form, which reads
+ * worse wide, so the width is on this sheet rather than on .vs-sheetbody. */
+.vault-shelf #vs-manage .vs-sheetbody { max-width: 760px; }
+
 .vault-shelf .vs-sheetbody {
   width: 100%;
   max-width: 620px;
@@ -1026,22 +1073,96 @@
 
 .vault-shelf .vs-sheetactions { margin-top: 18px; }
 
-.vault-shelf .vs-coloroption { display: flex; align-items: center; gap: 6px; }
+.vault-shelf .vs-coloroption { display: flex; align-items: center; gap: 8px; }
 .vault-shelf .vs-sheetsub { font-size: 12.5px; font-weight: 600; margin: 22px 0 4px; }
 
-/* design/0005 -- the twelve, as twelve inputs, with no chrome of their own: a colour input
- * that looks like a button is a button, and this is a palette. */
-.vault-shelf .vs-palette { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
-.vault-shelf .vs-palette input[type="color"],
-.vault-shelf .vs-coloroption input[type="color"] {
-  width: 32px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: 3px;
-  background: none;
-  cursor: pointer;
+/* github#4 -- THE TWELVE, AS TWELVE PAINTED SWATCHES. A bare colour input is whatever the host
+ * draws for one -- inside Obsidian a small unlabelled well -- so the row said nothing about
+ * which slot was which or whether it had been touched. A slot here is drawn the way the dye
+ * menu draws one (design/0005), numbered, and marked when it is no longer the look's own; the
+ * native picker still opens behind it, since it is the ROW that has to read, not the picker.
+ * The picker input itself is off-screen, not `display: none`: a hidden input can still be
+ * clicked open, one with no box cannot. */
+/* github#4 -- A DYE AND ITS RIBBON ARE ONE ROW. Two tables of six rather than one of
+ * twelve: the sheet is 620px wide, and a single column of twelve rows puts the buttons at
+ * the foot of it below the fold. They stack to one column when the sheet is narrow. */
+.vault-shelf .vs-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+  justify-items: start;
+  gap: 4px 20px;
+  margin: 8px 0 12px;
 }
+/* The table hugs its swatches and the GRID holds the slack. A table at 100% stretches its
+ * last cell, and the reset badge hangs off that cell's top-right corner -- which put a
+ * stray mark halfway across the sheet, nowhere near the swatch it belonged to. */
+.vault-shelf .vs-dyerows { border-collapse: collapse; table-layout: fixed; width: 92px; }
+/* 5px, not 2: the reset badge sits off the top-right corner of a swatch, and at 2px it
+ * reached into the row above. */
+.vault-shelf .vs-dyerows th,
+.vault-shelf .vs-dyerows td { padding: 5px 0; text-align: left; vertical-align: middle; }
+/* design/0016 -- A LOOK MAY NOT RESIZE A CONTROL, and a swatch in a table cell is the case
+ * where that is easy to lose: .vs-slot is inline-flex, so it sits on the cell's BASELINE and
+ * the row grows by whatever the face's descender is. Leather is Georgia and the table came
+ * out 309px against modern's 291. Block-level in the cell, and the line-heights pinned, so
+ * the row is the swatch and nothing else. */
+.vault-shelf .vs-dyerows td .vs-slot { display: flex; }
+.vault-shelf .vs-dyerows th { line-height: 1.4; }
+/* The slot number is the row label, so the swatch does not carry one. */
+.vault-shelf .vs-dyerows tbody th {
+  width: 24px;
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+/* Pinned, because table-layout: fixed shares the leftover width between the cells and a
+ * swatch is a FLEX ITEM: a cell 10px too narrow did not overflow, it quietly took 10px off
+ * the swatch -- 36px wide became 26 and the same-size check read it as a look-independent
+ * change nobody asked for. 24 + 44 + 24 = 92. */
+.vault-shelf .vs-dyerows td { width: 44px; padding-right: 8px; }
+.vault-shelf .vs-dyerows td:last-child { width: 24px; padding-right: 0; }
+.vault-shelf .vs-slot { position: relative; display: inline-flex; }
+.vault-shelf .vs-slot input[type="color"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  left: 0;
+  bottom: 0;
+  border: 0;
+  padding: 0;
+  pointer-events: none;
+}
+.vault-shelf .vs-colourrow { align-items: center; justify-content: space-between; }
+/* The reset is one button at the end of the row, not a bar across it: three classes deep to
+ * outrank the wide row rule that stretches every other sheet button. */
+.vault-shelf .vs-mini.vs-colourrow button { flex: 0 0 auto; }
+/* The mark on a changed slot IS its reset: one small × in the corner says "not the look's
+ * own" and puts it back. A right-click was the other choice, and it is what a spine has;
+ * a swatch has a corner to put a badge in and a spine does not, and a badge is found by
+ * looking where a right-click has to be known about. Inside Obsidian a right-click on a
+ * control is also the app's own menu. */
+.vault-shelf .vs-slot .vs-slotreset {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  font-size: 12px;
+  line-height: 14px;
+  text-align: center;
+  border-radius: 50%;
+  color: var(--text-1);
+  background: var(--surface-1);
+  background-image: none;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 1px 3px color-mix(in srgb, #000 30%, transparent);
+  z-index: 1;
+}
+.vault-shelf .vs-slot .vs-slotreset:hover { color: #fff; background: var(--accent); border-color: var(--accent); }
 
 /* The dye menu, where the right-click landed. */
 .vault-shelf .vs-dye {
@@ -1067,7 +1188,8 @@
  * `.vault-shelf[data-look] button` -- one class, one attribute, one element -- which beats a
  * two-class selector, and under leather the twelve swatches came out as twelve leather
  * buttons with no colour on them at all. `.vault-shelf .vs-dye .vs-swatch` outranks it. */
-.vault-shelf .vs-dye .vs-swatch {
+.vault-shelf .vs-dye .vs-swatch,
+.vault-shelf .vs-slot .vs-swatch {
   height: 24px;
   min-height: 0;
   padding: 0;
@@ -1077,8 +1199,29 @@
   background-image: none;
   box-shadow: none;
 }
-.vault-shelf .vs-dye .vs-swatch:hover, .vault-shelf .vs-dye .vs-swatch:focus-visible { border-color: var(--text-1); background: var(--swatch); }
+.vault-shelf .vs-dye .vs-swatch:hover, .vault-shelf .vs-dye .vs-swatch:focus-visible,
+.vault-shelf .vs-slot .vs-swatch:hover, .vault-shelf .vs-slot .vs-swatch:focus-visible { border-color: var(--text-1); background: var(--swatch); }
 .vault-shelf .vs-dye .vs-swatch[aria-pressed="true"] { border-color: var(--text-1); outline: 1px solid var(--surface-1); outline-offset: -3px; }
+/* github#4 -- a Manage swatch is a slot in a row of twelve, so it is wider than a menu's and
+ * carries its number; the same size in every look, because this sheet sizes it. */
+.vault-shelf .vs-slot .vs-swatch {
+  position: relative;
+  /* Never shrink to fit a container: a swatch is a measured control (design/0016). */
+  flex: 0 0 auto;
+  width: 36px;
+  height: 28px;
+  border-color: color-mix(in srgb, var(--swatch) 70%, var(--text-1));
+}
+.vault-shelf .vs-slot .vs-swatch[data-changed="1"] { border-color: var(--text-1); }
+/* github#4 -- THE RIBBON COLUMN SHOWS RIBBONS. Same notch the spine hangs (design/0008), so
+ * the table says which thread comes out of which board without a word of legend. */
+.vault-shelf .vs-slot .vs-swatch.vs-ribbonswatch {
+  width: 22px;
+  height: 30px;
+  border-width: 1px;
+  border-radius: 2px 2px 0 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+}
 
 /* A switch: the state of a thing, drawn as a knob in a track, and the label reads as a fact. */
 .vault-shelf .vs-toggle {

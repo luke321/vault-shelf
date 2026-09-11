@@ -90,6 +90,10 @@ const LOOK = arg("look", "");
 /* `--shot-note "<title>"` opens that note for the reader picture instead of the first book,
  * which is how a rendering complaint about one particular note gets looked at. */
 const SHOT_NOTE = arg("shot-note", "");
+/* `--shot-open manage|builder` takes the library picture with that sheet open. Manage is shot
+ * with one slot and the ribbon changed, because a colours block with nothing changed shows
+ * none of the marks the block exists to show; both are put back before the sheet closes. */
+const SHOT_OPEN = arg("shot-open", "");
 const GRID = argv.includes("--no-grid") ? false
           : argv.includes("--grid") ? true
           : JOBS > 1;
@@ -386,6 +390,38 @@ check("a plaque sits under the books it names, in the same scroller", async (p) 
                    `floor; same scroller: ${r.sameRail}; width differs by ${r.widthDiff}px` };
 });
 
+/* github#4 -- schema 10 gave every slot its own ribbon. A file from 9 carries one that every
+ * book in the library wore, and that was a choice, so it becomes all twelve. */
+check("one ribbon from an older schema becomes a ribbon on every colour", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var was = core.migrate({ schema: 9, ribbon: "#b0122b" });
+    var none = core.migrate({ schema: 9 });
+    var kept = core.migrate({ schema: 10, ribbons: ["#111111", "", "#333333", "", "", "", "", "", "", "", "", ""] });
+    var junk = core.migrate({ schema: 10, ribbons: ["nope", 7, null] });
+    return {
+      schema: core.SETTINGS_SCHEMA,
+      spread: was.ribbons.filter(function (c) { return c === "#b0122b"; }).length,
+      hadRibbon: "ribbon" in was,
+      none: none.ribbons.filter(function (c) { return c; }).length,
+      noneLength: none.ribbons.length,
+      keptFirst: kept.ribbons[0], keptThird: kept.ribbons[2],
+      keptEmpty: kept.ribbons.filter(function (c) { return !c; }).length,
+      junkLength: junk.ribbons.length, junkSet: junk.ribbons.filter(function (c) { return c; }).length
+    };
+  })()`);
+  const ok = r.schema === 10 && r.spread === 12 && !r.hadRibbon && r.none === 0 && r.noneLength === 12 &&
+             r.keptFirst === "#111111" && r.keptThird === "#333333" && r.keptEmpty === 10 &&
+             r.junkLength === 12 && r.junkSet === 0;
+  return {
+    ok,
+    detail: `schema ${r.schema}; one ribbon from 9 becomes ${r.spread} of 12, and the old field is ` +
+            `${r.hadRibbon ? "STILL THERE" : "gone"}; a file with none comes up ${r.noneLength} empty; ` +
+            `a sparse twelve keeps ${r.keptFirst} and ${r.keptThird} with ${r.keptEmpty} following their dyes; ` +
+            `a junk array comes back ${r.junkLength} long with ${r.junkSet} set`
+  };
+});
+
 check("a settings file from an older schema comes up with the newer defaults", async (p) => {
   const r = await p.j(`(function(){
     var core = window.VaultShelfCore;
@@ -447,7 +483,7 @@ check("a settings file from an older schema comes up with the newer defaults", a
   /* People carries plaques from schema 6 too -- the alphabet is a unit above the book like a
    * decade is (design/0003) -- so the shelf that proves a migration does not touch everything
    * is Months, which asked for plaques before any of this and still has them. */
-  const ok = r.schema === 9 && r.years === true && r.months === true && r.people === true &&
+  const ok = r.schema === 10 && r.years === true && r.months === true && r.people === true &&
              r.wear === 3 && r.fields === "date" && r.keptOff === false &&
              r.stamp === true && r.keptStampOff === false && r.order === "oldest" &&
              r.weeksHidden === true && r.keptShown === true && r.lettered === true &&
@@ -1151,8 +1187,15 @@ check("every control is the same size in every look", async (p) => {
     ];
     var managing = [
       ["#vs-managelist .vs-managerow", true], ["#vs-managelist .vs-managerow button", false],
-      ["#vs-managelist .vs-toggle .vs-knob", true], ["#vs-mclose", false],
-      ["#vs-mpalette .vs-swatch", true], ["#vs-mpalettereset", false]
+      ["#vs-managelist .vs-toggle[data-fact=shown] .vs-knob", true],
+      ["#vs-managelist .vs-toggle[data-fact=vary] .vs-knob", true], ["#vs-mclose", false],
+      ["#vs-mpalette .vs-swatch", true], ["#vs-mpalette .vs-slotreset", true],
+      ["#vs-mpalette .vs-ribbonswatch", true], ["#vs-mpalette .vs-dyerows", true],
+      ["#vs-mpalettereset", false]
+    ];
+    var building = [
+      ["#vs-bname", true], ["#vs-bsource", true], ["#vs-bclassifier", true],
+      ["#vs-bdirection", false], ["#vs-bsave", false]
     ];
     var dyeing = [["#vs-dye .vs-swatch", true]];
     var out = {};
@@ -1170,8 +1213,16 @@ check("every control is the same size in every look", async (p) => {
       if (mark) mark.click();
       __vs.closeReader();
       document.getElementById("vs-manageopen").click();
+      /* One slot changed, so the slot's own reset mark is on the sheet to be measured. */
+      var slot = q('#vs-mpalette .vs-dyerows input[type="color"]');
+      slot.value = "#3355aa";
+      slot.dispatchEvent(new Event("change", { bubbles: true }));
       managing.forEach(function (c) { row[c[0]] = { fixed: c[1], box: box(c[0]) }; });
+      document.getElementById("vs-mpalettereset").click();
       document.getElementById("vs-mclose").click();
+      document.getElementById("vs-newshelf").click();
+      building.forEach(function (c) { row[c[0]] = { fixed: c[1], box: box(c[0]) }; });
+      document.getElementById("vs-bcancel").click();
       var spine = q('[data-book="' + book.id + '"]');
       spine.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true,
                                                           clientX: 300, clientY: 300 }));
@@ -1198,15 +1249,131 @@ check("every control is the same size in every look", async (p) => {
   });
   const measured = names.filter((n) => base[n].box).length;
   return {
-    ok: off.length === 0 && measured >= 26,
+    ok: off.length === 0 && measured >= 34,
     detail: `${measured} controls measured in ${Object.keys(r).length} looks against modern ` +
             `(search ${base["#vs-q"].box.w}x${base["#vs-q"].box.h}, button ` +
             `${base["#vs-manageopen"].box.w}x${base["#vs-manageopen"].box.h}, tab ` +
             `${base["#vs-tabs button"].box ? base["#vs-tabs button"].box.h : "-"} high, ribbon ` +
             `${base["#vs-marks .vs-mark"].box ? base["#vs-marks .vs-mark"].box.h : "-"} high, ` +
             `swatch ${base["#vs-dye .vs-swatch"].box ? base["#vs-dye .vs-swatch"].box.w : "-"}` +
-            ` wide); ${off.length} off by more than a pixel` +
+            ` wide, palette slot ${base["#vs-mpalette .vs-swatch"].box ? base["#vs-mpalette .vs-swatch"].box.w + "x" + base["#vs-mpalette .vs-swatch"].box.h : "-"}, ` +
+            `dropdown ${base["#vs-bsource"].box ? base["#vs-bsource"].box.h : "-"} high); ${off.length} off by more than a pixel` +
             (off.length ? `: ${off.join("; ")}` : "")
+  };
+});
+
+/* github#2 -- the report came from inside Obsidian, whose app.css styles every `select`, and
+ * the suite runs the standalone where none of that exists. So the host's rule is put into the
+ * page here, copied out of app.css: what it sets and a rule of ours leaves alone is what a
+ * dropdown in the plugin would wear. */
+check("every dropdown paints itself, whatever the host says a select is", async (p) => {
+  const r = await p.j(`(function(){
+    var looks = window.VaultShelfCore.LOOKS.map(function (l) { return l.value; });
+    var q = function (sel) { return document.querySelector(sel); };
+    var height = function (sel) { var e = q(sel); return e ? Math.round(e.getBoundingClientRect().height * 10) / 10 : null; };
+    var probe = document.createElement("span");
+    document.body.appendChild(probe);
+    var rgb = function (c) { probe.style.color = ""; probe.style.color = c; return getComputedStyle(probe).color; };
+    var lum = function (c) {
+      var m = /rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/.exec(c);
+      return m ? Math.round((0.2126 * m[1] + 0.7152 * m[2] + 0.0722 * m[3]) / 2.55) / 100 : -1;
+    };
+    var shown = function (e) { return e.getClientRects().length > 0; };
+    var read = function (e) {
+      var cs = getComputedStyle(e);
+      var want = cs.getPropertyValue("--vs-field").trim();
+      return {
+        id: e.id || e.className || e.tagName, sheet: !!e.closest(".vs-sheetbody, .vs-page"),
+        field: cs.backgroundColor, want: rgb(want), ink: cs.color, appearance: cs.appearance,
+        chevron: cs.backgroundImage.indexOf("data:image/svg+xml") >= 0 && cs.backgroundImage.indexOf("gradient") < 0,
+        h: Math.round(e.getBoundingClientRect().height * 10) / 10,
+        leaked: cs.backgroundColor === "rgb(32, 32, 32)" || cs.boxShadow.indexOf("255, 0, 0") >= 0 ||
+                cs.backgroundImage.indexOf("gradient") >= 0 || cs.borderTopWidth === "0px" ||
+                cs.paddingLeft === "10px"
+      };
+    };
+    /* The two boxes the host could resize, measured before its rule is in the page. */
+    document.getElementById("vs-newshelf").click();
+    var before = { look: height("#vs-look"), source: height("#vs-bsource") };
+    document.getElementById("vs-bcancel").click();
+
+    var host = document.createElement("style");
+    host.textContent = "select { -webkit-appearance: none; appearance: none; height: 40px; " +
+      "padding: 0 30px 0 10px; border: 0; box-shadow: 0 0 0 2px #ff0000; color: #dadada; " +
+      "background-color: #202020; " +
+      "background-image: linear-gradient(#ff0000, #ff0000), linear-gradient(#00ff00, #00ff00); " +
+      "background-repeat: no-repeat, no-repeat; background-position: right 8px top 50%, right 0.15em top 50%; " +
+      "background-size: 10px auto, 2em 2em; background-blend-mode: hard-light, normal; }";
+    document.head.insertBefore(host, document.head.firstChild);
+
+    var was = document.querySelector(".vault-shelf").getAttribute("data-look") || "";
+    var out = { before: before, looks: {} };
+    looks.forEach(function (look) {
+      __vs.setLook(look);
+      document.getElementById("vs-newshelf").click();
+      document.getElementById("vs-manageopen").click();
+      var selects = [].slice.call(document.querySelectorAll(".vault-shelf select")).filter(shown).map(read);
+      var boxes = [].slice.call(document.querySelectorAll('.vault-shelf input[type="search"], .vault-shelf input[type="text"]'))
+        .filter(shown).map(read);
+      document.getElementById("vs-mclose").click();
+      document.getElementById("vs-bcancel").click();
+      __vs.openBook(__vs.addresses()[0], null);
+      var within = read(q("#vs-within"));
+      __vs.closeReader();
+      out.looks[look || "modern"] = { selects: selects, boxes: boxes, within: within,
+                                      after: { look: height("#vs-look") } };
+    });
+    __vs.setLook(was);
+    document.getElementById("vs-newshelf").click();
+    out.after = { look: height("#vs-look"), source: height("#vs-bsource") };
+    document.getElementById("vs-bcancel").click();
+    host.remove();
+    probe.remove();
+    out.lum = {};
+    Object.keys(out.looks).forEach(function (k) {
+      out.looks[k].selects.forEach(function (x) { x.lumField = lum(x.field); x.lumInk = lum(x.ink); });
+      out.looks[k].boxes.forEach(function (x) { x.lumField = lum(x.field); x.lumInk = lum(x.ink); });
+      out.looks[k].within.lumField = lum(out.looks[k].within.field);
+    });
+    return out;
+  })()`);
+  const wrong = [];
+  let selects = 0, boxes = 0;
+  Object.keys(r.looks).forEach((look) => {
+    const L = r.looks[look];
+    L.selects.forEach((x) => {
+      selects++;
+      if (x.field !== x.want) wrong.push(`${look} ${x.id} field ${x.field}, wanted ${x.want}`);
+      if (x.appearance !== "none") wrong.push(`${look} ${x.id} appearance ${x.appearance}`);
+      if (!x.chevron) wrong.push(`${look} ${x.id} no drawn chevron`);
+      if (x.leaked) wrong.push(`${look} ${x.id} wears the host's rule`);
+    });
+    L.boxes.forEach((x) => {
+      boxes++;
+      if (x.field !== x.want) wrong.push(`${look} ${x.id} box field ${x.field}, wanted ${x.want}`);
+    });
+    if (look === "leather") {
+      /* Paper is paper: a box on the sheet is light with dark ink; one in the rail is dark. */
+      L.selects.concat(L.boxes).forEach((x) => {
+        if (x.sheet && !(x.lumField > 0.8 && x.lumInk < 0.4)) wrong.push(`leather ${x.id} on paper reads ${x.field} / ${x.ink}`);
+        if (!x.sheet && !(x.lumField < 0.3 && x.lumInk > 0.6)) wrong.push(`leather ${x.id} in the rail reads ${x.field} / ${x.ink}`);
+      });
+      if (!(L.within.lumField > 0.8)) wrong.push(`leather #vs-within on the page reads ${L.within.field}`);
+    }
+  });
+  const moved = Math.abs(r.before.look - r.after.look) > 1 || Math.abs(r.before.source - r.after.source) > 1;
+  if (moved) wrong.push(`the host's rule moved a box: #vs-look ${r.before.look} -> ${r.after.look}, #vs-bsource ${r.before.source} -> ${r.after.source}`);
+  const leather = r.looks.leather;
+  const paper = leather ? leather.selects.filter((x) => x.sheet)[0] : null;
+  const rail = leather ? leather.selects.filter((x) => !x.sheet)[0] : null;
+  return {
+    ok: wrong.length === 0 && selects >= 12 && boxes >= 6,
+    detail: `${selects} dropdowns and ${boxes} boxes under ${Object.keys(r.looks).length} looks with Obsidian's select rule ` +
+            `in the page: every field the look's own, appearance none, a drawn chevron; ` +
+            `leather paper ${paper ? paper.field + " / " + paper.ink : "-"}, leather rail ` +
+            `${rail ? rail.field + " / " + rail.ink : "-"}; #vs-look ${r.before.look} -> ${r.after.look} high, ` +
+            `the builder's ${r.before.source} -> ${r.after.source}; ${wrong.length} wrong` +
+            (wrong.length ? `: ${wrong.slice(0, 6).join("; ")}` : "")
   };
 });
 
@@ -1294,7 +1461,7 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
     document.getElementById("vs-manageopen").click();
     var rows = [].slice.call(document.querySelectorAll("#vs-managelist .vs-managerow"));
     var row = rows.filter(function (r) { return r.textContent.indexOf("People") === 0; })[0];
-    var vary = row.querySelector('.vs-toggle input[role="switch"]');
+    var vary = row.querySelector('.vs-toggle[data-fact="vary"] input[role="switch"]');
     vary.click();
     var variedDyes = ids.map(tint).join(",");
     var varied = new Set(ids.map(tint)).size;
@@ -1309,7 +1476,7 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
       return now !== "(gone)" && now !== variedDyes.split(",")[i];
     }).length;
     __vs.setFilters({ folders: [] });
-    var pressed = [].slice.call(document.querySelectorAll('#vs-managelist .vs-toggle input[role="switch"]'))
+    var pressed = [].slice.call(document.querySelectorAll('#vs-managelist .vs-toggle[data-fact="vary"] input[role="switch"]'))
       .filter(function (b) { return b.checked; }).length;
     vary.click();
     var backDyes = ids.map(tint).join(",");
@@ -1317,7 +1484,7 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
 
     /* A chosen palette: change one input and all twelve become the person's. */
     var slotsBefore = __vs.slots().join(",");
-    var input = document.querySelectorAll("#vs-mpalette input")[0];
+    var input = document.querySelectorAll('#vs-mpalette .vs-dyerows tbody tr td:nth-child(2) input[type="color"]')[0];
     input.value = "#123456";
     input.dispatchEvent(new Event("change", { bubbles: true }));
     var slotsAfter = __vs.slots();
@@ -1348,7 +1515,191 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
             `${r.recoloured} recoloured by a narrowing rebuild, the folder dyes back after ` +
             `(${r.restored}); choosing ` +
             `#123456 for slot 1 makes it ${r.slot1}, still ${r.underOther} under the ` +
-            `${r.other} look, and ${r.reset} after "use the look's own"`
+            `${r.other} look, and ${r.reset} after "Reset colours"`
+  };
+});
+
+/* github#4 -- "all settings persistent naturally". Each thing the sheet can set goes through
+ * persist() and comes back through core.migrate, which is the reload path in both hosts. */
+check("colours and hidden shelves set in Manage persist through a reload", async (p) => {
+  const r = await p.j(`(function(){
+    var reload = function () {
+      return window.VaultShelfCore.migrate(JSON.parse(JSON.stringify(__vs.settings())));
+    };
+    var HEX = /^#[0-9a-f]{6}$/;
+    var marks = function (scope) { return document.querySelectorAll(scope + " .vs-slotreset").length; };
+    var pick = function (sel, value) {
+      var input = document.querySelector(sel);
+      input.value = value;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    /* Row i of the twelve, whichever of the two tables of six it is standing in. */
+    var cell = function (i, col) {
+      var rows = [].slice.call(document.querySelectorAll("#vs-mpalette .vs-dyerows tbody tr"));
+      return rows[i - 1].querySelector("td:nth-child(" + col + ') input[type="color"]');
+    };
+    var nth = function (i) { return cell(i, 2); };
+    var thread = function (i) { return cell(i, 3); };
+    var shown = function (input) { return input.parentNode.querySelector(".vs-swatch"); };
+    var paintedOn = function (input) {
+      return getComputedStyle(shown(input)).backgroundColor;
+    };
+    var rootStyle = function (name) {
+      return getComputedStyle(document.querySelector(".vault-shelf")).getPropertyValue(name).trim();
+    };
+    var out = {};
+    document.getElementById("vs-manageopen").click();
+    var reset = document.getElementById("vs-mpalettereset");
+
+    /* The block as it opens: twelve painted, numbered slots, nothing marked, nothing to reset. */
+    var slots = __vs.slots();
+    var probe = document.createElement("span");
+    document.body.appendChild(probe);
+    var swatches = [].slice.call(document.querySelectorAll('#vs-mpalette td:nth-child(2) .vs-swatch'));
+    out.swatches = swatches.length;
+    out.painted = swatches.filter(function (sw, i) {
+      probe.style.color = slots[i];
+      return getComputedStyle(sw).backgroundColor === getComputedStyle(probe).color;
+    }).length;
+    document.body.removeChild(probe);
+    out.numbers = [].slice.call(document.querySelectorAll("#vs-mpalette .vs-dyerows tbody th"))
+      .map(function (th) { return th.textContent; }).join(",");
+    out.rows = document.querySelectorAll("#vs-mpalette .vs-dyerows tbody tr").length;
+    out.threads = document.querySelectorAll("#vs-mpalette .vs-ribbonswatch").length;
+    /* A ribbon nobody chose is its dye's complement: a different hue, and far enough in
+     * lightness that the thread is not the board. */
+    out.complements = [].slice.call(document.querySelectorAll("#vs-mpalette .vs-dyerows tbody tr"))
+      .map(function (tr) {
+        var cells = tr.querySelectorAll('input[type="color"]');
+        return { dye: cells[0].value, thread: cells[1].value };
+      });
+    out.marksAtStart = marks("#vs-mpalette");
+    out.resetDisabledAtStart = reset.disabled;
+
+    /* One slot picked: twelve hex saved, one mark, the reset live, the cascade repainted. */
+    nth(3).value = "#3355aa";
+    nth(3).dispatchEvent(new Event("change", { bubbles: true }));
+    var s1 = reload();
+    out.afterPick = { saved: s1.palette.length, allHex: s1.palette.every(function (c) { return HEX.test(c); }),
+                      slot3: s1.palette[2], marks: marks("#vs-mpalette"),
+                      marked: (function () {
+                        var sw = document.querySelector('#vs-mpalette .vs-swatch[data-changed="1"]');
+                        var tr = sw ? sw.closest("tr") : null;
+                        return tr ? tr.querySelector("th").textContent : "(none)";
+                      })(),
+                      resetEnabled: !reset.disabled, cascade: __vs.slots()[2] };
+
+    /* The ribbon the same way. */
+    /* A ribbon, on one slot, and the spine that wears that dye has to pick it up. */
+    var spineOf = function (hex) {
+      return [].slice.call(document.querySelectorAll("#vs-shelves .vs-spine")).filter(function (sp) {
+        return sp.style.getPropertyValue("--spine-tint").trim() === hex;
+      })[0] || null;
+    };
+    var slot7 = __vs.slots()[6];
+    var wearer = spineOf(slot7);
+    var beforeThread = wearer ? wearer.style.getPropertyValue("--ribbon").trim() : "";
+    thread(7).value = "#aa3355";
+    thread(7).dispatchEvent(new Event("change", { bubbles: true }));
+    var s2 = reload();
+    wearer = spineOf(slot7);
+    out.ribbon = { saved: s2.ribbons[6], others: s2.ribbons.filter(function (r) { return r; }).length,
+                   marks: marks("#vs-mpalette"), before: beforeThread,
+                   onSpine: wearer ? wearer.style.getPropertyValue("--ribbon").trim() : "(no spine)" };
+
+    /* That one slot back: all twelve are the look's own again, so nothing is saved -- the
+     * file follows the look rather than pinning this look's colours under the next. */
+    /* The dye's own mark, not the ribbon's: the first reset in the table belongs to slot 3. */
+    nth(3).parentNode.querySelector(".vs-slotreset").click();
+    var s3 = reload();
+    out.afterSlotReset = { saved: s3.palette.length, marks: marks("#vs-mpalette"),
+                           ribbonKept: s3.ribbons[6] };
+
+    /* Two slots picked and one put back keeps the other eleven as the person's. */
+    nth(1).value = "#112233";
+    nth(1).dispatchEvent(new Event("change", { bubbles: true }));
+    nth(5).value = "#445566";
+    nth(5).dispatchEvent(new Event("change", { bubbles: true }));
+    nth(1).parentNode.querySelector(".vs-slotreset").click();
+    var s4 = reload();
+    out.oneOfTwo = { saved: s4.palette.length, slot1: s4.palette[0], slot5: s4.palette[4], marks: marks("#vs-mpalette") };
+
+    /* Reset colours: palette and ribbon together, and the button goes quiet. */
+    reset.click();
+    var s5 = reload();
+    out.afterReset = { palette: s5.palette.length, ribbons: s5.ribbons.filter(function (r) { return r; }).length,
+                       disabled: reset.disabled, marks: marks("#vs-mpalette"), own1: __vs.slots()[0] };
+
+    /* Shown, as a switch on the row, saved as hidden and still built while hidden. */
+    var shelf = __vs.settings().shelves.filter(function (s) { return s.id === "tags"; })[0];
+    var sw = function () {
+      var row = [].slice.call(document.querySelectorAll("#vs-managelist .vs-managerow"))
+        .filter(function (r) { return r.textContent.indexOf(shelf.name) === 0; })[0];
+      return row.querySelector('.vs-toggle[data-fact="shown"] input[role="switch"]');
+    };
+    out.hide = { shownAtStart: sw().checked, visibleBefore: __vs.counts().visible };
+    sw().click();
+    var s6 = reload();
+    out.hide.saved = s6.shelves.filter(function (s) { return s.id === "tags"; })[0].hidden;
+    out.hide.shownAfter = sw().checked;
+    out.hide.visibleDuring = __vs.counts().visible;
+    out.hide.stillBuilt = __vs.views().filter(function (v) { return v.shelf.id === "tags"; })[0].books.length;
+    out.hide.textButtons = [].slice.call(document.querySelectorAll("#vs-managelist button"))
+      .filter(function (b) { return /^(Hide|Show)$/.test(b.textContent.trim()); }).length;
+    sw().click();
+    var s7 = reload();
+    out.hide.back = s7.shelves.filter(function (s) { return s.id === "tags"; })[0].hidden;
+    out.hide.visibleAfter = __vs.counts().visible;
+    document.getElementById("vs-mclose").click();
+    return out;
+  })()`);
+  const a = r.afterPick, h = r.hide;
+  /* Hue apart and lightness apart, on every one of the twelve: a complement that lands on the
+   * dye's own lightness is a thread you cannot see against the board it hangs off. */
+  const hsl = (hex) => {
+    const [R, G, B] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const max = Math.max(R, G, B), min = Math.min(R, G, B), l = (max + min) / 2, d = max - min;
+    let hue = 0;
+    if (d) hue = max === R ? ((G - B) / d + (G < B ? 6 : 0)) / 6 : max === G ? ((B - R) / d + 2) / 6 : ((R - G) / d + 4) / 6;
+    return { h: hue, l };
+  };
+  const apart = r.complements.map(({ dye, thread }) => {
+    const A = hsl(dye), B = hsl(thread);
+    const dh = Math.abs(A.h - B.h);
+    return { hue: Math.min(dh, 1 - dh), light: Math.abs(A.l - B.l) };
+  });
+  const opposed = apart.filter((x) => x.hue > 0.33 || x.light > 0.2).length;
+  const visible = apart.filter((x) => x.light > 0.18).length;
+  const ok = r.swatches === 12 && r.painted === 12 && r.numbers === "1,2,3,4,5,6,7,8,9,10,11,12" &&
+             r.rows === 12 && r.threads === 12 && opposed === 12 && visible === 12 &&
+             r.marksAtStart === 0 && r.resetDisabledAtStart === true &&
+             a.saved === 12 && a.allHex && a.slot3 === "#3355aa" && a.marks === 1 && a.marked === "3" &&
+             a.resetEnabled && a.cascade === "#3355aa" &&
+             r.ribbon.saved === "#aa3355" && r.ribbon.others === 1 && r.ribbon.marks === 2 &&
+             r.ribbon.onSpine === "#aa3355" && r.ribbon.before !== "#aa3355" &&
+             r.afterSlotReset.saved === 0 && r.afterSlotReset.marks === 1 && r.afterSlotReset.ribbonKept === "#aa3355" &&
+             r.oneOfTwo.saved === 12 && r.oneOfTwo.slot5 === "#445566" &&
+             r.oneOfTwo.slot1 === r.afterReset.own1 &&
+             r.afterReset.palette === 0 && r.afterReset.ribbons === 0 && r.afterReset.disabled === true &&
+             r.afterReset.marks === 0 &&
+             h.shownAtStart === true && h.saved === true && h.shownAfter === false &&
+             h.visibleDuring === h.visibleBefore - 1 && h.stillBuilt > 0 && h.textButtons === 0 &&
+             h.back === false && h.visibleAfter === h.visibleBefore;
+  return {
+    ok,
+    detail: `${r.rows} rows, ${r.swatches} dyes painted ${r.painted}, ${r.threads} ribbons, numbered ` +
+            `${r.numbers === "1,2,3,4,5,6,7,8,9,10,11,12" ? "1-12" : r.numbers}; ${opposed}/12 complements a ` +
+            `hue or a third of the lightness away, ${visible}/12 visibly lighter or darker than their dye; ` +
+            `${r.marksAtStart} marked and the reset ${r.resetDisabledAtStart ? "quiet" : "LIVE"} to start; ` +
+            `slot 3 -> ${a.slot3}: ${a.saved} saved, ${a.marks} mark on slot ${a.marked}, cascade ${a.cascade}; ` +
+            `ribbon 7 ${r.ribbon.saved} alone (${r.ribbon.others} of 12), was ${r.ribbon.before} on its spine and ` +
+            `is ${r.ribbon.onSpine}; slot 3's dye back: ${r.afterSlotReset.saved} saved, ribbon still ` +
+            `${r.afterSlotReset.ribbonKept}; two picked, one back: ` +
+            `${r.oneOfTwo.saved} saved, slot 1 ${r.oneOfTwo.slot1 === r.afterReset.own1 ? "the look's own" : r.oneOfTwo.slot1}, ` +
+            `slot 5 ${r.oneOfTwo.slot5}; Reset colours: ${r.afterReset.palette} palette and ${r.afterReset.ribbons} ribbons saved, ` +
+            `button ${r.afterReset.disabled ? "quiet" : "LIVE"}; Shown off: hidden ${h.saved}, ` +
+            `${h.visibleBefore} -> ${h.visibleDuring} -> ${h.visibleAfter} visible, ${h.stillBuilt} books still built, ` +
+            `${h.textButtons} Hide/Show buttons left`
   };
 });
 
@@ -2647,12 +2998,20 @@ async function runOne(vault, work) {
     page.j = async (expr) => JSON.parse(await page.eval(`JSON.stringify(${expr})`));
     const ctx = { errors };
 
+    /* Through the selector where it offers the look, as a person would; through the debug
+     * handle for a shelved one the selector cannot reach (design/0017). "modern" is the
+     * default look, whose value is "". */
     if (LOOK) {
       await page.eval(`(function(){
+        var want = ${JSON.stringify(LOOK === "modern" ? "" : LOOK)};
         var sel = document.getElementById("vs-look");
-        if (!sel) return;
-        sel.value = ${JSON.stringify(LOOK)};
-        sel.dispatchEvent(new Event("change", { bubbles: true }));
+        var offered = sel && [].slice.call(sel.options).some(function (o) { return o.value === want; });
+        if (offered) {
+          sel.value = want;
+          sel.dispatchEvent(new Event("change", { bubbles: true }));
+        } else {
+          __vs.setLook(want);
+        }
       })(); void 0`);
       await sleep(200);
     }
@@ -2730,8 +3089,30 @@ async function capture(page, out) {
     console.log("wrote " + file);
   };
   await page.eval('__vs.closeReader(); document.getElementById("vs-library").scrollTop = 0; void 0');
+  if (SHOT_OPEN) {
+    await page.eval(`(function(){
+      var sheet = ${JSON.stringify(SHOT_OPEN)};
+      if (sheet === "builder") { document.getElementById("vs-newshelf").click(); return; }
+      document.getElementById("vs-manageopen").click();
+      var pick = function (sel, value) {
+        var input = document.querySelector(sel);
+        if (!input) return;
+        input.value = value;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      pick('#vs-mpalette .vs-dyerows tbody tr:nth-child(3) td:nth-child(2) input[type="color"]', "#3355aa");
+      pick('#vs-mpalette .vs-dyerows tbody tr:nth-child(2) td:nth-child(3) input[type="color"]', "#2a9d5c");
+    })(); void 0`);
+  }
   await sleep(250);
   await shoot(out);
+  if (SHOT_OPEN) {
+    await page.eval(`(function(){
+      if (${JSON.stringify(SHOT_OPEN)} === "builder") { document.getElementById("vs-bcancel").click(); return; }
+      document.getElementById("vs-mpalettereset").click();
+      document.getElementById("vs-mclose").click();
+    })(); void 0`);
+  }
 
   const opened = SHOT_NOTE
     ? await page.j(`(function(){

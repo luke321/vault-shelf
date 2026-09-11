@@ -451,13 +451,36 @@ costs the grid nothing). The hover lift is **6px and no rotation**, one pixel ov
 ### Every control is the same size in every look
 
 `"every control is the same size in every look"` (2026-09-11, "make sure all components
-buttons etc have the same size in all themes, some seem off") measures **28 controls** —
+buttons etc have the same size in all themes, some seem off") measures **37 controls** —
 the search box, the order button, the look selector, Manage, a shelf jump, the rail, New shelf,
 a shelf head, a plaque, a spine; the reader bar and its four buttons, the find-within box, an
 index tab, a contents row, the ribbon row, a ribbon and the stub, the spread, an also-in
-button; a Manage row and its button, the Vary switch's knob, Done, a palette swatch and the
-reset; a dye swatch — in every look `core.LOOKS` knows, shelved included, against the modern
-look's reading. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
+button; a Manage row and its button, the Shown and Vary switches' knobs, Done, a palette
+slot, a slot's reset mark, the ribbon slot and Reset colours; the builder's Name box, its
+source and classifier dropdowns, its order dropdown and Save; a dye swatch — in every look
+`core.LOOKS` knows, shelved included, against the modern look's reading. Since github#2 and
+github#4 (2026-09-11) the palette slot is **36×28**, a ribbon swatch **22×30**, the colours
+table itself **92** wide, the builder's dropdown **31.5** high and the same in all three, and
+every dropdown is measured with its box taken back from the host. **38** are measured where the
+reader has index tabs and **37** on the demo vault, whose first book has none; the check's floor
+is 34.
+
+The table is in that list because it caught three, all of them a look or a container quietly
+resizing a control:
+
+1. `.vs-slot` is `inline-flex`, so a swatch in a table cell sits on the cell's **baseline** and
+   the row grows by the face's descender. Under leather, which is Georgia, the table came out
+   **309px against modern's 291**. A swatch in a cell is block-level now.
+2. A **column heading is text**, so the column was as wide as the face drew it: **109.9px under
+   leather against 107.3**. The headings are gone -- four of them across a sheet is "BOOK
+   RIBBON" written four times over swatches that say which is which -- and the hint above the
+   block names the two columns once.
+3. `table-layout: fixed` shares the leftover width between cells, and a swatch is a **flex
+   item**: a cell 10px too narrow did not overflow, it took 10px off the swatch, **36 wide
+   became 26**. The columns are pinned at 24 + 44 + 24 and the swatch is `flex: 0 0 auto`.
+
+Which is the same rule as everywhere else, from three directions: a look paints a control and
+does not size it, and neither does the box it is standing in. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
 (a button that sizes to its text may be a different width in a different face).
 
 Measured before: **21 controls off under leather** — the rail 60.5 vs 46.5px and the reader
@@ -471,6 +494,41 @@ on buttons and boxes, `font-size: 13px` on boxes — and a look sets colour, bor
 face only. Modern's own numbers did not move: button **27.3px**, search box **232×29.5**,
 tab **27.3**, ribbon **30**, swatch **25.5** wide.
 
+### Every dropdown paints itself
+
+`"every dropdown paints itself, whatever the host says a select is"` (2026-09-11, github#2)
+puts Obsidian's own `select` rule — copied out of `app.css`: `appearance: none`, a 40px
+height, its own padding, no border, a red box-shadow, two gradient background layers with a
+blend mode, `#202020` on `#dadada` — into the page ahead of ours, paints every look
+`core.LOOKS` knows through `__vs.setLook()`, opens the builder and Manage, and asserts for
+every visible `select` that its computed field is the look's own `--vs-field`, its appearance
+is `none`, its chevron is a drawn data URI and not the host's gradients, and that none of the
+host's height, padding, border or shadow reached it; for every search and text box that its
+field is the token's; and under leather that everything on the paper sheet and the reading
+page is light with dark ink and everything in the rail is dark with light ink. The two boxes
+the host could resize are measured before and after the rule goes in.
+
+Measured: **12 dropdowns and 6 boxes under 3 looks, 0 wrong** on all three shapes; leather
+paper `rgb(250, 246, 238)` on `rgb(48, 46, 39)`, leather rail `rgb(32, 33, 30)` on
+`rgb(204, 197, 181)`; `#vs-look` **28 → 28** and the builder's source dropdown
+**31.5 → 31.5** with the host's rule in. Before, on the page built from the previous commit:
+**34 wrong**, `#vs-look` **28 → 40**, the builder's **29 → 40**, no chevron on any of the
+twelve, and the leather rail selector wearing `--surface-2` (`rgb(50, 51, 45)`) rather than
+the rail's field.
+
+### A ribbon is per book colour
+
+`design/0008`. There are **twelve ribbons, one per palette slot** (`settings.ribbons`), and a
+ribbon nobody has chosen is its dye's **complement**, computed from the cascade rather than
+stored so it follows the look and the host theme. `--ribbon` is written per spine and per
+open book, never once on the root.
+
+`"one ribbon from an older schema becomes a ribbon on every colour"` asserts schema **10**,
+that a file at 9 with one `ribbon` comes up with that colour on **all twelve** and no `ribbon`
+field left, that a file with none comes up **12** empty, that a sparse twelve keeps the entries
+it names and leaves the rest following their dyes, and that a junk array comes back 12 long
+with 0 set.
+
 ## Whose colour a book wears
 
 `"a book's colour is the person's, then the shelf's, then the folder's"` reads `--spine-tint`
@@ -483,9 +541,27 @@ slot, that a **rebuild keeps it**, and that the menu closed itself.
 `"a shelf can vary its books, and a chosen palette beats the look's"` counts the distinct dyes
 on eight People books by folder, presses that shelf's *Vary colours* in Manage and asserts
 more distinct dyes and exactly **one** shelf pressed, presses it again and asserts the count
-comes back; then changes slot 1 to `#123456` through the palette input and asserts
+comes back; then changes slot 1 to `#123456` through the slot's picker and asserts
 `__vs.slots()[0]` is `#123456`, **still is under another look**, and is the look's own again
-after *Use the look's own*.
+after *Reset colours*.
+
+`"colours and hidden shelves set in Manage persist through a reload"` (2026-09-11, github#4,
+"all settings persistent naturally") runs each thing the sheet can set through `persist()`
+and back through `core.migrate`, which is the reload path in both hosts. It asserts the block
+opens as **12 rows, 12 dyes painted their slot's colour, 12 ribbons, numbered 1-12, 0 marked
+and the reset disabled**; that every unchosen ribbon is its dye's complement — **12 of 12** a
+third of the hue wheel away or a fifth of the lightness apart, and **12 of 12** visibly
+lighter or darker than their dye, which is the assertion that caught a rule returning a thread
+the same weight as its board on mid-lightness dyes; picking slot 3
+saves **12 hex** with slot 3 `#3355aa`, marks exactly that slot, enables the reset and
+repaints the cascade; a ribbon on slot 7 saves `#aa3355` **alone of the twelve** and is on the
+spine wearing that dye, which was a different colour before; that slot's own
+× saves **0** (all twelve are the look's own again, so nothing is pinned) and leaves the
+ribbon; two slots picked and one put back saves **12** with the reset one equal to the look's
+own; *Reset colours* saves **0** palette and **0** ribbons, disables itself and clears every mark; and the
+Tags row's **Shown** switch, off, saves `hidden: true`, takes the visible count down by
+**one** while the shelf is still built (**16** books on the demo), leaves **0** Hide/Show
+buttons on the sheet, and on again saves `hidden: false` with the count restored.
 
 `"a book with several ribbons in it shows them side by side"` marks four notes of one book
 and asserts **0 → 3 → 3** ribbon elements on its spine (three at most; the rest are on the

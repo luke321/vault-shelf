@@ -169,3 +169,16 @@ Bringing it back is one flag.
   is lit from behind — a cap light and a dark shadow — and the glow is spent on the edge beside
   it. Chromatic split is allowed on exactly two things, the vault's name and a shelf heading,
   both of which are short and neither of which is read as a sentence.
+
+## Addendum, 2026-09-11 — the selector's fix became everyone's
+
+"The look selector paints itself" above was github#2 solved once, for one control, in one look.
+It is now solved for every `select` in every look in `page.css` (`design/0016`, addendum of
+the same day), and the `#vs-look` rule in this file is gone: this look supplies `--vs-field`
+and a cyan-stroked `--vs-chevron` on its token block, and its box rule sets
+`background-color` rather than the shorthand so the drawn arrow survives. Measured under the
+host's rule with the look painted through `__vs.setLook()`: field `rgba(5, 10, 20, 0.85)` on
+all four dropdowns, chevron drawn, 28px high.
+
+`node scripts/smoke.mjs --look cyber` reaches a shelved look through that same handle now,
+since the selector no longer offers one; `--look modern` is the default look by name.

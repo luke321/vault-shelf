@@ -44,6 +44,10 @@
    * `color-scheme: light`, and a look that repaints every surface dark but leaves the
    * keyword alone gets the platform's LIGHT native controls on top of them. */
   color-scheme: dark;
+  /* github#2 -- the field and the arrow every dropdown is drawn with; page.css paints the
+   * box and reads these. The rule that once did it for #vs-look alone is gone. */
+  --vs-field: rgba(5, 10, 20, 0.85);
+  --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%2335f0d0' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
 
   --surface-0: #05070f;
   --surface-1: #0a1120;
@@ -241,47 +245,22 @@
 
 .vault-shelf[data-look="cyber"] button.vs-primary:hover { color: #04211c; }
 
+/* github#2 -- background-color, never the shorthand: the dropdown's chevron is a background
+ * image page.css paints from --vs-chevron, and `background:` would wipe it. The look
+ * selector used to paint itself here alone (design/0017); now every dropdown does, from
+ * page.css, and this look only supplies the field and the stroke. */
 .vault-shelf[data-look="cyber"] input[type="search"],
 .vault-shelf[data-look="cyber"] input[type="text"],
 .vault-shelf[data-look="cyber"] select,
 .vault-shelf[data-look="cyber"] #vs-q {
   color: var(--text-1);
-  background: rgba(5, 10, 20, 0.85);
+  background-color: var(--vs-field);
   border: 1px solid #24395e;
   border-radius: 2px;
   box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.7);
 }
 
 .vault-shelf[data-look="cyber"] #vs-q::placeholder { color: #5a7a92; }
-
-/* THE LOOK SELECTOR PAINTS ITSELF, because inside Obsidian it otherwise does not.
- * `appearance: auto` hands the box to the platform, and the app's own form-field rules land
- * on top of ours: the standalone drew a dark field (measured rgba(5,10,20,0.85)) and the
- * plugin drew a white slab with the look's name in black on it -- design/0016's lesson that
- * the standalone is not a preview of the plugin, for the third time. `appearance: none`
- * takes the box back, and the chevron is drawn here because taking the box back loses it.
- *
- * THE WIDTH IS NOT SET HERE. `#vs-look` measures 395px in every look, which is page.css's
- * `select { width: 100% }` reaching a control that is a flex item in the top rail, and it is
- * what squeezes the shelf-jump strip. That is a bug in the shared chrome and the fix belongs
- * in page.css; this file may not reach into the other two looks, so it paints the box it was
- * given and leaves the size alone. design/0017. */
-.vault-shelf[data-look="cyber"] #vs-look {
-  appearance: none;
-  padding-right: 26px;
-  background-color: rgba(5, 10, 20, 0.85);
-  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%2335f0d0' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 9px center;
-}
-
-/* The list the platform drops down is the platform's, and `color-scheme: dark` on the token
- * block is the only thing that makes it dark. The options carry the room's own field colour
- * for the hosts that honour it. */
-.vault-shelf[data-look="cyber"] #vs-look option {
-  color: var(--text-1);
-  background: #0a1120;
-}
 
 .vault-shelf[data-look="cyber"] #vs-q:focus,
 .vault-shelf[data-look="cyber"] select:focus {
@@ -815,7 +794,7 @@
 
 .vault-shelf[data-look="cyber"] #vs-within {
   color: var(--text-1);
-  background: rgba(4, 9, 18, 0.85);
+  background-color: rgba(4, 9, 18, 0.85);
   border-color: #24395e;
 }
 
