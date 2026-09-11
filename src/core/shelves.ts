@@ -224,9 +224,7 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
       label: labelFor(key, shelf.classifier),
       cover: coverFor(key, shelf.classifier),
       plaque: plaqueFor(key, shelf),
-      notes: list.slice().sort(alphabetical(shelf)
-        ? byTitleThenDate
-        : (a, b) => (order === "newest" ? 1 : -1) * byDateThenTitle(a, b)),
+      notes: list.slice().sort(readingOrder(shelf, order)),
       bands: bandsOf(list),
       matches: 0,
     });
@@ -250,6 +248,13 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
  * design/0018 -- and a shelf arranged by hand has neither: this is only what its LEFTOVERS
  * fall into, so it is A-to-Z and the reading order in the top bar cannot reach it.
  */
+/* design/0015 */
+function readingOrder(shelf: Shelf, order: NoteOrder): (a: Note, b: Note) => number {
+  return alphabetical(shelf)
+    ? byTitleThenDate
+    : (a, b) => (order === "newest" ? 1 : -1) * byDateThenTitle(a, b);
+}
+
 function autoDirection(shelf: Shelf, order: NoteOrder): "alphabetical" | "chronological" {
   if (shelf.direction === "manual") return "alphabetical";
   const dated = shelf.classifier === "year" || shelf.classifier === "month" ||
@@ -410,16 +415,92 @@ export function alsoShelvedIn(noteId: string, views: ShelfView[], exceptBook: st
   return out;
 }
 
+/* ---- a plaque opens its run ------------------------------------------------
+ * github#6, design/0019
+ */
+
+export const PLAQUE_KEY = "-plaque-";
+
+export function plaqueBookId(shelfId: string, plaque: string): string {
+  return shelfId + "/" + PLAQUE_KEY + plaque;
+}
+
+export function plaqueOfId(bookId_: string): { shelfId: string; plaque: string } | null {
+  const at = bookId_.indexOf("/" + PLAQUE_KEY);
+  if (at < 0) return null;
+  return { shelfId: bookId_.slice(0, at), plaque: bookId_.slice(at + 1 + PLAQUE_KEY.length) };
+}
+
+/* design/0018, design/0019 */
+export function runsOf(books: Book[]): { plaque: string | null; books: Book[] }[] {
+  const out: { plaque: string | null; books: Book[] }[] = [];
+  for (const book of books) {
+    const last = out.length ? out[out.length - 1] : null;
+    if (!last || last.plaque !== book.plaque) out.push({ plaque: book.plaque, books: [book] });
+    else last.books.push(book);
+  }
+  return out;
+}
+
+/* design/0019 */
+export function plaqueBook(view: ShelfView, run: Book[], order: NoteOrder = "oldest"): Book | null {
+  const plaque = run.length ? run[0].plaque : null;
+  if (plaque === null) return null;
+  const seen = new Set<string>();
+  const notes: Note[] = [];
+  for (const book of run) {
+    for (const note of book.notes) {
+      if (seen.has(note.id)) continue;
+      seen.add(note.id);
+      notes.push(note);
+    }
+  }
+  notes.sort(readingOrder(view.shelf, order));
+  return {
+    id: plaqueBookId(view.shelf.id, plaque),
+    shelfId: view.shelf.id,
+    key: PLAQUE_KEY + plaque,
+    label: plaque,
+    cover: plaque,
+    plaque: null,
+    notes,
+    bands: bandsOf(notes),
+    matches: 0,
+    holds: run.length,
+  };
+}
+
+/* design/0019 */
+export function plaqueBookFor(view: ShelfView, plaque: string, noteId: string | null,
+                              order: NoteOrder = "oldest"): Book | null {
+  const runs = runsOf(view.books).filter((r) => r.plaque === plaque);
+  if (!runs.length) return null;
+  const holding = noteId
+    ? runs.filter((r) => r.books.some((b) => b.notes.some((n) => n.id === noteId)))[0]
+    : undefined;
+  return plaqueBook(view, (holding || runs[0]).books, order);
+}
+
 /**
  * A saved reading place has to survive an edit, a rename and a hidden shelf, so it is
  * re-resolved rather than trusted: the book it names if that book still holds the note,
  * otherwise the first visible book anywhere that does.
  */
-export function resolveReading(noteId: string, bookId_: string, views: ShelfView[]): Book | null {
+export function resolveReading(noteId: string, bookId_: string, views: ShelfView[],
+                               order: NoteOrder = "oldest"): Book | null {
   for (const view of views) {
     if (view.shelf.hidden) continue;
     for (const book of view.books) {
       if (book.id === bookId_ && book.notes.some((n) => n.id === noteId)) return book;
+    }
+  }
+  /* github#6 */
+  const plaque = plaqueOfId(bookId_);
+  if (plaque) {
+    for (const view of views) {
+      if (view.shelf.hidden || view.shelf.id !== plaque.shelfId) continue;
+      const book = plaqueBookFor(view, plaque.plaque, noteId, order);
+      if (book && book.notes.some((n) => n.id === noteId)) return book;
     }
   }
   for (const view of views) {

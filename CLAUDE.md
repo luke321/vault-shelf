@@ -27,7 +27,11 @@ of measuring it.** Build the page, drive it, read the numbers.
   their decade, people and tags under their letter. Only when asked for. A plaque lives in the
   same row as the books it names, and a run that wraps is named on every row it reaches. **A
   run is whatever is adjacent**, so a shelf arranged by hand can carry the same label twice in
-  one row — a plate says what is under it, never what it wishes were under it.
+  one row — a plate says what is under it, never what it wishes were under it. **And a plaque
+  opens its run as one book**: unique notes across the books under it, addressed
+  `shelfId/-plaque-<label>` so a ribbon left in it re-resolves; a plate drawn on two rows opens
+  the same book; a plaque-book is never on the shelf, so no address, count or golden moves.
+  `design/0019`.
 - **A shelf is a bookcase, not a conveyor belt.** Nothing scrolls sideways; a run too long for
   the room continues on the next row down.
 - **A filter narrows; the query marks.** A filter removes notes before books are built. The
@@ -169,7 +173,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 72 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 75 checks over three vault shapes |
 | `scripts/release.ps1` | the local half of a release: the guards, the gates, the tag, the tag push. `-SelfTest` drives every refusal in a throwaway clone; `.ai-context/releasing.md` is the authority on the flow |
 | `scripts/suite-stamp.mjs` | which trees have passed the suite (`decisions/0010`), read by the pre-push hook and `release.ps1`. `--selftest` proves the hit and miss cases |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |

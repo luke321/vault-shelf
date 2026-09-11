@@ -416,6 +416,13 @@
     inset 0 -1px 0 rgba(53, 240, 208, 0.35),
     0 0 14px rgba(53, 240, 208, 0.16);
 }
+/* github#6 */
+.vault-shelf[data-look="cyber"] .vs-plaque:hover,
+.vault-shelf[data-look="cyber"] .vs-plaque:focus-visible {
+  color: #ffffff;
+  border-color: var(--vs-neon);
+  box-shadow: 0 0 8px var(--vs-neon-dim);
+}
 
 /* ---- a spine -------------------------------------------------------------
  * An anodised cartridge racked on edge, and every piece of it has to still read at 22px:
