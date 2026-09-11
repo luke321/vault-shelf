@@ -132,6 +132,8 @@ const POINTER_DRIVEN = [
   "dragged off",
   /* design/0019 -- it clicks the builder open and reads the form it draws. */
   "second favourites shelf",
+  /* github#0 -- it reads boxes: a drop on the lower half of a shelf, and a floor grip. */
+  "carried by its floor",
 ];
 const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
 
@@ -1320,8 +1322,10 @@ check("a second favourites shelf is built from the builder and holds its own boo
     var shelves = __vs.settings().shelves;
     var before = __vs.picks().length;
 
-    /* Built the way a person builds one: the builder's own controls, not addShelf. */
-    document.getElementById("vs-newshelf").click();
+    /* Built the way a person builds one: the builder's own controls, not addShelf. The button
+     * at the FOOT of the library, so this check stays about pick shelves; which end each button
+     * builds at is measured by "made at the end the button is at". */
+    document.getElementById("vs-newshelf2").click();
     var name = document.getElementById("vs-bname");
     name.value = "Reading list";
     name.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1347,7 +1351,7 @@ check("a second favourites shelf is built from the builder and holds its own boo
     /* Two shelves, different books, and neither disturbs the other. */
     var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0].books[0].id;
     var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0].books[0].id;
-    var first = __vs.picks()[0].id;
+    var first = __vs.picks().filter(function (s) { return s.id === "favourites"; })[0].id;
     __vs.pick(years, null, first);
     __vs.pick(people, null, made.id);
     __vs.pick(years, null, made.id);
@@ -1440,6 +1444,128 @@ check("a note in two favourites is one note on the shelf", async (p) => {
     detail: `${r.years} (${r.yearsNotes} notes) and ${r.month} (${r.monthNotes}) on Favourites: ` +
             `${r.sum} places, ${r.unique} unique notes, the shelf claims ${r.claimed} and the ` +
             `header says "${r.head}"`
+  };
+});
+
+check("a shelf is deleted on the second press, made at the end the button is at, and carried by its floor",
+      async (p) => {
+  const r = await p.j(`(function(){
+    var shelves = __vs.settings().shelves;
+    var order = function () { return __vs.views().map(function (v) { return v.shelf.id; }); };
+    var was = order();
+
+    /* 1. the button at the TOP makes a shelf at the top; the one at the foot appends. */
+    __vs.newShelf("top");
+    document.getElementById("vs-bname").value = "Top shelf";
+    document.getElementById("vs-bname").dispatchEvent(new Event("input", { bubbles: true }));
+    document.getElementById("vs-bsave").click();
+    var afterTop = order();
+
+    __vs.newShelf("end");
+    document.getElementById("vs-bname").value = "Foot shelf";
+    document.getElementById("vs-bname").dispatchEvent(new Event("input", { bubbles: true }));
+    document.getElementById("vs-bsave").click();
+    var afterEnd = order();
+
+    /* 2. the floor is a handle: every row of every shelf carries one, and the preview does not. */
+    var grips = document.querySelectorAll("#vs-shelves .vs-floorgrip[draggable=true]").length;
+    var rows = document.querySelectorAll("#vs-shelves .vs-track").length;
+    var board = getComputedStyle(document.querySelector("#vs-shelves .vs-track"))
+                  .getPropertyValue("background-size");
+
+    /* Carry the top shelf by its floor and drop it on the lower half of the last one. */
+    var section = document.querySelector('[data-shelf="top-shelf"]');
+    var grip = section.querySelector(".vs-floorgrip");
+    var last = document.querySelector('[data-shelf="foot-shelf"]');
+    var dt = new DataTransfer();
+    grip.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+    var carrying = section.getAttribute("data-carrying");
+    var payload = dt.getData("text/plain");
+    var box = last.getBoundingClientRect();
+    var at = { bubbles: true, cancelable: true, dataTransfer: dt,
+               clientX: box.left + 40, clientY: box.top + box.height - 6 };
+    last.dispatchEvent(new DragEvent("dragover", at));
+    var mark = last.getAttribute("data-shelfdrop");
+    last.dispatchEvent(new DragEvent("drop", at));
+    grip.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+    var afterDrag = order();
+    var marksLeft = document.querySelectorAll("#vs-shelves [data-shelfdrop], #vs-shelves [data-carrying]").length;
+
+    /* A spine drag is not a shelf drag: dropping a book must leave the shelf order alone. */
+    var spine = document.querySelector('[data-shelf="years"] .vs-spine');
+    var dt2 = new DataTransfer();
+    spine.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt2 }));
+    var favRail = document.querySelector('[data-shelf="favourites"] .vs-track');
+    var fb = favRail.getBoundingClientRect();
+    var at2 = { bubbles: true, cancelable: true, dataTransfer: dt2,
+                clientX: fb.left + fb.width / 2, clientY: fb.top + fb.height / 2 };
+    favRail.dispatchEvent(new DragEvent("dragover", at2));
+    favRail.dispatchEvent(new DragEvent("drop", at2));
+    spine.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt2 }));
+    var afterBook = order();
+    var favHolds = __vs.picks()[0].picks.length;
+
+    /* 3. Delete asks once. The first press arms the row, the second removes the shelf. */
+    document.getElementById("vs-manageopen").click();
+    var rowOf = function (name) {
+      return [].filter.call(document.querySelectorAll("#vs-managelist .vs-managerow"),
+        function (r) { return r.querySelector(".vs-name").textContent === name; })[0];
+    };
+    var del = rowOf("Foot shelf").querySelector(".vs-delete");
+    var firstLabel = del.textContent;
+    del.click();
+    var armedLabel = rowOf("Foot shelf").querySelector(".vs-delete").textContent;
+    var armedFlag = rowOf("Foot shelf").querySelector(".vs-delete").getAttribute("data-armed");
+    var stillThere = order().indexOf("foot-shelf") >= 0;
+    rowOf("Foot shelf").querySelector(".vs-delete").click();
+    var afterDelete = order();
+    /* Another row's Delete disarms the first: only one row can be asking. */
+    rowOf("Top shelf").querySelector(".vs-delete").click();
+    var otherArmed = rowOf("Top shelf").querySelector(".vs-delete").getAttribute("data-armed");
+    rowOf("Top shelf").querySelector(".vs-delete").click();
+    var afterBoth = order();
+    document.getElementById("vs-mclose").click();
+
+    /* The wear and the hand-given colour of a deleted shelf's book go with it. */
+    var wearKeys = Object.keys(__vs.settings().wear)
+      .filter(function (k) { return k.indexOf("top-shelf/") === 0; }).length;
+
+    __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })
+      .forEach(function (s) { s.picks = []; });
+    __vs.setFilters({});
+    return { was: was, afterTop: afterTop, afterEnd: afterEnd, grips: grips, rows: rows,
+             board: board, carrying: carrying, payload: payload, mark: mark,
+             afterDrag: afterDrag, marksLeft: marksLeft, afterBook: afterBook,
+             favHolds: favHolds, firstLabel: firstLabel, armedLabel: armedLabel,
+             armedFlag: armedFlag, stillThere: stillThere, afterDelete: afterDelete,
+             otherArmed: otherArmed, afterBoth: afterBoth, wearKeys: wearKeys,
+             back: order() };
+  })()`);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const ok = r.afterTop[0] === "top-shelf" && same(r.afterTop.slice(1), r.was) &&
+             r.afterEnd[r.afterEnd.length - 1] === "foot-shelf" &&
+             r.grips === r.rows && r.grips > 0 && /5px|10px/.test(r.board) &&
+             r.carrying === "1" && r.payload === "top-shelf" && r.mark === "after" &&
+             r.afterDrag[r.afterDrag.length - 1] === "top-shelf" &&
+             r.afterDrag[r.afterDrag.length - 2] === "foot-shelf" && r.marksLeft === 0 &&
+             same(r.afterBook, r.afterDrag) && r.favHolds === 1 &&
+             r.firstLabel === "Delete" && r.armedLabel === "Really delete?" &&
+             r.armedFlag === "1" && r.stillThere &&
+             r.afterDelete.indexOf("foot-shelf") < 0 && r.otherArmed === "1" &&
+             r.afterBoth.indexOf("top-shelf") < 0 && r.wearKeys === 0 &&
+             same(r.back, r.was);
+  return {
+    ok,
+    detail: `${r.was.length} shelves: the top button put "top-shelf" first (${r.afterTop[0]}) and ` +
+            `the foot button put "foot-shelf" last (${r.afterEnd[r.afterEnd.length - 1]}). ` +
+            `${r.grips}/${r.rows} rows carry a floor grip, the board reads ${r.board}; carrying ` +
+            `the top shelf onto the lower half of the last drew an "${r.mark}" mark and left the ` +
+            `order ${r.afterDrag.slice(-2).join(", ")} with ${r.marksLeft} marks behind. A book ` +
+            `dragged onto Favourites left the shelf order alone (${same(r.afterBook, r.afterDrag)}) ` +
+            `and landed (${r.favHolds} pick). Delete read "${r.firstLabel}", then ` +
+            `"${r.armedLabel}" with the shelf still there (${r.stillThere}), and was gone on the ` +
+            `second press; arming another row works too (${r.otherArmed === "1"}), and ${r.wearKeys} ` +
+            `wear keys of the deleted shelf survive. Back to ${r.back.length} shelves`
   };
 });
 

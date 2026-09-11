@@ -107,7 +107,9 @@
    * scale against); src/page.js sets the real one per book. */
   --spine-w: 34px;
   --spine-h: 132px;
-  --board: 3px;
+  /* github#0 -- THICKER, because it is a handle now: at 3px the floor was a hairline to paint
+   * and an impossible thing to grab. 5px still reads as a shelf edge rather than a slab. */
+  --board: 5px;
   /* design/0009 -- A ROOM HAS A WIDTH. On a WQHD screen the leaf is ~2,200px after Obsidian's
    * own sidebar, and full-bleed put four books on an 1,800px shelf board and left the note a
    * 380px column of text adrift in a 2,000px page with its index tabs pinned to the far edge.
@@ -491,6 +493,7 @@
  * (design/0014). A half-empty last row with a board ending mid-air reads as a broken rule. */
 .vault-shelf .vs-track {
   display: flex;
+  position: relative;
   align-items: flex-start;
   gap: 3px;
   min-height: calc(var(--spine-h) + 34px);
@@ -655,6 +658,54 @@
   background: var(--surface-1);
 }
 .vault-shelf .vs-dyepick { width: 100%; margin-top: 6px; justify-content: center; }
+
+/* github#0 -- DELETE LOOKS ORDINARY UNTIL IT IS ARMED, and then it looks like what it is. It
+ * lives in this block rather than beside the other Manage rules because the Manage sheet is
+ * being reworked on another branch; the geometry is the shared button's, so only the colour
+ * is said here. */
+/* github#0 -- THE GRIP IS INVISIBLE AND THE BOARD IS NOT. The floor is a background in
+ * page.css and a texture in each look, so the thing you grab is a transparent strip laid over
+ * it: one grip, three looks, and no look has to know. It is taller than the board so it can be
+ * hit, and it lights only while the pointer is on it. */
+.vault-shelf .vs-floorgrip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--spine-h);
+  height: calc(var(--board) + 8px);
+  margin-top: -4px;
+  cursor: grab;
+  z-index: 3;
+}
+.vault-shelf .vs-floorgrip:active { cursor: grabbing; }
+.vault-shelf .vs-floorgrip:hover {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 2px;
+}
+.vault-shelf .vs-shelf[data-carrying="1"] { opacity: 0.45; }
+/* The shelf lands above or below the one it was dropped on, and the bar says which. */
+.vault-shelf .vs-shelf[data-shelfdrop] { position: relative; }
+.vault-shelf .vs-shelf[data-shelfdrop]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+  pointer-events: none;
+  z-index: 4;
+}
+.vault-shelf .vs-shelf[data-shelfdrop="before"]::after { top: -8px; }
+.vault-shelf .vs-shelf[data-shelfdrop="after"]::after { bottom: -8px; }
+
+.vault-shelf .vs-delete[data-armed="1"] {
+  color: #fff;
+  background: var(--g8);
+  border-color: var(--g8);
+  font-weight: 600;
+}
 
 /* design/0019 -- A BOOK ON ITS WAY OFF THE SHELF says so where the book is, not where the
  * pointer is: the spine left behind on the rail goes to an outline while the drop would take

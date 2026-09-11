@@ -128,6 +128,21 @@ centred, and the chrome stays full-bleed while its contents do not.
 
 `design/0009`
 
+### Deleting, placing and carrying a shelf
+
+**Delete** is on every row in Manage. It asks once — the button becomes *Really delete?* and only
+the second press does it — and it takes with it the wear and the colours you gave that shelf's
+books, and any favourites pointing at them. A ribbon survives, because a ribbon names a note
+rather than a shelf. If you delete every shelf, the room offers to build the default six back.
+
+**A new shelf lands where the button is.** *+ New shelf* at the top of the library builds at the
+top; the one at the foot appends.
+
+**A shelf is carried by its floor.** Press the board under the books, drag, and drop it on the
+half of another shelf you want it to land on — above or below. A spine is a book and a board is a
+shelf, so the two drags never mean each other. Manage's arrows do the same move from the
+keyboard.
+
 ### Hiding never deletes
 
 **Manage shelves** reorders, hides and restores. Each row carries a **Shown** switch beside

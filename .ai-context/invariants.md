@@ -314,6 +314,30 @@ opens the source book, so `resolveReading`, `alsoShelvedIn` and the wikilink sea
 pick shelves — the argument is in `design/0019`, and what a check would have to assert is the
 absence of a second address for one book.
 
+## A shelf can be deleted, placed and carried
+
+`"a shelf is deleted on the second press, made at the end the button is at, and carried by its
+floor"` covers the three things Manage and the library could not do.
+
+**Placed.** There is a *+ New shelf* at each end of the library (`design/0009`) and both of them
+used to append, so the one at the top sent the shelf past everything to the bottom. The top
+button now builds at position 0 and the foot button appends; the check builds one from each and
+asserts the first is first and the last is last, with every other shelf's relative order kept.
+
+**Carried.** Every row of every shelf carries a floor grip (**grips == rows**, and the builder's
+preview carries none), and the board measures **5px** in the default look and **10px** under
+leather. Dragging a shelf by its floor onto the lower half of another draws an *after* mark and
+lands it below that shelf, leaving **0** marks behind. A book dragged onto Favourites in the same
+breath leaves the shelf order untouched — a spine is a book, a board is a shelf.
+
+**Deleted.** The button arms on the first press (*Delete* → *Really delete?*), the shelf is still
+there until the second, and arming another row disarms the first. What goes with a deleted shelf:
+the wear and hand-given colours keyed by its addresses (**0** keys survive), and any favourite
+pointing at its books, which is the rule `design/0019` already had. What does not go is a reading
+place: it names a note, and `core.resolveReading` finds that note another home.
+
+Hiding still never deletes, and deleting says so twice before it does.
+
 ## Hiding a shelf hides it, and never deletes it
 
 `"a hidden shelf keeps its definition and its books"` hides the Tags shelf, asserts the

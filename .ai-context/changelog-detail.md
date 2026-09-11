@@ -29,6 +29,28 @@ whose own shelf took the id gets `favourites-2`. A hand-edited pick shelf comes 
 of `["years/2024", 7, "years/2024", "nope", "", "people/Ada Lovelace"]` the two real addresses
 survive, `order` is dropped and `plaques` goes off.
 
+**Three things Manage could not do.** *"there is no delete shelf button"*, *"when I add a shelf
+with the top new shelf button i want it to be on top"*, *"make the shelf floor draggable to re
+arrange shelves"* and *"for that make shelf floors a bit thicker"*.
+
+A Manage row gains **Delete**, which arms on the first press and deletes on the second — no
+`confirm()`, because inside Obsidian that is the app's modal and reads as a bug. It takes the
+deleted shelf's wear and hand-given colours with it, and the favourites pointing at its books,
+which is `design/0019`'s rule that a dead pick goes on save. A reading place survives, because it
+names a note. The empty-room card now tells the two causes apart: every shelf hidden offers *Show
+every shelf*, every shelf **deleted** offers *Build the default shelves*.
+
+**The + New shelf at the top builds at the top**, and the one at the foot appends. Both used to
+append, so the top button sent the shelf past everything.
+
+**A shelf is carried by its floor** (`design/0014`), dropped on the half of another shelf it
+should land on. The grip is a transparent strip laid over the board rather than a floor rebuilt
+as an element, sized from `--board` so all three looks keep their own painting of it — and
+`--board` went **3px → 5px**, because a hairline is fine to look at and impossible to grab.
+Leather already painted **10px** and is unchanged. Measured: grips == rows, an *after* mark on
+the lower half, **0** marks left behind, and a book dragged in the same breath leaving the shelf
+order alone.
+
 **A pick shelf is a kind of shelf, not one shelf.** *"allow users to add multiple favourite type
 shelfs"* — so "What makes a book?" gains **Books you drag onto it**, and a library can hold as
 many as it likes. The form drops the source question, the order and the recipes but keeps the
@@ -70,7 +92,7 @@ its wear, its ribbons, its hand-given colour.
 Addresses did not move, because the shelf ships empty: **447 / 194 / 709** on demo / sparse /
 library, the same list element for element across a rebuild. `__vs.counts().shelves` is **6 ->
 7**. The suite is
-**66 → 72** checks (six new, and *the six default shelves* is now *the seven*), green on all
+**66 → 73** checks (seven new, and *the six default shelves* is now *the seven*), green on all
 three shapes.
 ## 2026-09-11 — A ribbon per book colour, and the colours block became a table
 

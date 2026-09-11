@@ -217,7 +217,7 @@ function mountVaultShelf(root, data, options) {
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
   var history = [];
-  /** @type {{ editing: string|null, draft: Shelf }|null} */
+  /** @type {{ editing: string|null, draft: Shelf, at: "top"|"end" }|null} */
   var builder = null;
 
   var reduceMotion = WIN.matchMedia
@@ -360,12 +360,20 @@ function mountVaultShelf(root, data, options) {
     card.hidden = anyVisible;
     if (!anyVisible) {
       clear(card);
-      card.appendChild(el("p", "", "Every shelf is hidden. Nothing was deleted -- Manage " +
-                                   "brings them back."));
-      var restore = el("button", "vs-primary", "Show every shelf");
+      /* github#0 -- AN EMPTY ROOM HAS TWO CAUSES NOW, and they need different words: every
+       * shelf hidden is recoverable in one click, and every shelf deleted is not. Telling a
+       * person nothing was deleted when they have just deleted everything is the worst kind
+       * of wrong. */
+      var none = settings.shelves.length === 0;
+      card.appendChild(el("p", "", none
+        ? "There are no shelves. The six the library opens with can be built again, or make " +
+          "your own."
+        : "Every shelf is hidden. Nothing was deleted -- Manage brings them back."));
+      var restore = el("button", "vs-primary", none ? "Build the default shelves" : "Show every shelf");
       restore.type = "button";
       on(restore, "click", function () {
-        settings.shelves.forEach(function (s) { s.hidden = false; });
+        if (none) settings.shelves = core.defaultShelves();
+        else settings.shelves.forEach(function (s) { s.hidden = false; });
         persist();
         refresh();
       });
@@ -449,7 +457,8 @@ function mountVaultShelf(root, data, options) {
     }
     /** @param {Event} e @returns {boolean} */
     var overSpine = function (e) {
-      return e.target instanceof Element && !!e.target.closest(".vs-spine");
+      return e.target instanceof Element &&
+             !!(e.target.closest(".vs-spine") || e.target.closest(".vs-floorgrip"));
     };
     on(rail, "dragover", function (e) {
       var de = /** @type {DragEvent} */ (e);
@@ -675,7 +684,126 @@ function mountVaultShelf(root, data, options) {
       if (group.plaque !== null) g.appendChild(el("div", "vs-plaque", group.plaque));
       track.appendChild(g);
     });
+    /* github#0 -- THE BOARD IS THE HANDLE. The floor is painted as a background on the track
+     * (design/0014) and every look paints its own, so the thing you grab is a strip laid over
+     * it rather than a floor rebuilt as an element -- that way one grip serves three looks and
+     * none of their stylesheets has to know. `hand` is false in the builder's preview, which
+     * is not a shelf anybody can rearrange. */
+    if (hand) track.appendChild(gripOf(shelf));
     return track;
+  }
+
+  /* ---- a shelf carried by its floor ------------------------------------------
+   * github#0 -- "make the shelf floor draggable to re arrange shelves". Manage has had arrows
+   * for this all along; what it did not have is the thing a person reaches for, which is the
+   * shelf itself. The books on a shelf are dragged by their spines and the shelf is dragged by
+   * its board, so the two gestures cannot be confused: a spine is a book, a board is a shelf.
+   */
+
+  /** @type {{ id: string }|null} */
+  var shelfDrag = null;
+  /** @type {HTMLElement|null} */
+  var shelfMark = null;
+
+  /** @param {Shelf} shelf @returns {HTMLElement} */
+  function gripOf(shelf) {
+    var grip = el("div", "vs-floorgrip");
+    grip.draggable = true;
+    grip.setAttribute("data-grip", shelf.id);
+    grip.title = "Drag the shelf by its floor to move it. Manage has arrows for the same move.";
+    on(grip, "dragstart", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      shelfDrag = { id: shelf.id };
+      if (de.dataTransfer) {
+        de.dataTransfer.effectAllowed = "move";
+        de.dataTransfer.setData("text/plain", shelf.id);
+      }
+      var section = sectionOf(shelf.id);
+      if (section) section.setAttribute("data-carrying", "1");
+    });
+    on(grip, "dragend", function () {
+      var section = shelfDrag ? sectionOf(shelfDrag.id) : null;
+      if (section) section.removeAttribute("data-carrying");
+      shelfDrag = null;
+      clearShelfMark();
+    });
+    return grip;
+  }
+
+  /** @param {string} id @returns {HTMLElement|null} */
+  function sectionOf(id) {
+    return /** @type {HTMLElement|null} */ (
+      $("shelves").querySelector('[data-shelf="' + cssEscape(id) + '"]'));
+  }
+
+  /** @param {HTMLElement} section @param {"before"|"after"} side */
+  function markShelf(section, side) {
+    if (shelfMark === section && section.getAttribute("data-shelfdrop") === side) return;
+    clearShelfMark();
+    shelfMark = section;
+    section.setAttribute("data-shelfdrop", side);
+  }
+
+  function clearShelfMark() {
+    if (shelfMark) shelfMark.removeAttribute("data-shelfdrop");
+    shelfMark = null;
+  }
+
+  /**
+   * github#0 -- the shelf the pointer is over, and which half of it, so a drop means "above
+   * this one" or "below it" rather than an index into a list that is being rearranged.
+   * @param {DragEvent} e @returns {{ section: HTMLElement, id: string, side: "before"|"after" }|null}
+   */
+  function shelfUnder(e) {
+    if (!(e.target instanceof Element)) return null;
+    var section = /** @type {HTMLElement|null} */ (e.target.closest("[data-shelf]"));
+    if (!section) return null;
+    var id = section.getAttribute("data-shelf") || "";
+    if (!id || id === "-reading" || !shelfDrag || id === shelfDrag.id) return null;
+    var box = section.getBoundingClientRect();
+    return { section: section, id: id, side: e.clientY >= box.top + box.height / 2 ? "after" : "before" };
+  }
+
+  /**
+   * github#0 -- the move, as "before which shelf", for the same reason a book's is
+   * (design/0018): it survives a list that is not in the order the settings file holds.
+   * @param {string} id @param {string} beforeId @param {"before"|"after"} side
+   */
+  function moveShelf(id, beforeId, side) {
+    var ordered = settings.shelves.slice().sort(function (a, b) { return a.position - b.position; });
+    var moved = ordered.filter(function (s_) { return s_.id === id; })[0];
+    if (!moved) return;
+    var rest = ordered.filter(function (s_) { return s_.id !== id; });
+    var at = -1;
+    rest.forEach(function (s_, k) { if (s_.id === beforeId) at = k; });
+    if (at < 0) return;
+    rest.splice(side === "after" ? at + 1 : at, 0, moved);
+    rest.forEach(function (s_, k) { s_.position = k; });
+    persist();
+    refresh();
+  }
+
+  /** github#0 -- the library takes the drop, so a shelf can be dropped anywhere on another one. */
+  /** @param {HTMLElement} box */
+  function shelfDropZone(box) {
+    on(box, "dragover", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      var over = shelfUnder(de);
+      if (!over) return;
+      de.preventDefault();
+      if (de.dataTransfer) de.dataTransfer.dropEffect = "move";
+      markShelf(over.section, over.side);
+    });
+    on(box, "drop", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      var over = shelfUnder(de);
+      if (!over || !shelfDrag) return;
+      de.preventDefault();
+      var id = shelfDrag.id;
+      shelfDrag = null;
+      clearShelfMark();
+      moveShelf(id, over.id, over.side);
+    });
   }
 
   /** @param {Book} book @param {Shelf} shelf @param {boolean} hand @returns {HTMLElement} */
@@ -1965,10 +2093,16 @@ function mountVaultShelf(root, data, options) {
    * nothing, so this runs the same core.buildShelf the library runs.
    */
   /** @param {Shelf|null} existing */
-  function openBuilder(existing) {
+  /**
+   * github#0 -- THE NEW SHELF LANDS WHERE THE BUTTON IS. There is a "+ New shelf" at each end
+   * of the library (design/0009), and both of them used to append: pressing the one at the top
+   * of the room sent the shelf to the bottom, past everything. `at` is which end asked.
+   * @param {Shelf|null} existing @param {"top"|"end"} [at]
+   */
+  function openBuilder(existing, at) {
     builder = existing
-      ? { editing: existing.id, draft: core.clone(existing) }
-      : { editing: null, draft: {
+      ? { editing: existing.id, draft: core.clone(existing), at: "end" }
+      : { editing: null, at: at === "top" ? "top" : "end", draft: {
           id: "", name: "New shelf", source: { kind: "all" }, classifier: "initial",
           direction: "alphabetical", hidden: false, position: settings.shelves.length,
           plaques: false, includeSubtags: true
@@ -2154,8 +2288,14 @@ function mountVaultShelf(root, data, options) {
       if (i >= 0) settings.shelves[i] = draft;
     } else {
       draft.id = uniqueId(core.slug(draft.name));
-      draft.position = settings.shelves.length;
       settings.shelves.push(draft);
+      /* The position is what the library sorts on, so "at the top" is written as position 0
+       * and everything else moves down one -- the shift migrate makes for Favourites. */
+      var ordered = settings.shelves.slice()
+        .sort(function (a, b) { return a.position - b.position; })
+        .filter(function (s_) { return s_ !== draft; });
+      var placed = builder.at === "top" ? [draft].concat(ordered) : ordered.concat([draft]);
+      placed.forEach(function (s_, k) { s_.position = k; });
     }
     persist();
     closeBuilder();
@@ -2202,6 +2342,40 @@ function mountVaultShelf(root, data, options) {
   function newShelfFromManage() {
     $("manage").hidden = true;
     openBuilder(null);
+  }
+
+  /** github#0 -- which row's Delete is asking, if any. @type {string|null} */
+  var armed = null;
+
+  /**
+   * github#0 -- A DELETED SHELF IS GONE, and what went with it goes too: the wear and the
+   * hand-given colours keyed by its addresses, which can never be reached again, and the
+   * favourites pointing at its books, which is the same rule design/0019 already has -- a dead
+   * pick is dropped on save, and this is a save. A reading place is NOT deleted: it names a
+   * note, and `core.resolveReading` finds that note another home (decisions/0002).
+   * @param {string} id
+   */
+  function deleteShelf(id) {
+    var at = -1;
+    settings.shelves.forEach(function (s_, k) { if (s_.id === id) at = k; });
+    if (at < 0) return;
+    settings.shelves.splice(at, 1);
+    settings.shelves.slice().sort(function (a, b) { return a.position - b.position; })
+      .forEach(function (s_, k) { s_.position = k; });
+    var dead = id + "/";
+    Object.keys(settings.wear).forEach(function (key) {
+      if (key.indexOf(dead) === 0) delete settings.wear[key];
+    });
+    Object.keys(settings.bookColors).forEach(function (key) {
+      if (key.indexOf(dead) === 0) delete settings.bookColors[key];
+    });
+    var live = liveSources();
+    settings.shelves.forEach(function (s_) {
+      if (isPick(s_)) s_.picks = core.unpick(s_.picks, live, "");
+    });
+    persist();
+    renderManage();
+    refresh();
   }
 
   function renderManage() {
@@ -2255,6 +2429,28 @@ function mountVaultShelf(root, data, options) {
       edit.type = "button";
       on(edit, "click", function () { $("manage").hidden = true; openBuilder(shelf); });
 
+      /* github#0 -- DELETING IS THE ONE THING HIDING IS NOT, so it asks. The button arms
+       * itself on the first press and does the deed on the second; a second press anywhere
+       * else disarms it. No confirm() dialog: inside Obsidian that is the app's modal, not
+       * ours, and a dialog in a plugin's sheet reads as a bug. */
+      var del = el("button", "vs-delete", "Delete");
+      del.type = "button";
+      del.setAttribute("aria-label", "Delete " + shelf.name);
+      del.title = "Delete this shelf. Hiding keeps it; this does not.";
+      on(del, "click", function () {
+        if (armed !== shelf.id) {
+          armed = shelf.id;
+          renderManage();
+          return;
+        }
+        armed = null;
+        deleteShelf(shelf.id);
+      });
+      if (armed === shelf.id) {
+        del.textContent = "Really delete?";
+        del.setAttribute("data-armed", "1");
+      }
+
       /* design/0005 -- per shelf, and it says what it IS. */
       /* design/0005 -- A TOGGLE, because it is a state and not an action: a button that
        * reads "Vary colours" says what pressing it does, and a switch says what is so. */
@@ -2280,6 +2476,7 @@ function mountVaultShelf(root, data, options) {
       row.appendChild(shown);
       row.appendChild(vary);
       row.appendChild(edit);
+      row.appendChild(del);
       box.appendChild(row);
     });
   }
@@ -2596,6 +2793,7 @@ function mountVaultShelf(root, data, options) {
 
   watchRoom();
   takeOffZone($("shelves"));
+  shelfDropZone($("shelves"));
   paintOrder();
   on($("order"), "click", toggleOrder);
   fillLooks();
@@ -2614,8 +2812,8 @@ function mountVaultShelf(root, data, options) {
     applyQuery();
   });
   on($("clearfilters"), "click", clearFilters);
-  on($("newshelf"), "click", function () { openBuilder(null); });
-  on($("newshelf2"), "click", function () { openBuilder(null); });
+  on($("newshelf"), "click", function () { openBuilder(null, "top"); });
+  on($("newshelf2"), "click", function () { openBuilder(null, "end"); });
   on($("manageopen"), "click", openManage);
   /* github#4 -- palette and ribbon together; a slot's own mark puts one slot back. */
   on($("mpalettereset"), "click", function () {
@@ -2853,6 +3051,22 @@ function mountVaultShelf(root, data, options) {
       takeOff(shelf, sourceId);
       return true;
     },
+    /** github#0 -- delete a shelf, the way the second press of the Manage button does.
+     * @param {string} id */
+    deleteShelf: function (id) {
+      var had = settings.shelves.length;
+      deleteShelf(id);
+      return settings.shelves.length === had - 1;
+    },
+    /** github#0 -- carry a shelf by its floor and drop it above or below another.
+     * @param {string} id @param {string} beforeId @param {"before"|"after"} side */
+    moveShelf: function (id, beforeId, side) {
+      moveShelf(id, beforeId, side === "after" ? "after" : "before");
+      return views.map(function (v) { return v.shelf.id; });
+    },
+    /** github#0 -- open the builder as one of the two "+ New shelf" buttons does.
+     * @param {"top"|"end"} at */
+    newShelf: function (at) { openBuilder(null, at); },
     /** design/0019 -- every pick shelf the library is showing, with what each one holds. */
     picks: function () {
       return pickShelves().map(function (s) {

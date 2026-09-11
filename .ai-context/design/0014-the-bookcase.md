@@ -43,6 +43,34 @@ So `renderLibrary()` draws, calls `settleRoom()`, and draws once more if the tru
 from the guess. **One correction, not a loop**: the second measurement always agrees with the
 second packing, and a render that can schedule another render is a render that can spin.
 
+## The board is a handle
+
+> "make the shelf floor draggable to re arrange shelves" · "for that make shelf floors a bit
+> thicker"
+
+Manage has had arrows for shelf order since the beginning, and they are still the keyboard path.
+What they are not is the thing a person reaches for, which is the shelf itself. **A shelf is
+carried by its floor**: press the board, drag, and drop it on the half of another shelf you want
+it to land on — above or below, said as *before which shelf* for the same reason a book's move is
+(`design/0018`).
+
+The two gestures cannot be confused, and that is the whole reason this works: **a spine is a
+book and a board is a shelf.** A book drag starts on a spine; a shelf drag starts on the floor;
+neither handler answers to the other's payload, and the take-off zone of `design/0019` ignores a
+floor grip explicitly.
+
+**The grip is laid over the floor, not built as one.** The floor is a background on `.vs-track`
+here and a walnut board in leather and an edge-lit strip in cyberpunk — three paintings of the
+same line. Rebuilding it as an element would mean editing all three stylesheets and keeping them
+in step forever. Instead there is one transparent `.vs-floorgrip` per row, sized from
+`--board` so it grows with whatever the look paints, standing a few pixels proud of it so it can
+actually be hit, and lighting in the accent only while the pointer is on it.
+
+**The board went from 3px to 5px** for that reason: at three it was a hairline, which is fine to
+look at and impossible to grab. Leather already painted its own at 10px and is unchanged. The
+plaque hangs `calc(var(--board) + 9px)` below the books, so it moved down with the board and
+nothing else did.
+
 ## What it costs
 
 The page is taller. The 10k library fixture puts 17 rows under Weeks, which is a tall shelf —
