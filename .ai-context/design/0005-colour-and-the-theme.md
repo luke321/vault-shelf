@@ -215,3 +215,32 @@ other look, which is the "palette nobody chose" this record already refused.
 
 `"colours and hidden shelves set in Manage persist through a reload"` drives every one of
 these through the sheet and back through `core.migrate`.
+
+## A date shelf dyes by period (github#21, 2026-09-11)
+
+*"make the encyclopedia have the same colors, but change colors for other books by decade, or
+by year for example."* A folder dye says what kind of book this is, and on a Years shelf every
+book is the same kind: the dominant folder of 2024 is the dominant folder of 2025, so the
+whole run came out one colour with an odd one where a folder tipped. The thing that *does*
+distinguish books on a date shelf is when they are, so that is what the dye follows.
+
+`Shelf.colorBy` is `"folder" | "year" | "decade"`, and unset means the classifier's own
+default: **Years by decade, Months and Weeks by year**, everything else by folder. The slot is
+the period modulo twelve — `2026 % 12`, `202 % 12` — so it is fixed by the calendar rather
+than by which years the vault happens to have, a new year takes the next slot along, and a
+rebuild cannot recolour anything. The rule sits **between** *vary* and the folder in the
+ranking above: a hand-given colour still wins, a shelf that varies still varies, and a book
+whose key carries no year (`-undated`) keeps its folder's dye.
+
+Encyclopedia is untouched, as asked, and so are People and Tags: a person's volume is a
+kind of book, and the folder says which kind. Manage shows the rule as a select on the date
+shelves' rows only — *Colour by folder / year / decade* — beside *Vary colours*; the other
+rows do not get one, since on them it could only mean the folder.
+
+Measured — demo / sparse / library: Months holds **129 / 29 / 121** dated books over
+**16 / 5 / 11** years with **0** years torn between two dyes and **0** neighbouring years
+sharing one; Years holds **2 / 1 / 2** decades, none torn, none shared; Encyclopedia
+**29 / 23 / 27** of **29 / 23 / 27** books wear their folder's dye. Through Manage, Months
+by folder puts **129 / 29 / 121** back on the folder, by decade tears **0**, and the
+choice saves as `"decade"`. The setting is optional, so no schema moves: an older file comes
+up on the defaults.

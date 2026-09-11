@@ -12,10 +12,11 @@ each shelf is another useful address into one vault.
 Sister project to [Vault Graph](https://github.com/luke321/vault-graph), which draws the same
 vault as one disc. Both are deterministic, local, and make no network requests at all.
 
-![Vault Shelf](assets/demo.webp)
+![A book dragged from the Years shelf onto the empty Favourites shelf, a second dropped into the gap before it, the favourite opened and a ribbon left in it, the shelf parting around a search and closing back up, and the room as it was left](assets/demo.webp)
 
-*Six shelves over a 394-note vault. The full 83-second walkthrough is
-`node scripts/record-demo.mjs`.*
+*The first 38 seconds of the 149-second walkthrough `node scripts/record-demo.mjs` shoots:
+make the shelf yours, mark your place, ask the room a question. Shot in leather, in a mirror of
+a real vault with every word invented.*
 
 **Try it live** — a real export of an invented 394-note vault spanning fifteen years, which you
 can open, read, search and build a shelf in exactly like your own. The full feature list — the

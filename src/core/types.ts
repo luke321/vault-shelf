@@ -93,7 +93,12 @@ export interface Shelf {
    * varies reads as people.
    */
   varyColors?: boolean;
+  /** github#21 -- what a dye follows here; unset is the classifier's own. */
+  colorBy?: ColorRule;
 }
+
+/** github#21 -- design/0005 */
+export type ColorRule = "folder" | "year" | "decade";
 
 export interface Book {
   /** decisions/0002 */
