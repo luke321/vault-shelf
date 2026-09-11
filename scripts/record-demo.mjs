@@ -28,9 +28,9 @@ const HERO_CLIP = arg("hero-clip", "") ? arg("hero-clip", "").split(",").map(Num
 /* github#21 -- leather unless asked; a fresh library opens in it. */
 const LOOK = arg("look", "leather");
 /* github#21 -- the hero's budget: fps first, then width, then quality. */
-const HERO_FPS = Number(arg("hero-fps", "8"));
-const HERO_W = Number(arg("hero-width", "800"));
-const HERO_Q = Number(arg("hero-q", "40"));
+const HERO_FPS = Number(arg("hero-fps", "6"));
+const HERO_W = Number(arg("hero-width", "780"));
+const HERO_Q = Number(arg("hero-q", "38"));
 const KEEP = argv.includes("--keep-frames");
 const QUIET = argv.includes("--quiet");
 
@@ -200,8 +200,8 @@ const CURSOR_SVG = '<svg viewBox="0 0 24 24" width="26" height="26" xmlns="http:
  * else needs to know the frame rate.
  */
 function storyboard(P) {
-  const { go, j, caption, scrollTo, click, shelfTop, once, pointer, rightClick, centreOf,
-          lift, carry, drop } = P;
+  const { go, j, caption, scrollTo, settleOn, click, shelfTop, once, pointer, rightClick,
+          centreOf, lift, carry, drop } = P;
   let parted = "note";   // the search the parting act types, taken from the vault itself
 
   /* design/0020 -- the dailies folder if there is one, else the biggest. */
@@ -229,11 +229,14 @@ function storyboard(P) {
   const thickest = (shelfId) => j(`(function(){
     var v = __vs.views().filter(function (v) { return v.shelf.id === ${JSON.stringify(shelfId)}; })[0];
     if (!v) return null;
-    var books = v.books.filter(function (b) { return b.key !== "-undated" && b.key !== "-unfiled"; });
+    var books = v.books.filter(function (b) { return b.key.charAt(0) !== "-"; });
     books.sort(function (a, b) { return b.notes.length - a.notes.length; });
     return books[0] ? books[0].id : null;
   })()`);
-  const spineOf = (bookId) => `#vs-shelves .vs-spine[data-book="${bookId.replace(/"/g, '\\"')}"]`;
+  /* github#21 -- a spine on its own shelf; Reading holds it too. */
+  const spineOf = (bookId, shelfId) =>
+    (shelfId ? `[data-shelf="${shelfId}"] ` : "#vs-shelves ") +
+    `.vs-spine[data-book="${bookId.replace(/"/g, '\\"')}"]`;
   const noteCount = () => j(`__vs.counts().notes`);
   /* github#21 -- a hand's curve, not a ruler's. */
   const arc = (a, b, bow, k) => ({
@@ -261,7 +264,7 @@ function storyboard(P) {
     {
       /* github#21, design/0019 -- a real dragstart, dragover and drop. */
       name: "favourite",
-      seconds: 11,
+      seconds: 13,
       async at(t, first) {
         if (first) {
           await go(`(function(){
@@ -272,9 +275,11 @@ function storyboard(P) {
             document.getElementById("vs-library").scrollTop = 0;
           })(); void 0`);
           await pointer(null);
-          P.state.first = await thickest("years");
+          P.state.first = await thickest("people");
           P.state.second = await thickest("encyclopedia");
           if (!P.state.first || !P.state.second) throw new Error("favourite: no book to carry");
+          P.state.down = await shelfTop("people", -70);
+          P.state.settled = false;
         }
         await caption(t, 0.04, 0.95,
           "<b>Favourites</b>: drag any book onto it.",
@@ -282,47 +287,57 @@ function storyboard(P) {
           "this one is live.");
         const fav = await favId();
         const landing = () => centreOf(`[data-shelf="${fav}"] .vs-shelfrail .vs-track`);
-        /* -- the first book, off Years and onto the empty landing -- */
-        const a = await centreOf(spineOf(P.state.first));
-        if (!a) throw new Error("favourite: the Years spine is not in shot");
-        if (t < 0.14) {
-          const k = easeInOut(Math.max(0, (t - 0.02) / 0.12));
-          await pointer({ x: Math.round(lerp(a.x + 320, a.x, k)), y: Math.round(lerp(a.y + 140, a.y, k)) });
+        /* github#21 -- down to People, and the thickest is lifted. */
+        if (t < 0.12) await scrollTo(lerp(0, P.state.down, easeInOut(t / 0.12)));
+        if (t >= 0.12 && !P.state.settled) { P.state.down = await settleOn("people"); P.state.settled = true; }
+        const a = await centreOf(spineOf(P.state.first, "people"));
+        if (t >= 0.06 && t < 0.18 && a) {
+          const k = easeInOut((t - 0.06) / 0.12);
+          await pointer({ x: Math.round(lerp(a.x + 260, a.x, k)), y: Math.round(lerp(a.y + 160, a.y, k)) });
         }
-        await once("lift-1", 0.14, t, async () => {
-          const up = await lift(spineOf(P.state.first));
-          if (!up) throw new Error("favourite: dragstart on the Years spine lifted nothing");
+        await once("lift-1", 0.18, t, async () => {
+          const up = await lift(spineOf(P.state.first, "people"));
+          if (!up) throw new Error("favourite: dragstart on the People spine lifted nothing");
+          P.state.lifted = up;
         });
-        if (t >= 0.14 && t < 0.44) {
-          const b = await landing();
-          const k = easeInOut(Math.min(1, (t - 0.14) / 0.26));
-          await carry(arc(a, b, { x: b.x + 260, y: (a.y + b.y) / 2 }, k));
+        /* github#21 -- the room scrolls up under the carried book. */
+        if (t >= 0.18 && t < 0.34) {
+          const k = easeInOut((t - 0.18) / 0.16);
+          await scrollTo(lerp(P.state.down, 0, k));
+          const from = P.state.lifted;
+          await carry({ x: Math.round(lerp(from.x, from.x - 120, k)), y: Math.round(lerp(from.y, 150, k)) });
         }
-        if (t >= 0.44 && t < 0.5) await carry(await landing());
-        await once("drop-1", 0.5, t, async () => {
+        if (t >= 0.34 && t < 0.5) {
+          const b = await landing();
+          const from = { x: P.state.lifted.x - 120, y: 150 };
+          const k = easeInOut((t - 0.34) / 0.16);
+          if (b) await carry(arc(from, b, { x: b.x + 220, y: (from.y + b.y) / 2 }, k));
+        }
+        if (t >= 0.5 && t < 0.55) await carry(await landing());
+        await once("drop-1", 0.55, t, async () => {
           const lit = await j(`document.querySelector('[data-shelf="${fav}"] .vs-shelfrail').getAttribute("data-drop")`);
           if (lit !== "1") throw new Error("favourite: the landing never lit under the pointer");
           await drop(await landing());
           const picks = await j(`__vs.picks()[0].picks.length`);
           if (picks !== 1) throw new Error("favourite: the drop onto the landing did not take");
         });
-        /* -- the second, off Encyclopedia, into the gap BEFORE the first -- */
-        const c = await centreOf(spineOf(P.state.second));
+        /* github#21 -- the second lands in the gap before the first. */
+        const c = await centreOf(spineOf(P.state.second, "encyclopedia"));
         const firstFav = () => centreOf(spineOf(fav + "/" + P.state.first), -6, 0);
-        if (t >= 0.5 && t < 0.64) await glide(await centreOf(spineOf(fav + "/" + P.state.first)), c, easeInOut((t - 0.5) / 0.14));
-        await once("lift-2", 0.64, t, async () => {
-          const up = await lift(spineOf(P.state.second));
+        if (t >= 0.55 && t < 0.68) await glide(await centreOf(spineOf(fav + "/" + P.state.first)), c, easeInOut((t - 0.55) / 0.13));
+        await once("lift-2", 0.68, t, async () => {
+          const up = await lift(spineOf(P.state.second, "encyclopedia"));
           if (!up) throw new Error("favourite: dragstart on the Encyclopedia spine lifted nothing");
         });
-        if (t >= 0.64 && t < 0.86) {
+        if (t >= 0.68 && t < 0.87) {
           const d = await firstFav();
           if (c && d) {
-            const k = easeInOut(Math.min(1, (t - 0.64) / 0.2));
+            const k = easeInOut(Math.min(1, (t - 0.68) / 0.17));
             await carry(arc(c, d, { x: d.x + 200, y: (c.y + d.y) / 2 }, k));
           }
         }
-        if (t >= 0.86 && t < 0.91) { const d = await firstFav(); if (d) await carry(d); }
-        await once("drop-2", 0.91, t, async () => {
+        if (t >= 0.87 && t < 0.92) { const d = await firstFav(); if (d) await carry(d); }
+        await once("drop-2", 0.92, t, async () => {
           const bar = await j(`!!document.querySelector('[data-shelf="${fav}"] .vs-drop[data-side="before"]')`);
           if (!bar) throw new Error("favourite: no insertion mark stood in the gap before the first favourite");
           await drop(await firstFav());
@@ -331,23 +346,23 @@ function storyboard(P) {
             throw new Error("favourite: the second drop did not land before the first (" + seq.join(", ") + ")");
           }
         });
-        if (t > 0.91) {
+        if (t > 0.92) {
           const d = await centreOf(spineOf(fav + "/" + P.state.second));
-          if (d) await pointer({ x: d.x + 30 + Math.round((t - 0.91) * 400), y: d.y + 70 + Math.round((t - 0.91) * 300) });
+          if (d) await pointer({ x: d.x + 30 + Math.round((t - 0.92) * 400), y: d.y + 70 + Math.round((t - 0.92) * 300) });
         }
       },
     },
     {
       name: "ribbon",
-      seconds: 9,
+      seconds: 13,
       async at(t, first) {
-        await caption(t, 0.05, 0.92,
+        await caption(t, 0.05, 0.94,
           "Open one, and leave a <b>ribbon</b> in it.",
           "One note is in five books, so one ribbon hangs out of all five, and a Reading shelf " +
-          "gathers them at the top. Rename the note or hide a shelf and it re-threads itself.");
+          "gathers every book that has one. Rename the note or hide a shelf and it re-threads.");
         /* design/0007 -- every act opens what it needs. */
         if (first) {
-          if (!P.state.first) P.state.first = await thickest("years");
+          if (!P.state.first) P.state.first = await thickest("people");
           await go(`(function(){
             if (!document.getElementById("vs-reader").hidden) __vs.closeReader();
             var fav = __vs.picks()[0];
@@ -356,38 +371,63 @@ function storyboard(P) {
             document.getElementById("vs-library").scrollTop = 0;
           })(); void 0`);
           await pointer(null);
+          P.state.other = await thickest("months");
+          P.state.otherShelf = "months";
         }
         const fav = await favId();
-        const favSpine = spineOf(fav + "/" + P.state.first);
-        if (t >= 0.02 && t < 0.16) {
-          const s = await centreOf(favSpine);
-          if (s) await glide({ x: s.x + 360, y: s.y + 160 }, s, easeInOut((t - 0.02) / 0.14));
-        }
-        await once("open", 0.16, t, async () => {
-          const s = await centreOf(favSpine);
-          await pointer(s, true);
-          const hit = await click(s);
-          const open = await j(`!document.getElementById("vs-reader").hidden`);
-          if (!hit || !open) throw new Error("ribbon: the click on the favourite opened no book");
-          await pointer(s, false);
-        });
-        if (t >= 0.2 && t < 0.36) await glide(await centreOf(favSpine), await centreOf("#vs-marks .vs-markstub"), easeInOut((t - 0.2) / 0.16));
-        await once("mark", 0.36, t, async () => {
-          const r = await centreOf("#vs-marks .vs-markstub");
+        const stub = "#vs-marks .vs-markstub";
+        const mark = async (name) => {
+          const r = await centreOf(stub);
           await pointer(r, true);
-          await go(`document.querySelector("#vs-marks .vs-markstub").click(); void 0`);
+          await go(`document.querySelector(${JSON.stringify(stub)}).click(); void 0`);
           await pointer(r, false);
-        });
-        if (t >= 0.42 && t < 0.56) await glide(await centreOf("#vs-marks .vs-markstub"), await centreOf("#vs-back"), easeInOut((t - 0.42) / 0.14));
-        await once("back", 0.56, t, async () => {
+          const on = await j(`!!document.querySelector('#vs-marks .vs-mark[aria-current="true"]')`);
+          if (!on) throw new Error("ribbon: " + name + " took no ribbon");
+        };
+        const back = async () => {
           const b = await centreOf("#vs-back");
           await pointer(b, true);
           await go(`document.getElementById("vs-back").click(); void 0`);
           await pointer(null);
+        };
+        const open = async (sel, name) => {
+          const s = await centreOf(sel);
+          await pointer(s, true);
+          const hit = await click(s);
+          const isOpen = await j(`!document.getElementById("vs-reader").hidden`);
+          if (!hit || !isOpen) throw new Error("ribbon: the click on " + name + " opened no book");
+          await pointer(s, false);
+        };
+        /* github#21 -- the favourite first. */
+        const favSpine = spineOf(fav + "/" + P.state.first);
+        if (t >= 0.02 && t < 0.12) {
+          const s = await centreOf(favSpine);
+          if (s) await glide({ x: s.x + 360, y: s.y + 160 }, s, easeInOut((t - 0.02) / 0.1));
+        }
+        await once("open-1", 0.12, t, () => open(favSpine, "the favourite"));
+        if (t >= 0.15 && t < 0.27) await glide(await centreOf(favSpine), await centreOf(stub), easeInOut((t - 0.15) / 0.12));
+        await once("mark-1", 0.27, t, () => mark("the favourite"));
+        if (t >= 0.31 && t < 0.4) await glide(await centreOf(stub), await centreOf("#vs-back"), easeInOut((t - 0.31) / 0.09));
+        await once("back-1", 0.4, t, async () => { await back(); P.state.down = await shelfTop("months", -70); });
+        /* github#21 -- then a book further down the library. */
+        const other = spineOf(P.state.other, "months");
+        if (t >= 0.41 && t < 0.47) await scrollTo(lerp(0, P.state.down, easeInOut((t - 0.41) / 0.06)));
+        await once("settle-2", 0.47, t, async () => { P.state.down = await settleOn("months"); });
+        if (t >= 0.47 && t < 0.52) {
+          const s = await centreOf(other);
+          if (s) await glide({ x: s.x + 220, y: s.y + 110 }, s, easeInOut((t - 0.47) / 0.05));
+        }
+        await once("open-2", 0.52, t, () => open(other, "the second book"));
+        if (t >= 0.55 && t < 0.67) await glide(await centreOf(other), await centreOf(stub), easeInOut((t - 0.55) / 0.12));
+        await once("mark-2", 0.67, t, () => mark("the second book"));
+        if (t >= 0.71 && t < 0.8) await glide(await centreOf(stub), await centreOf("#vs-back"), easeInOut((t - 0.71) / 0.09));
+        await once("back-2", 0.8, t, async () => {
+          await back();
           const hung = await j(`document.querySelectorAll("#vs-shelves .vs-spine .vs-ribbon").length`);
-          if (hung < 2) throw new Error("ribbon: after marking, only " + hung + " spine(s) show a ribbon");
+          const reading = await j(`document.querySelectorAll('#vs-shelves [data-shelf="-reading"] .vs-spine').length`);
+          if (hung < 4 || reading < 2) throw new Error("ribbon: after two marks, " + hung + " spine(s) show a ribbon and Reading holds " + reading);
         });
-        if (t > 0.56) await scrollTo(0);
+        if (t >= 0.8) await scrollTo(lerp(P.state.down, 0, easeInOut(Math.min(1, (t - 0.8) / 0.12))));
       },
     },
     {
@@ -453,10 +493,11 @@ function storyboard(P) {
         }
         const picks = await j(`(__vs.picks()[0] || { picks: [] }).picks.length`);
         const ribbons = await j(`document.querySelectorAll("#vs-shelves .vs-spine .vs-ribbon").length`);
+        const marked = await j(`document.querySelectorAll('#vs-shelves [data-shelf="-reading"] .vs-spine').length`);
         await caption(t, 0.08, 0.9,
           "The notes never moved.",
-          `${picks} favourite${picks === 1 ? "" : "s"}, one ribbon hanging out of ${ribbons} books, and ` +
-          `${await noteCount()} notes exactly where they were.`);
+          `${picks} favourite${picks === 1 ? "" : "s"}, ${marked} ribbon${marked === 1 ? "" : "s"} ` +
+          `showing in ${ribbons} books, and ${await noteCount()} notes exactly where they were.`);
       },
     },
     {
@@ -486,7 +527,7 @@ function storyboard(P) {
           "whole run as one book.");
         if (first) {
           await go(`(function(){ if (!document.getElementById("vs-reader").hidden) __vs.closeReader(); })(); void 0`);
-          await scrollTo(await shelfTop("months", -70));
+          await settleOn("months");
           await pointer(null);
         }
         const plaque = '[data-shelf="months"] .vs-plaque';
@@ -521,10 +562,10 @@ function storyboard(P) {
           "The band at the head is the folder mix. The number at the foot is the count.");
         if (first) {
           await go(`(function(){ if (!document.getElementById("vs-reader").hidden) __vs.closeReader(); })(); void 0`);
-          await scrollTo(await shelfTop("months", -70));
+          await settleOn("months");
           await pointer(null);
         }
-        const spine = await centreOf(spineOf(await thickest("months")));
+        const spine = await centreOf(spineOf(await thickest("months"), "months"));
         if (t > 0.2) await pointer(spine);
       },
     },
@@ -533,8 +574,8 @@ function storyboard(P) {
       seconds: 8,
       async at(t, first) {
         if (first) {
-          await scrollTo(await shelfTop("months", -70));
-          const spine = await centreOf(spineOf(await thickest("months")));
+          await settleOn("months");
+          const spine = await centreOf(spineOf(await thickest("months"), "months"));
           await pointer(spine, true);
           const hit = await click(spine);
           const open = await j(`!document.getElementById("vs-reader").hidden`);
@@ -591,7 +632,7 @@ function storyboard(P) {
           "and it never sits quite flush again.");
         if (first) {
           await go(`(function(){ __vs.setQuery(""); if (!document.getElementById("vs-reader").hidden) __vs.closeReader(); })(); void 0`);
-          await scrollTo(await shelfTop("years", -20));
+          await settleOn("years", -20);
           await pointer(null);
         }
         /* Thirteen opens is wear level 3 of 3, and they are spread across the act so the
@@ -866,7 +907,7 @@ function storyboard(P) {
           "so a folder that is blue on the disc is blue on a spine.");
         if (first) {
           await go(`(function(){ if (!document.getElementById("vs-reader").hidden) __vs.closeReader(); __vs.setTheme("dark"); })(); void 0`);
-          await scrollTo(await shelfTop("months", -70));
+          await settleOn("months");
           await pointer(null);
         }
         if (t >= 0.14 && t < 0.3) {
@@ -1020,6 +1061,17 @@ try {
   const railOf = async (id) => `document.querySelector('[data-shelf="${id}"] .vs-shelfrail')`;
 
   const scrollTo = (px) => go(`document.getElementById("vs-library").scrollTop = ${Math.round(px)}; void 0`);
+  /* github#21 -- scroll, re-measure, scroll: a shelf's height is a guess. */
+  const settleOn = async (id, pad = -70) => {
+    let at = 0;
+    for (let i = 0; i < 4; i++) {
+      const want = await shelfTop(id, pad);
+      if (Math.abs(want - at) < 2) break;
+      at = want;
+      await scrollTo(at);
+    }
+    return at;
+  };
   const railTo = (rail, px) => go(`(function(){ var r = ${rail}; if (r) r.scrollLeft = ${Math.round(px)}; })(); void 0`);
 
   const spineIn = async (id, n) => j(`(function(){
@@ -1132,7 +1184,13 @@ try {
   })()`);
 
   /* github#21 -- a drag the camera can see; the events are the page's own. */
-  const lift = async (sel) => j(`(function(){
+  const lift = async (sel) => {
+    const up = await liftIn(sel);
+    /* github#21 -- the real mouse parks, or a scroll slides a spine under it. */
+    if (up) await hover({ x: Math.round(W / 2), y: H - 12 });
+    return up;
+  };
+  const liftIn = async (sel) => j(`(function(){
     var s = document.querySelector(${JSON.stringify(sel)});
     if (!s) return null;
     var b = s.getBoundingClientRect();
@@ -1176,7 +1234,7 @@ try {
     await pointer(p, false, true);
   };
 
-  const P = { go, j, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once,
+  const P = { go, j, caption, scrollTo, settleOn, railTo, hover, click, shelfTop, railOf, spineIn, once,
               pointer, rightClick, centreOf, lift, carry, drop, state: {} };
   const acts = storyboard(P).filter((a) => !ONLY.length || ONLY.some((q) => a.name.toLowerCase().includes(q)));
   if (!acts.length) throw new Error("--act " + ONLY.join(",") + " matched no act");

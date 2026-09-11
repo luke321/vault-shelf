@@ -1,4 +1,4 @@
-import type { Book, ClassifierKind, Filters, Note, Shelf, ShelfView, Source } from "./types";
+import type { Book, ClassifierKind, ColorRule, Filters, Note, Shelf, ShelfView, Source } from "./types";
 import { isoWeekOf, monthLabel, monthOf, weekLabel, yearOf } from "./dates";
 import type { NoteOrder } from "./defaults";
 
@@ -528,6 +528,29 @@ export function applyFilters(notes: Note[], filters: Filters): Note[] {
  */
 
 /** One note against one already-lowercased needle. Title, path, tags, people, then body. */
+/** github#21 -- a shelf whose keys begin with a year. */
+export function datedClassifier(classifier: string): boolean {
+  return classifier === "year" || classifier === "month" || classifier === "week";
+}
+
+/** github#21, design/0005 -- Years by decade, Months by year. */
+export function colorRule(shelf: Shelf): ColorRule {
+  if (shelf.colorBy) return shelf.colorBy;
+  if (shelf.classifier === "year") return "decade";
+  if (shelf.classifier === "month" || shelf.classifier === "week") return "year";
+  return "folder";
+}
+
+/** github#21 -- the period a key's dye follows, null for the folder's. */
+export function dyePeriod(shelf: Shelf, key: string): number | null {
+  const rule = colorRule(shelf);
+  if (rule === "folder") return null;
+  const m = /^(\d{4})/.exec(key);
+  if (!m) return null;
+  const year = Number(m[1]);
+  return rule === "decade" ? Math.floor(year / 10) : year;
+}
+
 export function matchesQuery(note: Note, needle: string): boolean {
   if (!needle) return false;
   if (note.title.toLowerCase().indexOf(needle) >= 0) return true;

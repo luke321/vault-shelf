@@ -1543,6 +1543,7 @@
 
 .vault-shelf .vs-managerow .vs-name { flex: 1 1 auto; }
 .vault-shelf .vs-managerow .vs-meta { color: var(--text-3); font-size: 11px; }
+.vault-shelf .vs-managerow .vs-colourby { flex: 0 0 auto; }
 
 /* ---- plain list mode, narrow screens, reduced motion -------------------- */
 

@@ -39,7 +39,9 @@ person, a folder) and what makes a book — with a preview that runs the real bu
 the real note set, so the counts it shows are the counts you get. **Manage shelves** reorders,
 hides and restores; hiding never deletes, and hiding everything leaves a way back. The Colours
 block is a table of painted swatches, one ribbon colour per book colour, with per-slot and
-whole-palette resets.
+whole-palette resets. **A date shelf dyes by period**: Years by decade, Months and Weeks by
+year, so a run of years reads as a run rather than as one colour, and Manage offers *Colour by
+folder / year / decade* on those rows; Encyclopedia, People and Tags keep their folder's dye.
 
 ### The bookcase
 

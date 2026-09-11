@@ -1820,3 +1820,13 @@ with the pointer frozen for 264 frames because the act's error was swallowed by 
 retry; an act error stops the take now and names the act, frame and `t`. The mirror guard
 fired once, on `09:00` (`design/0013`, round 5), and the film waited until it passed.
 
+**A date shelf dyes by period** (github#21). *"make the encyclopedia have the same colors, but
+change colors for other books by decade, or by year for example."* `Shelf.colorBy` is
+`folder | year | decade`, unset meaning Years by decade and Months and Weeks by year; the slot is
+the period modulo 12; it ranks between *vary* and the folder. Manage shows it as a select on
+the date shelves' rows only. Measured — demo / sparse / library: Months **129 / 29 / 121**
+dated books over **16 / 5 / 11** years, **0** torn, **0** neighbours shared; Years **2 / 1 / 2**
+decades, **0 / 0**; Encyclopedia **29 / 23 / 27** of the same on the folder's dye; Manage offers
+`folder,year,decade` on Months (came up `year`), by folder **129 / 29 / 121** follow the folder,
+by decade **0** torn, saved `"decade"`; no select on Encyclopedia or People. One check, 88 in
+the suite. No schema bump: the field is optional and an older file comes up on the defaults.
