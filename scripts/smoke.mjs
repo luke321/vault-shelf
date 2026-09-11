@@ -1508,6 +1508,130 @@ check("every control is the same size in every look", async (p) => {
   };
 });
 
+/* github#9, design/0019 -- ONE MATERIAL FOR THE FURNITURE, read as computed style */
+check("the furniture is one material", async (p) => {
+  const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
+  await p.send("DOM.enable");
+  await p.send("CSS.enable");
+  const faceOf = async (sel, pseudo) => {
+    const doc = await p.send("DOM.getDocument", { depth: 0 });
+    const { nodeId } = await p.send("DOM.querySelector", { nodeId: doc.root.nodeId, selector: sel });
+    if (!nodeId) return null;
+    if (pseudo) await p.send("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: pseudo });
+    const cs = await p.send("CSS.getComputedStyleForNode", { nodeId });
+    if (pseudo) await p.send("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: [] });
+    const g = {};
+    for (const e of cs.computedStyle) g[e.name] = e.value;
+    return {
+      bg: g["background-image"], ink: g.color, edge: g["border-bottom-color"], ts: g["text-shadow"],
+      ls: Math.round(parseFloat(g["letter-spacing"]) / parseFloat(g["font-size"]) * 1000) / 1000,
+      ring: g["outline-style"] !== "none" && parseFloat(g["outline-width"]) > 0,
+    };
+  };
+  const rgb = (s) => {
+    const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/.exec(s || "");
+    return m ? [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]] : null;
+  };
+  const over = (c, room) => c.map((v, i) => i < 3 ? v * c[3] + room[i] * (1 - c[3]) : 1);
+  const lum = (c) => {
+    const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+  };
+  const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const stops = (bg) => (bg.match(/rgba?\([^)]*\)/g) || []).map(rgb).filter(Boolean);
+  const same = (a, b) => a.bg === b.bg && a.ink === b.ink && a.edge === b.edge && a.ts === b.ts;
+
+  /* github#2, design/0019 -- room plates match the plaque, paper plates the sheet's */
+  const plates = {
+    library: { room: ["#vs-order", "#vs-manageopen"], paper: [] },
+    reading: { room: ["#vs-back", "#vs-nextnote", "#vs-tabs button:not([aria-current='true'])"],
+               paper: [".vs-alsoin button"] },
+    managing: { room: [], paper: ["#vs-managelist .vs-managerow button", "#vs-mnew"] },
+  };
+  const others = {
+    library: ["#vs-shelves .vs-spine", "#vs-jump .vs-jump", "#vs-newshelf"],
+    reading: ["#vs-contents button", "#vs-marks .vs-markstub"],
+    managing: ["#vs-mclose"],
+  };
+  const book = await p.j(`__vs.views().filter(function (v) { return v.shelf.id === "years"; })[0].books[0].id`);
+  const off = [];
+  let compared = 0, lowest = { ratio: Infinity, where: "" }, tracking = {};
+  const rooms = [];
+  for (const look of looks) {
+    for (const theme of look === "" ? ["dark", "light"] : ["dark"]) {
+      const name = (look || "modern") + (theme === "light" ? " light" : "");
+      rooms.push(name);
+      const room = rgb(await p.j(`(function(){
+        __vs.setLook(${JSON.stringify(look)}); __vs.setTheme(${JSON.stringify(theme)});
+        var c = document.createElement("span"); c.style.color = getComputedStyle(document.getElementById("vs-app")).getPropertyValue("--surface-0");
+        document.body.appendChild(c); var v = getComputedStyle(c).color; c.remove(); return v; })()`)) || [0, 0, 0, 1];
+      const reference = async (sel, what) => {
+        const rest = await faceOf(sel), lit = await faceOf(sel, ["hover"]), focused = await faceOf(sel, ["focus", "focus-visible"]);
+        if (!rest || !lit || !focused) { off.push(`${name}: no ${what} to read`); return null; }
+        if (!focused.ring) off.push(`${name}: the ${what} draws no focus ring`);
+        if (!same(lit, focused)) off.push(`${name}: a focused ${what} is not a lit one`);
+        return { rest, lit };
+      };
+      const measure = (face, where) => {
+        const ink = rgb(face.ink);
+        for (const stop of stops(face.bg)) {
+          const r = contrast(over(ink, room), over(stop, room));
+          if (r < lowest.ratio) lowest = { ratio: r, where };
+          if (r < 4.5) off.push(`${where}: ${r.toFixed(2)}:1 for ${face.ink} on ${JSON.stringify(stop)}`);
+        }
+      };
+      const plaque = await reference("#vs-shelves .vs-plaque", "plaque");
+      if (!plaque) continue;
+      if (plaque.rest.ls < 0.1) off.push(`${name}: plaque tracking ${plaque.rest.ls}em, under 0.1em`);
+      tracking[name] = { plaque: plaque.rest.ls };
+      measure(plaque.rest, `${name} plate`);
+      measure(plaque.lit, `${name} lit plate`);
+      await p.j(`(document.getElementById("vs-manageopen").click(), 1)`);
+      const paper = await reference("#vs-mnew", "paper plate");
+      await p.j(`(document.getElementById("vs-mclose").click(), 1)`);
+      if (!paper) continue;
+      measure(paper.rest, `${name} paper plate`);
+      measure(paper.lit, `${name} lit paper plate`);
+      const judge = async (sel, ref, what) => {
+        const face = await faceOf(sel);
+        if (!face) return;
+        compared++;
+        const litFace = await faceOf(sel, ["hover"]), focusFace = await faceOf(sel, ["focus", "focus-visible"]);
+        if (!same(face, ref.rest)) off.push(`${name} ${sel}: ${face.bg} / ${face.ink} / ${face.edge} / ${face.ts} is not the ${what}'s`);
+        if (!same(litFace, ref.lit)) off.push(`${name} ${sel} hovered: ${litFace.bg} / ${litFace.ink} is not the lit ${what}'s`);
+        if (!focusFace.ring) off.push(`${name} ${sel}: no focus ring`);
+        if (face.ls > 0.05) off.push(`${name} ${sel}: tracking ${face.ls}em, over 0.05em`);
+        tracking[name].button = face.ls;
+      };
+      const phase = async (which, open, close) => {
+        if (open) await p.j(open);
+        for (const sel of plates[which].room) await judge(sel, plaque, "plaque");
+        for (const sel of plates[which].paper) await judge(sel, paper, "paper plate");
+        for (const sel of others[which]) {
+          const face = await faceOf(sel);
+          if (!face) continue;
+          compared++;
+          if (face.bg === plaque.rest.bg || face.bg === paper.rest.bg) off.push(`${name} ${sel} is painted as a plate`);
+          if (face.ts !== "none") off.push(`${name} ${sel} carries the plate's engraving shadow: ${face.ts}`);
+        }
+        if (close) await p.j(close);
+      };
+      await phase("library");
+      await phase("reading", `(__vs.openBook(${JSON.stringify(book)}, null), 1)`, "(__vs.closeReader(), 1)");
+      await phase("managing", `(document.getElementById("vs-manageopen").click(), 1)`,
+                  `(document.getElementById("vs-mclose").click(), 1)`);
+    }
+  }
+  await p.j(`(__vs.setLook(${JSON.stringify(looks[0])}), __vs.setTheme("dark"), 1)`);
+  const tr = Object.keys(tracking).map((k) => `${k} ${tracking[k].plaque}/${tracking[k].button}`).join(", ");
+  return {
+    ok: off.length === 0 && compared >= 20,
+    detail: `${compared} controls read against the plaque in ${rooms.length} rooms (${rooms.join(", ")}), rested, ` +
+            `hovered and focused; lowest contrast ${lowest.ratio.toFixed(2)}:1 at ${lowest.where}; ` +
+            `tracking plaque/button in em: ${tr}; ${off.length} off` + (off.length ? `: ${off.join("; ")}` : ""),
+  };
+});
+
 /* github#2 -- the report came from inside Obsidian, whose app.css styles every `select`, and
  * the suite runs the standalone where none of that exists. So the host's rule is put into the
  * page here, copied out of app.css: what it sets and a rule of ours leaves alone is what a

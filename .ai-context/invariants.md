@@ -570,6 +570,29 @@ on buttons and boxes, `font-size: 13px` on boxes — and a look sets colour, bor
 face only. Modern's own numbers did not move: button **27.3px**, search box **232×29.5**,
 tab **27.3**, ribbon **30**, swatch **25.5** wide.
 
+### The furniture is one material
+
+`"the furniture is one material"` (2026-09-11, github#9, "make the buttons look like the
+plaques and vice versa") reads **56** controls against the plaque, as computed style through CDP,
+in **4** rooms — leather, modern dark, modern light and the shelved cyberpunk — rested, hovered
+and focused (`CSS.forcePseudoState`; a synthetic event cannot put an element into `:hover`).
+The Order button, Manage, Back, Next and an index tab must resolve to the plaque's
+`background-image`, `color`, `border-bottom-color` and `text-shadow`; *Also shelved in*, a Manage
+row's button and *New shelf…* to the sheet's plate, which a look may cut from paper (leather's
+bone plate). A spine, a contents row, the ribbon stub, a shelf jump, *New shelf* and *Done* must
+carry neither the plate's face nor its engraving shadow. A focused plaque and a focused button
+draw an outline. Tracking is the one thing that may differ, and must: a plaque at or above
+**0.1em** (0.14 modern, 0.1 leather, 0.22 cyber), a button at or below **0.05em** (0.03 in
+every look). The ink against both ends of the plate, rested and lit, room and paper, is at least
+**4.5:1** with alpha composited over `--surface-0`; the lowest is **5.77:1**, the lit brass plate
+under leather. Floor: 20 controls. `design/0019`, *The furniture, and what it is made of*.
+
+The plaque rule under leather used to set `border` on all four sides, overriding the shared
+`border-top: 0`, so a leather plaque was **21.75px** high to modern's **20.75** — inside the
+same-size check's one-pixel tolerance. It is 20.75 everywhere now and the layout goldens were
+rewritten for it: every plaque under leather is **1px** shorter and each following row 1px
+higher.
+
 ### Every dropdown paints itself
 
 `"every dropdown paints itself, whatever the host says a select is"` (2026-09-11, github#2)

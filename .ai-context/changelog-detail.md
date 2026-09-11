@@ -1,5 +1,41 @@
 # Changelog detail
 
+## 2026-09-11 — One material for the furniture
+
+> github#9: "make the buttons look like the plaques and vice versa".
+
+A plaque was engraved furniture and a button was a plain filled rectangle, in every look. A
+button is a plate now: `page.css` declares the plate as tokens (`--vs-plate`, `-lo`, `-edge`,
+`-ink`, `-shadow`, `-ink-shadow`, and a `-lit-` set for hover and focus), `button` and
+`.vs-plaque` are both drawn from them, and each look restates the set in its token block —
+brass under leather (the values the plaque rule carried, moved up), a lit acrylic sign under
+cyber, a `color-mix` of the theme's own surfaces in modern, and a **bone** plate on leather's
+paper sheets and pages, the way a dropdown on paper is paper (github#2). Hover and focus are a
+token swap that paints nothing itself, which is what keeps the lit plate off a spine, a ribbon,
+a swatch and a contents row; a look ships no hover rule for a button or a plaque at all. The
+tracking is the line between the families — a plaque at 0.14 / 0.1 / 0.22em, a button at 0.03em
+in every look — and `design/0019` carries the list of what the five families are made of.
+
+Measured, one new check on all three shapes, the same numbers on each because it reads paint:
+**56** controls against the plaque in **4** rooms (leather, modern dark, modern light, cyber),
+rested, hovered and focused through `CSS.forcePseudoState`, **0** off; lowest contrast
+**5.77:1** (the lit brass plate under leather), floor 4.5; tracking plaque/button **0.1/0.03**
+leather, **0.14/0.03** modern, **0.22/0.03** cyber.
+
+**Geometry:** *every control is the same size in every look* still measures **38** controls in
+3 looks with **0** off, and *a plaque sits under the books it names* still reads **19px** below
+over a 3px floor with 0px width difference. One drift the one-pixel tolerance had hidden is
+gone: the leather plaque rule set `border` on all four sides, overriding `border-top: 0`, so a
+leather plaque was **21.75px** high to modern's **20.75**. It is 20.75 everywhere, and the three
+layout goldens were rewritten (`node scripts/update-layout-snapshots.mjs`): every plaque under
+leather is **1px** shorter — `h: 22 → 21` in the golden's integer boxes — and each following row
+sits 1px higher (the demo vault's fourth Months row: **753 → 750**; the 10k vault's fifth:
+**937 → 933**). Nothing else in the goldens moved. Tracking widens a text-sized button by a few
+pixels in every look alike — *Manage* 60 → 63px — which the same-size check allows for a button
+that sizes to its text.
+
+Comments trimmed to pointers to hold `check-comments` at its baseline. 76 checks per shape.
+
 ## 2026-09-11 — A plaque opens its run
 
 > github#6: "would be cool if clicking a plaque does something".
