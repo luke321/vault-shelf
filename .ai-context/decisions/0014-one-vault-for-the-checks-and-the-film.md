@@ -1,4 +1,4 @@
-# 0012 — One vault for the checks and the film
+# 0014 — One vault for the checks and the film
 
 **Date** 2026-09-11 · **Status** accepted · **Issue** [#31](https://github.com/luke321/vault-shelf/issues/31) · **Amends** `decisions/0004`, `design/0013`
 

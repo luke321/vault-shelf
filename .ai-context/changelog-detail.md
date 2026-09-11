@@ -1,5 +1,123 @@
 # Changelog detail
 
+## 2026-09-11 — The lock names a job; what the two plugins share is a screen (github#37, github#25)
+
+> "only two places acquire a lock at all, nothing anywhere acquires `record`, and five
+> harnesses park a headed Chrome on the leftmost monitor while four of them take no lock
+> whatsoever."
+
+Three acquire sites, all `suite` (`smoke.mjs`, `.githooks/pre-push`, `release.ps1`). Nothing
+acquired `record`: the name was prose in `CLAUDE.md`, `AGENTS.md`, `design/0006` and the usage
+string, describing a screen recording this repo does not make — `design/0007` says so in as many
+words, and the two records had contradicted each other since `design/0007` was written.
+
+| | before | after |
+|---|---|---|
+| callers of `screen.mjs` that place a window | 5 | 5 |
+| ...of those, holding the display they place on | **0** | **5** |
+| lock names | `record`, `suite` | `suite`, `screen-left`, `screen-right`, `screen-primary`, `record` (legacy) |
+| VG holds `record`, VS wants `screen-left` | ACQUIRED — the silent ruin | **BUSY** |
+| VG holds `screen-right`, VS wants `screen-left` | ACQUIRED | ACQUIRED — deliberately unmoved |
+| a dead holder's lock | waited out its 1200 s window | broken in **3 ms** |
+| a live hold, read 35 s apart | `at` fixed; the hold aged towards being broken | `at` +30,010 ms, `since` +0; a sister acquire measures **5 s** |
+| a harness that cannot have the display | opened a second window on it | `BUSY`, exit **1**, no page built |
+| `leftWindowArgs()` with no claim | returned a position | throws |
+| `check-comments` baseline | 1511 | 1500 |
+| `smoke.mjs` | 88/88 × 3 shapes | 88/88 × 3 shapes, unchanged |
+
+`vault-graph#87` merged into the sister's `develop` (`a3e49e7`) mid-planning, which killed the
+first shape of this change: a companion `record` hold beside every screen claim, priced against
+a sister with no alias. Their alias closed that direction from their side and turned the
+companion into pure cost — it would have blocked every right-screen recording for the length of
+every left-screen harness run. `decisions/0012` keeps the reasoning, since the same trap is
+waiting for the next cross-repo rename.
+
+## 2026-09-11 — A look stopped moving the furniture, and the law got a check that walks (github#14, github#16)
+
+> "shelfs still move when switching themes, because the shelf heading have a different font size"
+> "modern is missing right index tabs in some books and the look a lot different from leather, we
+> need to make themes real themes that do not have different component sizes"
+
+`CLAUDE.md` has said a look *"may repaint anything and move nothing"* since `design/0016`. It was
+enforced for a spine's size, the room's width and 38 named controls, and nothing else. Measured on
+the demo fixture at 1180×900, walking every element under `.vault-shelf` in each look:
+
+| | modern | leather | cyber |
+|---|---|---|---|
+| library `scrollHeight`, before | 2147 | **2258 (+111)** | **2161 (+14)** |
+| library `scrollHeight`, after | **2186** | **2186** | **2186** |
+| elements moved against modern, before | — | **818** | **679** |
+| elements resized against modern, before | — | **307** | **282** |
+| the new walk, after (demo / sparse / 10k) | — | **0 moved, 0 resized, 0 absent** in **4363 / 1979 / 3517** elements | the same |
+
+`github#14` reported +108px and said `--board` was not involved at 3px in both looks. It measured
++111 and `--board` was **5 / 10 / 7** — the largest single contributor, because the board is
+charged **twice per row**, to the floor grip's height and to the plaque's top margin. Two stale
+numbers in one issue is the argument for the check rather than the paragraph.
+
+### The audit, which had never been made (`github#16`'s item 2)
+
+| | `leather.css` | `cyber.css` |
+|---|---|---|
+| geometry declarations | **52** | **28** |
+| part declarations (a rule drawing what another look has not) | **25** | **16** |
+
+The worst of the parts: **leather carried a whole private responsive layout** — its own
+`@media (max-width: 860px)` and `(max-width: 520px)` blocks re-ordering the rail, wrapping the
+shelf head, re-padding the reading page and re-drawing the tab strip, against a different one in
+`page.css`. Below 860px the two looks were not the same product, and no check had ever opened a
+narrow viewport in a look. Leather's was the better of the two and is `page.css`'s now.
+
+### What moved, and why
+
+| | before | after |
+|---|---|---|
+| `--board` | **5px** modern, **10px** leather, **7px** cyber, each declared on its own `.vs-track` | **10px** in `page.css`, one plank for every look — leather's, because a bookcase is what this is a picture of |
+| `.vs-floorgrip` height | 13 / 18 / 15 | **18** everywhere |
+| `.vs-plaque` margin-top | 14 / 19 / 16 | **19** everywhere |
+| first spine, relative to its shelf's top | **41.3** modern, **47.3** leather, 41.3 cyber | **41.3** in all three |
+| `.vs-shelfhead` height | 32.3 modern, **33.3** leather (it aligned on the *baseline*) | its buttons' height, centred, with a fixed line box on each label and no explicit height |
+| `.vs-shelf` / `.vs-shelfhead` margin-bottom | 26 / 9, and **32 / 14** under leather | 26 / 9 everywhere |
+| the spine's hover lift | 5px / 5px / **6px** | **6px** everywhere |
+| a spine's padding | 10/15, **23/29** under leather | **20/26** everywhere; leather's raised bands are paint over the panel |
+| an index tab's border | `border-right` in `page.css`, `border-left` in leather, `border-left: 0` in cyber | one side, one box |
+| the builder's preview count (`#vs-previewcount`) | **15px** high under one face, **12** under another, with an explicit `line-height` on it | `display: inline-block`, so the line box decides — a bare inline box is sized by the font's own ascent and descent |
+| the builder's `Vary book colours` label | inherited leather's 17px base, grew wide enough to wrap the row, and dropped onto a line of its own in one look | a form label is a control and `page.css` sizes a control: **13px / 22px** |
+
+### The goldens had been taken in leather the whole time
+
+`core.LOOKS[0]` is leather and a fresh library opens in it, so `scripts/layout-snapshots/*.json`
+recorded **leather's** geometry — and the modern look sat **6px** off its own golden without
+failing anything, because the check only ever ran in the look the page opened in. It runs in all
+three looks now, against one golden, which a look that moves nothing makes possible. All three
+goldens were regenerated deliberately: **6 shelves, 11 / 7 / 11 rows, 238 / 77 / 186 spines,
+53 / 19 / 33 plaques, a 1125px room — every count unchanged**, only positions moved.
+
+### A book with nothing to index (`github#16`'s item 1)
+
+`dateTabs` refuses to cut three notes or fewer (`design/0015`, deliberate), and `renderTabs` still
+drew the find glass — so the edge of the page carried **one orphan tab**. `.vs-tabs` now runs the
+height of the page as a strip drawn from the plate tokens, with the glass at its head and the
+tabs, when there are any, cut from it. Same part in every look. How a *present* index reads and
+wraps is `github#32` and `github#35`.
+
+### The check (`github#16`'s item 3)
+
+`"a look moves nothing on the page"` replaces a list of 38 selectors with a walk over **every**
+element under `.vault-shelf`, in four states — the library, an open book, the Manage sheet, the
+builder — in every look `core.LOOKS` knows. It identifies an element by a path rather than a
+selector, so a box nothing names is still compared with the same box in the next look, and it
+prints how many elements it compared so the coverage is itself a measurement. It asserts a top and
+a box across the direction the text runs; width *along* the text is the face's, and is held by
+`"every control is the same size in every look"` (38, 0 off) and by the golden in every look.
+It stops at a page of the open book — **1596 / 1584 / 6117 nodes** set on one, which are the
+vault's content and not the page's furniture — and says so. `design/0021`.
+
+Gates: `smoke.mjs` **89/89 on all three shapes** (it was 88; this adds one), `lint` 0 errors
+0 warnings with `tsc` clean, `check-pii` clean (111 files, 6 names, 5 patterns), `check-scope`
+clean (418 css rules, 72 ids, 96 prefixed classes), `check-network` clean, `check-comments`
+**1511, exactly at the baseline**, `code-map.mjs --check` current.
+
 ## 2026-09-11 — Four generated vaults became one, and it got twelve times thicker (github#31, github#17)
 
 > "only one vault for checks and demo recordings" · "we need way more notes in the demo
@@ -7,7 +125,7 @@
 > only dates move like in vault graph?" · and, settling it: *"lets say 5k notes spread over 11
 > years always starting from today going backwards"*.
 
-`decisions/0012` is the record. Both ends were measured before anything was decided, because
+`decisions/0014` is the record. Both ends were measured before anything was decided, because
 the question is how far apart a fixture and a real vault actually are:
 
 | | the demo fixture | a real vault, through its mirror |
@@ -28,7 +146,7 @@ the year every date shelf opens on.
 
 | | before | after | why |
 |---|---|---|---|
-| fixtures | demo 424, sparse 756, library 10,000 | **one, 4,938** | `decisions/0012`. No check was ever sparse-only — the suite ran the same 88 checks against each shape — so folding three into one drops coverage of those checks on those shapes, not a check |
+| fixtures | demo 424, sparse 756, library 10,000 | **one, 4,938** | `decisions/0014`. No check was ever sparse-only — the suite ran the same 88 checks against each shape — so folding three into one drops coverage of those checks on those shapes, not a check |
 | span | 15 years | **11 years**, ending today | asked for |
 | notes in the rolling twelve months | **146** | **2,213** | github#17. 15× |
 | notes per month, that year | 0, 3, 3, 4, 5, 5, 6, 10, 11, 16, 19, 23, 45 | **123 … 301, none below 123** | a declared recent regime instead of the tail of the aged curve; the tail is what was clumpy |
@@ -39,7 +157,7 @@ the year every date shelf opens on.
 | an empty year | none | **2019** | a 760-day hole in offset space, wide enough that a whole calendar year falls inside it at any `--end`. It is what the sparse fixture's two clusters five years apart were for |
 | undated | 18 | **523** | a fifth of the notes that are not about a day, folded in from sparse |
 | people | 17 | **25**, one in 613 notes and 11 in three or fewer | the tail had to become a COUNT — see below |
-| largest folder | 100 of 424 (24 %) | 1,204 of 4,938 (**24 %**) | sparse's **82 %** dominant folder is **gone**, and is named as a loss in `decisions/0012` |
+| largest folder | 100 of 424 (24 %) | 1,204 of 4,938 (**24 %**) | sparse's **82 %** dominant folder is **gone**, and is named as a loss in `decisions/0014` |
 | the 10,000-note scale | the library fixture | **gone** | nothing measures the product at that size any more. Named as a loss |
 | title deck | 135 phrases, 11 suffixes, 14 meeting names, 40 sentences | **362 / 26 / 30 / 100** | at 5,000 notes a 135-phrase deck is every title a dozen times with "(12)" after it |
 
@@ -1980,3 +2098,49 @@ decades, **0 / 0**; Encyclopedia **29 / 23 / 27** of the same on the folder's dy
 `folder,year,decade` on Months (came up `year`), by folder **129 / 29 / 121** follow the folder,
 by decade **0** torn, saved `"decade"`; no select on Encyclopedia or People. One check, 88 in
 the suite. No schema bump: the field is optional and an older file comes up on the defaults.
+
+**Two Chromes, and a check says which shapes it needs** (github#39). *"look at the review of the
+smoke tests that landed on vault graph, modify ours as well to work like that, max 2 in parallel
+etc."* — ported from `vault-graph#110`/`#113`, and deliberately not their answer. `decisions/0013`.
+
+Measured on the reference machine, lock free, timed by the runner's own clock (printed after the
+lock, so waiting for another worktree's suite is not counted — the first pair taken for this
+ticket were both spoiled by exactly that, which is why the runner prints its own number now):
+
+| | before | after |
+|---|---|---|
+| wall | **78 s** | **41-43 s** (two runs) |
+| Chromes | 15 | **7** |
+| check runs | 267 (89 × 3) | **146** |
+| check time | 75.0 s | **34.1 s** |
+| shapes per check | all three | demo 89, sparse 28, library 29 |
+
+**The measurement that reframed the ticket**: 75 s of the before's 78 s was check time, spread
+over fifteen browser launches — so the win is browsers and redundant runs, not parallelism.
+**And the cap on its own is slower**: on the unchanged runner, lock free, `--jobs 4` is **78 s**
+and `--jobs 2` is **90 s**, so capping the lanes costs **+12 s** and buys safety rather than
+speed. The first pair taken for this ticket read the other way round because both runs had
+waited on another worktree's suite inside the timed window; the runner prints its own clock,
+started after the lock, so that reading is no longer available.
+
+`LANE_CAP = 2` is a ceiling — `--jobs` clamps to it and says so — not the sister repo's one,
+because our serial lane is 25 of 89 rather than the majority, our pages are lighter, and the
+machine-wide `suite` lock (github#8) already allows one suite at a time, which is the guard that
+was missing when four became dangerous. `check(name, fn, { on })` names the shapes a check's
+assertion depends on; **the default is all three**, the opposite of `vault-graph#113`, so a
+forgotten annotation costs time rather than coverage. 61 narrowed, 28 kept every shape, none
+deleted. Two of the 61 were asserting nothing on two shapes already — `a wide table scrolls
+inside the page` and `a wikilink in a book goes to that note` look for notes only the demo
+generator writes. A second lane opens only past `MIN_PER_LANE = 32` steady checks.
+
+**Serialising found the bug class it found next door** (`vault-graph#112`). The runner now asks
+the page, after every check, whether anything is in flight — `settleRoom`'s 60 ms timer
+(`__vs.room().pending`, added to the existing room diagnostic), a drag in the air, a reader or
+sheet left open — and **fails the check that left it** rather than the one that trips over it.
+Six leaks, all invisible at four lanes: `shelf wear is recorded and drawn` asserted an unworn
+library, true only of whichever shard ran it first (measured with `--jobs 1` over it and `a book
+with several ribbons in it`: **2 worn spines and a FAIL, against 1 and a pass alone**); and five
+checks returned with the reader painted over the library — `previous and next walk the book`,
+`also shelved in`, `previous collection walks back`, `clicking a spine opens a book`, and `the
+reader's index tabs stay countable`. All six fixed in their checks; no product change but the
+one diagnostic field. `--timings <file>` writes every check's ms per shape as JSON. 89 checks.

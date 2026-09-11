@@ -8,7 +8,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { attach } from "./cdp.mjs";
-import { leftWindowArgs } from "./screen.mjs";
+// github#37, decisions/0012
+import { takeLeftScreen } from "./screen.mjs";
+import { ownerTag } from "./lock.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
@@ -16,6 +18,8 @@ const BUILD = join(ROOT, "src", "build-shelf.mjs");
 const argv = process.argv.slice(2);
 const BROWSER = argv.includes("--browser");
 const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
+// github#37 -- a blocked run names the holder and gives up
+const LOCK_TIMEOUT_MS = Number(arg("lock-timeout-ms", "2700000")) || 2700000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // github#5 -- one marker per field, so a breakout names it
@@ -109,6 +113,9 @@ function findChrome() {
 async function inABrowser(htmlPath, data, tags) {
   const problems = [];
   const port = await freePort();
+  // github#37 -- only this half places a window
+  const screen = await takeLeftScreen(ownerTag("check-data-escape.mjs"),
+                                      { w: 1180, h: 900, timeoutMs: LOCK_TIMEOUT_MS });
   const profile = mkdtempSync(join(tmpdir(), "vs-escape-profile-"));
   const url = pathToFileURL(htmlPath).href;
   const chrome = spawn(findChrome(), [
@@ -120,7 +127,7 @@ async function inABrowser(htmlPath, data, tags) {
     "--disable-features=Translate,TranslateUI,CalculateNativeWinOcclusion",
     "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
     "--disable-background-timer-throttling",
-    ...leftWindowArgs(1180, 900), `--app=${url}`,
+    ...screen.args, `--app=${url}`,
   ], { stdio: "ignore" });
 
   let page = null;
@@ -174,6 +181,7 @@ async function inABrowser(htmlPath, data, tags) {
       spawnSync("taskkill", ["/F", "/T", "/PID", String(chrome.pid)], { stdio: "ignore" });
     }
     rmSync(profile, { recursive: true, force: true });
+    screen.release();
   }
   return problems;
 }

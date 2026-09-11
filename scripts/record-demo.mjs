@@ -81,7 +81,7 @@ function fixtureStore() {
   return join(dirname(abs), ".fixtures");
 }
 
-/* decisions/0012 -- the film is shot in the vault the checks run on; design/0013's mirror is
+/* decisions/0014 -- the film is shot in the vault the checks run on; design/0013's mirror is
  * `--mirror-of <path>` now, on purpose, because a default nobody typed is the one that
  * drifts. Never read from a commit: check-pii refuses a vault path in a tracked file. */
 function mirrorSource() {

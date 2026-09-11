@@ -4,7 +4,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/* decisions/0004, decisions/0012 -- THE vault: declared, generated, and the only one. It is
+/* decisions/0004, decisions/0014 -- THE vault: declared, generated, and the only one. It is
  * what the checks run on, what the docs site is exported from and what the film is shot in,
  * and it carries what the sparse and 10k fixtures carried (design/0013, github#17).
  *
@@ -42,7 +42,7 @@ const SCALE = NOTES / DECLARED;
  * the aged curve, which gave it three to six notes a month. */
 const RECENT = 365;
 
-/* decisions/0012 -- THE YEAR NOBODY WROTE, in OFFSET space rather than as a calendar year: a
+/* decisions/0014 -- THE YEAR NOBODY WROTE, in OFFSET space rather than as a calendar year: a
  * banned year would have to be computed from --end. 760 days swallows a whole calendar year
  * wherever --end lands, and the guard proves it rather than trusting the arithmetic. */
 const HOLE = { from: 2200, to: 2960 };
@@ -179,7 +179,7 @@ const DATED_KINDS = ["daily", "meeting", "oneonone", "person", "literature"];
  * fix, arriving again at a bigger size. A title that is still taken picks up a suffix before
  * it picks up a number; `titleFor` below does that.
  *
- * THE OPENINGS THE SPARSE FIXTURE WAS FOR ARE IN HERE TOO (decisions/0012): digits,
+ * THE OPENINGS THE SPARSE FIXTURE WAS FOR ARE IN HERE TOO (decisions/0014): digits,
  * punctuation, accents and four scripts, so the Encyclopedia's 0-9 volume and its non-Latin
  * books are populated rather than hypothetical. */
 const PHRASES = [
@@ -296,7 +296,7 @@ const PHRASES = [
   "Yard drainage", "Yew hedge cutting", "Yoke for the buckets",
   "Zinc flashing", "Zip ties and clips",
 
-  /* decisions/0012 -- THE OPENINGS THE SPARSE FIXTURE WAS FOR. A title that starts with a
+  /* decisions/0014 -- THE OPENINGS THE SPARSE FIXTURE WAS FOR. A title that starts with a
    * digit, a dash, a bracket, a quote or a script the Encyclopedia has no volume for is what
    * a real vault contains and what the 0-9 and non-Latin books are made of. */
   "0 to 1", "7 day sourdough", "12 weeks of running", "42 and after",
@@ -940,7 +940,7 @@ for (const who of NAMES.concat([LINKED_ONLY])) {
               tagSlots: 0, field: null, slots: 0, links: [], halvor: false });
 }
 
-/* github#17, decisions/0012 -- A RHYTHM, NOT A COUNT: every working day gets one with a
+/* github#17, decisions/0014 -- A RHYTHM, NOT A COUNT: every working day gets one with a
  * probability that decays with age, which is what fills ~459 ISO weeks and gives the layered
  * index the runs of consecutive days it needs (design/0015). */
 const dailyChance = (offset) => 0.3 + 0.62 * Math.pow(1 - offset / DAYS, 2.4);
@@ -965,11 +965,11 @@ for (const folder of FOLDERS) {
     const kind = folder.kind;
     /* A MISSING VALUE GETS ITS OWN BOOK, so a fifth of the notes that are not about a day
      * have no date at all -- and the Undated book is a book, not an exclusion
-     * (decisions/0003). A fifth rather than a twentieth since decisions/0012: it is what the
+     * (decisions/0003). A fifth rather than a twentieth since decisions/0014: it is what the
      * sparse fixture carried, and the Undated book being large rather than a curiosity is
      * what made it worth checking. */
     const undated = DATED_KINDS.indexOf(kind) < 0 && rand() < 0.2;
-    /* ELEVEN BOOKS FOR ONE NOTE (decisions/0012). A handful of notes name five people and
+    /* ELEVEN BOOKS FOR ONE NOTE (decisions/0014). A handful of notes name five people and
      * six tags at once, which is the case the unique-membership law has something to be
      * wrong about -- the sparse fixture's reason for existing, declared here. */
     const busy = rand() < 0.009;
@@ -1317,7 +1317,7 @@ if (emptyWeeks.length) {
                 emptyWeeks.slice(0, 6).join(", "));
 }
 
-/* decisions/0012 -- the hole is in offsets, so the only honest way to know a calendar year
+/* decisions/0014 -- the hole is in offsets, so the only honest way to know a calendar year
  * came out empty is to look. */
 const years = new Set(dated.map((d) => d.slice(0, 4)));
 const span = [...years].map(Number).sort((a, b) => a - b);

@@ -66,7 +66,7 @@ node src/build-shelf.mjs --vault <scratch>/Everything --out docs/demo/index.html
 ```
 
 **`--notes 1200`, not the whole vault, and that is a size decision rather than a shape one**
-(`decisions/0012`). An export carries every note's body, so the declared 5,000-note vault
+(`decisions/0014`). An export carries every note's body, so the declared 5,000-note vault
 exports to 5.3 MB — eight seconds of blank page on a phone, and a megabyte of churn in the
 repository every time it is regenerated. 1,200 notes is ~1.4 MB and is the same declaration
 with a smaller `--notes`: the generator's own guard still has to pass on it, so the cut is

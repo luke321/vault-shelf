@@ -1,5 +1,7 @@
 import { attach, json } from "./cdp.mjs";
-import { leftmostScreen, leftWindowPos } from "./screen.mjs";
+import { leftmostScreen, leftWindowPos, takeLeftScreen, dropLeftScreen } from "./screen.mjs";
+// github#25, github#37, decisions/0012
+import { acquire, heldBy, ownerTag } from "./lock.mjs";
 // github#5, decisions/0010
 import { FIXTURE_MAX_AGE_DAYS, FIXTURE_NAMES, describeFixture,
          record as recordPass } from "./suite-stamp.mjs";
@@ -27,12 +29,9 @@ const argAll = (n) => {
 /* github#8, decisions/0011 */
 const NO_LOCK = argv.includes("--no-lock");
 const LOCK_TIMEOUT_MS = Number(arg("lock-timeout-ms", "1800000")) || 1800000;
-const LOCK_OWNER = (() => {
-  const b = spawnSync("git", ["-C", ROOT, "rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" });
-  const where = b.status === 0 && b.stdout.trim() ? b.stdout.trim() : "?";
-  return `smoke.mjs ${where} pid ${process.pid}`;
-})();
-let lockHeld = false;
+const LOCK_OWNER = ownerTag("smoke.mjs");
+/** @type {{ release: () => void } | null} */
+let suiteLock = null;
 
 /* github#8, decisions/0011 */
 const liveBrowsers = new Set();
@@ -50,34 +49,49 @@ function killLiveBrowsers() {
   liveBrowsers.clear();
 }
 
-/* github#8, decisions/0011 */
-function takeLock() {
-  if (NO_LOCK) {
-    console.log("--no-lock: the caller is holding the suite lock, not this run");
-    return;
-  }
-  const r = spawnSync(process.execPath,
-                      [join(HERE, "lock.mjs"), "acquire", "suite", "--owner", LOCK_OWNER,
-                       "--timeout-ms", String(LOCK_TIMEOUT_MS)],
-                      { stdio: "inherit" });
-  if (r.status !== 0) {
-    console.error("\nsmoke: could not take the suite lock -- another suite is running on this " +
-                  "machine.\nSee who holds it with: node scripts/lock.mjs status\n\n" +
-                  "If YOU are holding it -- you wrapped this run in lock.mjs yourself, the way " +
-                  "the\ndocs used to tell you to -- then it is waiting for its own parent. Drop " +
-                  "the wrapper,\nor pass --no-lock.");
-    process.exit(1);
-  }
-  lockHeld = true;
+/* github#25, decisions/0012 */
+function lostLock(who) {
+  suiteLock = null;
+  console.error("\nsmoke: the suite lock was taken by " + who + " while this run was measuring.\n" +
+                "Everything from here on would be measured on a contended machine, so this run " +
+                "stops\nrather than publishing it. github#25.");
+  killLiveBrowsers();
+  dropLeftScreen();
+  process.exit(1);
 }
 
-/* github#8, decisions/0011 */
+/* github#8, github#37, decisions/0011, decisions/0012 */
+async function takeLock() {
+  if (NO_LOCK) {
+    console.log("--no-lock: the caller is holding the suite lock, not this run");
+  } else {
+    try {
+      suiteLock = await acquire("suite", { owner: LOCK_OWNER, timeoutMs: LOCK_TIMEOUT_MS,
+                                           onLost: lostLock });
+    } catch (e) {
+      if (e.code !== "BUSY") throw e;
+      console.log(e.message);
+      console.error("\nsmoke: could not take the suite lock -- another suite is running on this " +
+                    "machine.\nSee who holds it with: node scripts/lock.mjs status\n\n" +
+                    "If YOU are holding it -- you wrapped this run in lock.mjs yourself, the way " +
+                    "the\ndocs used to tell you to -- then it is waiting for its own parent. Drop " +
+                    "the wrapper,\nor pass --no-lock.");
+      process.exit(1);
+    }
+  }
+  /* github#37 -- --no-lock names the suite lock; no parent ever holds the screen, so this run
+   * claims the display it is about to park a window on either way. */
+  await takeLeftScreen(LOCK_OWNER, { timeoutMs: LOCK_TIMEOUT_MS });
+}
+
+/* github#8, github#37, decisions/0011, decisions/0012 */
 function dropLock() {
-  if (!lockHeld) return;
-  lockHeld = false;
-  spawnSync(process.execPath,
-            [join(HERE, "lock.mjs"), "release", "suite", "--owner", LOCK_OWNER],
-            { stdio: "inherit" });
+  if (suiteLock) {
+    const lock = suiteLock;
+    suiteLock = null;
+    lock.release();
+  }
+  dropLeftScreen();
 }
 
 process.on("exit", dropLock);
@@ -143,19 +157,36 @@ function findChrome() {
 /* -------------------------------------------------------------- the checks */
 
 const all = [];
-const check = (name, fn) => all.push({ name, fn });
+/* github#39, decisions/0013, decisions/0014 -- a check may name the shapes it needs, and with
+ * one vault nothing does. The GUARD is why the parameter stays: a name no fixture answers to
+ * fails the run at module load, before the lock and before any Chrome, which is how #39's 61
+ * annotations were caught still naming demo-vault after decisions/0014 left one shape. */
+const check = (name, fn, opts) => {
+  const on = !opts || !opts.on || opts.on === "all" ? FIXTURE_NAMES.slice() : [].concat(opts.on);
+  const stray = on.filter((n) => !FIXTURE_NAMES.includes(n));
+  if (stray.length) {
+    throw new Error(`check "${name}" asks for fixture(s) ${stray.join(", ")}, which do not ` +
+                    `exist; the fixtures are ${FIXTURE_NAMES.join(", ")}`);
+  }
+  all.push({ name, fn, on });
+};
 
 const ONLY = argAll("only").map((v) => v.toLowerCase());
 const selected = () => (ONLY.length
   ? all.filter((c) => ONLY.some((q) => c.name.toLowerCase().includes(q)))
   : all);
 
-const JOBS = Math.max(1, Number(arg("jobs", "4")) || 4);
+/* github#39, decisions/0013 -- a ceiling, not a default; --jobs only goes down */
+const LANE_CAP = 2;
+const JOBS_ASKED = Number(arg("jobs", String(LANE_CAP))) || LANE_CAP;
+const JOBS = Math.max(1, Math.min(LANE_CAP, JOBS_ASKED));
 /* NUMBERS CANNOT SEE, and this is the only thing in the repo that can. `--shot out.png` writes
  * the library and, beside it, `out-reader.png` of an open book -- from the same Chrome the
  * checks are driving, with no Obsidian involved. Use it with `--only` and one vault, or you
  * will be looking at whichever of three shapes finished last. */
 const SHOT = arg("shot", "");
+/* github#39 -- every check's ms per shape, as JSON */
+const TIMINGS = arg("timings", "");
 const LOOK = arg("look", "");
 /* `--shot-note "<title>"` opens that note for the reader picture instead of the first book,
  * which is how a rendering complaint about one particular note gets looked at. */
@@ -213,6 +244,8 @@ const POINTER_DRIVEN = [
   "carried by its floor",
   /* github#0 -- it reads margins while a drag is in the air. */
   "the room parts",
+  /* github#14, design/0021 -- it walks every box on the page, four times, in every look. */
+  "moves nothing",
   /* design/0020 -- a right-click and a drag off the rail read boxes. */
   "made on the shelf",
   "edited, emptied",
@@ -3008,6 +3041,100 @@ check("every control is the same size in every look", async (p) => {
   };
 });
 
+/* github#14, github#16, design/0021 -- A LOOK MOVES NOTHING ON THE PAGE.
+ * design/0021 -- every element, in four states, not 38 named ones
+ * design/0021 -- a top, and a box across its text, are page.css's
+ * design/0021 -- width along the text is the face's
+ * design/0021 -- it stops at a page: what is on it is the vault's
+ */
+check("a look moves nothing on the page", async (p) => {
+  const r = await p.j(`(function(){
+    var root = document.getElementById("vs-app");
+    var core = window.VaultShelfCore;
+    var looks = core.LOOKS.map(function (l) { return l.value; });
+    var book = __vs.views().filter(function (v) { return v.books.length; })[0].books[0];
+    var skipped = 0;
+    /* design/0021 -- a path, not a selector: it names what nothing else names. */
+    var pathOf = function (el) {
+      var bits = [];
+      for (var n = el; n && n !== root; n = n.parentElement) {
+        var up = n.parentElement;
+        var cls = (n.getAttribute("class") || "").split(/\\s+/).filter(Boolean).slice(0, 2).join(".");
+        bits.unshift(n.tagName.toLowerCase() + (n.id ? "#" + n.id : "") + (cls ? "." + cls : "") +
+                     "[" + (up ? [].indexOf.call(up.children, n) : 0) + "]");
+      }
+      return bits.join(">");
+    };
+    var walk = function (state, out) {
+      var box = root.getBoundingClientRect();
+      var all = root.querySelectorAll("*");
+      for (var i = 0; i < all.length; i++) {
+        var el = all[i];
+        if (el.closest("[hidden]")) continue;
+        if (el.parentElement && el.parentElement.closest(".vs-page")) { skipped++; continue; }
+        var b = el.getBoundingClientRect();
+        if (!b.width && !b.height) continue;
+        var cs = getComputedStyle(el);
+        out[state + " " + pathOf(el)] = {
+          y: Math.round((b.top - box.top) * 10) / 10,
+          /* design/0021 -- across the text is fixed; along it is the face's. */
+          across: Math.round((cs.writingMode.indexOf("vertical") === 0 ? b.width : b.height) * 10) / 10,
+          vertical: cs.writingMode.indexOf("vertical") === 0
+        };
+      }
+    };
+    /* design/0021 -- a sheet and a spread are furniture too. */
+    var readAll = function () {
+      var out = {};
+      walk("library", out);
+      __vs.openBook(book.id, null);
+      walk("reading", out);
+      __vs.closeReader();
+      document.getElementById("vs-manageopen").click();
+      walk("managing", out);
+      document.getElementById("vs-mclose").click();
+      document.getElementById("vs-newshelf").click();
+      walk("building", out);
+      document.getElementById("vs-bcancel").click();
+      return out;
+    };
+    var out = {};
+    /* the look the page was FOUND in is the look it is left in: the checks in a lane share
+     * one page, and a --look run has already chosen one. */
+    var was = root.getAttribute("data-look") || "";
+    looks.forEach(function (look) { __vs.setLook(look); out[look || "modern"] = readAll(); });
+    __vs.setLook(was);
+    return { looks: out, skipped: skipped };
+  })()`);
+
+  const base = r.looks.modern;
+  const keys = Object.keys(base);
+  const others = Object.keys(r.looks).filter((l) => l !== "modern");
+  const moved = [], resized = [], absent = [];
+  for (const look of others) {
+    const got = r.looks[look];
+    for (const k of keys) {
+      const a = base[k], b = got[k];
+      if (!b) { absent.push(`${look} ${k}: not on the page`); continue; }
+      if (Math.abs(a.y - b.y) > 1) moved.push(`${look} ${k}: y ${a.y} -> ${b.y}`);
+      if (Math.abs(a.across - b.across) > 1) {
+        resized.push(`${look} ${k}: ${a.across} -> ${b.across} ${a.vertical ? "wide" : "high"}`);
+      }
+    }
+    for (const k of Object.keys(got)) if (!base[k]) absent.push(`${look} ${k}: not in modern`);
+  }
+  const upright = keys.filter((k) => base[k].vertical).length;
+  const say = (label, list) => (list.length ? `; ${list.length} ${label}: ${list.slice(0, 3).join("; ")}` : "");
+  return {
+    ok: !moved.length && !resized.length && !absent.length && keys.length > 600,
+    detail: `${keys.length} elements in four states (${upright} of them upright type; ` +
+            `${r.skipped} nodes set on a page of the open book skipped) ` +
+            `compared across ${others.length + 1} looks against modern: ${moved.length} moved, ` +
+            `${resized.length} resized, ${absent.length} present in one look and not another` +
+            say("moved", moved) + say("resized", resized) + say("missing", absent)
+  };
+});
+
 /* github#9, design/0019 -- ONE MATERIAL FOR THE FURNITURE, read as computed style */
 check("the furniture is one material", async (p) => {
   const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
@@ -3703,6 +3830,10 @@ check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
     __vs.views().forEach(function (v) {
       v.books.forEach(function (b) { if (!book && b.notes.length) book = b; });
     });
+    /* github#39 -- wear is cumulative: set the floor rather than assume it */
+    var wear = __vs.settings().wear;
+    for (var k0 in wear) delete wear[k0];
+    __vs.setFilters({});
     var before = __vs.magic().wornSpines;
     for (var i = 0; i < 13; i++) { __vs.openBook(book.id, null); __vs.closeReader(); }
     var after = __vs.magic();
@@ -3710,9 +3841,13 @@ check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
     var drawn = level ? level.getAttribute("data-wear") : null;
     __vs.setFilters({});
     var still = document.querySelector('[data-book="' + book.id.replace(/"/g, '\\"') + '"]');
-    return { before: before, worn: after.worn, wornSpines: after.wornSpines,
-             drawn: drawn, afterRebuild: still ? still.getAttribute("data-wear") : null,
-             book: book.id };
+    var out = { before: before, worn: after.worn, wornSpines: after.wornSpines,
+                drawn: drawn, afterRebuild: still ? still.getAttribute("data-wear") : null,
+                book: book.id };
+    /* github#39 -- and leave it as unworn as it was found */
+    for (var k1 in wear) delete wear[k1];
+    __vs.setFilters({});
+    return out;
   })()`);
   return { ok: r.before === 0 && r.worn >= 1 && r.drawn === "3" && r.afterRebuild === "3",
            detail: `${r.book} opened 13 times reads wear level ${r.drawn} (of 3) and still ` +
@@ -4128,6 +4263,8 @@ check("clicking a spine opens a book on the note it names", async (p) => {
     var open = !document.getElementById("vs-reader").hidden;
     var state = __vs.reader();
     var contents = document.querySelectorAll("#vs-contents li").length;
+    /* github#39 -- close it, or it paints over the library for the next check */
+    __vs.closeReader();
     return { found: true, wanted: id, open: open, got: state ? state.book : null, contents: contents };
   })()`);
   if (!r.found) return { ok: false, detail: "no spine on the Years shelf to click" };
@@ -4198,8 +4335,11 @@ check("the reader's index tabs stay countable on the biggest book", async (p) =>
       v.books.forEach(function (b) { if (!biggest || b.notes.length > biggest.notes.length) biggest = b; });
     });
     __vs.openBook(biggest.id, null);
-    return { book: biggest.id, notes: biggest.notes.length,
-             tabs: document.querySelectorAll("#vs-tabs button:not(.vs-findtab)").length };
+    var out = { book: biggest.id, notes: biggest.notes.length,
+                tabs: document.querySelectorAll("#vs-tabs button:not(.vs-findtab)").length };
+    /* github#39 -- close it, or it paints over the library for the next check */
+    __vs.closeReader();
+    return out;
   })()`);
   return { ok: r.tabs > 0 && r.tabs <= 26,
            detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} tabs (cap 26)` };
@@ -4304,9 +4444,12 @@ check("previous and next walk the book and stop at its ends", async (p) => {
     var second = __vs.reader().index;
     for (var i = 0; i < book.notes.length + 4; i++) document.getElementById("vs-nextnote").click();
     var last = __vs.reader().index;
-    return { found: true, first: first, prevDisabled: prevDisabled, second: second,
-             last: last, size: book.notes.length,
-             nextDisabled: document.getElementById("vs-nextnote").disabled };
+    var out = { found: true, first: first, prevDisabled: prevDisabled, second: second,
+                last: last, size: book.notes.length,
+                nextDisabled: document.getElementById("vs-nextnote").disabled };
+    /* github#39 -- close it, or it paints over the library for the next check */
+    __vs.closeReader();
+    return out;
   })()`);
   if (!r.found) return { ok: false, detail: "no book with three notes in this vault" };
   return { ok: r.first === 0 && r.prevDisabled && r.second === 1 &&
@@ -4394,10 +4537,12 @@ check("also shelved in moves to another book and keeps the note", async (p) => {
     if (!found) return { found: false };
     __vs.openBook(found.book, found.note);
     var links = document.querySelectorAll("#vs-alsoin button");
-    if (!links.length) return { found: true, links: 0 };
+    if (!links.length) { __vs.closeReader(); return { found: true, links: 0 }; }
     var from = __vs.reader().book;
     links[0].click();
     var to = __vs.reader();
+    /* github#39 -- close it, or it paints over the library for the next check */
+    __vs.closeReader();
     return { found: true, links: links.length, from: from, to: to.book, note: to.note, wanted: found.note };
   })()`);
   if (!r.found) return { ok: false, detail: "no note appears in two books in this vault" };
@@ -4417,8 +4562,11 @@ check("previous collection walks back, and Alt+Left does the same", async (p) =>
     var afterButton = __vs.reader().book;
     __vs.openBook(books[1], null);
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", altKey: true, bubbles: true }));
-    return { first: books[0], second: books[1], atSecond: atSecond,
-             afterButton: afterButton, afterKey: __vs.reader().book };
+    var out = { first: books[0], second: books[1], atSecond: atSecond,
+                afterButton: afterButton, afterKey: __vs.reader().book };
+    /* github#39 -- close it, or it paints over the library for the next check */
+    __vs.closeReader();
+    return out;
   })()`);
   return { ok: r.afterButton === r.first && r.afterKey === r.first,
            detail: `${r.first} -> ${r.second}; the button came back to ${r.afterButton}, ` +
@@ -4882,12 +5030,23 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
                { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
   await p.j(`window.dispatchEvent(new Event("resize"))`);
   await sleep(400);
-  const now = await p.j(MEASURE);
+  /* github#14, design/0021 -- in every look against one golden; it holds a book's width. */
+  const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
+  const was = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
+  const golden = JSON.parse(readFileSync(file, "utf8"));
+  const problems = [];
+  let now = null;
+  for (const look of looks) {
+    await p.j(`(__vs.setLook(${JSON.stringify(look)}), 1)`);
+    await sleep(250);
+    const seen = await p.j(MEASURE);
+    if (!now) now = seen;
+    for (const bad of diffLayout(golden, seen)) problems.push(`${look || "modern"}: ${bad}`);
+  }
+  await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
   await p.send("Emulation.clearDeviceMetricsOverride");
   await p.j(`window.dispatchEvent(new Event("resize"))`);
   await sleep(250);
-  const golden = JSON.parse(readFileSync(file, "utf8"));
-  const problems = diffLayout(golden, now);
   const rows = now.shelves.reduce((n, s) => n + s.rows, 0);
   const spines = now.shelves.reduce((n, s) => n + s.books, 0);
   const plaques = now.shelves.reduce((n, s) => n + s.plaques.length, 0);
@@ -4898,13 +5057,14 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
       ? `${problems.length} difference(s) against ${name}.json: ` + problems.slice(0, 4).join("; ") +
         (problems.length > 4 ? ` ... (node scripts/update-layout-snapshots.mjs rewrites it)` : "")
       : `${now.shelves.length} shelves, ${rows} rows, ${spines} spines, ${plaques} plaques and a ` +
-        `${now.room}px room, all where ${name}.json says at ${VIEWPORT.width}px`
+        `${now.room}px room, all where ${name}.json says at ${VIEWPORT.width}px, in all ` +
+        `${looks.length} looks`
   };
 });
 
 /* ------------------------------------------------------ which vault, and why
  *
- * ONE SHAPE, and it does not need a vault of yours. decisions/0012 replaced three fixtures
+ * ONE SHAPE, and it does not need a vault of yours. decisions/0014 replaced three fixtures
  * with one that carries what all three carried: 5,000 notes over eleven years ending today,
  * every classifier populated, a recent year that is genuinely active, a declared empty year
  * for a chronological shelf to survive, a fifth of the non-daily notes undated, titles
@@ -5049,6 +5209,53 @@ async function buildFor(v) {
   if (!m) return "";
   console.log((b.stdout || "").trimEnd());
   return pathToFileURL(m[1].trim()).href;
+}
+
+/* ----------------------------------------------------------- at rest, or -- */
+
+/**
+ * github#39, decisions/0013 -- what the page is still doing.
+ * @returns {Promise<string[]>} what is in flight, empty when the page is at rest
+ */
+async function atRest(page) {
+  return page.j(`(function(){
+    var out = [];
+    var room = __vs.room();
+    if (room.pending) out.push("a pending room measure (settleRoom's 60ms timer)");
+    var mid = document.querySelectorAll(
+      "#vs-app [data-dragging], #vs-app [data-carrying], #vs-app [data-leaving], " +
+      "#vs-app [data-drop], #vs-app [data-shelfdrop]");
+    if (mid.length) out.push(mid.length + " element(s) still mid-drag");
+    var open = ["reader", "builder", "manage", "madebook", "dye", "railmenu"].filter(function (id) {
+      var n = document.getElementById("vs-" + id);
+      return n && !n.hidden;
+    });
+    if (open.length) out.push("left open: " + open.join(", "));
+    return out;
+  })()`).catch(() => []);
+}
+
+/** github#39 -- back to rest, so the next check starts clean */
+async function settlePage(page) {
+  await page.eval(`(function(){
+    /* github#39 -- THROUGH THE PAGE'S OWN CONTROLS. Setting [hidden] by hand is what this repo
+     * already got caught by once: the sheets are laid out by a class that outranks it, so the
+     * attribute would read shut while the sheet was still painted over the library. */
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    ["mclose", "bcancel", "mbcancel"].forEach(function (id) {
+      var b = document.getElementById("vs-" + id);
+      if (b && b.offsetParent !== null) b.click();
+    });
+    try { __vs.closeReader(); } catch (e) {}
+    [].slice.call(document.querySelectorAll(
+      "#vs-app [data-dragging], #vs-app [data-carrying], #vs-app [data-leaving], " +
+      "#vs-app [data-drop], #vs-app [data-shelfdrop]")).forEach(function (el) {
+      ["data-dragging", "data-carrying", "data-leaving", "data-drop", "data-shelfdrop"]
+        .forEach(function (a) { el.removeAttribute(a); });
+    });
+  })(); void 0`).catch(() => {});
+  /* github#39 -- past settleRoom's 60ms timer */
+  await sleep(90);
 }
 
 /* --------------------------------------------------------------- one run -- */
@@ -5212,6 +5419,12 @@ async function runOne(vault, work) {
       const t0 = Date.now();
       try { r = await c.fn(page, ctx); }
       catch (e) { r = { ok: false, detail: "threw: " + e.message }; }
+      /* github#39, decisions/0013 -- blame the check that left it, not its neighbour */
+      const busy = await atRest(page);
+      if (busy.length) {
+        r = { ok: false, detail: (r.detail || "") + ` -- LEFT THE PAGE BUSY: ${busy.join("; ")}` };
+        await settlePage(page);
+      }
       const ms = Date.now() - t0;
       timings.push({ name: c.name, ms });
       if (!r.ok) failed++;
@@ -5311,7 +5524,11 @@ async function capture(page, out) {
           var want = ${JSON.stringify(SHOT_BOOK)};
           var pick = null;
           __vs.views().forEach(function (v) { v.books.forEach(function (b) {
-            if (want === "biggest" ? (!pick || b.notes.length > pick.notes.length) : b.id === want) pick = b;
+            /* github#16 -- "smallest" is how the book with NO INDEX is photographed. */
+            var hit = want === "biggest" ? (!pick || b.notes.length > pick.notes.length)
+                    : want === "smallest" ? (!pick || b.notes.length < pick.notes.length)
+                    : b.id === want;
+            if (hit) pick = b;
           }); });
           return __vs.openBook(pick ? pick.id : want, null);
         })()`)
@@ -5418,10 +5635,18 @@ async function main() {
                 picked.map((c) => c.name).join("; "));
     console.log("");
   }
-  // github#8, decisions/0011
-  takeLock();
+  // github#8, github#37, decisions/0011, decisions/0012
+  await takeLock();
+  /* github#39, decisions/0013 -- the run's own clock, started after the lock */
+  const began = Date.now();
   const vaults = resolveVaults();
   console.log(`checking ${vaults.length} vault(s): ${vaults.map((v) => v.label).join(", ")}`);
+
+  if (JOBS_ASKED > LANE_CAP) {
+    // github#39, decisions/0013
+    console.log(`--jobs ${JOBS_ASKED} clamped to ${LANE_CAP}: two Chromes is this suite's ` +
+                `ceiling, not its default`);
+  }
 
   const shaky = picked.filter(isSerial);
   const steady = picked.filter((c) => !isSerial(c));
@@ -5430,30 +5655,46 @@ async function main() {
     list.forEach((c, i) => out[i % k].push(c));
     return out.filter((g) => g.length);
   };
+  /* github#39 -- --vault and --url run everything: the escape hatch */
+  const forVault = (list, v) =>
+    (v.fixture ? list.filter((c) => c.on.includes(v.fixture.name)) : list);
+  /* github#39, decisions/0013 -- a lane is a whole browser; open one only for real work */
+  const MIN_PER_LANE = 32;
+  const lanesFor = (n) => Math.max(1, Math.min(JOBS, Math.ceil(n / MIN_PER_LANE)));
 
   const lanePorts = PINNED_PORT ? [] : await freePorts(Math.max(JOBS, 1));
 
   const parallel = [], serial = [];
+  const split = [];
   for (const v of vaults) {
     const url = await buildFor(v);
-    for (const g of shard(steady, JOBS)) {
+    const mySteady = forVault(steady, v), myShaky = forVault(shaky, v);
+    split.push({ label: v.label, steady: mySteady.length, shaky: myShaky.length });
+    for (const g of shard(mySteady, lanesFor(mySteady.length))) {
       parallel.push({ vault: v, checks: g, tag: v.label, url });
     }
-    if (shaky.length) {
-      serial.push({ vault: v, checks: shaky, tag: v.label + " (layout-reading, serial)", url });
+    if (myShaky.length) {
+      serial.push({ vault: v, checks: myShaky, tag: v.label + " (layout-reading, serial)", url });
     }
   }
-  if (JOBS > 1) {
-    console.log(`${JOBS} jobs: ${parallel.length} parallel shard(s) of ${steady.length} checks, ` +
-                `then ${serial.length} serial job(s) of ${shaky.length} layout-reading one(s)`);
+  /* github#39 -- the split is a number on every run */
+  const runs = split.reduce((n, s) => n + s.steady + s.shaky, 0);
+  console.log(`${JOBS} lane(s): ${parallel.length + serial.length} Chrome(s) for ${runs} check ` +
+              `runs of ${picked.length} checks (${picked.length * vaults.length} if every check ` +
+              `ran on every shape)`);
+  for (const s of split) {
+    console.log(`  ${String(s.steady + s.shaky).padStart(3)}  ${s.label} ` +
+                `(${s.steady} parallel, ${s.shaky} layout-reading)`);
   }
   console.log("");
 
   const failures = new Map();
   const ran = new Map();
+  const clocked = [];
   const bump = (label, r) => {
     failures.set(label, (failures.get(label) || 0) + r.failed);
     ran.set(label, (ran.get(label) || 0) + r.ran);
+    for (const t of r.timings) clocked.push({ vault: label, name: t.name, ms: t.ms });
   };
   const report = (work, r) => {
     console.log("=".repeat(72));
@@ -5487,8 +5728,21 @@ async function main() {
   await pool(parallel, JOBS);
   await pool(serial, 1);
 
+  // github#39
+  if (TIMINGS) {
+    writeFileSync(TIMINGS, JSON.stringify(clocked, null, 2) + "\n");
+    const total = clocked.reduce((n, t) => n + t.ms, 0);
+    console.log(`wrote ${TIMINGS}: ${clocked.length} check runs, ` +
+                `${(total / 1000).toFixed(1)}s of check time`);
+  }
+
   let worst = 0;
   for (const v of vaults) worst = Math.max(worst, failures.get(v.label) || 0);
+  /* github#39 -- printed before the verdict, so a red run has it too */
+  const wall = (Date.now() - began) / 1000;
+  console.log("");
+  console.log(`${wall.toFixed(0)}s wall for ${parallel.length + serial.length} Chrome(s) and ` +
+              `${runs} check runs, after the lock`);
 
   if (vaults.length > 1 || JOBS > 1) {
     console.log("=".repeat(72));
@@ -5504,6 +5758,8 @@ async function main() {
                 : arg("url", "") ? "--url" : LOOK ? "--look"
                 : vaults.some((v) => !v.fixture) ? "an unstamped fixture"
                 : lost.length ? `a run without ${lost.join(" and ")} (the generator failed)` : "";
+  // github#25 -- the stamp is a measurement, so the hold is checked again
+  if (suiteLock && !heldBy("suite", LOCK_OWNER)) lostLock("somebody else");
   if (!worst && !partial) {
     let checks = 0;
     for (const t of ran.values()) checks += t;

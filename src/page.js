@@ -199,7 +199,7 @@ function mountVaultShelf(root, data, options) {
   /** design/0014 -- the measured inner width of a shelf row; 0 until the first render lands. */
   var roomWidth = 0;
   /** What the resize watcher saw, for the harness to read back. */
-  var roomLog = { resizes: 0, measured: 0, last: 0 };
+  var roomLog = { resizes: 0, measured: 0, last: 0, pending: 0 };
 
   /** @type {string[]} */
   var SLOTS = [];
@@ -668,6 +668,7 @@ function mountVaultShelf(root, data, options) {
     var seen = 0;
     function measure() {
       pending = 0;
+      roomLog.pending = 0;
       var w = shelfWidth();
       roomLog.measured++;
       roomLog.last = w;
@@ -685,8 +686,14 @@ function mountVaultShelf(root, data, options) {
       roomLog.resizes++;
       if (pending) return;
       pending = WIN.setTimeout(measure, 60);
+      // github#39
+      roomLog.pending = 1;
     });
-    onDestroy.push(function () { if (pending) WIN.clearTimeout(pending); });
+    onDestroy.push(function () {
+      if (pending) WIN.clearTimeout(pending);
+      pending = 0;
+      roomLog.pending = 0;
+    });
   }
 
   /**
@@ -3663,7 +3670,7 @@ function mountVaultShelf(root, data, options) {
     /** The twelve slots as the cascade currently resolves them. design/0005. */
     slots: function () { return SLOTS.slice(); },
     /** design/0014 -- the room as packed, and what the resize watcher has seen. */
-    room: function () { return { width: roomWidth, resizes: roomLog.resizes, measured: roomLog.measured, last: roomLog.last }; },
+    room: function () { return { width: roomWidth, resizes: roomLog.resizes, measured: roomLog.measured, last: roomLog.last, pending: roomLog.pending }; },
     /** design/0008 -- what the room currently looks like it has been used for. */
     magic: function () {
       var worn = {};

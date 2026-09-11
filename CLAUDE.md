@@ -79,14 +79,28 @@ of measuring it.** Build the page, drive it, read the numbers.
   order, not a book's address, not a count, **not a book's size and not a control's** — a
   spine is the same width and height in all three, in a room of the same width, and every
   button, box, tab, ribbon and swatch is the same height, so switching does not move the
-  furniture. `page.css` owns a control's geometry; a look sets colour, border, shadow and face. `core.LOOKS` is the one list of them, in the order the selector offers them
-  (leather first, which is what a fresh library opens in), and `migrate` validates against it.
-  `design/0016`.
+  furniture. **Every element's top is the same in every look, and so is its box across the way
+  its text runs**; the one thing a face may move is a label's neighbour **along its own row**,
+  because a wider face draws wider glyphs and nothing can be done about that. `page.css` owns
+  the geometry — a control's, a head's, a plank's, a line box's — and a look sets colour,
+  border, shadow and face, plus decoration that is absolutely positioned and so moves nothing.
+  A **responsive layout is not a look's**: leather carried a private one below 860px, and below
+  that width the two looks were not the same product. `core.LOOKS` is the one list of them, in
+  the order the selector offers them (leather first, which is what a fresh library opens in),
+  and `migrate` validates against it. `design/0016`, `design/0021`.
 
 ## How to work here
 
 - `node scripts/smoke.mjs --only "<substring>"` is the iteration loop. The full suite runs on
   the push to `develop` (the pre-push hook); do not run it by hand unless asked.
+- **Two Chromes at once, and two is a ceiling.** `--jobs` clamps to 2 and says so; `--jobs 1` is
+  the quiet run, and is what to use beside a recording. Four was the default until github#39, and
+  it is the load that hard-restarted the sister repo's machine across six worktrees. **The cap
+  costs time and is worth it anyway**: 78 s at four lanes against 90 s at two, before the fixture
+  audit took the whole run to 41-43 s. **A check declares which shapes it needs** — `check(name, fn, { on: "demo" })`, or a
+  list of fixture names — and **the default is all three**, deliberately the opposite of
+  `vault-graph#113`: a forgotten annotation must cost time, not coverage. **A check that returns
+  with the page still moving fails**, naming what it left open or in flight. `decisions/0013`.
 - **Numbers cannot see.** Every check in the suite asserts a number, and none of them can see
   that something looks wrong. Two real bugs here were found only by taking a screenshot: a
   stray `DEL` byte inside `"-undated"` (printed identically, compared unequal, emptied every
@@ -96,10 +110,16 @@ of measuring it.** Build the page, drive it, read the numbers.
   claimed palette parity that nobody had ever verified. **Look at it.**
   `node scripts/smoke.mjs --only "<one check>" --shot out.png` writes the library and, beside
   it, `out-reader.png` of an open book — from the same Chrome the checks drive.
-- **Two things may not run twice at once, and `scripts/lock.mjs` is the mutex.** A **screen
-  recording** grabs a display region, so a second take captures the first one's window; **any
-  suite run** drives Chrome over CDP, so two runs fight for ports and a contended GPU, and each
-  blames the code.
+- **Two things may not run twice at once, and `scripts/lock.mjs` is the mutex.** **Any suite
+  run** drives Chrome over CDP, so two runs fight for a contended GPU and each blames the code;
+  and **any harness that places a window** takes over the leftmost display, so a second one —
+  here, or a `gdigrab` recording in the sister repo — lands on top of it.
+
+  **A lock names the resource, not the job** (`github#37`, `decisions/0012`): `suite`,
+  `screen-left`, `screen-right`, `screen-primary`. `record` is legacy and transitional, kept
+  only until the sister repo drops its own alias, and **nothing here takes it** — this repo
+  makes no screen recording at all (`design/0007`: the recorder asks the browser for each frame
+  over CDP and touches no desktop).
 
   **`smoke.mjs` takes the `suite` lock itself now** (`github#8`), at startup, and releases it on
   exit and on a signal — so *every* run is covered, including the `--only` iteration loop, which
@@ -115,11 +135,17 @@ of measuring it.** Build the page, drive it, read the numbers.
   outer lock's stale window expires. The sister repo hit that live, pushing a release
   (`vault-graph@f9a167a`). A plain `git push origin develop` is correctly gated on its own.
 
-  A **screen recording** is still wrapped by hand, and it is the only thing that is:
+  **And the screen is claimed by whatever parks a window on it** (`github#37`), which is every
+  one of `smoke.mjs`, `refresh-check.mjs`, `teardown-check.mjs`, `check-data-escape --browser`
+  and `update-layout-snapshots.mjs`. Four of the five took no lock at all until now, and the
+  fifth's `suite` lock was never about the display. The claim comes from the same call that
+  gives a harness its window position, so it cannot be forgotten; `--lock-timeout-ms` says how
+  long a blocked run waits before naming the holder and giving up. **There is nothing left to
+  wrap by hand.** Driving a window yourself is the one case:
 
   ```bash
-  node scripts/lock.mjs acquire record --owner "#12 plaques"   # blocks; exit 1 = give up
-  node scripts/lock.mjs release record --owner "#12 plaques"
+  node scripts/lock.mjs acquire screen-left --owner "#12 plaques"   # blocks; exit 1 = give up
+  node scripts/lock.mjs release screen-left --owner "#12 plaques"
   node scripts/lock.mjs status
   ```
 
@@ -127,7 +153,9 @@ of measuring it.** Build the page, drive it, read the numbers.
   `obsidian-vault-locks` — so a Vault Graph suite and a Vault Shelf suite block each other.
   They did not until 2026-09-10: each repo had its own directory, so each held a lock the
   other could not see and the two ran together anyway. A machine has one Chrome and one
-  screen no matter which repository the suite belongs to.
+  screen no matter which repository the suite belongs to. The root was never enough on its own:
+  contention is by **name**, so until `github#37` a Vault Graph recording on the left screen and
+  a Vault Shelf harness on the same screen asked for nothing the other held.
   `--shot` is part of a suite run, so it is inside the lock like everything else.
 - **The fixture store is shared and content-addressed, and nothing prunes a sibling.** Every
   worktree resolves the same `.fixtures` through git's common dir, so a fixture directory is
@@ -138,6 +166,14 @@ of measuring it.** Build the page, drive it, read the numbers.
   generator. `github#8`.
 - `git push` and merging into `develop` are separate asks, every time. `main` only ever
   receives `develop`.
+- **Which session is the orchestrator is decided by where it stands.** A session opened in the
+  main checkout (`C:\git-personal\vault-shelf`, on `develop` or an integration branch) *is* the
+  orchestrator, and says so at the start rather than waiting to be told; a session opened in an
+  Orca worktree is a worker, and never becomes an orchestrator by finishing well. The checkout
+  is the role, so the answer never depends on who remembered to mention it. **And it says so
+  in its name**: the orchestrator session is called `vault-shelf-orchestrator`, because a
+  sister session with something to say about the shared mutex has to be able to find it in a
+  list of sixty. `/rename vault-shelf-orchestrator` at the start, or `claude -n` at launch.
 - **Only the orchestrator session pushes to `develop` or cuts a release.** A dispatched
   worktree — an Orca worktree of its own, never a child of the orchestrator's, one per piece of
   work — implements, runs its own gates, and stops at its own branch: it never pushes past that
@@ -163,7 +199,7 @@ of measuring it.** Build the page, drive it, read the numbers.
   notes over eleven years ending today, every classifier populated, a recent year that is
   genuinely active, a 760-day hole so one calendar year comes out empty, a fifth of the
   non-daily notes undated, and a handful in eleven books at once. It replaced three fixtures
-  (`decisions/0012`), which is why nothing here says "the demo vault" any more. Never a real
+  (`decisions/0014`), which is why nothing here says "the demo vault" any more. Never a real
   vault, never a built `vault-shelf.html`, in anything that reaches the repo.
 - **The generator proves its own declaration.** It refuses to finish if a month in the last
   three years is empty, if a week in the last year is empty, if no whole calendar year fell in
@@ -176,7 +212,7 @@ of measuring it.** Build the page, drive it, read the numbers.
   same tree, dates and distributions, invented words — and `make-mirror-vault.mjs` still
   refuses to finish if any real string reaches the output, with no skip flag. It is a
   diagnostic you point at your own vault now, not a step in the pipeline. `design/0013`,
-  amended by `decisions/0012`.
+  amended by `decisions/0014`.
 - **A tree is gated once.** A green full suite run stamps the git tree it measured
   (`scripts/suite-stamp.mjs`, `decisions/0010`); the pre-push hook and `release.ps1` skip the
   suite for a tree that already carries a stamp, and print the stamp they trust. `node
@@ -189,10 +225,11 @@ of measuring it.** Build the page, drive it, read the numbers.
   `check-pii`, `check-scope`, `check-network`, `check-comments`, `check-data-escape`,
   `refresh-check --wiring-only` and the two determinism checks gate every push and have no
   skip flag.
-- **Three gates drive a browser and are therefore suite-lock jobs**, run by hand rather than by
-  the hook: `check-data-escape --browser` (a vault whose metadata is markup), `teardown-check`
-  (twenty mount/unmount cycles, nothing left behind) and `refresh-check` (the library and an
-  open book follow a changed vault). The packing is a golden per fixture in
+- **Three gates drive a browser**, run by hand rather than by the hook: `check-data-escape
+  --browser` (a vault whose metadata is markup), `teardown-check` (twenty mount/unmount cycles,
+  nothing left behind) and `refresh-check` (the library and an open book follow a changed
+  vault). Each claims `screen-left` itself (`github#37`) — the documentation called them
+  lock jobs for months while they took no lock at all. The packing is a golden per fixture in
   `scripts/layout-snapshots/`, diffed by the suite and rewritten, deliberately, by
   `node scripts/update-layout-snapshots.mjs`.
 - Commit messages are sentences; `Closes #n` on its own line closes the issue when the work
@@ -208,7 +245,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 89 checks over the one vault shape |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP): NN checks over the one vault shape (`decisions/0014`), in two Chromes |
 | `scripts/release.ps1` | the local half of a release: the guards, the gates, the tag, the tag push. `-SelfTest` drives every refusal in a throwaway clone; `.ai-context/releasing.md` is the authority on the flow |
 | `scripts/suite-stamp.mjs` | which trees have passed the suite (`decisions/0010`), read by the pre-push hook and `release.ps1`. `--selftest` proves the hit and miss cases |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |

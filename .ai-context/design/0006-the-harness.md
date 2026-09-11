@@ -13,28 +13,48 @@ reachable from nowhere inside Obsidian, so shipping it would be dead weight and 
 surface than the plugin needs. The strip is count-checked: the build fails loudly if the
 `BEGIN`/`END` marker pair stops matching, rather than silently shipping the whole thing.
 
-## Where the windows go
+## Where the windows go, and who claims the screen
 
 `scripts/screen.mjs` finds the leftmost display and the harness places its windows there, off
 to the side, so a run does not take over the desktop somebody is working on. With `--jobs 4`
 the four lanes tile that screen rather than stacking, which is only cosmetic but makes a
 failing run watchable. `--headed` opts out and puts one window where windows normally go.
 
+**Taking that screen is a claim, not a convention** (`decisions/0012`). `takeLeftScreen(owner)`
+hands back the window arguments *and* the hold, and `leftWindowArgs` / `leftWindowPos` /
+`placeElectronLeft` throw if this process does not hold `screen-left` — so a harness cannot
+place a window and forget to claim the display, which is what four of the five callers did
+until `github#37`. `leftmostScreen()` is geometry rather than placement and stays free.
+
 ## Two things may not run twice at once
 
-`scripts/lock.mjs` is a machine-wide mutex with two names, and it lives in the OS temp
-directory rather than the worktree so **every worktree shares one**:
+`scripts/lock.mjs` is a machine-wide mutex, and it lives in the OS temp directory rather than
+the worktree so **every worktree — and every sister project — shares one**. A name is the
+resource, not the job (`decisions/0012`, `vault-graph#87`): `record` could only ever serialise
+a recording against another recording, while what is contended is a display, and a harness
+driving a window on it would not have thought to ask for a lock called `record`.
 
-| name | why |
+| name | the resource |
 |---|---|
-| `record` | a screen recording grabs a display region, so a second take captures the first one's window |
-| `suite` | the full suite drives Chrome over CDP, so two runs fight for ports and each blames the code |
+| `suite` | Chrome, CDP and a contended GPU: two full runs measure each other rather than the code |
+| `screen-left` | the display this repo's harnesses park their windows on — all five of them |
+| `screen-right`, `screen-primary` | the other two displays, claimed by the sister repo's recordings and spike tests |
+| `record` | **legacy**, and transitional: kept only until the sister repo drops its own alias |
+
+A `screen-*` acquire waits on a live `record` and `record` waits on any live screen, so the two
+vocabularies collide during the changeover instead of passing through each other. Nothing in
+this repo takes `record`, and nothing should.
 
 ```bash
-node scripts/lock.mjs acquire record --owner "who you are"   # blocks; exit 1 = give up
-node scripts/lock.mjs release record --owner "who you are"   # always, even on failure
+node scripts/lock.mjs acquire screen-left --owner "who you are"   # blocks; exit 1 = give up
+node scripts/lock.mjs release screen-left --owner "who you are"   # always, even on failure
 node scripts/lock.mjs status
 ```
+
+**You do not have to remember any of this for a run of anything in `scripts/`.** Every harness
+that places a window claims `screen-left` itself and releases it on exit and on a signal;
+`--lock-timeout-ms` says how long it waits before giving up. The command line above is for
+driving a window by hand.
 
 **`suite` is taken by the suite itself** (`github#8`). It was caller discipline until
 2026-09-11 — the docs told a person to wrap the run — and `smoke.mjs` contained no reference to
@@ -48,11 +68,20 @@ holds it and nothing else; wrapping a run by hand now waits for its own parent, 
 says so.
 
 A `mkdir` is the lock — atomic, and it survives a killed session as a **stale** entry rather
-than a permanent one. Stale windows are 20 minutes for `record` and 30 for `suite`; a run that
-exceeds them is a run somebody has to look at anyway.
+than a permanent one. Stale windows are 30 minutes for `suite` and 20 for everything else.
 
-Screenshots need no lock: they go over CDP, so overlapping windows are harmless. Pass your own
-`--port`. `--shot` is part of a suite run, so it is inside the suite's own lock anyway.
+**A hold says whether it is still alive** (`github#25`, `decisions/0012`). An in-process holder
+writes its own pid and refreshes the timestamp every 30 seconds, so a dead holder's lock is
+broken at once instead of waited out, and a live one never ages into being broken — including by
+the sister repo, which reads the same timestamp and needed no change for that to work. A hold
+taken from the command line writes no pid, because nothing it could write would still be true a
+second later; `status` says `holder unverified` rather than pretending otherwise. The suite
+checks that the lock is still its own while it runs, and **aborts rather than publishing numbers
+measured on a contended machine.**
+
+Screenshots need no lock *of their own*: they go over CDP, so overlapping windows are harmless.
+Pass your own `--port`. But the window being shot is on the claimed screen, and `--shot` is part
+of a suite run, so it is inside that run's `suite` and `screen-left` holds anyway.
 
 ## One fixture store, and nothing prunes a sibling
 

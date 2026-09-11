@@ -592,9 +592,9 @@ is the scaffold. Those pages are contributor recipes and are excluded from this 
 **Films are shot in the same vault the checks run on, and never in a real one.**
 `scripts/make-vault.mjs` writes 5,000 notes over eleven years with a recent year dense enough
 to film in, which is what let the film stop being shot somewhere the suite never looks
-(`decisions/0012`). `scripts/make-mirror-vault.mjs` is still here and still refuses to finish
+(`decisions/0014`). `scripts/make-mirror-vault.mjs` is still here and still refuses to finish
 if any real string reaches its output — it rebuilds a real vault's *shape*, its tree, dates,
 people and tag distributions, with invented words — but it is a diagnostic you point at your
 own vault now, reached with `--mirror-of`, rather than a step in the pipeline.
 
-`design/0007`, `design/0013`, `decisions/0012`
+`design/0007`, `design/0013`, `decisions/0014`

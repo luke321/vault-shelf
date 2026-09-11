@@ -23,7 +23,7 @@ changing what a shelf contains or how a book is addressed.
 | `0001-settings-are-the-hosts-and-schema-is-migrated` | Where a shelf definition lives, and why the page stores nothing |
 | `0002-a-book-has-a-stable-address` | `shelfId/key`, and why not an index or a generated id |
 | `0003-metadata-is-declared-never-inferred` | Dates, people and tags come from properties; nothing is guessed from prose |
-| `0004-declared-fixtures-not-a-real-vault` | A declared vault, generated on demand, keyed by generator digest, day-independent. Amended by `0012` |
+| `0004-declared-fixtures-not-a-real-vault` | A declared vault, generated on demand, keyed by generator digest, day-independent. Amended by `0014` |
 | `0005-the-plugin-reads-the-metadata-cache` | Not the filesystem, and what that costs |
 | `0006-zero-network-calls` | Both artifacts are offline objects, and the check that keeps them so |
 | `0007-comments-are-pointers` | Why the reasoning lives here and not in the code |
@@ -31,7 +31,9 @@ changing what a shelf contains or how a book is addressed.
 | `0009-the-docs-site-is-a-live-demo` | Why `docs/` is a Pages site with a real export in it, why the export is built from the fixture rather than the mirror, and the one rule that bends |
 | `0010-a-tree-is-gated-once` | A green suite run stamps the tree it measured; what the stamp keys on, what it refuses to record, and what it actually saves here |
 | `0011-the-suite-holds-its-own-lock` | Why the mutex stopped being caller discipline, and why a fixture directory is never deleted because a sibling appeared |
-| `0012-one-vault-for-the-checks-and-the-film` | Four generated vaults become one: what the one vault had to absorb to replace three, what was given up, and why the film stopped being shot in a mirror |
+| `0012-lock-the-screen-not-the-job` | Why a lock is named after the display it takes over rather than the activity, what the claim-and-return shape buys over handing back a name, and how a hold proves it is still alive |
+| `0013-two-chromes-and-a-check-says-what-it-needs` | Why the suite caps at two browsers where the sister repo went to one, why a check declares the shapes it needs, and why a check that leaves the page moving fails |
+| `0014-one-vault-for-the-checks-and-the-film` | Four generated vaults become one: what the one vault had to absorb to replace three, what was given up, why the film stopped being shot in a mirror, and what `0013`'s per-shape narrowing means once there is one shape |
 
 ### DDRs — `design/`
 
@@ -49,7 +51,7 @@ changing what a shelf contains or how a book is addressed.
 | `0010-the-note` | Obsidian's own markdown renderer, and why that is not a filesystem read |
 | `0011-thickness-is-the-note-count` | A spine's width is a measurement of the book, log-scaled against the library |
 | `0012-the-reader-is-a-book` | Four pieces of geometry that make a spread an open book, and none of them a texture |
-| `0013-the-mirror-vault` | The mirror of a real vault: what it preserves, what it replaces, and the guard that has no skip flag. No longer the film's vault (`decisions/0012`) |
+| `0013-the-mirror-vault` | The mirror of a real vault: what it preserves, what it replaces, and the guard that has no skip flag. No longer the film's vault (`decisions/0014`) |
 | `0014-the-bookcase` | Rows instead of a horizontal scroller: why the packing is arithmetic, and how a plaque earns its width |
 | `0015-the-index` | The tabs are cut the way the book is ordered, and as deep as its titles need |
 | `0016-the-leather-look` | The opt-in leather binding: why a texture is allowed once it stops claiming to follow the theme |
@@ -58,6 +60,7 @@ changing what a shelf contains or how a book is addressed.
 | `0019-a-plaque-opens-its-run` | Clicking a plate opens the run under it as one book of unique notes, with an address of its own; why open rather than narrow, and why an address rather than none |
 | `0019-the-favourites-shelf` | The shelf at the top that holds references to other shelves' books: why a favourite is an address rather than a copy, and why the reader is never told about it |
 | `0020-a-book-made-on-the-shelf` | A book made on a pick shelf by right-clicking empty space: a saved query with an address of its own, why it is a place a note lives when a reference is not, and why off the rail means delete |
+| `0021-one-geometry-three-faces` | Where the line between a face and a box falls, the audit of every geometry and part declaration in the two look sheets, and the walk over every element that replaced a list of 38 named controls |
 
 **ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
 it explains *why not the other thing*. A DDR describes how a part actually works and the

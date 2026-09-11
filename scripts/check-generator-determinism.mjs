@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// decisions/0004, decisions/0012, github#17
+// decisions/0004, decisions/0014, github#17
 
-/* github#17, decisions/0004, decisions/0012 -- three passes: byte-identical at one --end,
+/* github#17, decisions/0004, decisions/0014 -- three passes: byte-identical at one --end,
  * the same vault with every date masked, and each date either moved with --end or kept its
  * literal. `--selftest` breaks the law four ways in a COPY of the generator. */
 

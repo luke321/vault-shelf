@@ -196,7 +196,7 @@ function selftest() {
     expect("a changed tree misses", !miss.ok && /no stamp/.test(miss.why));
     expect("the earlier tree still hits by revision", lookup("HEAD~1", repo).ok);
 
-    /* decisions/0012 -- ONE FIXTURE, so "a partial run" is a run that named none. It is
+    /* decisions/0014 -- ONE FIXTURE, so "a partial run" is a run that named none. It is
      * still the case worth checking: the whole point of the stamp is that it vouches for a
      * measurement that actually happened. */
     const none = record({ fixtures: [], checks: 0, cwd: repo });
