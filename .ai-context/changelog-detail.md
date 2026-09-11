@@ -1,5 +1,144 @@
 # Changelog detail
 
+## 2026-09-11 — Re-measured against the one vault (github#44, decisions/0014)
+
+`develop` replaced the three fixtures with one generated vault while this branch was in flight.
+The two entries below were measured against the three; these are the same numbers taken again on
+the one, and they are what `invariants.md` now carries.
+
+| | three fixtures | the vault |
+|---|---|---|
+| spines / books | 238 / 465, 77 / 194, 186 / 709 | **231 / 691** |
+| a hover | 9.81 / 3.76 / 8.13 ms | **9.31 ms** |
+| a full `refresh()` | 10.1 / 7.0 / 35.5 ms | **32.7 ms** |
+| spines on screen clear of the sheet body | 123 of 155, 47 of 67, 77 of 93 | **49 of 82** |
+| named controls the keyboard reaches | 344 | **337** |
+| `smoke.mjs` | 91 checks × 3 shapes | **93 checks**, 93 runs |
+
+The viewport differs too (1584×961 against 1264×1353), which is most of why the clear-of-the-sheet
+fraction moved from 79% to 60%. It is still the majority of what is on screen, so `D-1` stands:
+the room is worth repainting and a sample in the popover would have been a picture of a shelf
+standing beside a shelf.
+
+Both new checks carried no `on:` annotation, so they ran on all three shapes and now run on the
+one without a line changing.
+
+## 2026-09-11 — A plate dyes what is under it, and a shelf dyes itself (github#44)
+
+> "right click on plague, change colors for everyting under the plague, right click on shelf the
+> whole shelf" — and "live update for the ribbons as well, naturally"
+
+The same preview, in the three other places the twelve are offered. Asked for while looking at
+the first half of `github#44` running, so it ships on the same branch; it is a **new gesture**
+rather than a preview of an existing one, and may want its own issue number.
+
+| | before | after |
+|---|---|---|
+| places a colour is given by hand | a spine | a spine, **a plate's run**, **a shelf** |
+| hovering one of the twelve there | did nothing | paints the whole unit, and its threads |
+| written by a hover over any of them | — | **0** keys |
+| written by a click on a shelf of 130 | — | **130** keys, one per book, by address |
+| *Automatic* after that | — | **0** keys, room byte-identical to where it started |
+| lines below the twelve (edit, delete, add to…) | a spine's | still a spine's only — **0** on the others |
+| the shelf menu's first button | *New book here…* | *New book here…*, twelve below it |
+| `smoke.mjs` | 90 checks | **91 checks** |
+| `check-comments` baseline | 1500 | 1500 |
+
+**A plate's unit is its run, not its label.** `design/0018` settled that a run is what is adjacent
+and `openPlaque()` opens the same run, so a shelf a person has split shows two plates and dyeing
+one dyes one. A plate says what is under it.
+
+**A stamp, not a rule.** `setBookColors()` writes one `bookColors` key per book, exactly as
+right-clicking each spine in turn would. A rule new books would inherit needs a field on `Shelf`
+and a `migrate` clause, and `migrate` lives in `src/core`, which this branch was told not to
+touch.
+
+**The ribbons needed nothing.** A thread falls out of the board it is sewn into (`design/0008`),
+so previewing a board previews its ribbon — on one spine or on a hundred and thirty. The check
+reads `--ribbon` across the library and asserts it moved.
+
+**Two suite checks took the shelf menu's first button by position**, which is how the twelve going
+in above it was caught: the second made book came back holding **-1 notes**, because the click
+that should have opened *New book here…* landed on swatch 1 instead. The twelve went below the
+line — right-clicking a gap is a gesture about a position, so the act tied to that position leads
+— and one of the two checks now asks for `.vs-railline` by name.
+
+**The opening focus was a race, and the flag that guarded it was not enough.** The first shape
+focused the swatch whose colour the slot already wore and swallowed that one focus event; Chrome
+delivers it *after* the handlers are wired, so a late one yanked focus back and undid a preview.
+Measured as a check that failed about **one run in four** on the 10k shape and never in
+isolation. A menu of the twelve now holds its own focus (`tabIndex = -1`) and no swatch takes the
+opening focus at all; **the first arrow steps onto the colour the unit is already wearing**, and
+the arrow handler moved from the row to the menu, because with focus on the container a keydown
+on the row would never hear it.
+
+**Both new checks clear the palette, the ribbons and the hand-given colours before measuring.**
+They read boxes, so they sit in the serial lane, and the checks that run before them there leave
+all three behind; what these measure is a difference, and a leftover palette made a preview land
+on the colour a slot already wore.
+
+## 2026-09-11 — A swatch says what the library would look like (github#44)
+
+> "colors should live preview when the swatch is open and hovering"
+
+Hovering one of the twelve in the swatch popover now paints the library in it, live. Leaving
+without clicking — pointer out, focus out, Escape, a click outside — puts back exactly what was
+there when the popover opened. **A preview paints and nothing else**: it never writes
+`settings`, never reaches `persist()`, and never moves a box.
+
+| | before | after |
+|---|---|---|
+| finding out what slot 7 looks like | commit, look, change it back | hover it |
+| `settings.palette` written by a hover trail of 12 | — | **0** |
+| spine boxes / addresses / note counts across a preview | — | **identical** |
+| room visible beside the sheet body (demo / sparse / 10k) | 123 / 47 / 77 of 155 / 67 / 93 | unchanged — it was always there |
+| the scrim over it while choosing | **82%** | **40%** |
+| hover cost, demo (238 spines, 465 books) | — | **9.81 ms** (17.95 before `readTheme` was split) |
+| hover cost, sparse (77 / 194) | — | **3.76 ms** (6.40) |
+| hover cost, 10k (186 / 709) | — | **8.13 ms** (14.39) |
+| a full `refresh()` on the same three | 10.1 / 7.0 / 35.5 ms | unchanged |
+| `--shot-open` | `manage`, `builder` | `manage`, `builder`, **`swatch`** |
+| `smoke.mjs` | 89 checks | **90 checks** |
+| `check-comments` baseline | 1500 | 1500 |
+| named controls the keyboard reaches (demo) | 344 | 344 |
+
+**The room, not a sample in the popover.** The issue asked for a position: the Manage sheet is
+over the library, so a preview repainting books nobody can see would be theatre. Measured with
+Manage open at 1264×1353 — the sheet body is 760×711 and **123 of the 155 spines on screen lie
+entirely clear of it** (79%; 70% sparse, 83% on the 10k). The room is there. What was not there
+was the light: `.vs-sheet` laid an 82% scrim over the whole library, so a slot going from maroon
+to green read as a faint shift and the feature was invisible while working perfectly. The scrim
+thins to 40% while the popover is open — `data-picking="1"`, one colour-only rule per look, no
+geometry, no transition.
+
+**Paint, not refresh, and the reason is not the clock.** `repaint()` re-reads the twelve, re-dyes
+the bands they feed and re-sets three custom properties on every spine already standing. On the
+two small shapes that costs about what a full `refresh()` costs; it is 4× cheaper only on the
+10k. The reason to do it is that it touches **no geometry at all**, so "a preview moves nothing"
+is true by construction rather than by argument, and `renderLibrary()`'s settle pass cannot run
+under a pointer (`decisions/0013`).
+
+**`readTheme()` split, and it halved the hover.** Its first half reads the look's own twelve with
+the inline values lifted off — a second forced style flush plus twelve derived threads — and the
+look cannot change under a hover. A repaint calls only `readSlots()`: 17.95 → 9.81 ms on the
+demo, 14.39 → 8.13 on the 10k.
+
+**Two traps in reading boxes, both found by the check failing rather than by thinking.** In the
+parallel lane the first reading was **238 boxes of `0:0:0:0`** — the packing had not landed, and
+the check would have compared nothing to nothing; it waits for a spine to have a width now, and
+sits in the serial lane with every other box-reading check. And a shelf off screen carries
+`content-visibility: auto`, so its spines have no box until the browser gets to them: one that
+gains a box mid-check is the browser catching up, not a preview moving anything, so only boxes
+that were real in the first reading are compared.
+
+**Two things the harness could not see, found by looking.** The first: the preview worked from
+the first build and was nearly invisible under the scrim — every number was right and the
+screenshot said so. The second: a clip of the pointer crossing the twelve showed the room
+changing *before* the trail started, which read as a bug and was not — the popover had opened
+under a stationary pointer, so the swatch beneath it was genuinely hovered. What that chase did
+find is real: **Chrome delivers the focus `openSwatchPick()` takes on opening after the handlers
+are wired**, so "wired after the focus, so opening offers nothing" was false as written and is
+now a flag.
 ## 2026-09-11 — Uprightness is geometry, so one face decides it (github#47)
 
 > "the same cover at the same spine width can fit in one look and not in another, and the answer

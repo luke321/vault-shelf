@@ -379,6 +379,8 @@
 
 /* ---- paper dialogs ---------------------------------------------------- */
 .vault-shelf[data-look="leather"] .vs-sheet { background: #151611bd; }
+/* github#44, design/0022 -- the same scrim, thinned while the twelve are offered */
+.vault-shelf[data-look="leather"] .vs-sheet[data-picking="1"] { background: #15161166; }
 .vault-shelf[data-look="leather"] .vs-sheetbody {
   background: #f3eddf;
   border: 1px solid #a59880;

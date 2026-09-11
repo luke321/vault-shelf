@@ -247,6 +247,18 @@ function mountVaultShelf(root, data, options) {
    */
   var OWN = { slots: [], ribbons: [] };
 
+  /**
+   * github#44, design/0022 -- the twelve a hover offers, never the saved twelve
+   * @type {{ palette: string[], ribbons: string[], colors: Record<string, number|null> }|null}
+   */
+  var trial = null;
+
+  /**
+   * github#44, design/0022 -- every spine standing, so a preview can repaint it
+   * @type {{ spine: HTMLElement, book: Book, shelf: Shelf }[]}
+   */
+  var painted = [];
+
   function readTheme() {
     SLOT_KEYS.forEach(function (k) { root.style.removeProperty(k); });
     root.style.removeProperty("--ribbon");
@@ -255,15 +267,25 @@ function mountVaultShelf(root, data, options) {
       return toHex((bare.getPropertyValue(k) || "").trim() || "#6f6e67");
     });
     OWN.ribbons = OWN.slots.map(threadOf);
+    readSlots();
+  }
 
-    /* design/0005 -- A PERSON'S PALETTE OVER THE LOOK'S. Twelve chosen colours are written
-     * inline on the root so the cascade below resolves to them in every look; none chosen
-     * means the inline values are cleared and the look's own come through. The ribbon the
-     * same way. Inline, because the looks set these on the same element and a person's
-     * choice has to beat all three without knowing which is on. */
-    var chosen = settings.palette.length === 12;
+  /**
+   * design/0005 -- A PERSON'S PALETTE OVER THE LOOK'S. Twelve chosen colours are written
+   * inline on the root so the cascade below resolves to them in every look; none chosen
+   * means the inline values are cleared and the look's own come through. The ribbon the
+   * same way. Inline, because the looks set these on the same element and a person's
+   * choice has to beat all three without knowing which is on.
+   *
+   * github#44 -- split off, so a hover re-reads the twelve and no more
+   * @returns {void}
+   */
+  function readSlots() {
+    /* github#44, design/0022 -- a trial palette beats the chosen one and is never saved */
+    var palette = trial ? trial.palette : settings.palette;
+    var chosen = palette.length === 12;
     SLOT_KEYS.forEach(function (k, i) {
-      if (chosen) root.style.setProperty(k, settings.palette[i]);
+      if (chosen) root.style.setProperty(k, palette[i]);
       else root.style.removeProperty(k);
     });
     var cs = WIN.getComputedStyle(root);
@@ -358,6 +380,8 @@ function mountVaultShelf(root, data, options) {
   function drawLibrary() {
     var box = $("shelves");
     clear(box);
+    /* github#44, design/0022 -- the spines just thrown away are not repaintable */
+    prunePainted();
     uprightFit = {};
     var anyVisible = false;
 
@@ -427,6 +451,13 @@ function mountVaultShelf(root, data, options) {
     wrap.setAttribute("data-shelf", view.shelf.id);
 
     var head = el("header", "vs-shelfhead");
+    /* github#44 -- a shelf is named in its head, so it is dyed there too */
+    on(head, "contextmenu", function (e) {
+      var me = /** @type {MouseEvent} */ (e);
+      if (me.target instanceof Element && me.target.closest("button")) return;
+      me.preventDefault();
+      openRailMenu(view.shelf, null, me.clientX, me.clientY);
+    });
     head.appendChild(el("h2", "", view.shelf.name));
     head.appendChild(el("span", "vs-meta",
       view.books.length + (view.books.length === 1 ? " book" : " books") + " \u00b7 " +
@@ -738,6 +769,15 @@ function mountVaultShelf(root, data, options) {
         plate.type = "button";
         var first = group.books[0];
         on(plate, "click", function () { openPlaque(shelf, first); });
+        /* github#44 -- a plate says what is under it, so it dyes what is under it */
+        var run = group.books, name = group.plaque;
+        on(plate, "contextmenu", function (e) {
+          var me = /** @type {MouseEvent} */ (e);
+          me.preventDefault();
+          /* github#44 -- the rail's own menu must not open behind it */
+          me.stopPropagation();
+          openDye(run, name, me.clientX, me.clientY);
+        });
         g.appendChild(plate);
       }
       track.appendChild(g);
@@ -1079,12 +1119,9 @@ function mountVaultShelf(root, data, options) {
     if (!book.notes.length) b.setAttribute("data-empty", "1");
     b.style.setProperty("--spine-w", widthOf(book, shelf) + "px");
 
-    var dye = dyeOf(book, shelf);
-    b.style.setProperty("--spine-tint", dye);
-    /* design/0008 -- the ribbon is the book's, not the library's: it is set here from the dye
-     * this spine is wearing, so a green book and a red one hang different threads. */
-    b.style.setProperty("--ribbon", ribbonFor(dye));
-    b.style.setProperty("--ribbon-ink", inkOn(toHex(ribbonFor(dye))));
+    paintSpine(b, book, shelf);
+    /* github#44, design/0022 -- so a preview can repaint what is standing */
+    painted.push({ spine: b, book: book, shelf: shelf });
     /* github#12 */
     b.appendChild(el("span", "vs-title", book.cover));
     b.appendChild(el("span", "vs-n", String(book.notes.length)));
@@ -1112,7 +1149,7 @@ function mountVaultShelf(root, data, options) {
     on(b, "contextmenu", function (e) {
       var me = /** @type {MouseEvent} */ (e);
       me.preventDefault();
-      openDye(book, me.clientX, me.clientY);
+      openDye([book], book.label, me.clientX, me.clientY);
     });
     b.setAttribute("data-match", book.matches > 0 ? "1" : "0");
 
@@ -1470,16 +1507,30 @@ function mountVaultShelf(root, data, options) {
     var menu = node("railmenu");
     clear(menu);
     menu.appendChild(el("div", "vs-dyename", shelf.name));
+    /* github#44 -- the act tied to where the hand landed comes first */
     var line = /** @type {HTMLButtonElement} */ (el("button", "vs-railline", "New book here…"));
     line.type = "button";
     on(line, "click", function () { closeRailMenu(); openMadeBook(shelf, null, before); });
     menu.appendChild(line);
+    /* github#44 -- right-clicking a shelf dyes every book standing on it */
+    var books = booksOn(shelf);
+    var offers = dyeRow(menu, books, function (slot) { setBookColors(books, slot); });
     placeMenu(menu, x, y);
     line.focus();
+    offerPreviews(offers);
+  }
+
+  /** github#44 -- the books standing on one shelf, as the library has them now */
+  /** @param {Shelf} shelf @returns {Book[]} */
+  function booksOn(shelf) {
+    var view = views.filter(function (v) { return v.shelf.id === shelf.id; })[0];
+    return view ? view.books : [];
   }
 
   function closeRailMenu() {
     railing = null;
+    /* github#44, design/0022 -- a preview never survives the menu, by any route out */
+    endPreview();
     $("railmenu").hidden = true;
   }
 
@@ -1667,7 +1718,9 @@ function mountVaultShelf(root, data, options) {
      * book is the same colour on both shelves. */
     var source = sourceOf(book);
     var home = source === book ? shelf : shelfById(source.shelfId) || shelf;
-    var given = settings.bookColors[source.id];
+    /* github#44, design/0022 -- a trial colour beats the given one and is never saved */
+    var given = trial && Object.prototype.hasOwnProperty.call(trial.colors, source.id)
+      ? trial.colors[source.id] : settings.bookColors[source.id];
     if (typeof given === "number" && SLOTS[given]) return SLOTS[given];
     if (core.variesColors(shelf) || core.variesColors(home)) {
       /* A book the deal never saw -- a made book, say -- still gets a slot. */
@@ -1729,8 +1782,31 @@ function mountVaultShelf(root, data, options) {
    */
   function ribbonFor(dye) {
     var i = SLOTS.indexOf(dye);
-    if (i >= 0 && settings.ribbons[i]) return settings.ribbons[i];
+    /* github#44, design/0022 -- a trial thread beats the chosen one and is never saved */
+    var chosen = trial ? trial.ribbons : settings.ribbons;
+    if (i >= 0 && chosen[i]) return chosen[i];
     return i >= 0 && OWN.ribbons[i] ? OWN.ribbons[i] : threadOf(dye);
+  }
+
+  /**
+   * design/0008 -- the ribbon is the book's, not the library's: it is set from the dye the
+   * spine is wearing, so a green book and a red one hang different threads.
+   * @param {HTMLElement} box @param {string} dye @returns {void}
+   */
+  function paintRibbon(box, dye) {
+    var thread = ribbonFor(dye);
+    box.style.setProperty("--ribbon", thread);
+    box.style.setProperty("--ribbon-ink", inkOn(toHex(thread)));
+  }
+
+  /**
+   * github#44, design/0022 -- the paint on one spine, wanted twice
+   * @param {HTMLElement} b @param {Book} book @param {Shelf} shelf @returns {void}
+   */
+  function paintSpine(b, book, shelf) {
+    var dye = dyeOf(book, shelf);
+    b.style.setProperty("--spine-tint", dye);
+    paintRibbon(b, dye);
   }
 
   /**
@@ -1803,18 +1879,36 @@ function mountVaultShelf(root, data, options) {
    * given here is a colour kept: it is keyed by the book's address, so it survives a rebuild
    * the way a reading place does.
    */
-  /** @type {Book|null} */
+  /** @type {{ books: Book[], label: string }|null} */
   var dyeing = null;
 
-  /** @param {Book} book @param {number} x @param {number} y */
-  function openDye(book, x, y) {
-    dyeing = book;
-    var menu = node("dye");
-    clear(menu);
-    /* design/0019 -- a colour given to a favourite is given to the book it stands for. */
-    var source = sourceOf(book);
-    var given = settings.bookColors[source.id];
-    menu.appendChild(el("div", "vs-dyename", book.label));
+  /**
+   * github#44 -- one slot if they all wear it, -1 if they differ, else none
+   * @param {Book[]} books @returns {number|undefined}
+   */
+  function handSlot(books) {
+    /** @type {number|undefined} */
+    var first;
+    for (var i = 0; i < books.length; i++) {
+      var one = settings.bookColors[sourceOf(books[i]).id];
+      if (i === 0) first = one;
+      else if (one !== first) return -1;
+    }
+    return first;
+  }
+
+  /**
+   * design/0005, github#44 -- the twelve and Automatic, wherever a hand gives a colour
+   * @param {HTMLElement} menu @param {Book[]} books
+   * @param {(slot: number|null) => void} pick
+   * @returns {{ btn: HTMLElement, show: () => void }[]}
+   */
+  function dyeRow(menu, books, pick) {
+    var given = handSlot(books);
+    /** @type {HTMLElement|null} */
+    var worn = null;
+    /** @type {{ btn: HTMLElement, show: () => void }[]} */
+    var offers = [];
     var row = el("div", "vs-swatches");
     SLOTS.forEach(function (colour, i) {
       var sw = /** @type {HTMLButtonElement} */ (el("button", "vs-swatch"));
@@ -1822,16 +1916,44 @@ function mountVaultShelf(root, data, options) {
       sw.style.setProperty("--swatch", colour);
       sw.title = "Colour " + (i + 1);
       sw.setAttribute("aria-label", sw.title);
-      if (given === i) sw.setAttribute("aria-pressed", "true");
-      on(sw, "click", function () { setBookColor(source, i); });
+      if (given === i) { sw.setAttribute("aria-pressed", "true"); worn = worn || sw; }
+      on(sw, "click", function () { pick(i); });
+      offers.push({ btn: sw, show: function () { previewColors(books, i); } });
       row.appendChild(sw);
     });
     menu.appendChild(row);
     var auto = /** @type {HTMLButtonElement} */ (el("button", "vs-dyeauto", "Automatic"));
     auto.type = "button";
     if (given === undefined) auto.setAttribute("aria-pressed", "true");
-    on(auto, "click", function () { setBookColor(source, null); });
+    on(auto, "click", function () { pick(null); });
+    offers.push({ btn: auto, show: function () { previewColors(books, null); } });
     menu.appendChild(auto);
+    /* github#44, design/0022 -- arrows walk the twelve here the way they do in the sheet */
+    on(menu, "keydown", function (e) {
+      walkSwatches(/** @type {KeyboardEvent} */ (e), row, worn);
+    });
+    return offers;
+  }
+
+  /**
+   * github#44 -- one spine, a plate's run or a shelf; the lines are a book's
+   * @param {Book[]} books @param {string} label @param {number} x @param {number} y
+   */
+  function openDye(books, label, x, y) {
+    dyeing = { books: books, label: label };
+    var menu = node("dye");
+    clear(menu);
+    closeRailMenu();
+    /* design/0019 -- a colour given to a favourite is given to the book it stands for. */
+    var book = books[0];
+    menu.appendChild(el("div", "vs-dyename", label));
+    var offers = dyeRow(menu, books, function (slot) { setBookColors(books, slot); });
+    if (books.length !== 1) {
+      placeMenu(menu, x, y);
+      holdFocus(menu);
+      offerPreviews(offers);
+      return;
+    }
 
     /* design/0019 -- THE SAME MENU, ONE LINE PER PICK SHELF. On a favourite the line takes the
      * book off the shelf it is standing on; on any other spine there is a line for each shelf
@@ -1870,8 +1992,8 @@ function mountVaultShelf(root, data, options) {
     }
 
     placeMenu(menu, x, y);
-    var first = menu.querySelector("button");
-    if (first instanceof HTMLElement) first.focus();
+    holdFocus(menu);
+    offerPreviews(offers);
   }
 
   /**
@@ -1891,15 +2013,24 @@ function mountVaultShelf(root, data, options) {
 
   function closeDye() {
     dyeing = null;
+    /* github#44, design/0022 -- a preview never survives the menu, by any route out */
+    endPreview();
     $("dye").hidden = true;
   }
 
-  /** @param {Book} book @param {number|null} slot */
-  function setBookColor(book, slot) {
-    if (slot === null) delete settings.bookColors[book.id];
-    else settings.bookColors[book.id] = slot;
+  /**
+   * github#44, design/0022 -- a stamp on the books that are there, not a rule
+   * @param {Book[]} books @param {number|null} slot
+   */
+  function setBookColors(books, slot) {
+    books.forEach(function (book) {
+      var id = sourceOf(book).id;
+      if (slot === null) delete settings.bookColors[id];
+      else settings.bookColors[id] = slot;
+    });
     persist();
     closeDye();
+    closeRailMenu();
     renderLibrary();
     applyQuery();
   }
@@ -2025,6 +2156,15 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
+   * github#44, design/0022 -- the thread the open book hangs, wanted twice
+   * @returns {string}
+   */
+  function readerDye() {
+    var shelf = reader ? shelfById(reader.book.shelfId) : null;
+    return shelf && reader ? dyeOf(reader.book, shelf) : SLOTS[0];
+  }
+
+  /**
    * design/0008 -- THE RIBBONS THIS BOOK HOLDS, hanging over the top of the spread and named.
    *
    * A ribbon used to be visible only from outside: a strip of colour on a spine, and a shelf
@@ -2043,10 +2183,7 @@ function mountVaultShelf(root, data, options) {
     clear(box);
     /* Every ribbon in this row is in the same book, so they are all the same thread -- the
      * one the closed spine hangs, which is how you recognise the book you just opened. */
-    var shelf = shelfById(reader.book.shelfId);
-    var dye = shelf ? dyeOf(reader.book, shelf) : SLOTS[0];
-    box.style.setProperty("--ribbon", ribbonFor(dye));
-    box.style.setProperty("--ribbon-ink", inkOn(toHex(ribbonFor(dye))));
+    paintRibbon(box, readerDye());
     var here = reader.book.notes
       .map(function (note, i) { return { note: note, at: i }; })
       .filter(function (row) { return isBookmarked(row.note.id); });
@@ -3132,14 +3269,16 @@ function mountVaultShelf(root, data, options) {
     dye.appendChild(slotControl(SLOTS[i], "Colour " + (i + 1), "",
       chosen && toHex(SLOTS[i]) !== OWN.slots[i],
       function (hex) { pickSlot(i, hex); },
-      function () { resetSlot(i); }));
+      function () { resetSlot(i); },
+      function (hex) { previewSlot(i, hex); }));
     row.appendChild(dye);
 
     var ribbon = DOC.createElement("td");
     var thread = slotControl(ribbonFor(SLOTS[i]), "Ribbon on colour " + (i + 1), "",
       !!settings.ribbons[i],
       function (hex) { setRibbon(i, hex); },
-      function () { setRibbon(i, ""); });
+      function () { setRibbon(i, ""); },
+      function (hex) { previewRibbon(i, hex); });
     var face = thread.querySelector(".vs-swatch");
     if (face) face.classList.add("vs-ribbonswatch");
     ribbon.appendChild(thread);
@@ -3161,9 +3300,10 @@ function mountVaultShelf(root, data, options) {
    * @param {string} colour @param {string} name @param {string|number} tag
    * @param {boolean} changed
    * @param {(hex: string) => void} pick @param {() => void} reset
+   * @param {(hex: string) => void} preview
    * @returns {HTMLElement}
    */
-  function slotControl(colour, name, tag, changed, pick, reset) {
+  function slotControl(colour, name, tag, changed, pick, reset, preview) {
     var slot = el("span", "vs-slot");
     var hex = toHex(colour);
     var sw = /** @type {HTMLButtonElement} */ (el("button", "vs-swatch"));
@@ -3186,7 +3326,7 @@ function mountVaultShelf(root, data, options) {
      * nearly every time; "Custom" is still there for the other times. */
     on(sw, "click", function () {
       openSwatchPick(sw, hex, name, function (chosenHex) { pick(chosenHex); },
-                     function () { input.click(); }, changed ? reset : null);
+                     function () { input.click(); }, changed ? reset : null, preview);
     });
     on(input, "change", function () { pick(input.value.toLowerCase()); });
     slot.appendChild(sw);
@@ -3204,29 +3344,111 @@ function mountVaultShelf(root, data, options) {
 
   /* ---- the twelve, offered ------------------------------------------------------
    * github#0 -- one popover, wherever a colour is chosen in the Manage sheet.
+   * github#44, design/0022 -- and hovering one paints the room in it, live.
    */
 
   /** @type {boolean} */
   var picking = false;
 
   /**
+   * github#44, design/0022 -- the sheet the twelve are being offered over
+   * @type {HTMLElement|null}
+   */
+  var pickingOver = null;
+
+  /** github#44, design/0022 -- a spine that is no longer in the page cannot be painted */
+  function prunePainted() {
+    painted = painted.filter(function (p) { return root.contains(p.spine); });
+  }
+
+  /**
+   * github#44, design/0022 -- the paint half of a render, on its own
+   * @returns {void}
+   */
+  function repaint() {
+    readSlots();
+    views.forEach(function (view) {
+      view.books.forEach(function (book) {
+        book.bands.forEach(function (band) { band.slot = slotOf[band.folder] || "#6f6e67"; });
+      });
+    });
+    prunePainted();
+    painted.forEach(function (p) { paintSpine(p.spine, p.book, p.shelf); });
+    if (reader) paintRibbon(node("marks"), readerDye());
+  }
+
+  /**
+   * github#44, design/0022 -- one slot's dye, offered rather than taken
+   * @param {number} i @param {string} hex @returns {void}
+   */
+  function previewSlot(i, hex) {
+    var next = (settings.palette.length === 12 ? settings.palette : OWN.slots).slice();
+    next[i] = hex || OWN.slots[i];
+    trial = { palette: next, ribbons: settings.ribbons.slice(), colors: {} };
+    repaint();
+  }
+
+  /**
+   * github#44, design/0022 -- one slot's thread, offered rather than taken
+   * @param {number} i @param {string} hex @returns {void}
+   */
+  function previewRibbon(i, hex) {
+    var next = settings.ribbons.slice();
+    next[i] = hex && hex !== OWN.ribbons[i] ? hex : "";
+    trial = { palette: settings.palette.slice(), ribbons: next, colors: {} };
+    repaint();
+  }
+
+  /**
+   * github#44, design/0022 -- one slot on some books by hand, offered rather than taken
+   * @param {Book[]} books @param {number|null} slot @returns {void}
+   */
+  function previewColors(books, slot) {
+    /** @type {Record<string, number|null>} */
+    var colors = {};
+    books.forEach(function (book) { colors[sourceOf(book).id] = slot; });
+    trial = { palette: settings.palette.slice(), ribbons: settings.ribbons.slice(),
+              colors: colors };
+    repaint();
+  }
+
+  /** github#44, design/0022 -- back to exactly what was there when the popover opened */
+  function endPreview() {
+    if (!trial) return;
+    trial = null;
+    repaint();
+  }
+
+  /**
    * @param {HTMLElement} anchor @param {string} current @param {string} name
    * @param {(hex: string) => void} pick @param {() => void} custom @param {(() => void)|null} reset
+   * @param {(hex: string) => void} preview
    */
-  function openSwatchPick(anchor, current, name, pick, custom, reset) {
+  function openSwatchPick(anchor, current, name, pick, custom, reset, preview) {
     var menu = node("swatchpick");
     clear(menu);
     picking = true;
+    /* github#44, design/0022 -- the sheet gets out of the way of the room behind it */
+    pickingOver = anchor.closest(".vs-sheet");
+    if (pickingOver) pickingOver.setAttribute("data-picking", "1");
     menu.appendChild(el("div", "vs-dyename", name));
     var row = el("div", "vs-swatches");
+    /** @type {{ btn: HTMLElement, show: () => void }[]} */
+    var offers = [];
+    /** @type {HTMLElement|null} */
+    var pressed = null;
     SLOTS.forEach(function (colour, i) {
       var one = /** @type {HTMLButtonElement} */ (el("button", "vs-swatch"));
       one.type = "button";
       one.style.setProperty("--swatch", colour);
       one.title = "Colour " + (i + 1) + " " + toHex(colour);
       one.setAttribute("aria-label", one.title);
-      if (toHex(colour) === current) one.setAttribute("aria-pressed", "true");
+      if (toHex(colour) === current) {
+        one.setAttribute("aria-pressed", "true");
+        pressed = pressed || one;
+      }
       on(one, "click", function () { closeSwatchPick(); pick(toHex(colour)); });
+      offers.push({ btn: one, show: function () { preview(toHex(colour)); } });
       row.appendChild(one);
     });
     menu.appendChild(row);
@@ -3238,6 +3460,8 @@ function mountVaultShelf(root, data, options) {
       var back = /** @type {HTMLButtonElement} */ (el("button", "vs-dyeauto", "Back to the look's own"));
       back.type = "button";
       on(back, "click", function () { closeSwatchPick(); reset(); });
+      /* github#44, design/0022 -- the look's own is one of the things being chosen between */
+      offers.push({ btn: back, show: function () { preview(""); } });
       menu.appendChild(back);
     }
     menu.hidden = false;
@@ -3248,12 +3472,73 @@ function mountVaultShelf(root, data, options) {
     var top = Math.min(at.bottom - host.top + 6, host.height - h - 8);
     menu.style.left = Math.max(8, left) + "px";
     menu.style.top = Math.max(8, top) + "px";
-    var first = menu.querySelector("button");
-    if (first instanceof HTMLElement) first.focus();
+    /* github#44, design/0022 -- the menu holds the focus, so opening offers nothing */
+    holdFocus(menu);
+    offerPreviews(offers);
+    /* github#44, design/0022 -- the OS picker is not ours, so Custom offers nothing */
+    on(other, "mouseenter", endPreview);
+    on(other, "focus", endPreview);
+    /* github#44, design/0022 -- arrows walk the twelve, so the preview is not mouse-only */
+    on(menu, "keydown", function (e) {
+      walkSwatches(/** @type {KeyboardEvent} */ (e), row, pressed);
+    });
+  }
+
+  /**
+   * github#44, design/0022 -- what the hand is on is what the room wears
+   * @param {{ btn: HTMLElement, show: () => void }[]} offers @returns {void}
+   */
+  function offerPreviews(offers) {
+    offers.forEach(function (o) {
+      on(o.btn, "mouseenter", o.show);
+      on(o.btn, "focus", o.show);
+    });
+  }
+
+  /**
+   * github#44, design/0022 -- a menu of the twelve opens holding its own focus
+   * @param {HTMLElement} menu @returns {void}
+   */
+  function holdFocus(menu) {
+    menu.tabIndex = -1;
+    menu.focus();
+  }
+
+  /**
+   * github#44, design/0022 -- page.css owns the grid, so the width is read back
+   * @param {KeyboardEvent} e @param {HTMLElement} row @param {HTMLElement|null} worn
+   * @returns {void}
+   */
+  function walkSwatches(e, row, worn) {
+    var keys = ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Home", "End"];
+    if (keys.indexOf(e.key) < 0) return;
+    var buttons = row.querySelectorAll("button");
+    var at = -1;
+    for (var k = 0; k < buttons.length; k++) if (buttons[k] === DOC.activeElement) at = k;
+    /* github#44 -- the first arrow steps onto the colour it is already wearing */
+    if (at < 0) {
+      var start = worn || buttons[0];
+      if (!(start instanceof HTMLElement)) return;
+      e.preventDefault();
+      start.focus();
+      return;
+    }
+    var wide = WIN.getComputedStyle(row).gridTemplateColumns.split(/\s+/).length || 1;
+    var step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1
+             : e.key === "ArrowDown" ? wide : e.key === "ArrowUp" ? -wide : 0;
+    var to = e.key === "Home" ? 0 : e.key === "End" ? buttons.length - 1
+           : (at + step + buttons.length) % buttons.length;
+    e.preventDefault();
+    var next = buttons[to];
+    if (next instanceof HTMLElement) next.focus();
   }
 
   function closeSwatchPick() {
     picking = false;
+    if (pickingOver) pickingOver.removeAttribute("data-picking");
+    pickingOver = null;
+    /* github#44, design/0022 -- a preview never survives the popover, by any route out */
+    endPreview();
     $("swatchpick").hidden = true;
   }
 
@@ -3515,6 +3800,18 @@ function mountVaultShelf(root, data, options) {
     if (dyeing && /** @type {KeyboardEvent} */ (e).key === "Escape") closeDye();
     if (railing && /** @type {KeyboardEvent} */ (e).key === "Escape") closeRailMenu();
     if (picking && /** @type {KeyboardEvent} */ (e).key === "Escape") closeSwatchPick();
+  });
+  /* github#44, design/0022 -- off the twelve is off, whichever way the hand left */
+  [["swatchpick", function () { return picking; }],
+   ["dye", function () { return !!dyeing; }],
+   ["railmenu", function () { return !!railing; }]].forEach(function (pair) {
+    var id = /** @type {string} */ (pair[0]);
+    var open = /** @type {() => boolean} */ (pair[1]);
+    on($(id), "mouseleave", function () { if (open()) endPreview(); });
+    on($(id), "focusout", function (e) {
+      var to = /** @type {FocusEvent} */ (e).relatedTarget;
+      if (open() && (!(to instanceof Node) || !$(id).contains(to))) endPreview();
+    });
   });
   /* design/0020 -- the made-book sheet's controls. */
   on($("mbsave"), "click", saveMadeBook);

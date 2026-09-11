@@ -570,6 +570,114 @@ tabs excludes it. Every unchosen ribbon keeps its board's hue (**11/11**) and
 sits more than a fifth of the lightness away from it (**21/21**), which is what makes it visible
 without making it a different colour.
 
+## A hovered swatch paints the room, and leaving puts it back
+
+`"a hovered swatch paints the room, and leaving puts it back"` (`github#44`, `design/0022`), on
+all three shapes. **A preview paints and nothing else.**
+
+While the swatch popover is open, hovering one of the twelve dyes the library in it, live; the
+next swatch follows; leaving without clicking puts back **exactly** what was there when the
+popover opened — not the look's own, and not the previous hover. The check drives the slot the
+room is actually wearing, found by reading every spine's `--spine-tint` rather than assuming slot
+1, because a shape where no book happens to wear it would otherwise pass by painting nothing.
+
+**Nothing is written.** `settings.palette` reads **0** through a whole hover trail. The trial
+twelve live in a `trial` object that `readSlots()` and `ribbonFor()` consult in place of
+`settings`, and `persist()` is not reachable from the preview path at all.
+
+**Nothing moves.** Every spine's box, every book address and every shelf's note count is read
+before the first hover, with the hover standing, and again once it is put back, and all three are
+identical. Boxes are compared **across a preview and never across a commit**: choosing a colour
+re-renders the library, which puts its scroll back to the top, and that is what committing has
+always done rather than anything a hover did.
+
+Two things about reading boxes here, both learned by failing. **The first packing has to have
+landed**, so the check waits for a spine to have a width rather than sleeping a fixed 250 ms --
+in the parallel lane it read **every box as `0:0:0:0`** and would have compared nothing to
+nothing. And **a shelf off screen has `content-visibility: auto`**, so its spines have no box at
+all until the browser gets to them, and one that gains a box mid-check is the browser catching up
+rather than a preview moving anything: only boxes that were real in the first reading are
+compared. The check is in the serial lane for the same reason every other box-reading one is.
+
+**Every route out puts it back**: the pointer leaving the popover (the commonest), `Escape`, a
+click outside, a click that commits, and focus leaving. A slot already changed from the look's
+goes back to *its* value, not to the look's own — the check commits one of the twelve first, so
+"put it back" has something to be wrong about.
+
+**The ribbon column paints ribbons.** Hovering in the second column changes `--ribbon` and leaves
+every `--spine-tint` in the library byte-identical.
+
+**The keyboard offers the same thing.** Focus previews, and `ArrowRight` moves focus to the next
+of the twelve and previews as it goes; the twelve stay individually tabbable, so the **337**
+named controls the accessibility check reads do not move. The grid's column count is read back
+from the computed style, because `page.css` owns the geometry (`design/0016`).
+
+**A menu of the twelve opens holding its own focus, and offers nothing until the hand moves.**
+No swatch takes the opening focus, so "opening offers nothing" is structural rather than timed --
+the first shape of this swallowed one focus event with a flag and was a race, since Chrome
+delivers that focus after the handlers are wired and a late one yanks focus back and undoes a
+preview (a check that failed **one run in four** on the 10k shape, and never in isolation). **The
+first arrow steps onto the colour the unit is already wearing**, so the keyboard's first move
+shows what is committed.
+
+What a preview costs, and what it replaces — `readTheme()` split so a hover re-reads the twelve
+without re-deriving the look's own:
+
+| the vault (`decisions/0014`) | spines | books | hover | a full `refresh()` |
+|---|---|---|---|---|
+| 5,000 notes over eleven years | 231 | 691 | **9.31 ms** | 32.7 ms |
+
+Before the split it was 17.95 ms, measured on the three fixtures this was first written
+against; there a hover and a refresh cost about the same on the two small shapes, which is why
+the argument below is not about the clock.
+
+The reason to paint rather than refresh is not the clock: a repaint touches no geometry at all,
+so "a preview moves nothing" is true by construction, and nothing is left in flight when a check
+returns (`decisions/0013`).
+
+**The sheet gets out of the way.** With Manage open at 1584×961 the sheet body is 760×711, and
+**49 of the 82 spines on screen lie entirely clear of it** — so the room is there to repaint. What was not there was the light: the
+scrim over the library is 82%, and a slot changing read as a faint shift. It thins to **40%**
+while the popover is open (`data-picking="1"`, one colour-only rule per look, no geometry and no
+transition).
+
+**Custom previews nothing.** The OS picker is a native modal this page does not own and, on
+Windows, blocks the page while it is open. *Back to the look's own* does preview — it is one of
+the things being chosen between.
+
+## A right-click dyes a book, a plate's run or a shelf
+
+`"a right-click dyes a book, a plate's run or a shelf, and hovering paints it first"`
+(`github#44`, `design/0022`), on all three shapes. The twelve are offered in four places now, and
+all four preview the same way.
+
+**The unit is what the right-click landed on**: a spine is one book; a plate is **its run**, the
+adjacent books it names (`design/0018`, so a shelf a person has split shows two plates and dyeing
+one dyes one); a shelf's head or its empty rail is every book standing on it — **231 spines over
+691 books** on the vault, and a shelf of 130 is one gesture. A hover paints the
+whole unit at once and **saves 0 keys**; a click saves **one key per book**; *Automatic* takes
+every one of them off again and the room is byte-identical to where it started.
+
+**A hand-given colour is a stamp, not a rule.** Each book keeps its own `bookColors` key, so it
+survives a rebuild by address and one spine can be re-dyed afterwards. A book that joins the
+shelf later does not inherit it.
+
+**The threads follow the boards**, with nothing added: a thread falls out of the board it is sewn
+into (`design/0008`), so the check reads `--ribbon` across the library and asserts it moved with
+the boards on a plate's whole run.
+
+**The shelf's menu leads with the act tied to where the hand landed.** Right-clicking empty rail
+space is about a position — it is how a book is made at that gap (`design/0020`) — so
+*New book here…* is still the first button and the twelve sit under it.
+
+**The lines below the twelve are one book's.** Edit, delete and the per-pick-shelf lines appear on
+a spine's menu and on no other; a plate's and a shelf's carry **0** of them.
+
+**Both new checks clear the palette, the ribbons and the hand-given colours before they measure.**
+They read boxes, so they sit in the serial lane, and the checks that run before them there leave
+all three behind; what these measure is a difference, and a leftover palette made one preview
+land on the colour its slot already wore.
+
 ## A shelf can be deleted, placed and carried
 
 `"a shelf is deleted on the second press, made at the end the button is at, and carried by its
