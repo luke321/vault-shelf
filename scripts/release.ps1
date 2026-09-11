@@ -162,6 +162,13 @@ function Invoke-SelfTest {
     # The overlay is committed and pushed, so the clone starts clean and on a main that is
     # exactly origin/main, which is what every case below breaks exactly one thing about.
     Copy-Item (Join-Path $Repo 'scripts\*') (Join-Path $clone 'scripts') -Recurse -Force
+    # github#33 -- and the update note, for the same reason: it is a file the guards now READ,
+    # so a clone of a main that predates it would measure the absence rather than the guard.
+    $wnSrc = Join-Path $Repo 'plugin\whats-new.md'
+    if (Test-Path -LiteralPath $wnSrc) {
+      New-Item -ItemType Directory -Path (Join-Path $clone 'plugin') -Force | Out-Null
+      Copy-Item $wnSrc (Join-Path $clone 'plugin\whats-new.md') -Force
+    }
     & $git @('add', '-A') | Out-Null
     & $git @('commit', '-q', '-m', 'selftest: the working tree scripts under test') | Out-Null
     $seeded = (& $git @('push', '-q', 'origin', 'HEAD:main'))
@@ -451,10 +458,17 @@ try {
   # note's version matches the installed one, so a release that forgot to write it would
   # ship silently: nothing fails, the strip never appears, and nobody is told. A PATCH shows
   # nothing by design and keeps the previous note in place, so only x.y.0 is checked here.
-  $noteText = [IO.File]::ReadAllText((Join-Path $repo 'plugin\whats-new.md'), [Text.Encoding]::UTF8)
-  $noteVersion = [regex]::Match($noteText, '(?m)^#\s+(\d+\.\d+\.\d+)\s*$').Groups[1].Value
+  # A MISSING file is the same refusal as a stale one, not a crash: it is exactly the state a
+  # repository is in before the first note is written, and the self-test stands in it.
+  $notePath = Join-Path $repo 'plugin\whats-new.md'
+  $noteVersion = ''
+  if (Test-Path -LiteralPath $notePath) {
+    $noteText = [IO.File]::ReadAllText($notePath, [Text.Encoding]::UTF8)
+    $noteVersion = [regex]::Match($noteText, '(?m)^#\s+(\d+\.\d+\.\d+)\s*$').Groups[1].Value
+  }
   if ($Version -match '\.0$' -and $noteVersion -ne $Version) {
-    throw "plugin/whats-new.md is for '$noteVersion', not $Version. A MINOR or MAJOR ships an update note (github#33) -- write it first."
+    $has = if ($noteVersion) { "is for '$noteVersion'" } else { 'names no version' }
+    throw "plugin/whats-new.md $has, not $Version. A MINOR or MAJOR ships an update note (github#33) -- write it first."
   }
 
   # AND IT HAS TO BE LOOKED AT (github#33). The guard above proves the note EXISTS and is for

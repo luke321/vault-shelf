@@ -112,7 +112,7 @@ static ring instead of the animation.
 - `scripts/update-note-selftest.mjs` — **51 cases** over the grammar, the decision table, the
   CHANGELOG parse and the chain. Pure Node, no Obsidian, no Chrome, well under a second; it runs
   in the pre-push hook and in `release.yml`, with no skip flag.
-- `scripts/update-note-check.mjs` — **a real Obsidian**, over seven seeded `data.json` states,
+- `scripts/update-note-check.mjs` — **31 checks in a real Obsidian**, over seven seeded `data.json` states,
   claiming `screen-left` (`github#37`, `decisions/0012`). It is the answer to "numbers cannot
   see": it writes `01-strip-up.png` and three more, and `release.ps1` names it on every `x.y.0`
   because a user-facing surface that ships without anybody having looked at it is exactly how

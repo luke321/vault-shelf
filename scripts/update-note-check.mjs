@@ -11,7 +11,7 @@ import { currentFixture } from "./fixture-store.mjs";
 // github#37, decisions/0012
 import { leftWindow, placeElectronLeft, takeLeftScreen } from "./screen.mjs";
 import { ownerTag } from "./lock.mjs";
-import { parseNote, releaseChain, semver } from "../plugin/update-note.mjs";
+import { CHAIN_MAX, parseNote, releaseChain, semver } from "../plugin/update-note.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
@@ -316,6 +316,21 @@ try {
          "and the strip draws exactly those, each linking its own release page, the name on hover",
          got.map((g) => g.v + (g.title ? " (" + g.title + ")" : "")).join(", "));
   await shoot("03-chain");
+  await closeLibrary();
+
+  // github#33, design/0023 -- past CHAIN_MAX the oldest collapse into one link
+  const many = [];
+  for (let i = 1; i <= CHAIN_MAX + 3; i++) many.push({ version: "0." + i + ".0", name: "" });
+  await E("(function(){ var p = app.plugins.getPlugin(" + JSON.stringify(PLUGIN_ID) + ");" +
+          " p.pendingNote = " + JSON.stringify(top) + "; p.pendingChain = " + JSON.stringify(many) + "; })(); void 0");
+  await openLibrary();
+  const over = await E("(function(){ var s = " + STRIP + "; return s ? Array.prototype.map.call(s.querySelectorAll('.vs-whatsnew-chain a'), function (a) { return { v: a.textContent, href: a.getAttribute('href'), title: a.getAttribute('title') || '' }; }) : []; })()");
+  const first = over[0] || {};
+  report(over.length === CHAIN_MAX + 1 && first.v === "…" && first.href === "https://github.com/luke321/vault-shelf/releases" &&
+         first.title === "3 earlier releases" &&
+         over[1].v === many[3].version && over[over.length - 1].v === many[many.length - 1].version,
+         CHAIN_MAX + 3 + " releases behind: the oldest 3 become one link to the releases page, the newest " + CHAIN_MAX + " stay",
+         over.map((g) => g.v).join(", "));
   await closeLibrary();
 
   console.log("the controls a note points at (github#33)");

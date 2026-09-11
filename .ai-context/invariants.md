@@ -1591,14 +1591,16 @@ settings write and the strip would come back. It is held on the plugin and merge
 the strip recorded* is what pins that, and it is the one thing in this port that is not Vault
 Graph's code.
 
-`node scripts/update-note-check.mjs` — **30 checks** in a real Obsidian over seven seeded
+`node scripts/update-note-check.mjs` — **31 checks** in a real Obsidian over seven seeded
 `data.json` states, claiming `screen-left` (`github#37`, `decisions/0012`). Run by hand, like
 the other browser gates; `release.ps1` names it on every `x.y.0` because **numbers cannot see**
 and the strip is a user-facing surface that ships. Measured 2026-09-12 against the 4,938-note
 vault, Obsidian at 1600×1000: the strip is **164.13px** tall with five bullets, and the library
 goes **757.44 → 921.56px** when it is dismissed — the room takes the height back within a
 pixel. **The width does not move**: 1556px either way, in a 922px view. It writes
-`01-strip-up.png`, `02-dismissed.png`, `03-chain.png` and `04-pulse.png`.
+`01-strip-up.png`, `02-dismissed.png`, `03-chain.png` and `04-pulse.png`. Past `CHAIN_MAX`
+the oldest links collapse: **11 releases behind draws 9 links** — one `…` to the releases page,
+then the newest eight.
 
 ## No two suite runs, no two windows on one screen, and no fixture pulled out from under one
 

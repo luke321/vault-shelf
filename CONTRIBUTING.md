@@ -56,6 +56,7 @@ node scripts/check-network.mjs                # nothing shipped can make a netwo
 node scripts/check-comments.mjs               # comments are pointers; the count of prose lines only goes down
 node scripts/check-generator-determinism.mjs  # a fixture is the same vault on any day
 node scripts/check-build-order-determinism.mjs # note order never depends on the filesystem
+node scripts/update-note-selftest.mjs         # the update strip decides the way design/0023 says it does
 ```
 
 One more needs Obsidian itself, for the things the exporter cannot stand in for — the metadata
