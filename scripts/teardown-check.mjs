@@ -9,12 +9,16 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { attach } from "./cdp.mjs";
-import { leftWindowArgs } from "./screen.mjs";
+// github#37, decisions/0012
+import { takeLeftScreen } from "./screen.mjs";
+import { ownerTag } from "./lock.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
 const argv = process.argv.slice(2);
 const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
+// github#37 -- a blocked run names the holder and gives up
+const LOCK_TIMEOUT_MS = Number(arg("lock-timeout-ms", "2700000")) || 2700000;
 const CYCLES = Math.max(2, Number(arg("cycles", "20")) || 20);
 const MARKUP = readFileSync(join(ROOT, "src", "page.html"), "utf8");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -63,6 +67,9 @@ function buildPage() {
   return { url: pathToFileURL(out).href, scratch };
 }
 
+// github#37 -- claimed before the page is built
+const screen = await takeLeftScreen(ownerTag("teardown-check.mjs"),
+                                    { w: 1180, h: 900, timeoutMs: LOCK_TIMEOUT_MS });
 const { url, scratch } = buildPage();
 const PORT = await freePort();
 const profile = mkdtempSync(join(tmpdir(), "vs-teardown-"));
@@ -75,7 +82,7 @@ const chrome = spawn(findChrome(), [
   "--disable-features=Translate,TranslateUI,CalculateNativeWinOcclusion",
   "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
   "--disable-background-timer-throttling",
-  ...leftWindowArgs(1180, 900), `--app=${url}`,
+  ...screen.args, `--app=${url}`,
 ], { stdio: ["ignore", "ignore", "ignore"] });
 
 let p = null;

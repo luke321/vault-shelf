@@ -1,5 +1,7 @@
 import { attach, json } from "./cdp.mjs";
-import { leftmostScreen, leftWindowPos } from "./screen.mjs";
+import { leftmostScreen, leftWindowPos, takeLeftScreen, dropLeftScreen } from "./screen.mjs";
+// github#25, github#37, decisions/0012
+import { acquire, heldBy, ownerTag } from "./lock.mjs";
 // github#5, decisions/0010
 import { FIXTURE_MAX_AGE_DAYS, FIXTURE_NAMES, describeFixture,
          record as recordPass } from "./suite-stamp.mjs";
@@ -27,12 +29,9 @@ const argAll = (n) => {
 /* github#8, decisions/0011 */
 const NO_LOCK = argv.includes("--no-lock");
 const LOCK_TIMEOUT_MS = Number(arg("lock-timeout-ms", "1800000")) || 1800000;
-const LOCK_OWNER = (() => {
-  const b = spawnSync("git", ["-C", ROOT, "rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" });
-  const where = b.status === 0 && b.stdout.trim() ? b.stdout.trim() : "?";
-  return `smoke.mjs ${where} pid ${process.pid}`;
-})();
-let lockHeld = false;
+const LOCK_OWNER = ownerTag("smoke.mjs");
+/** @type {{ release: () => void } | null} */
+let suiteLock = null;
 
 /* github#8, decisions/0011 */
 const liveBrowsers = new Set();
@@ -50,34 +49,49 @@ function killLiveBrowsers() {
   liveBrowsers.clear();
 }
 
-/* github#8, decisions/0011 */
-function takeLock() {
-  if (NO_LOCK) {
-    console.log("--no-lock: the caller is holding the suite lock, not this run");
-    return;
-  }
-  const r = spawnSync(process.execPath,
-                      [join(HERE, "lock.mjs"), "acquire", "suite", "--owner", LOCK_OWNER,
-                       "--timeout-ms", String(LOCK_TIMEOUT_MS)],
-                      { stdio: "inherit" });
-  if (r.status !== 0) {
-    console.error("\nsmoke: could not take the suite lock -- another suite is running on this " +
-                  "machine.\nSee who holds it with: node scripts/lock.mjs status\n\n" +
-                  "If YOU are holding it -- you wrapped this run in lock.mjs yourself, the way " +
-                  "the\ndocs used to tell you to -- then it is waiting for its own parent. Drop " +
-                  "the wrapper,\nor pass --no-lock.");
-    process.exit(1);
-  }
-  lockHeld = true;
+/* github#25, decisions/0012 */
+function lostLock(who) {
+  suiteLock = null;
+  console.error("\nsmoke: the suite lock was taken by " + who + " while this run was measuring.\n" +
+                "Everything from here on would be measured on a contended machine, so this run " +
+                "stops\nrather than publishing it. github#25.");
+  killLiveBrowsers();
+  dropLeftScreen();
+  process.exit(1);
 }
 
-/* github#8, decisions/0011 */
+/* github#8, github#37, decisions/0011, decisions/0012 */
+async function takeLock() {
+  if (NO_LOCK) {
+    console.log("--no-lock: the caller is holding the suite lock, not this run");
+  } else {
+    try {
+      suiteLock = await acquire("suite", { owner: LOCK_OWNER, timeoutMs: LOCK_TIMEOUT_MS,
+                                           onLost: lostLock });
+    } catch (e) {
+      if (e.code !== "BUSY") throw e;
+      console.log(e.message);
+      console.error("\nsmoke: could not take the suite lock -- another suite is running on this " +
+                    "machine.\nSee who holds it with: node scripts/lock.mjs status\n\n" +
+                    "If YOU are holding it -- you wrapped this run in lock.mjs yourself, the way " +
+                    "the\ndocs used to tell you to -- then it is waiting for its own parent. Drop " +
+                    "the wrapper,\nor pass --no-lock.");
+      process.exit(1);
+    }
+  }
+  /* github#37 -- --no-lock names the suite lock; no parent ever holds the screen, so this run
+   * claims the display it is about to park a window on either way. */
+  await takeLeftScreen(LOCK_OWNER, { timeoutMs: LOCK_TIMEOUT_MS });
+}
+
+/* github#8, github#37, decisions/0011, decisions/0012 */
 function dropLock() {
-  if (!lockHeld) return;
-  lockHeld = false;
-  spawnSync(process.execPath,
-            [join(HERE, "lock.mjs"), "release", "suite", "--owner", LOCK_OWNER],
-            { stdio: "inherit" });
+  if (suiteLock) {
+    const lock = suiteLock;
+    suiteLock = null;
+    lock.release();
+  }
+  dropLeftScreen();
 }
 
 process.on("exit", dropLock);
@@ -5476,8 +5490,8 @@ async function main() {
                 picked.map((c) => c.name).join("; "));
     console.log("");
   }
-  // github#8, decisions/0011
-  takeLock();
+  // github#8, github#37, decisions/0011, decisions/0012
+  await takeLock();
   const vaults = resolveVaults();
   console.log(`checking ${vaults.length} vault(s): ${vaults.map((v) => v.label).join(", ")}`);
 
@@ -5562,6 +5576,8 @@ async function main() {
                 : arg("url", "") ? "--url" : LOOK ? "--look"
                 : vaults.some((v) => !v.fixture) ? "an unstamped fixture"
                 : lost.length ? `a run without ${lost.join(" and ")} (the generator failed)` : "";
+  // github#25 -- the stamp is a measurement, so the hold is checked again
+  if (suiteLock && !heldBy("suite", LOCK_OWNER)) lostLock("somebody else");
   if (!worst && !partial) {
     let checks = 0;
     for (const t of ran.values()) checks += t;

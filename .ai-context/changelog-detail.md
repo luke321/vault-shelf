@@ -1,5 +1,37 @@
 # Changelog detail
 
+## 2026-09-11 — The lock names a job; what the two plugins share is a screen (github#37, github#25)
+
+> "only two places acquire a lock at all, nothing anywhere acquires `record`, and five
+> harnesses park a headed Chrome on the leftmost monitor while four of them take no lock
+> whatsoever."
+
+Three acquire sites, all `suite` (`smoke.mjs`, `.githooks/pre-push`, `release.ps1`). Nothing
+acquired `record`: the name was prose in `CLAUDE.md`, `AGENTS.md`, `design/0006` and the usage
+string, describing a screen recording this repo does not make — `design/0007` says so in as many
+words, and the two records had contradicted each other since `design/0007` was written.
+
+| | before | after |
+|---|---|---|
+| callers of `screen.mjs` that place a window | 5 | 5 |
+| ...of those, holding the display they place on | **0** | **5** |
+| lock names | `record`, `suite` | `suite`, `screen-left`, `screen-right`, `screen-primary`, `record` (legacy) |
+| VG holds `record`, VS wants `screen-left` | ACQUIRED — the silent ruin | **BUSY** |
+| VG holds `screen-right`, VS wants `screen-left` | ACQUIRED | ACQUIRED — deliberately unmoved |
+| a dead holder's lock | waited out its 1200 s window | broken in **3 ms** |
+| a live hold, read 35 s apart | `at` fixed; the hold aged towards being broken | `at` +30,010 ms, `since` +0; a sister acquire measures **5 s** |
+| a harness that cannot have the display | opened a second window on it | `BUSY`, exit **1**, no page built |
+| `leftWindowArgs()` with no claim | returned a position | throws |
+| `check-comments` baseline | 1511 | 1500 |
+| `smoke.mjs` | 88/88 × 3 shapes | 88/88 × 3 shapes, unchanged |
+
+`vault-graph#87` merged into the sister's `develop` (`a3e49e7`) mid-planning, which killed the
+first shape of this change: a companion `record` hold beside every screen claim, priced against
+a sister with no alias. Their alias closed that direction from their side and turned the
+companion into pure cost — it would have blocked every right-screen recording for the length of
+every left-screen harness run. `decisions/0012` keeps the reasoning, since the same trap is
+waiting for the next cross-repo rename.
+
 ## 2026-09-11 — A look stopped moving the furniture, and the law got a check that walks (github#14, github#16)
 
 > "shelfs still move when switching themes, because the shelf heading have a different font size"

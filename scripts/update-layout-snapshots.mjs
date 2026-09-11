@@ -9,7 +9,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { attach } from "./cdp.mjs";
-import { leftWindowArgs } from "./screen.mjs";
+// github#37, decisions/0012
+import { takeLeftScreen } from "./screen.mjs";
+import { ownerTag } from "./lock.mjs";
 import { MEASURE, VIEWPORT, diffLayout } from "./layout-snapshots/measure.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -18,6 +20,8 @@ const OUT_DIR = join(HERE, "layout-snapshots");
 const argv = process.argv.slice(2);
 const CHECK = argv.includes("--check");
 const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
+// github#37 -- a blocked run names the holder and gives up
+const LOCK_TIMEOUT_MS = Number(arg("lock-timeout-ms", "2700000")) || 2700000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // github#5 -- the three shapes the suite runs, with smoke's own args
@@ -59,6 +63,11 @@ const freePort = () => new Promise((res, rej) => {
   s.listen(0, "127.0.0.1", () => { const { port } = s.address(); s.close(() => res(port)); });
 });
 
+// github#37 -- one claim for every fixture's window
+const screen = await takeLeftScreen(ownerTag("update-layout-snapshots.mjs"),
+                                    { w: VIEWPORT.width, h: VIEWPORT.height,
+                                      timeoutMs: LOCK_TIMEOUT_MS });
+
 /** @param {string} htmlPath */
 async function measure(htmlPath) {
   const port = await freePort();
@@ -73,7 +82,7 @@ async function measure(htmlPath) {
     "--disable-features=Translate,TranslateUI,CalculateNativeWinOcclusion",
     "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
     "--disable-background-timer-throttling",
-    ...leftWindowArgs(VIEWPORT.width, VIEWPORT.height), `--app=${url}`,
+    ...screen.args, `--app=${url}`,
   ], { stdio: "ignore" });
 
   let page = null;
@@ -149,6 +158,8 @@ for (const fx of FIXTURES) {
     if (vault.temp) rmSync(vault.dir, { recursive: true, force: true });
   }
 }
+
+screen.release();
 
 if (bad) {
   console.error(`\nlayout snapshots: ${bad} fixture(s) differ. If the packing changed on purpose, ` +

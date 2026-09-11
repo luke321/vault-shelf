@@ -7,15 +7,17 @@ storyboard, captures every frame over CDP, and hands the sequence to ffmpeg.
 
 The sister repo records the desktop with ffmpeg's `gdigrab` and pays for it: the recording
 grabs a display *region*, so a second take captures the first one's window, a notification
-lands in the middle of a release asset, and the whole thing needs a machine-wide `record` lock
-to be safe. It also cannot run on a machine nobody is sitting at.
+lands in the middle of a release asset, and the whole thing needs a machine-wide lock on **that
+display** to be safe — `screen-left`, `screen-right` or `screen-primary`, shared with this repo
+through one lock root (`decisions/0012`, `vault-graph#87`). It also cannot run on a machine
+nobody is sitting at.
 
 This one asks the browser for each frame — `Page.captureScreenshot` over CDP, headless.
 
 | | |
 |---|---|
 | **Reproducible** | The same fixture and the same storyboard produce the same frames. There is no desktop in the picture, so there is nothing on the desktop that can get into it. |
-| **Unattended** | Headless. It does not steal the screen, and it cannot capture the wrong window, so it needs no lock. |
+| **Unattended** | Headless. It does not steal the screen, and it cannot capture the wrong window, so it takes no screen lock — the only thing in `scripts/` that places no window and claims no display (`decisions/0012`). |
 | **Framed exactly** | `Emulation.setDeviceMetricsOverride` fixes the viewport at 1440×900 and DPR 1, so the output is the size it says it is regardless of the machine's display. |
 | **Slower than real time** | About 18 frames a second of capture. An 83-second video takes a little under two minutes to shoot. That is the price, and it is worth it. |
 
