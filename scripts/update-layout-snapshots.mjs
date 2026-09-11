@@ -1,0 +1,168 @@
+#!/usr/bin/env node
+// github#5 -- rewrite the golden geometry, deliberately
+
+import { spawn, spawnSync } from "node:child_process";
+import { createServer } from "node:net";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { attach } from "./cdp.mjs";
+import { leftWindowArgs } from "./screen.mjs";
+import { MEASURE, VIEWPORT, diffLayout } from "./layout-snapshots/measure.mjs";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(HERE, "..");
+const OUT_DIR = join(HERE, "layout-snapshots");
+const argv = process.argv.slice(2);
+const CHECK = argv.includes("--check");
+const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// github#5 -- the three shapes the suite runs, with smoke's own args
+const FIXTURES = [
+  { name: "demo-vault", script: "make-demo-vault.mjs", args: [] },
+  { name: "sparse-vault", script: "make-sparse-vault.mjs", args: [] },
+  { name: "library-vault", script: "make-library-vault.mjs", args: ["--notes", "10000", "--years", "10"] },
+];
+
+function storeRoot() {
+  const g = spawnSync("git", ["-C", ROOT, "rev-parse", "--git-common-dir"], { encoding: "utf8" });
+  if (g.status !== 0 || !g.stdout.trim()) return join(ROOT, ".fixtures");
+  const common = g.stdout.trim();
+  const abs = /^[A-Za-z]:[\\/]|^\//.test(common) ? common : join(ROOT, common);
+  return join(dirname(abs), ".fixtures");
+}
+
+/** @param {{ name: string, script: string, args: string[] }} fx @returns {{ dir: string, temp: boolean }} */
+function vaultFor(fx) {
+  const store = storeRoot();
+  if (existsSync(store)) {
+    const hit = readdirSync(store).filter((d) => d.startsWith(fx.name + "-")).sort();
+    if (hit.length) return { dir: join(store, hit[hit.length - 1]), temp: false };
+  }
+  console.log(`  ${fx.name}: not in the shared fixture store, generating ...`);
+  const dir = mkdtempSync(join(tmpdir(), "vs-snap-vault-"));
+  const r = spawnSync(process.execPath, [join(HERE, fx.script), "--out", dir, ...fx.args], { encoding: "utf8" });
+  if (r.status !== 0) throw new Error(`${fx.script} failed:\n${r.stderr || ""}`);
+  return { dir, temp: true };
+}
+
+function findChrome() {
+  const named = arg("chrome", "");
+  if (named) return named;
+  const guesses = [
+    process.env.PROGRAMFILES + "\\Google\\Chrome\\Application\\chrome.exe",
+    process.env["PROGRAMFILES(X86)"] + "\\Google\\Chrome\\Application\\chrome.exe",
+    process.env.LOCALAPPDATA + "\\Google\\Chrome\\Application\\chrome.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/usr/bin/google-chrome", "/usr/bin/chromium",
+  ];
+  for (const g of guesses) if (g && existsSync(g)) return g;
+  throw new Error("Chrome not found; pass --chrome <path>");
+}
+
+const freePort = () => new Promise((res, rej) => {
+  const s = createServer();
+  s.on("error", rej);
+  s.listen(0, "127.0.0.1", () => { const { port } = s.address(); s.close(() => res(port)); });
+});
+
+/** @param {string} htmlPath */
+async function measure(htmlPath) {
+  const port = await freePort();
+  const profile = mkdtempSync(join(tmpdir(), "vs-snap-profile-"));
+  const url = pathToFileURL(htmlPath).href;
+  const chrome = spawn(findChrome(), [
+    `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+    "--no-first-run", "--no-default-browser-check", "--disable-extensions",
+    "--disable-component-update", "--disable-sync", "--no-service-autorun",
+    "--metrics-recording-only", "--no-pings", "--mute-audio", "--disable-breakpad",
+    "--disable-crash-reporter",
+    "--disable-features=Translate,TranslateUI,CalculateNativeWinOcclusion",
+    "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
+    "--disable-background-timer-throttling",
+    ...leftWindowArgs(VIEWPORT.width, VIEWPORT.height), `--app=${url}`,
+  ], { stdio: "ignore" });
+
+  let page = null;
+  try {
+    const deadline = Date.now() + 30000;
+    for (;;) {
+      try { page = await attach(port, "vault-shelf.html"); break; }
+      catch (e) { if (Date.now() > deadline) throw e; await sleep(300); }
+    }
+    await page.send("Emulation.setDeviceMetricsOverride",
+                    { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
+    const ready = Date.now() + 60000;
+    for (;;) {
+      const ok = await page.eval("!!(window.__vs && __vs.counts().spines > 0)").catch(() => false);
+      if (ok) break;
+      if (Date.now() > ready) throw new Error("the library never rendered");
+      await sleep(300);
+    }
+    await page.eval(`window.dispatchEvent(new Event("resize")); void 0`);
+    await sleep(400);
+    return JSON.parse(await page.eval(`JSON.stringify(${MEASURE})`));
+  } finally {
+    try { if (page) await page.send("Browser.close"); } catch { }
+    try { if (page) page.close(); } catch { }
+    await sleep(200);
+    try { chrome.kill(); } catch { }
+    if (process.platform === "win32" && chrome.pid) {
+      spawnSync("taskkill", ["/F", "/T", "/PID", String(chrome.pid)], { stdio: "ignore" });
+    }
+    rmSync(profile, { recursive: true, force: true });
+  }
+}
+
+mkdirSync(OUT_DIR, { recursive: true });
+let bad = 0;
+for (const fx of FIXTURES) {
+  const vault = vaultFor(fx);
+  const scratch = mkdtempSync(join(tmpdir(), "vs-snap-build-"));
+  const htmlPath = join(scratch, "vault-shelf.html");
+  try {
+    const b = spawnSync(process.execPath,
+                        [join(ROOT, "src", "build-shelf.mjs"), "--vault", vault.dir, "--out", htmlPath],
+                        { encoding: "utf8" });
+    if (b.status !== 0) throw new Error(`build-shelf.mjs failed:\n${b.stderr || ""}`);
+    const now = await measure(htmlPath);
+    const out = Object.assign({ vault: fx.name, viewport: VIEWPORT }, now);
+    const file = join(OUT_DIR, `${fx.name}.json`);
+    if (CHECK) {
+      if (!existsSync(file)) { console.error(`  FAIL ${fx.name}: no golden at ${file}`); bad++; continue; }
+      const golden = JSON.parse(readFileSync(file, "utf8"));
+      const problems = diffLayout(golden, out);
+      if (problems.length) {
+        bad++;
+        console.error(`  FAIL ${fx.name}: ${problems.length} difference(s)`);
+        for (const m of problems.slice(0, 12)) console.error("       " + m);
+        if (problems.length > 12) console.error(`       ... and ${problems.length - 12} more`);
+      } else {
+        const spines = out.shelves.reduce((n, s) => n + s.books, 0);
+        const rows = out.shelves.reduce((n, s) => n + s.rows, 0);
+        console.log(`  ok  ${fx.name}: ${out.shelves.length} shelves, ${rows} rows, ${spines} spines, ` +
+                    `room ${out.room}px`);
+      }
+    } else {
+      writeFileSync(file, JSON.stringify(out, null, 1) + "\n", "utf8");
+      const spines = out.shelves.reduce((n, s) => n + s.books, 0);
+      const rows = out.shelves.reduce((n, s) => n + s.rows, 0);
+      const plaques = out.shelves.reduce((n, s) => n + s.plaques.length, 0);
+      console.log(`  wrote ${file} -- ${out.shelves.length} shelves, ${rows} rows, ${spines} spines, ` +
+                  `${plaques} plaques, room ${out.room}px`);
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+    if (vault.temp) rmSync(vault.dir, { recursive: true, force: true });
+  }
+}
+
+if (bad) {
+  console.error(`\nlayout snapshots: ${bad} fixture(s) differ. If the packing changed on purpose, ` +
+                `run node scripts/update-layout-snapshots.mjs and say why in the commit.`);
+  process.exit(1);
+}
+console.log(CHECK ? "\nlayout snapshots: every fixture matches its golden"
+                  : "\nlayout snapshots: written");

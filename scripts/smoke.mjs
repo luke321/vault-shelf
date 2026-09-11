@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { createServer } from "node:net";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { MEASURE, VIEWPORT, diffLayout } from "./layout-snapshots/measure.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
@@ -123,6 +124,8 @@ const POINTER_DRIVEN = [
   /* design/0018 -- a drop is a pointer position against a box, and it has to scroll a shelf
    * into view before it can read one. */
   "drag and drop",
+  /* github#5 -- a golden of every box on the page, read at a fixed viewport. */
+  "golden snapshot",
 ];
 const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
 
@@ -2403,6 +2406,38 @@ check("a spine lifts on hover and holds its size", async (p) => {
            detail: `${r.w}x${r.h} at rest, ${r.w2}x${r.h2} focused, lifted ${r.lift}px` };
 });
 
+/* github#5 -- the packing as a diff, against a golden per fixture */
+check("the shelves are packed the way the golden snapshot says", async (p, ctx) => {
+  const fixture = (ctx.vault || "").split(/[\\/]/).filter(Boolean).pop() || "";
+  const name = fixture.replace(/-[0-9a-f]{8}$/, "");
+  const file = join(ROOT, "scripts", "layout-snapshots", `${name}.json`);
+  if (!name || !existsSync(file)) {
+    return { ok: true, detail: `no golden for ${name || "this vault"} -- ` +
+                               `node scripts/update-layout-snapshots.mjs writes the three fixtures` };
+  }
+  await p.send("Emulation.setDeviceMetricsOverride",
+               { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
+  await p.j(`window.dispatchEvent(new Event("resize"))`);
+  await sleep(400);
+  const now = await p.j(MEASURE);
+  await p.send("Emulation.clearDeviceMetricsOverride");
+  await p.j(`window.dispatchEvent(new Event("resize"))`);
+  await sleep(250);
+  const golden = JSON.parse(readFileSync(file, "utf8"));
+  const problems = diffLayout(golden, now);
+  const rows = now.shelves.reduce((n, s) => n + s.rows, 0);
+  const spines = now.shelves.reduce((n, s) => n + s.books, 0);
+  const plaques = now.shelves.reduce((n, s) => n + s.plaques.length, 0);
+  return {
+    ok: problems.length === 0,
+    detail: problems.length
+      ? `${problems.length} difference(s) against ${name}.json: ` + problems.slice(0, 4).join("; ") +
+        (problems.length > 4 ? ` ... (node scripts/update-layout-snapshots.mjs rewrites it)` : "")
+      : `${now.shelves.length} shelves, ${rows} rows, ${spines} spines, ${plaques} plaques and a ` +
+        `${now.room}px room, all where ${name}.json says at ${VIEWPORT.width}px`
+  };
+});
+
 /* ---------------------------------------------------- which vaults, and why
  *
  * THREE SHAPES, BY DEFAULT, and none of them needs a vault of yours.
@@ -2645,7 +2680,7 @@ async function runOne(vault, work) {
     }
 
     page.j = async (expr) => JSON.parse(await page.eval(`JSON.stringify(${expr})`));
-    const ctx = { errors };
+    const ctx = { errors, vault };
 
     if (LOOK) {
       await page.eval(`(function(){
