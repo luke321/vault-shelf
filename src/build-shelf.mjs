@@ -15,7 +15,7 @@ const arg = (name, fallback) => {
   return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
 };
 
-const VAULT = resolve(arg("vault", join(ROOT, "demo-vault")));
+const VAULT = resolve(arg("vault", join(ROOT, "vault")));
 const OUT = resolve(arg("out", join(ROOT, "vault-shelf.html")));
 const DATE_FIELDS = arg("date-fields", "date,created").split(",").map((s) => s.trim()).filter(Boolean);
 const PEOPLE_FIELDS = arg("people-props", "people,attendees,person")

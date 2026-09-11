@@ -69,10 +69,7 @@ function generate(script, args, out, end) {
   return r.status === 0;
 }
 
-/**
- * The three passes, against one generator.
- * @returns {{ problems: string[], summary: string }}
- */
+/** @returns {{ problems: string[], summary: string }} */
 function verify(script, args, scratch) {
   const temp = () => { const d = mkdtempSync(join(tmpdir(), "vs-det-")); scratch.push(d); return d; };
   const label = basename(script);
