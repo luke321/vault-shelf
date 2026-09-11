@@ -42,6 +42,41 @@ rule set at `inset: … 23px` paints on 22..23, so the clearance owes a pixel to
 thickness at each end. Writing the check against the pseudo's **padding** box — which leather
 narrows with a 1px top border of its own — is what surfaced it.
 
+### And then the rail stopped being squeezed that far: `sideways` 7 → 1
+
+> "characters in the encyclopedia should not have different positions and reading direction"
+
+Looking at the rail, the tally above is the evidence and the three covers are not the defect. The
+defect is that the rail draws the same kind of thing **two ways at all**, decided by a sub-pixel
+font metric no reader can perceive: `É` (7.25px) and `У` (8.19px) stand up, `Å` (9.25px) and
+`Ü` (9.67px) lie down. Four covers were already lying down on `develop` before this branch.
+
+Not a script question — a **width** question. A one-note volume was squeezed to 19px, leaving nine
+pixels between the declared side rules, and an accented capital or a CJK glyph is 9.25–13.53px.
+
+```
+var INDEX_MIN = 24;   /* was 13 */
+```
+
+| | before | after |
+|---|---|---|
+| Encyclopedia volumes upright | 29 of 35 | **35 of 35** |
+| short covers sideways, whole library | 7 — `Å Ü Œ מ 学 読 map` | **1** — `map` |
+| spines at the floor | 9, at 19px | 9, at **24px** |
+| the rail against 1180px of room | 1127px | **1172px**, still **one row** |
+| tightest upright cover | `У`, 0.81px to spare | `学`, **0.47px** |
+| the title's box against the side rules, worst | **−2px** leather, −1.5px cyber | **+1px**, **+1.5px** |
+| `a look moves nothing on the page` | 0/0/0 | **0/0/0**, 4293 elements |
+| layout golden | — | **rewritten deliberately**: the Encyclopedia's first spine 42 → 40px and its last 18 → 24px, 13px right. Shelves, rows, spines, plaques, room identical; no shelf gained a row |
+
+Widening the squeezed spines is also what turns the **sideways clearance positive** — that rail was
+the only place the type's own box was wider than the room between the panel's side rules, which is
+why `design/0011`'s 22–58px floor read as violated there.
+
+**The `sideways` tolerance comes back down to 1**, by the same census argument that put it at 7.
+`map` is what remains: a three-letter tag book on a 27px spine drawn 27.7px wide, which no
+single-letter reasoning covers.
+
 ### The tally this ticket owed `github#47`: `sideways` 4 → 7
 
 `github#47` pinned the probe's face while this branch was open and handed the number over

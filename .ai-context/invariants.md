@@ -980,24 +980,38 @@ the title's box is **8px shorter** and **1px narrower each side**. Nothing else 
 reports the same 6 shelves, 10 rows, 227 spines and 52 plaques in a 1125px room in all three
 looks, and *a look moves nothing on the page* reads 4245 elements, 0 moved, 0 resized.
 
-**`sideways` in `"a hovered spine shows one peek…"` is 7, and it is a census rather than a
-tolerance.** `squeezeIndex` (`github#34`) scales the Encyclopedia rail down until the alphabet
-fits one shelf, so those spines are **19px** and 4px of inset leaves nine pixels; the pinned
-deciding face (`github#47`) draws `Å` **9.25px**, `מ` **9.45px** and `Ü` **9.67px**, so all three
-fall — by under a pixel, and identically in all three looks. The next cover up, `У`, has 0.81px
-to spare. There is nothing for a margin to absorb: the face is pinned, the widths are note counts,
-and the numbers repeat run to run — so the bound is the measured count, which fails in both
-directions, rather than a round number that only fails in one. `design/0021` has the full table.
+**The alphabet reads one way, and `INDEX_MIN` is what makes it.** `squeezeIndex` (`github#34`)
+used to scale the Encyclopedia rail down to **19px** spines, which leaves nine pixels between the
+declared side rules — and the pinned deciding face (`github#47`) draws an accented capital
+9.25–9.67px and a CJK glyph 13.53px, so *some* covers stood upright and others lay on their side
+with nothing on the page to say why. `É` and `У` stood; `Å`, `Ü` and `מ` did not. `INDEX_MIN` is
+**24px** now — 13.53 for the widest cover, plus 2px of border and 8px of the declared inset — so
+every volume is wide enough for its letter:
+
+| | before | after |
+|---|---|---|
+| Encyclopedia volumes upright | 29 of 35 | **35 of 35** |
+| short covers sideways, whole library | 7 | **1** (`map`, a three-letter tag book) |
+| the rail against 1180px of room | 1127px | **1172px**, still one row |
+| tightest upright cover | `У`, 0.81px to spare | `学`, **0.47px** |
+| the title's box against the side rules, worst | −2px leather | **+1px** leather, +1.5px cyber |
+
+**`sideways` in `"a hovered spine shows one peek…"` is 1, and it is a census rather than a
+tolerance.** It counts covers the geometry cannot stand upright; each follows from two measured
+numbers, the face is pinned and the widths are note counts, so nothing varies run to run for a
+margin to absorb. The bound is the measured count, which fails in **both** directions, rather than
+a round number that only fails in one. `design/0021` has the tables, including the 4 → 7 this
+ticket passed through before the floor was raised.
 
 **The sides are reported, not asserted**, and `design/0021` says why: the title's box is exactly
 the panel now (`--spine-rule-side`, deliberately *without* the rule's own width — sideways there
 is no glyph out past the rule to protect, and the pixel would cost three more uprights), but what
 clears a side rule is the **line box**, and that is the face's own ascent and descent against a
-spine whose width is its note count. Measured worst case, unchanged by this and by design:
-**−2px** in leather and **−1.5px** in cyber, both on a 19px squeezed-index spine whose box across
-is 15px and 14px. Negative, and it cannot be otherwise: on that rail the type's own box is wider
-than the room between the side rules, and no padding raises it without clipping the type or
-legislating a spine's thickness, which `design/0011` gives to the vault.
+spine whose width is its note count. Measured worst case: **+1px** in leather and **+1.5px** in
+cyber, on a 25px spine whose box across is 15px and 14px. It was **−2px** and −1.5px until
+`INDEX_MIN` went to 24 — the squeezed index rail was the only place the type's own box was wider
+than the room between the side rules. No padding raises it further without clipping the type or
+legislating a spine's thickness, which `design/0011` gives to the vault, so it stays reported.
 
 ### Every control is the same size in every look
 

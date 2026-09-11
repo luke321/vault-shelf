@@ -5103,9 +5103,9 @@ check("a hovered spine shows one peek, big enough to read, and short labels stan
              mode: mode, wide: wide, nameLines: Math.round(nameBox.height / (fontPx * 1.4)) };
   })()`);
   // github#34, github#36
-  /* github#45, design/0021 -- SEVEN, and it is a census rather than a tolerance */
+  /* github#45, design/0021 -- ONE, and it is a census rather than a tolerance */
   const ok = r.titled === 0 && r.shown && r.fontPx >= 13 && !r.clipped && r.above && r.hidden &&
-             r.uprightEnc + r.sideways.length >= r.enc && r.sideways.length <= 7 &&
+             r.uprightEnc + r.sideways.length >= r.enc && r.sideways.length <= 1 &&
              r.mode === "horizontal-tb" && r.wide === 0 && r.clippedUp === 0;
   return {
     ok,

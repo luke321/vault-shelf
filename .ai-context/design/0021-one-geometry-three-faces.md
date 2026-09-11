@@ -408,6 +408,49 @@ round 10 would only ever fail one way. The boundary was already this tight befor
 at 3px, `Ü` had 1.33px and `У` had 2.81px, so the two groups were never more than a pixel and a
 half apart.
 
+### And then the tally went to one, because the rail stopped being squeezed that far
+
+Asked 2026-09-11, looking at the rail: *"characters in the encyclopedia should not have different
+positions and reading direction"*. Right, and the tally above is the evidence — but the defect it
+measures is **not** the three covers this ticket turned. It is that the rail draws the same kind of
+thing two ways at all, and which way is decided by a sub-pixel font metric no reader can perceive:
+`É` (7.25px) and `У` (8.19px) stand up, `Å` (9.25px) and `Ü` (9.67px) lie down, and nothing on the
+page says why. Four covers were already lying down on `develop` before this branch existed.
+
+It is not a script question either — it is a **width** question. A one-note volume is squeezed to
+19px, which leaves nine pixels; an accented capital or a CJK glyph is 9.25–13.53px. So the answer
+is to stop squeezing the rail below the width a letter needs:
+
+```
+var INDEX_MIN = 24;   /* was 13 */
+```
+
+`INDEX_MIN` is the floor in `widthOf`'s `Math.max(INDEX_MIN, Math.round(w * k))`, so it clamps the
+thinnest volumes up and leaves every wider one to the scale. 24px is 13.53 (the widest cover) plus
+2px of border and 8px of the declared side inset, rounded up. Measured on the one vault:
+
+| | before | after |
+|---|---|---|
+| Encyclopedia volumes standing upright | 29 of 35 | **35 of 35** |
+| short covers left sideways, whole library | 7 | **1** — `map`, a three-letter tag book |
+| spines at the floor | 9, at 19px | 9, at **24px** |
+| the rail's width against 1180px of room | 1127px | **1172px**, still **one row** |
+| tightest upright cover | `У` 0.81px to spare | `学` **0.47px** |
+| the title's box against the side rules, worst | **−2px** leather, −1.5px cyber | **+1px** leather, **+1.5px** cyber |
+
+The last row is the one to notice: widening the squeezed spines is also what makes the **sideways
+clearance positive**. The rail was the only place the type's own box was wider than the room
+between the panel's side rules, which is why `design/0011`'s 22–58px floor read as violated there.
+
+**The golden was rewritten deliberately** (`node scripts/update-layout-snapshots.mjs`) and it moved
+two boxes: the Encyclopedia's first spine 42 → 40px, its last 18 → 24px and 13px to the right.
+Shelves, rows, spines, plaques and the room are identical, and no shelf gained a row.
+
+**The `sideways` tolerance comes back down to 1**, by the same census argument that put it at 7 —
+the bound is the measured count, not a round number with slack. `map` is the one that remains, and
+it is a tag book on a 27px spine drawn 27.7px wide: three letters that no single-letter reasoning
+covers. Standing *that* up is a different question from the alphabet's.
+
 ### What clears a side rule is the line box, and that is the face's
 
 Upright type turns the geometry round: the title's extent across its own text is the face's ascent
