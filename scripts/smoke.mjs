@@ -2895,11 +2895,17 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
 
     /* github#44 -- 4. focus previews and an arrow moves, so not mouse-only */
     slotSwatch(0).click();
-    offered(away).focus();
+    /* NOT the swatch the popover opened on: the focus it takes on opening offers nothing by
+     * design, so asking that one to paint is asking for the one thing this must not do */
+    var opened = -1;
+    for (var k = 0; k < 12; k++) if (offered(k) === document.activeElement) opened = k;
+    out.openedOn = opened >= 0;
+    var key = (opened + 5) % 12;
+    offered(key).focus();
     var keyed = room();
     out.focused = keyed !== before;
-    offered(away).dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
-    out.arrowMoved = document.activeElement === offered((away + 1) % 12);
+    offered(key).dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    out.arrowMoved = document.activeElement === offered((key + 1) % 12);
     out.arrowPainted = room() !== keyed && room() !== before;
     escape();
     out.keyboardPutBack = room() === before;
@@ -2933,7 +2939,8 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
   })()`);
   const want = ["laidOut", "opened", "openedQuiet", "painted", "stillPacked", "stillShelved",
                 "followed", "escaped", "escapedClean", "packedBack", "paintedForLeave",
-                "leftAlone", "stillOpen", "paintedAgain", "clickedOff", "focused", "arrowMoved",
+                "leftAlone", "stillOpen", "paintedAgain", "clickedOff", "openedOn", "focused",
+                "arrowMoved",
                 "arrowPainted", "keyboardPutBack", "threadOnly", "threadPutBack", "committed",
                 "previewedOverCommitted", "backToCommitted", "reset", "shut", "finalShelved"];
   const bad = want.filter((k) => r[k] !== true);
