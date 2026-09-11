@@ -1,5 +1,28 @@
 # Changelog detail
 
+## 2026-09-11 — Re-measured against the one vault (github#44, decisions/0014)
+
+`develop` replaced the three fixtures with one generated vault while this branch was in flight.
+The two entries below were measured against the three; these are the same numbers taken again on
+the one, and they are what `invariants.md` now carries.
+
+| | three fixtures | the vault |
+|---|---|---|
+| spines / books | 238 / 465, 77 / 194, 186 / 709 | **231 / 691** |
+| a hover | 9.81 / 3.76 / 8.13 ms | **9.31 ms** |
+| a full `refresh()` | 10.1 / 7.0 / 35.5 ms | **32.7 ms** |
+| spines on screen clear of the sheet body | 123 of 155, 47 of 67, 77 of 93 | **49 of 82** |
+| named controls the keyboard reaches | 344 | **337** |
+| `smoke.mjs` | 91 checks × 3 shapes | **93 checks**, 93 runs |
+
+The viewport differs too (1584×961 against 1264×1353), which is most of why the clear-of-the-sheet
+fraction moved from 79% to 60%. It is still the majority of what is on screen, so `D-1` stands:
+the room is worth repainting and a sample in the popover would have been a picture of a shelf
+standing beside a shelf.
+
+Both new checks carried no `on:` annotation, so they ran on all three shapes and now run on the
+one without a line changing.
+
 ## 2026-09-11 — A plate dyes what is under it, and a shelf dyes itself (github#44)
 
 > "right click on plague, change colors for everyting under the plague, right click on shelf the

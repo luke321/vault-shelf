@@ -593,7 +593,7 @@ always done rather than anything a hover did.
 
 Two things about reading boxes here, both learned by failing. **The first packing has to have
 landed**, so the check waits for a spine to have a width rather than sleeping a fixed 250 ms --
-in the parallel lane it read **238 boxes of `0:0:0:0`** and would have compared nothing to
+in the parallel lane it read **every box as `0:0:0:0`** and would have compared nothing to
 nothing. And **a shelf off screen has `content-visibility: auto`**, so its spines have no box at
 all until the browser gets to them, and one that gains a box mid-check is the browser catching up
 rather than a preview moving anything: only boxes that were real in the first reading are
@@ -608,8 +608,8 @@ goes back to *its* value, not to the look's own — the check commits one of the
 every `--spine-tint` in the library byte-identical.
 
 **The keyboard offers the same thing.** Focus previews, and `ArrowRight` moves focus to the next
-of the twelve and previews as it goes; the twelve stay individually tabbable, so the **344**
-named controls the accessibility check reads on the demo vault do not move. The grid's column count is read back
+of the twelve and previews as it goes; the twelve stay individually tabbable, so the **337**
+named controls the accessibility check reads do not move. The grid's column count is read back
 from the computed style, because `page.css` owns the geometry (`design/0016`).
 
 **A menu of the twelve opens holding its own focus, and offers nothing until the hand moves.**
@@ -623,19 +623,20 @@ shows what is committed.
 What a preview costs, and what it replaces — `readTheme()` split so a hover re-reads the twelve
 without re-deriving the look's own:
 
-| fixture | spines | books | hover, before the split | hover | a full `refresh()` |
-|---|---|---|---|---|---|
-| demo | 238 | 465 | 17.95 ms | **9.81 ms** | 10.1 ms |
-| sparse | 77 | 194 | 6.40 ms | **3.76 ms** | 7.0 ms |
-| 10k library | 186 | 709 | 14.39 ms | **8.13 ms** | 35.5 ms |
+| the vault (`decisions/0014`) | spines | books | hover | a full `refresh()` |
+|---|---|---|---|---|
+| 5,000 notes over eleven years | 231 | 691 | **9.31 ms** | 32.7 ms |
+
+Before the split it was 17.95 ms, measured on the three fixtures this was first written
+against; there a hover and a refresh cost about the same on the two small shapes, which is why
+the argument below is not about the clock.
 
 The reason to paint rather than refresh is not the clock: a repaint touches no geometry at all,
 so "a preview moves nothing" is true by construction, and nothing is left in flight when a check
 returns (`decisions/0013`).
 
-**The sheet gets out of the way.** With Manage open at 1264×1353 the sheet body is 760×711, and
-the spines on screen lying entirely clear of it are **123 of 155** (demo), **47 of 67** (sparse),
-**77 of 93** (10k) — so the room is there to repaint. What was not there was the light: the
+**The sheet gets out of the way.** With Manage open at 1584×961 the sheet body is 760×711, and
+**49 of the 82 spines on screen lie entirely clear of it** — so the room is there to repaint. What was not there was the light: the
 scrim over the library is 82%, and a slot changing read as a faint shift. It thins to **40%**
 while the popover is open (`data-picking="1"`, one colour-only rule per look, no geometry and no
 transition).
@@ -652,7 +653,8 @@ all four preview the same way.
 
 **The unit is what the right-click landed on**: a spine is one book; a plate is **its run**, the
 adjacent books it names (`design/0018`, so a shelf a person has split shows two plates and dyeing
-one dyes one); a shelf's head or its empty rail is every book standing on it. A hover paints the
+one dyes one); a shelf's head or its empty rail is every book standing on it — **231 spines over
+691 books** on the vault, and a shelf of 130 is one gesture. A hover paints the
 whole unit at once and **saves 0 keys**; a click saves **one key per book**; *Automatic* takes
 every one of them off again and the room is byte-identical to where it started.
 

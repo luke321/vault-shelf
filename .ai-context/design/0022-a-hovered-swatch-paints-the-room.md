@@ -27,16 +27,12 @@ The issue offered two answers and asked for a position: repaint the library behi
 sheet, or show the colour in a sample the popover carries. **The room, measured rather than
 assumed.**
 
-With Manage open at 1264×1353, the sheet body is 760×711 and the spines on screen that lie
-**entirely clear of it** are:
+With Manage open at 1584×961, the sheet body is 760×711 and **49 of the 82 spines on screen lie
+entirely clear of it** — measured on the three fixtures this was first written against as 123 of
+155, 47 of 67 and 77 of 93, so the fraction has held between 60% and 83% across every shape the
+suite has had.
 
-| fixture | spines on screen | clear of the sheet body |
-|---|---|---|
-| demo | 155 | **123 (79%)** |
-| sparse | 67 | **47 (70%)** |
-| 10k library | 93 | **77 (83%)** |
-
-So the sheet does give up the room; seven or eight spines in ten are not under it. A sample would
+So the sheet does give up the room; most of the spines on screen are not under it. A sample would
 have been a picture of a shelf standing next to a shelf.
 
 **What the scrim cost, though, was the whole point of the feature.** `.vs-sheet` laid
@@ -75,14 +71,15 @@ values lifted off — a second forced style flush plus twelve derived threads �
 change under a hover, so a repaint calls only the second half, `readSlots()`. That is the whole
 difference between the first working version and this one:
 
-| fixture | spines | books | hover, before the split | hover, after | a full `refresh()` |
-|---|---|---|---|---|---|
-| demo | 238 | 465 | 17.95 ms | **9.81 ms** | 10.1 ms |
-| sparse | 77 | 194 | 6.40 ms | **3.76 ms** | 7.0 ms |
-| 10k library | 186 | 709 | 14.39 ms | **8.13 ms** | 35.5 ms |
+| the vault | spines | books | hover | a full `refresh()` |
+|---|---|---|---|---|
+| 5,000 notes over eleven years | 231 | 691 | **9.31 ms** | 32.7 ms |
 
-**The reason to paint rather than refresh is not the clock**, though: on the two small shapes the
-two cost about the same. It is that a repaint touches no geometry at all, so "a preview moves
+Before the split it was 17.95 ms, on the three fixtures this was first written against — where a
+hover and a refresh cost about the same on the two small shapes.
+
+**The reason to paint rather than refresh is not the clock**, though: on the two smallest shapes
+the suite has measured, the two cost about the same. It is that a repaint touches no geometry at all, so "a preview moves
 nothing" is true by construction instead of by argument, and `renderLibrary()`'s settle pass
 cannot run under a pointer.
 
@@ -102,8 +99,8 @@ only leaving the *popover* ends a trial, not leaving a swatch.
 Focus previews, so Tab gives the same thing the pointer does, and the arrows walk the twelve
 inside the row — left and right by one, up and down by a grid row, Home and End to the ends —
 moving focus, which previews as it goes. The twelve stay individually tabbable (no roving
-tabindex), so the control count the accessibility check reads does not move (344 named controls
-on the demo vault, before and after). The grid's column
+tabindex), so the control count the accessibility check reads does not move (337 named controls,
+before and after). The grid's column
 count is read back from the computed style rather than written twice: `page.css` owns the
 geometry (`design/0016`).
 
@@ -180,7 +177,7 @@ back to what *it* was rather than to the look's own; and the popover and sheet a
 end.
 
 It reads boxes, so it is in the serial lane, it waits for a spine to have a width rather than
-sleeping a fixed 250 ms — in the parallel lane it read 238 boxes of `0:0:0:0` — and it compares
+sleeping a fixed 250 ms — in the parallel lane it read every box as `0:0:0:0` — and it compares
 only boxes that were real in the first reading: a shelf off screen has `content-visibility: auto`
 and its spines have no box until the browser gets to them, so one that gains a box mid-check is
 the browser catching up rather than a preview moving something.
