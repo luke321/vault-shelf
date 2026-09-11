@@ -213,6 +213,8 @@ const POINTER_DRIVEN = [
   "carried by its floor",
   /* github#0 -- it reads margins while a drag is in the air. */
   "the room parts",
+  /* github#14, design/0021 -- it walks every box on the page, four times, in every look. */
+  "moves nothing",
   /* design/0020 -- a right-click and a drag off the rail read boxes. */
   "made on the shelf",
   "edited, emptied",
@@ -2979,6 +2981,100 @@ check("every control is the same size in every look", async (p) => {
   };
 });
 
+/* github#14, github#16, design/0021 -- A LOOK MOVES NOTHING ON THE PAGE.
+ * design/0021 -- every element, in four states, not 38 named ones
+ * design/0021 -- a top, and a box across its text, are page.css's
+ * design/0021 -- width along the text is the face's
+ * design/0021 -- it stops at a page: what is on it is the vault's
+ */
+check("a look moves nothing on the page", async (p) => {
+  const r = await p.j(`(function(){
+    var root = document.getElementById("vs-app");
+    var core = window.VaultShelfCore;
+    var looks = core.LOOKS.map(function (l) { return l.value; });
+    var book = __vs.views().filter(function (v) { return v.books.length; })[0].books[0];
+    var skipped = 0;
+    /* design/0021 -- a path, not a selector: it names what nothing else names. */
+    var pathOf = function (el) {
+      var bits = [];
+      for (var n = el; n && n !== root; n = n.parentElement) {
+        var up = n.parentElement;
+        var cls = (n.getAttribute("class") || "").split(/\\s+/).filter(Boolean).slice(0, 2).join(".");
+        bits.unshift(n.tagName.toLowerCase() + (n.id ? "#" + n.id : "") + (cls ? "." + cls : "") +
+                     "[" + (up ? [].indexOf.call(up.children, n) : 0) + "]");
+      }
+      return bits.join(">");
+    };
+    var walk = function (state, out) {
+      var box = root.getBoundingClientRect();
+      var all = root.querySelectorAll("*");
+      for (var i = 0; i < all.length; i++) {
+        var el = all[i];
+        if (el.closest("[hidden]")) continue;
+        if (el.parentElement && el.parentElement.closest(".vs-page")) { skipped++; continue; }
+        var b = el.getBoundingClientRect();
+        if (!b.width && !b.height) continue;
+        var cs = getComputedStyle(el);
+        out[state + " " + pathOf(el)] = {
+          y: Math.round((b.top - box.top) * 10) / 10,
+          /* design/0021 -- across the text is fixed; along it is the face's. */
+          across: Math.round((cs.writingMode.indexOf("vertical") === 0 ? b.width : b.height) * 10) / 10,
+          vertical: cs.writingMode.indexOf("vertical") === 0
+        };
+      }
+    };
+    /* design/0021 -- a sheet and a spread are furniture too. */
+    var readAll = function () {
+      var out = {};
+      walk("library", out);
+      __vs.openBook(book.id, null);
+      walk("reading", out);
+      __vs.closeReader();
+      document.getElementById("vs-manageopen").click();
+      walk("managing", out);
+      document.getElementById("vs-mclose").click();
+      document.getElementById("vs-newshelf").click();
+      walk("building", out);
+      document.getElementById("vs-bcancel").click();
+      return out;
+    };
+    var out = {};
+    /* the look the page was FOUND in is the look it is left in: the checks in a lane share
+     * one page, and a --look run has already chosen one. */
+    var was = root.getAttribute("data-look") || "";
+    looks.forEach(function (look) { __vs.setLook(look); out[look || "modern"] = readAll(); });
+    __vs.setLook(was);
+    return { looks: out, skipped: skipped };
+  })()`);
+
+  const base = r.looks.modern;
+  const keys = Object.keys(base);
+  const others = Object.keys(r.looks).filter((l) => l !== "modern");
+  const moved = [], resized = [], absent = [];
+  for (const look of others) {
+    const got = r.looks[look];
+    for (const k of keys) {
+      const a = base[k], b = got[k];
+      if (!b) { absent.push(`${look} ${k}: not on the page`); continue; }
+      if (Math.abs(a.y - b.y) > 1) moved.push(`${look} ${k}: y ${a.y} -> ${b.y}`);
+      if (Math.abs(a.across - b.across) > 1) {
+        resized.push(`${look} ${k}: ${a.across} -> ${b.across} ${a.vertical ? "wide" : "high"}`);
+      }
+    }
+    for (const k of Object.keys(got)) if (!base[k]) absent.push(`${look} ${k}: not in modern`);
+  }
+  const upright = keys.filter((k) => base[k].vertical).length;
+  const say = (label, list) => (list.length ? `; ${list.length} ${label}: ${list.slice(0, 3).join("; ")}` : "");
+  return {
+    ok: !moved.length && !resized.length && !absent.length && keys.length > 600,
+    detail: `${keys.length} elements in four states (${upright} of them upright type; ` +
+            `${r.skipped} nodes set on a page of the open book skipped) ` +
+            `compared across ${others.length + 1} looks against modern: ${moved.length} moved, ` +
+            `${resized.length} resized, ${absent.length} present in one look and not another` +
+            say("moved", moved) + say("resized", resized) + say("missing", absent)
+  };
+});
+
 /* github#9, design/0019 -- ONE MATERIAL FOR THE FURNITURE, read as computed style */
 check("the furniture is one material", async (p) => {
   const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
@@ -4819,12 +4915,23 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
                { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
   await p.j(`window.dispatchEvent(new Event("resize"))`);
   await sleep(400);
-  const now = await p.j(MEASURE);
+  /* github#14, design/0021 -- in every look against one golden; it holds a book's width. */
+  const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
+  const was = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
+  const golden = JSON.parse(readFileSync(file, "utf8"));
+  const problems = [];
+  let now = null;
+  for (const look of looks) {
+    await p.j(`(__vs.setLook(${JSON.stringify(look)}), 1)`);
+    await sleep(250);
+    const seen = await p.j(MEASURE);
+    if (!now) now = seen;
+    for (const bad of diffLayout(golden, seen)) problems.push(`${look || "modern"}: ${bad}`);
+  }
+  await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
   await p.send("Emulation.clearDeviceMetricsOverride");
   await p.j(`window.dispatchEvent(new Event("resize"))`);
   await sleep(250);
-  const golden = JSON.parse(readFileSync(file, "utf8"));
-  const problems = diffLayout(golden, now);
   const rows = now.shelves.reduce((n, s) => n + s.rows, 0);
   const spines = now.shelves.reduce((n, s) => n + s.books, 0);
   const plaques = now.shelves.reduce((n, s) => n + s.plaques.length, 0);
@@ -4834,7 +4941,8 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
       ? `${problems.length} difference(s) against ${name}.json: ` + problems.slice(0, 4).join("; ") +
         (problems.length > 4 ? ` ... (node scripts/update-layout-snapshots.mjs rewrites it)` : "")
       : `${now.shelves.length} shelves, ${rows} rows, ${spines} spines, ${plaques} plaques and a ` +
-        `${now.room}px room, all where ${name}.json says at ${VIEWPORT.width}px`
+        `${now.room}px room, all where ${name}.json says at ${VIEWPORT.width}px, in all ` +
+        `${looks.length} looks`
   };
 });
 
@@ -5257,7 +5365,11 @@ async function capture(page, out) {
           var want = ${JSON.stringify(SHOT_BOOK)};
           var pick = null;
           __vs.views().forEach(function (v) { v.books.forEach(function (b) {
-            if (want === "biggest" ? (!pick || b.notes.length > pick.notes.length) : b.id === want) pick = b;
+            /* github#16 -- "smallest" is how the book with NO INDEX is photographed. */
+            var hit = want === "biggest" ? (!pick || b.notes.length > pick.notes.length)
+                    : want === "smallest" ? (!pick || b.notes.length < pick.notes.length)
+                    : b.id === want;
+            if (hit) pick = b;
           }); });
           return __vs.openBook(pick ? pick.id : want, null);
         })()`)

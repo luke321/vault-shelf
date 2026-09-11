@@ -79,9 +79,15 @@ of measuring it.** Build the page, drive it, read the numbers.
   order, not a book's address, not a count, **not a book's size and not a control's** — a
   spine is the same width and height in all three, in a room of the same width, and every
   button, box, tab, ribbon and swatch is the same height, so switching does not move the
-  furniture. `page.css` owns a control's geometry; a look sets colour, border, shadow and face. `core.LOOKS` is the one list of them, in the order the selector offers them
-  (leather first, which is what a fresh library opens in), and `migrate` validates against it.
-  `design/0016`.
+  furniture. **Every element's top is the same in every look, and so is its box across the way
+  its text runs**; the one thing a face may move is a label's neighbour **along its own row**,
+  because a wider face draws wider glyphs and nothing can be done about that. `page.css` owns
+  the geometry — a control's, a head's, a plank's, a line box's — and a look sets colour,
+  border, shadow and face, plus decoration that is absolutely positioned and so moves nothing.
+  A **responsive layout is not a look's**: leather carried a private one below 860px, and below
+  that width the two looks were not the same product. `core.LOOKS` is the one list of them, in
+  the order the selector offers them (leather first, which is what a fresh library opens in),
+  and `migrate` validates against it. `design/0016`, `design/0021`.
 
 ## How to work here
 
@@ -198,7 +204,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 88 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 89 checks over three vault shapes |
 | `scripts/release.ps1` | the local half of a release: the guards, the gates, the tag, the tag push. `-SelfTest` drives every refusal in a throwaway clone; `.ai-context/releasing.md` is the authority on the flow |
 | `scripts/suite-stamp.mjs` | which trees have passed the suite (`decisions/0010`), read by the pre-push hook and `release.ps1`. `--selftest` proves the hit and miss cases |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |

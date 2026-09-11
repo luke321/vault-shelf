@@ -108,8 +108,10 @@
   --spine-w: 34px;
   --spine-h: 132px;
   /* github#0 -- THICKER, because it is a handle now: at 3px the floor was a hairline to paint
-   * and an impossible thing to grab. 5px still reads as a shelf edge rather than a slab. */
-  --board: 5px;
+   * and an impossible thing to grab.
+   * github#14, design/0021 -- and ONE PLANK, in every look: each sheet used to declare its own
+   * (5, 10, 7) and the board is charged twice a row. 10px is leather's. */
+  --board: 10px;
   /* design/0009 -- A ROOM HAS A WIDTH. On a WQHD screen the leaf is ~2,200px after Obsidian's
    * own sidebar, and full-bleed put four books on an 1,800px shelf board and left the note a
    * 380px column of text adrift in a 2,000px page with its index tabs pinned to the far edge.
@@ -199,8 +201,10 @@
   min-width: 0;
 }
 
+/* github#14, design/0021 -- a fixed line box, in pixels: the face is the look's. */
 .vault-shelf .vs-railname {
   font-size: 12.5px;
+  line-height: 20px;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-1);
@@ -279,7 +283,7 @@
 
 /* The name is the first thing to go when the rail is tight, and it is the one thing in there
  * that cannot be worked out from anything else. */
-.vault-shelf .vs-railname { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.vault-shelf .vs-railname { flex: 0 1 auto; min-width: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 /* A FIXED WIDTH, because the label changes. "Oldest first" and "Newest first" are not the same
  * number of pixels, so a button that sizes to its text shoves the search box sideways every
  * time you press it. */
@@ -398,7 +402,15 @@
   margin-bottom: 7px;
 }
 
-.vault-shelf .vs-val { color: var(--text-2); text-transform: none; letter-spacing: 0; }
+/* github#14 -- inline-block, so the line box decides its height: a bare inline box is sized
+ * by the font's own ascent and descent, which line-height cannot touch. */
+.vault-shelf .vs-val {
+  display: inline-block;
+  line-height: 16px;
+  color: var(--text-2);
+  text-transform: none;
+  letter-spacing: 0;
+}
 .vault-shelf .vs-hint { font-size: 11.5px; color: var(--text-3); margin: 6px 0 0; }
 
 .vault-shelf .vs-row {
@@ -431,6 +443,8 @@
 .vault-shelf .vs-newshelf {
   display: flex;
   align-items: center;
+  /* github#14 -- centred, in every look. */
+  justify-content: center;
   gap: 10px;
   width: 100%;
   margin: 14px 0 18px;
@@ -447,6 +461,7 @@
 }
 
 .vault-shelf .vs-newshelf:hover { color: var(--accent); border-color: var(--accent); background: var(--surface-1); }
+.vault-shelf .vs-newshelf span { line-height: 20px; }
 .vault-shelf .vs-newshelf .vs-plus { font-size: 15px; line-height: 1; }
 
 .vault-shelf .vs-activefilters {
@@ -482,9 +497,11 @@
  * which is where the leather look's 117ms frames went. */
 .vault-shelf #vs-shelves { will-change: transform; }
 
+/* github#14, design/0021 -- THE HEAD IS ITS BUTTONS' HEIGHT, in every look: it aligned on the
+ * baseline, so a bigger face lowered the baseline and the head grew under it. */
 .vault-shelf .vs-shelfhead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
   padding-bottom: 5px;
   margin-bottom: 9px;
@@ -492,6 +509,7 @@
 
 .vault-shelf .vs-shelfhead h2 {
   font-size: 12.5px;
+  line-height: 24px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -499,7 +517,7 @@
   margin: 0;
 }
 
-.vault-shelf .vs-shelfhead .vs-meta { color: var(--text-3); font-size: 11.5px; }
+.vault-shelf .vs-shelfhead .vs-meta { color: var(--text-3); font-size: 11.5px; line-height: 20px; }
 .vault-shelf .vs-shelfhead .vs-mini { margin-left: auto; opacity: 0; transition: opacity 120ms ease; }
 .vault-shelf .vs-shelf:hover .vs-shelfhead .vs-mini,
 .vault-shelf .vs-shelfhead .vs-mini:focus-within { opacity: 1; }
@@ -604,7 +622,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 3px 15px;
+  /* github#14 -- one panel: leather padded it 23/29 for its bands, cyber 10/15. */
+  padding: 20px 3px 26px;
   background:
     linear-gradient(180deg,
       color-mix(in srgb, var(--text-1) 3%, transparent) 0 22%,
@@ -624,9 +643,10 @@
               margin 160ms ease, box-shadow 120ms ease;
 }
 
+/* github#14 -- ONE LIFT. It was -5px here, -5px in leather and -6px in cyber. */
 .vault-shelf .vs-spine:hover,
 .vault-shelf .vs-spine:focus-visible {
-  transform: translateY(-5px);
+  transform: translateY(-6px);
   border-color: var(--spine-tint, var(--accent));
   color: var(--text-1);
   z-index: 2;
@@ -634,12 +654,16 @@
 
 /* THE TITLE FILLS THE SPINE, and that is what makes it read as a book rather than a column.
  * rotate(180deg) makes it read bottom-to-top, the way a spine on a shelf does. */
+/* github#14, design/0021 -- upright type: the line box is the title's WIDTH. */
 .vault-shelf .vs-spine .vs-title {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
+  line-height: 20px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* github#14 -- it FILLS the panel: centred, a different face moved its own top. */
+  align-self: stretch;
   max-height: 100%;
   font-size: 11px;
   letter-spacing: 0.04em;
@@ -653,6 +677,8 @@
   right: 0;
   text-align: center;
   font-size: 9.5px;
+  /* github#14 -- anchored at the foot, so its line box is where its top lands. */
+  line-height: 16px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -964,7 +990,7 @@
 .vault-shelf .vs-readerbar .vs-inner { gap: 8px; flex-wrap: wrap; }
 
 .vault-shelf .vs-readerbar .vs-spacer { flex: 1 1 auto; }
-.vault-shelf .vs-readertitle { color: var(--text-2); font-size: 12px; }
+.vault-shelf .vs-readertitle { color: var(--text-2); font-size: 12px; line-height: 20px; }
 
 
 /* min-width: 0 ON BOTH, and it takes both. A flex item and a grid item each default to
@@ -1063,8 +1089,9 @@
     color-mix(in srgb, var(--text-1) 11%, transparent), transparent);
 }
 
+/* github#14, design/0021 -- a fixed line box. */
 .vault-shelf .vs-page h2 {
-  font: 600 19px/1.25 var(--prose);
+  font: 600 19px/32px var(--prose);
   margin: 0 0 4px;
   letter-spacing: 0.01em;
 }
@@ -1202,9 +1229,10 @@
   text-align: left;
 }
 
+/* github#14, design/0021 -- a fixed line box: leather writes this name at 20px. */
 .vault-shelf .vs-notemeta strong {
   display: block;
-  font: 600 15px/1.35 var(--ui);
+  font: 600 15px/28px var(--ui);
   color: var(--text-1);
   margin-bottom: 3px;
 }
@@ -1224,6 +1252,8 @@
   align-items: baseline;
 }
 
+/* github#16, design/0015 -- A BOOK WITH NOTHING TO INDEX DRAWS A CLOSED INDEX. The strip is
+ * always there and the tabs are cut from it; a lone find glass read as a tab that fell off. */
 .vault-shelf .vs-tabs {
   position: absolute;
   top: 16px;
@@ -1232,7 +1262,11 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  max-height: calc(100% - 32px);
+  height: calc(100% - 32px);
+  padding-left: 5px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--vs-plate-edge) 55%, transparent) 0 1px,
+    color-mix(in srgb, var(--vs-plate) 40%, transparent) 1px);
   overflow: hidden;
 }
 
@@ -1308,7 +1342,8 @@
   padding: 20px 22px 22px;
 }
 
-.vault-shelf .vs-sheetbody h2 { font-size: 15px; margin: 0 0 14px; }
+/* github#14, design/0021 -- a fixed line box: leather writes a sheet's heading at 26px. */
+.vault-shelf .vs-sheetbody h2 { font-size: 15px; line-height: 32px; margin: 0 0 14px; }
 
 .vault-shelf .vs-field {
   border: 0;
@@ -1320,7 +1355,16 @@
 }
 
 .vault-shelf .vs-field.vs-row { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 14px; }
-.vault-shelf .vs-field.vs-row label { display: flex; align-items: center; gap: 6px; color: var(--text-2); }
+/* github#14, design/0016 -- a form label is a control, and page.css sizes a control: left to
+ * inherit it took leather's 17px base and wrapped the row. */
+.vault-shelf .vs-field.vs-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 22px;
+  color: var(--text-2);
+}
 .vault-shelf .vs-field.vs-row select { width: auto; }
 
 .vault-shelf .vs-field > label,
@@ -1337,6 +1381,10 @@
   padding-top: 12px;
   margin-top: 4px;
 }
+
+/* design/0016, github#14 -- the preview wraps inside its sheet, in every look. */
+.vault-shelf .vs-preview .vs-group { min-width: 0; }
+.vault-shelf .vs-preview .vs-books { height: auto; flex-wrap: wrap; row-gap: 12px; }
 
 .vault-shelf .vs-sheetactions { margin-top: 18px; }
 
@@ -1541,7 +1589,7 @@
   padding: 7px 2px;
 }
 
-.vault-shelf .vs-managerow .vs-name { flex: 1 1 auto; }
+.vault-shelf .vs-managerow .vs-name { flex: 1 1 auto; line-height: 22px; }
 .vault-shelf .vs-managerow .vs-meta { color: var(--text-3); font-size: 11px; }
 .vault-shelf .vs-managerow .vs-colourby { flex: 0 0 auto; }
 
@@ -1567,6 +1615,8 @@
 .vault-shelf[data-list="1"] .vs-spine .vs-title {
   writing-mode: horizontal-tb;
   transform: none;
+  /* github#14 -- a list row runs across, so the title sits on its baseline, not down the row. */
+  align-self: auto;
   max-height: none;
 }
 
@@ -1614,6 +1664,7 @@
 .vault-shelf .vs-peeknotes { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 12px; }
 .vault-shelf .vs-peeknotes div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* github#14 -- a list row is padded once, above: leather's own 8/12 is gone. */
 .vault-shelf[data-list="1"] .vs-spine .vs-n { position: static; text-align: left; margin-left: auto; }
 .vault-shelf[data-list="1"] .vs-spine .vs-ribbon { position: static; width: 7px; height: 12px; margin: 0 0 0 8px; }
 
@@ -1629,15 +1680,37 @@
 .vault-shelf[data-list="1"] .vs-drop[data-side="before"] { top: -2px; }
 .vault-shelf[data-list="1"] .vs-drop[data-side="after"] { bottom: -2px; }
 
+/* github#14, design/0021 -- ONE NARROW LAYOUT: leather.css carried a second one of its own,
+ * so below 860px the two looks were not the same product. */
 @media (max-width: 860px) {
   .vault-shelf #vs-rail { flex-wrap: wrap; }
-  .vault-shelf #vs-q { width: 100%; order: 3; }
+  .vault-shelf #vs-rail .vs-inner { flex-wrap: wrap; gap: 8px; }
+  .vault-shelf #vs-jump { order: 4; flex-basis: 100%; }
+  .vault-shelf #vs-q { order: 2; flex: 1 1 140px; width: auto; min-width: 100px; }
+  .vault-shelf #vs-manageopen { order: 3; }
+  .vault-shelf #vs-hits:empty { display: none; }
+  /* A hover control nobody can hover is a control nobody has. */
+  .vault-shelf .vs-shelfhead { flex-wrap: wrap; gap: 6px 10px; }
+  .vault-shelf .vs-shelfhead .vs-mini { opacity: 1; }
+  .vault-shelf .vs-spread { margin: 0 auto 20px; }
+  .vault-shelf .vs-page { padding: 20px; }
+  .vault-shelf .vs-page::after { display: none; }
   .vault-shelf .vs-spread { grid-template-columns: minmax(0, 1fr); }
   .vault-shelf .vs-page.vs-left { border-right: 0; border-bottom: 1px solid var(--border); }
   .vault-shelf .vs-page.vs-right { padding-right: 22px; }
-  .vault-shelf .vs-tabs { flex-direction: row; position: static; padding: 0 18px 12px; flex-wrap: wrap; }
-  .vault-shelf .vs-tabs button { border-radius: 3px; border-right: 1px solid var(--border); }
+  /* github#16 -- the strip is an EDGE, and a row has none: the index lies flat down here. */
+  .vault-shelf .vs-tabs { flex-direction: row; position: static; padding: 0 18px 12px; flex-wrap: wrap;
+                          height: auto; background: none; }
+  /* github#14 -- the same side as upright, so a tab is one box. */
+  .vault-shelf .vs-tabs button { border-radius: 3px 3px 0 0; border-left: 0; }
   .vault-shelf button { min-height: 34px; }
+}
+
+/* github#14 -- a Manage row wraps on a phone, in every look; leather alone had this. */
+@media (max-width: 520px) {
+  .vault-shelf .vs-managerow { flex-wrap: wrap; }
+  .vault-shelf .vs-managerow .vs-name { flex-basis: 100%; }
+  .vault-shelf .vs-managerow .vs-meta { margin-right: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
