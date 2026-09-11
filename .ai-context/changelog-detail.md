@@ -49,7 +49,9 @@ ten-minute run, a second Vault Shelf worktree queued behind it too, and the lock
 keep a third time. **It did not stamp**, and rightly: four tracked docs were edited while it
 queued, so the tree it measured was dirty — `not stamping this run: the working tree differs
 from HEAD in 4 tracked file(s)`. The guard doing its job on its author. The committed tree
-was stamped by the full run recorded in the row below.
+was stamped by the full run that followed the records' commit: **87/87 × 3, exit 0, `stamped
+tree 2b327f0`**, 85 s wall with about 30 s of it queued behind a third worktree's capture.
+Two full runs in an hour, and both spent longer waiting for the lock than running.
 
 ### Gates
 

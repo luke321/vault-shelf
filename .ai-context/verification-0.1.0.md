@@ -10,7 +10,7 @@ the first release, nothing to compare against.
 | gate | result |
 |---|---|
 | `npm run lint` (with `tsc --noEmit` over `src/core`) | 0 errors, 0 warnings |
-| `node scripts/smoke.mjs` | <suite pending> |
+| `node scripts/smoke.mjs` | 87/87 × three shapes, exit 0; stamped tree `2b327f0` (commit `9a42133`, the records' own commit); 85 s wall, about 30 s of it queued on the lock behind another worktree |
 | `check-pii` / `check-scope` / `check-network` / `check-comments` | clean (110 files, 6 names); clean (421 rules, 72 ids, 95 prefixed classes, no invisible characters); clean (13 files); comment baseline 1527 |
 | `check-data-escape` | ok — every payload back byte for byte |
 | the two determinism checks | clean |
