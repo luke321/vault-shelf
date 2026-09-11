@@ -12,7 +12,7 @@ can do to a real 424-note vault in the page itself.
 
 | | |
 |---|---|
-| **The library** | [Six shelves, and every one is the whole vault](#six-shelves-and-every-one-of-them-is-the-whole-vault) · [Build your own, from two questions](#build-your-own-from-two-questions) · [Arranged by hand](#arranged-by-hand) · [The room has no sidebar](#the-room-has-no-sidebar) · [Hiding never deletes](#hiding-never-deletes) |
+| **The library** | [Favourites, at the top](#favourites-at-the-top) · [Six shelves, and every one is the whole vault](#six-shelves-and-every-one-of-them-is-the-whole-vault) · [Build your own, from two questions](#build-your-own-from-two-questions) · [Arranged by hand](#arranged-by-hand) · [The room has no sidebar](#the-room-has-no-sidebar) · [Hiding never deletes](#hiding-never-deletes) |
 | **The bookcase** | [A shelf is a bookcase, not a conveyor belt](#a-shelf-is-a-bookcase-not-a-conveyor-belt) · [Thickness is the note count](#thickness-is-the-note-count) · [Year and decade plaques](#year-and-decade-plaques) · [A spine tells you where its notes came from](#a-spine-tells-you-where-its-notes-came-from) |
 | **Reading a book** | [The two-page spread](#the-two-page-spread) · [Index tabs, cut the way the book is ordered](#index-tabs-cut-the-way-the-book-is-ordered) · [Also shelved in](#also-shelved-in) · [Which end you open](#which-end-you-open) · [Obsidian's own renderer](#obsidians-own-renderer) |
 | **The magic** | [Ribbons that hang out of the book](#ribbons-that-hang-out-of-the-book) · [Shelf wear](#shelf-wear) · [The shelf parts as you type](#the-shelf-parts-as-you-type) |
@@ -27,6 +27,36 @@ each entry came from is named at the end of it.
 ---
 
 ## The library
+
+### Favourites, at the top
+
+The first shelf in the room starts **empty**, and holds whichever books you drag onto it from
+any other shelf, in the order you dropped them. Drag a spine onto the rail — it is a drop
+target along its whole length, and the mark between two books says where the next one will
+land. **To take one off, drag it off** — carry it away from the rail and drop it anywhere else in the
+library. The shelf you drop it on does not gain it; Favourites simply loses the reference, and
+the spine shows a dashed outline while that is what the drop would do. A drag you abandon with
+Escape, or by dropping outside the window, puts the book back. Right-clicking works too:
+**Add to Favourites** on any spine, **Take off Favourites** on a favourite.
+
+**A favourite is a reference to the book, not a copy of it.** It is stored as that book's
+address, so its title, its notes, its thickness and its colour are the source book's and they
+are **live**: a favourite *2024* grows as notes arrive in 2024. Opening one opens the source
+book, so a ribbon left in it and the wear on its spine are one thing rather than two.
+
+The laws hold on it like any other shelf: a note in two favourites is **one note** in the
+shelf's count, addresses do not move across a rebuild, a filter narrows a favourite the way it
+narrows its source, and a favourite of a book on a **hidden** shelf still resolves — hiding
+keeps a shelf's books. A favourite whose source no longer exists is dropped the next time the
+shelf is saved, never while you are only looking at it.
+
+**As many as you like.** *Books you drag onto it* is one of the answers to *what makes a book*
+in the builder, so Favourites is a **kind** of shelf rather than one shelf: a reading list, a
+shortlist for one project, and Favourites, side by side. A book can sit on several of them at
+once — each reference is its own, so taking it off one leaves the others alone — and the
+right-click menu names every shelf that would take it.
+
+`design/0019`
 
 ### Six shelves, and every one of them is the whole vault
 
@@ -97,6 +127,40 @@ left the reading spread's index tabs 1,500px from the text they index; the measu
 centred, and the chrome stays full-bleed while its contents do not.
 
 `design/0009`
+
+### Putting the book down
+
+Click the desk around an open book to close it. The book is inset from the page so the desk is a
+real target rather than a sliver at the edges.
+
+### Search inside the book from the index
+
+The strip of tabs down the right edge of an open book jumps to places in it. The first tab is a
+**magnifying glass**: press it and the left page scrolls to the top with the cursor already in
+*Find within this book*, so searching a book is one press from wherever you are reading.
+Ctrl/Cmd+F does the same.
+
+### The room parts where the thing will land
+
+Drag a book and its new neighbour steps aside, with a thin accent bar standing in the gap that
+opens. Drag a shelf by its floor and the shelf under the pointer makes room the same way, above
+or below depending on which half you are over. It is the same parting the search does to the
+room: nothing is removed, things move aside.
+
+### Deleting, placing and carrying a shelf
+
+**Delete** is on every row in Manage, and in the shelf's own Edit sheet. It asks once — the button becomes *Really delete?* and only
+the second press does it — and it takes with it the wear and the colours you gave that shelf's
+books, and any favourites pointing at them. A ribbon survives, because a ribbon names a note
+rather than a shelf. If you delete every shelf, the room offers to build the default six back.
+
+**A new shelf lands where the button is.** *+ New shelf* at the top of the library builds at the
+top; the one at the foot appends.
+
+**A shelf is carried by its floor.** Press the board under the books, drag, and drop it on the
+half of another shelf you want it to land on — above or below. A spine is a book and a board is a
+shelf, so the two drags never mean each other. Manage's arrows do the same move from the
+keyboard.
 
 ### Hiding never deletes
 

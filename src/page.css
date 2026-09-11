@@ -107,7 +107,9 @@
    * scale against); src/page.js sets the real one per book. */
   --spine-w: 34px;
   --spine-h: 132px;
-  --board: 3px;
+  /* github#0 -- THICKER, because it is a handle now: at 3px the floor was a hairline to paint
+   * and an impossible thing to grab. 5px still reads as a shelf edge rather than a slab. */
+  --board: 5px;
   /* design/0009 -- A ROOM HAS A WIDTH. On a WQHD screen the leaf is ~2,200px after Obsidian's
    * own sidebar, and full-bleed put four books on an 1,800px shelf board and left the note a
    * 380px column of text adrift in a 2,000px page with its index tabs pinned to the far edge.
@@ -491,6 +493,7 @@
  * (design/0014). A half-empty last row with a board ending mid-air reads as a broken rule. */
 .vault-shelf .vs-track {
   display: flex;
+  position: relative;
   align-items: flex-start;
   gap: 3px;
   min-height: calc(var(--spine-h) + 34px);
@@ -637,8 +640,136 @@
   pointer-events: none;
   z-index: 4;
 }
-.vault-shelf .vs-drop[data-side="before"] { left: -3px; }
-.vault-shelf .vs-drop[data-side="after"] { right: -3px; }
+/* github#0 -- THE SHELF PARTS WHERE THE BOOK WILL LAND. A 3px bar in a 3px gap is accurate and
+ * almost invisible: it says where, but not that anything is about to happen. The neighbour
+ * steps aside instead -- the same parting the query already does to the room (design/0008) --
+ * and the bar stands in the space that opens, so the gesture reads before the detail does.
+ * The spine's own transition already covers margin, so nothing jumps. */
+/* github#0 -- THE HOLE IS THE SHAPE OF THE BOOK. `--drop-w` is the carried spine's own width,
+ * written on the neighbour while the drag is over the row, so a fat book opens a fat gap and a
+ * thin one barely parts the shelf. The fallback is the old fixed gap, for a drag that somehow
+ * arrives without one. */
+.vault-shelf .vs-spine[data-drop="before"] { margin-left: calc(var(--drop-w, 18px) + 6px); }
+.vault-shelf .vs-spine[data-drop="after"] { margin-right: calc(var(--drop-w, 18px) + 6px); }
+.vault-shelf .vs-drop[data-side="before"] { left: calc((var(--drop-w, 18px) + 6px) / -2 - 1px); }
+.vault-shelf .vs-drop[data-side="after"] { right: calc((var(--drop-w, 18px) + 6px) / -2 - 1px); }
+
+/* ---- BEGIN: favourites -------------------------------------------------------
+ * design/0019 -- the one shelf that starts empty says what it is for, in the row where the
+ * books will stand: a dashed landing the height of a spine, so an empty Favourites reads as
+ * a shelf with room on it rather than a broken one. While a book is in the air over it the
+ * landing takes the accent, the way the drop mark does between two books; once there is a
+ * book on the shelf the mark from design/0018 says where the next one goes and this is gone.
+ * The menu line ("Take off Favourites" / "Add to Favourites") sits under "Automatic" and is
+ * sized by the same rule every button is.
+ */
+.vault-shelf .vs-dropzone {
+  flex: 1 1 auto;
+  height: var(--spine-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  border: 1px dashed var(--border-strong);
+  border-radius: 3px;
+  pointer-events: none;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+.vault-shelf .vs-shelfrail[data-drop="1"] .vs-dropzone {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--surface-1);
+}
+.vault-shelf .vs-dyepick { width: 100%; margin-top: 6px; justify-content: center; }
+
+/* github#0 -- DELETE LOOKS ORDINARY UNTIL IT IS ARMED, and then it looks like what it is. It
+ * lives in this block rather than beside the other Manage rules because the Manage sheet is
+ * being reworked on another branch; the geometry is the shared button's, so only the colour
+ * is said here. */
+/* github#0 -- THE GRIP IS INVISIBLE AND THE BOARD IS NOT. The floor is a background in
+ * page.css and a texture in each look, so the thing you grab is a transparent strip laid over
+ * it: one grip, three looks, and no look has to know. It is taller than the board so it can be
+ * hit, and it lights only while the pointer is on it. */
+.vault-shelf .vs-floorgrip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--spine-h);
+  height: calc(var(--board) + 8px);
+  margin-top: -4px;
+  cursor: grab;
+  z-index: 3;
+}
+.vault-shelf .vs-floorgrip:active { cursor: grabbing; }
+.vault-shelf .vs-floorgrip:hover {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 2px;
+}
+/* github#0 -- THE SHELF LEAVES THE ROOM WHILE IT IS BEING CARRIED, and a box of its own height
+ * stands wherever it would land. That is the indicator: not a line to read, but the space
+ * itself, with everything below it pushed down by exactly what is coming back. */
+.vault-shelf .vs-shelf[data-carrying="1"] { display: none; }
+
+.vault-shelf .vs-shelfghost {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 26px;
+  border: 2px dashed var(--accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  pointer-events: none;
+}
+.vault-shelf .vs-ghostname {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.vault-shelf .vs-ghostmeta { font-size: 11.5px; opacity: 0.8; }
+/* The shelf lands above or below the one it was dropped on, and the bar says which. */
+.vault-shelf .vs-shelf[data-shelfdrop] { position: relative; }
+.vault-shelf .vs-shelf[data-shelfdrop]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+  pointer-events: none;
+  z-index: 4;
+}
+/* github#0 -- and a shelf makes room the same way, one axis along: the shelf under the pointer
+ * steps down (or up) and the bar stands in the gap. Without it a shelf drag was a hairline
+ * somewhere in a tall room and no sense that anything had moved. */
+/* The ghost is the space and the answer; the shelf either side of it does not also need to
+ * open a margin, which would be the same gap twice. */
+.vault-shelf .vs-shelf { transition: margin 160ms ease; }
+
+.vault-shelf .vs-delete[data-armed="1"] {
+  color: #fff;
+  background: var(--g8);
+  border-color: var(--g8);
+  font-weight: 600;
+}
+
+/* design/0019 -- A BOOK ON ITS WAY OFF THE SHELF says so where the book is, not where the
+ * pointer is: the spine left behind on the rail goes to an outline while the drop would take
+ * it off, so the gesture reads as "this one is leaving" rather than "something is happening
+ * somewhere". Dashed, because the same dashes are what an empty landing is drawn with. */
+.vault-shelf .vs-spine[data-leaving="1"] {
+  opacity: 0.28;
+  border-style: dashed;
+  border-color: var(--border-strong);
+}
+/* ---- END: favourites ---- */
 
 /* ---- magic 1: shelf wear -------------------------------------------------
  * design/0008 -- a book you open often looks handled. Four steps, and every one of them is
@@ -767,13 +898,19 @@
  *   the SETTING  the book's title and its contents are set in the reading face, because a
  *                book's index is printed in the same type as its text.
  */
+/* github#0 -- "make the open book a bit smaller, the clicking outside of it is fragile". The
+ * spread filled the measure and nearly the height, so the desk you click to put the book down
+ * was a few pixels at the edges -- and putting a book down is the commonest thing anybody does
+ * in the reader. It is inset now: a hand's width of desk on each side and a real gutter under
+ * it, which costs the page 96px of width it was not using for text anyway (the note is capped
+ * at 66ch by design/0010). */
 .vault-shelf .vs-spread {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
   width: 100%;
-  max-width: var(--measure);
-  margin: 0 auto 14px;
+  max-width: min(calc(var(--measure) - 96px), calc(100% - 96px));
+  margin: 0 auto 30px;
   display: grid;
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   position: relative;
@@ -1011,6 +1148,24 @@
 /* design/0015 -- THE LAYERS OF THE INDEX. A year tab is the widest and boldest, a month tab
  * steps in, a day tab steps in again: read down the edge and the shape says which is which
  * before the label does. */
+/* github#0 -- the glass tab is an index entry for the act of looking: same tab, same height,
+ * and a wider glyph than a year so the eye finds it at the head of the strip. */
+.vault-shelf .vs-tabs .vs-findtab {
+  /* THE SAME BOX AS A YEAR TAB. A control that is a different height from the one under it is
+   * the thing the look check exists to catch (design/0016); the glyph is bigger and the line
+   * is shorter by exactly as much -- 15 x 1.15 is 11.5 x 1.5 -- so the strip stays even. */
+  font-size: 15px;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-align: center;
+}
+.vault-shelf .vs-tabs .vs-findtab:hover,
+.vault-shelf .vs-tabs .vs-findtab:focus-visible {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 .vault-shelf .vs-tabs button[data-level="0"] { font-weight: 600; }
 .vault-shelf .vs-tabs button[data-level="1"] { margin-left: 8px; min-width: 36px; }
 .vault-shelf .vs-tabs button[data-level="2"] { margin-left: 16px; min-width: 30px; font-size: 10px; opacity: 0.85; }
@@ -1388,6 +1543,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .vault-shelf .vs-shelf { transition: none; }
   .vault-shelf .vs-spine { transition: none; }
   .vault-shelf .vs-spine:hover, .vault-shelf .vs-spine:focus-visible { transform: none; }
   .vault-shelf[data-query="1"] .vs-spine[data-match="1"] { transform: none; }
@@ -1411,7 +1567,7 @@
   justify-content: flex-end;
   gap: 7px;
   width: 100%;
-  max-width: var(--measure);
+  max-width: min(calc(var(--measure) - 96px), calc(100% - 96px));
   margin: 0 auto;
   padding: 0 30px;
   /* THE ROW OWNS THE SPACE ABOVE THE BOOK, in every look, so that a ribbon comes out of the

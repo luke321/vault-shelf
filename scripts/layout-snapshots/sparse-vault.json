@@ -7,6 +7,14 @@
  "room": 1125,
  "shelves": [
   {
+   "shelf": "favourites",
+   "rows": 1,
+   "books": 0,
+   "plaques": [],
+   "first": null,
+   "last": null
+  },
+  {
    "shelf": "encyclopedia",
    "rows": 1,
    "books": 23,

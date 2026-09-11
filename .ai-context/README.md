@@ -54,6 +54,7 @@ changing what a shelf contains or how a book is addressed.
 | `0017-the-cyberpunk-look` | The third look, and the selector that picks it: neon is the light in the room, never the paint on the objects |
 | `0018-the-manual-shelf` | A shelf with no rule: the order a person dragged the books into, stored as keys, and what a plaque means once a run is whatever is adjacent |
 | `0019-a-plaque-opens-its-run` | Clicking a plate opens the run under it as one book of unique notes, with an address of its own; why open rather than narrow, and why an address rather than none |
+| `0019-the-favourites-shelf` | The shelf at the top that holds references to other shelves' books: why a favourite is an address rather than a copy, and why the reader is never told about it |
 
 **ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
 it explains *why not the other thing*. A DDR describes how a part actually works and the
@@ -93,6 +94,7 @@ __vs.counts()             // notes, shelves, books, spines and plaques on screen
 __vs.checkMembership()    // unique notes per shelf vs what the shelf claims
 __vs.addresses()          // every book's stable address, in order
 __vs.sequence("people")   // one shelf's books in the order they stand, as keys (design/0018)
+__vs.pick("years/2024")   // drop a book onto Favourites; __vs.unpick() takes it off (design/0019)
 __vs.setFilters({ search: "garden" })
 __vs.openBook("months/2026-09", null)
 __vs.setQuery("garden")   // the shelf parts; nothing is removed

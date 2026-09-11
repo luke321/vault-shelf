@@ -18,6 +18,10 @@ The demo vault's own shape: fifteen years to 2026-09-11, recent-heavy (**5 notes
 folder and three notes at the root; **16 named people on a long tail** — one in 44 notes,
 seven in three or fewer — plus a seventeenth who is only ever linked; **43 tags**, three
 levels deep, two non-Latin, three over thirty characters and eighteen on a single note.
+Measured 2026-09-09 on the three fixture vaults: demo 394 notes / 11 folders / 8 people /
+15 tags / 18 undated, sparse 756 notes / 6 folders, library 10,000 notes / 15 folders. The
+demo vault draws **182 spines** across the six shelves that hold books; the seventh,
+Favourites, ships empty (`design/0019`).
 
 ---
 
@@ -30,11 +34,12 @@ starts, so a failure here means every other number would have been measured agai
 `"the page loads with no console errors"` reads `Runtime.exceptionThrown` over CDP and asserts
 zero. It is the cheapest check here and it has caught more than its share.
 
-## The six default shelves are the six default shelves
+## The seven default shelves are the seven default shelves
 
-`"the six default shelves are there, in order"` — `encyclopedia`, `years`, `months`, `weeks`,
-`people`, `tags`, in that order, by id. The order is the argument the product makes on first
-open (`design/0002`), so it is asserted rather than assumed.
+`"the seven default shelves are there, in order, Favourites first"` — `favourites`,
+`encyclopedia`, `years`, `months`, `weeks`, `people`, `tags`, in that order, by id. The order is
+the argument the product makes on first open (`design/0002`, `design/0019`), so it is asserted
+rather than assumed.
 
 ## A shelf's note count is unique notes, never the sum of its books
 
@@ -242,6 +247,8 @@ puts the shelf back the way it found it, because the checks in a shard share one
 every spine on that shelf became draggable and none on the automatic Tags shelf did, and that
 nothing has been written to `order` yet. Measured — demo / sparse / library:
 **18 / 8 / 11 books**, **465 / 194 / 709 addresses** unchanged, **18/18, 8/8, 11/11** spines
+**10 / 8 / 11 books**, **447 / 194 / 709 addresses** unchanged (re-measured 2026-09-11; the
+demo fixture ages weekly, so its book count drifts and the other two are pinned), **10/10, 8/8, 11/11** spines
 draggable, **0** elsewhere.
 
 `"Alt+Right moves a book one place, and it survives a rebuild and a reload"` focuses the first
@@ -280,6 +287,150 @@ one plate over two runs. That was checked by looking — dropping *Marta Ortiz* 
 names on the mirror vault's People shelf gives `A | M | A`, ten plates over ten groups in the
 first row.
 
+## The Favourites shelf holds references, and only references
+
+`design/0019`. Four checks, and each one empties the shelf again on its way out, because the
+checks in a shard share one page.
+
+`"Favourites comes first and empty, fresh and by migration from schema 9"` asserts the fresh
+list is `favourites -> encyclopedia -> years -> months -> weeks -> people -> tags` with a
+`pick` shelf first holding **0 picks**, and that a schema-9 file of three shelves comes up at
+schema **10** as `favourites -> years -> people -> tags` — Favourites at position **0**,
+`direction: "manual"`, and every other shelf in the relative order it already had, a hidden
+People still hidden and a hand-arranged Tags keeping its sequence (`b|a`). A file that already
+says 10 is left alone (`years -> people -> tags`, no pick shelf added); a file whose own shelf
+has taken the id comes up `favourites-2 -> favourites`. A hand-edited pick shelf is normalised:
+`direction` manual, `order` dropped, `plaques` off, and of
+`["years/2024", 7, "years/2024", "nope", "", "people/Ada Lovelace"]` exactly the two real
+addresses survive. Identical on all three shapes, because it is settings arithmetic.
+
+`"a drop onto Favourites adds the book where it landed, and a rebuild keeps it"` dispatches
+real `dragstart` / `dragover` / `drop` events with a `DataTransfer`. The empty rail says
+**"Drag a book here"** at **132px** — a spine's height — and takes the accent while a book is
+over it; a Years book dropped on it arrives holding **the source book's own notes**, addressed
+`favourites/<source address>`; a People book dropped past it draws the **3px "after" mark** from
+`design/0018` and lands second; dragging that one onto the first's left half reverses the two
+and leaves **0** marks behind. A rebuild, a folder filter and `core.migrate` over the settings
+blob all read back the same picks, and the favourites' addresses are unchanged across the
+filter. Measured — demo / sparse / library: the dropped year held **2 / 70 / 303 notes**, the
+filter cut the shelf to **4 of 40**, **96 of 115** and **68 of 843** notes without touching the
+picks, the jump chip said **2** on all three, and **17/17**, **6/6** and **12/12** Years spines
+were draggable while **0** of them became `data-hand` handles — lifting is not arranging.
+
+`"a favourite comes off by the menu, and a dead pick is dropped on save and not before"`
+right-clicks a favourite's spine and asserts the `#vs-dye` menu offers **"Take off
+Favourites"**, then right-clicks the source spine and asserts the same menu offers **"Add to
+Favourites"**. It then hides the People shelf — **2 of 2** favourites still resolve, because
+hiding keeps a shelf's books — and then deletes that shelf from the settings: **1 of 2**
+resolves while the picks are still both, and only the next save writes the survivors. Measured
+on the demo: `[people/Halvor Estrin, years/2011]` drawn as one book, still two picks in the
+file, and `[years/2011, months/2011-09]` after a save. Restoring the shelf brings the book back.
+
+`"a favourite dragged off the shelf comes off, and a cancelled drag does not"` drives the
+gesture in four parts and is the check that guards the one unrecoverable act in this feature.
+Carrying a favourite off the rail marks its spine as leaving and clears the insertion mark
+(**0** left on the rail); dropping it on the Years shelf takes it off Favourites and **does not**
+add it to Years, which still has **17 / 6 / 12** books. Carried off and back over the rail the
+mark clears again and the book stays — landing at the **end**, which is what a drop past the last
+book means everywhere on this shelf, so membership is asserted and the order is reported. A drag
+that ends with **no drop at all** — Escape, or a drop outside the window — keeps the book and
+leaves **0** spines marked; that is the cancel path, and it is why removal is bound to `drop`
+rather than to `dragend`. A spine from an ordinary shelf dragged across the library changes
+nothing.
+
+`"a second favourites shelf is built from the builder and holds its own books"` drives the
+builder's own controls rather than `addShelf`: it opens the New shelf sheet, types a name, picks
+**Books you drag onto it** and saves. It asserts the classifier list offers `pick`; that what
+was saved is `manual`, has an empty `picks`, no `order` and no plaques; and that the form drops
+the source question, the order and the recipes while **keeping the classifier** — the control
+that made it a pick shelf and the only way back out — and shows the hint in place of the rule.
+Then it holds **two** pick shelves at once, `Favourites` and `Reading list`, with **1 and 2**
+books over **2** rails: the same year book sits on both and has **2 addresses**, one per shelf,
+and taking it off the first leaves **0** there and **2** on the second. The right-click menu on
+an ordinary spine offers exactly `Add to Favourites | Add to Reading list`. Identical on all
+three shapes, because it is the builder and the settings rather than the vault.
+
+`"a note in two favourites is one note on the shelf"` favourites a year and one of its months,
+so every note of the month is in both books. Measured — demo / sparse / library: **3 places /
+2 unique**, **86 / 70**, **338 / 303**; the shelf claims the unique count and its header says
+so. It is the same law as *a shelf's note count is unique notes*, one level further out, and
+`checkMembership` walks the pick shelf like any other.
+
+Not covered by a number: that the reader is never told a pick shelf exists. Opening a favourite
+opens the source book, so `resolveReading`, `alsoShelvedIn` and the wikilink search all skip
+pick shelves — the argument is in `design/0019`, and what a check would have to assert is the
+absence of a second address for one book.
+
+## The room parts, the twelve are offered, and the thread is tonal
+
+`"the room parts where a thing will land, the twelve are offered, and a shelf goes from its own
+sheet"` measures four things a person asked for in one breath.
+
+**The room parts, and the gap is the shape of what is coming.** The neighbour steps
+aside instead and the bar stands in the space that opens — the same parting the query does to the
+room. Because it is a CSS transition, it is read **after** it runs rather than in the same tick:
+a book's neighbour opens to the carried book's own width — **53px for a 47px book** — and settles
+back to 0, with the **3px** bar standing in the gap. A **shelf** does not open a margin at all:
+it leaves the room while carried and a ghost of its height stands where it would land
+(**226px**, named *Years · 17 books*), with **0** ghosts and **0** carried marks left behind.
+The row, not the spine, hears the drag, because a gap opened on the target used to take the
+target out from under the pointer (`design/0018`).
+
+The shelf half of that has a condition worth knowing: a `.vs-shelf` off screen has
+`content-visibility: auto`, so its rendering is skipped and **the transition never runs** —
+measured on the 10k library, where the check read 0 → 0 until it scrolled the shelf into view
+first. That is right for the product (a person parts the shelf they are looking at) and a trap
+for a check, which has to scroll before it measures.
+
+**The twelve are offered.** A slot's swatch used to open the operating system's colour picker,
+which has sixteen million colours and none of this library's twelve. It opens a popover of the
+**12** current slots — 12 distinct — with *Custom…* behind them and, on a changed slot, the way
+back to the look's own. Choosing the seventh puts that colour on the slot and saves **12**.
+
+**A shelf goes from the sheet it is edited in.** *Delete shelf* appears in the builder only when
+editing (not on a new one), reads *Delete*, then *Really delete?*, leaves the shelf standing
+until the second press, and closes the sheet when it goes.
+
+**The thread is tonal, and the look paints it.** Every unchosen ribbon keeps its board's hue
+(**22/22** on the demo) and sits more than a fifth of the lightness away from it (**22/22**).
+The check reads the ribbon element's **painted** colour rather than the custom property, and
+asserts it equals the thread the book asked for — because the first version read the property,
+passed, and missed a look painting `#ad5447` over every ribbon in the library. Demo: **6**
+distinct threads where there was **1**. The count is not asserted: the sparse vault honestly
+shows one, since nearly every book there draws from the same folder and wears the same dye.
+
+**The glass heads the index.** A magnifying-glass tab stands above the index entries in the
+reader's right-hand strip, the same height as a year tab. Pressing it takes the left page from
+**400px** back to **0** and leaves the cursor in the find box; Ctrl/Cmd+F does the same. It is
+not an index entry — it names an act rather than a position — so every check that counts index
+tabs excludes it. Every unchosen ribbon keeps its board's hue (**21/21** on the demo) and
+sits more than a fifth of the lightness away from it (**21/21**), which is what makes it visible
+without making it a different colour.
+
+## A shelf can be deleted, placed and carried
+
+`"a shelf is deleted on the second press, made at the end the button is at, and carried by its
+floor"` covers the three things Manage and the library could not do.
+
+**Placed.** There is a *+ New shelf* at each end of the library (`design/0009`) and both of them
+used to append, so the one at the top sent the shelf past everything to the bottom. The top
+button now builds at position 0 and the foot button appends; the check builds one from each and
+asserts the first is first and the last is last, with every other shelf's relative order kept.
+
+**Carried.** Every row of every shelf carries a floor grip (**grips == rows**, and the builder's
+preview carries none), and the board measures **5px** in the default look and **10px** under
+leather. Dragging a shelf by its floor onto the lower half of another draws an *after* mark and
+lands it below that shelf, leaving **0** marks behind. A book dragged onto Favourites in the same
+breath leaves the shelf order untouched — a spine is a book, a board is a shelf.
+
+**Deleted.** The button arms on the first press (*Delete* → *Really delete?*), the shelf is still
+there until the second, and arming another row disarms the first. What goes with a deleted shelf:
+the wear and hand-given colours keyed by its addresses (**0** keys survive), and any favourite
+pointing at its books, which is the rule `design/0019` already had. What does not go is a reading
+place: it names a note, and `core.resolveReading` finds that note another home.
+
+Hiding still never deletes, and deleting says so twice before it does.
+
 ## Hiding a shelf hides it, and never deletes it
 
 `"a hidden shelf keeps its definition and its books"` hides the Tags shelf, asserts the
@@ -291,6 +442,13 @@ books.
 `"hiding every shelf offers a way back rather than an empty room"` hides all six and asserts a
 recovery card with a working button is on screen and zero spines are drawn, then restores.
 An empty room with no way out is the worst reachable state in this product.
+
+## The book sits on a desk you can hit
+
+`"a click off the book puts it down, and a click on it does not"` measures the desk beside the
+open book, which is what a click has to land on to close it. The spread is inset from the measure
+now — it was filling it — so the desk went from **42px** to **90px** on the demo vault. The book
+is the same book; there is simply somewhere to put it down.
 
 ## The reader
 
@@ -595,7 +753,7 @@ the rail's field.
 ### A ribbon is per book colour
 
 `design/0008`. There are **twelve ribbons, one per palette slot** (`settings.ribbons`), and a
-ribbon nobody has chosen is its dye's **complement**, computed from the cascade rather than
+ribbon nobody has chosen is its dye's own hue **deepened**, computed from the cascade rather than
 stored so it follows the look and the host theme. `--ribbon` is written per spine and per
 open book, never once on the root.
 
@@ -625,7 +783,7 @@ after *Reset colours*.
 "all settings persistent naturally") runs each thing the sheet can set through `persist()`
 and back through `core.migrate`, which is the reload path in both hosts. It asserts the block
 opens as **12 rows, 12 dyes painted their slot's colour, 12 ribbons, numbered 1-12, 0 marked
-and the reset disabled**; that every unchosen ribbon is its dye's complement — **12 of 12** a
+and the reset disabled**; that every unchosen ribbon is separated from its dye — **12 of 12** a
 third of the hue wheel away or a fifth of the lightness apart, and **12 of 12** visibly
 lighter or darker than their dye, which is the assertion that caught a rule returning a thread
 the same weight as its board on mid-lightness dyes; picking slot 3
@@ -894,7 +1052,7 @@ the timings and the `undefined` are the claims, and the three counts move with t
 |---|---|
 | the plugin loads | 394 markdown files; ready 0–1,600 ms after enabling |
 | the bookshelf icon is in the ribbon | 4 shapes at 18×18px, rail stroked |
-| the view opens and the library renders | 6 shelves, 182 spines, 6 year plaques, 1,250 ms |
+| the view opens and the library renders | 6 shelves, 182 spines, 6 year plaques, 1,250 ms — measured before `design/0019`; a fresh install now opens **7** shelves, the first one empty, and the spine count is unchanged |
 | the tab carries the same icon | 4 shapes in the tab header |
 | people and tags came from the metadata cache | 9 people books, 16 tag books |
 | the debug surface is not shipped | `window.__vs` is `undefined` inside Obsidian |
@@ -1006,6 +1164,29 @@ breaks nothing and is asserted on reaching the lint gate.
 
 Every case asserts the tag count **before and after**, and all ten are `0 -> 0`: a guard that
 fires after a tag has been written is not a guard, and a published tag cannot be moved.
+## A native drag is the one gesture the harness cannot drive
+
+**This is the gap that let shelf dragging break completely while 77 checks passed.** A synthetic
+`DragEvent` is an event object; a real drag is a state machine the browser owns. Two things only
+the real one has, and both bit:
+
+- **Hiding the source cancels the drag.** `liftShelf` took the carried shelf out of the layout
+  inside the `dragstart` handler. Chrome takes the drag image and then keeps watching the
+  element, so removing it ends the gesture before it starts -- nothing moved, at all, for a
+  person. A synthetic dragstart has no such lifecycle to lose, so every check stayed green. The
+  lift happens on the next tick now.
+- **A dragover nobody accepts means no drop is ever offered.** A synthetic `drop` lands whether
+  or not anything called `preventDefault` on the dragover before it, so a target that refuses
+  every drag still passes a synthetic check. The check now asserts `defaultPrevented` on the
+  dragover it dispatches, which is the part that is really about acceptance.
+
+What still cannot be measured here: the drop itself. Chrome only synthesises a native drag under
+`Input.setInterceptDrags`, and an intercepted drag is handed to the debugger rather than to the
+page -- measured, with interception on and the drag forwarded back: **dragstart 1, dragover 1,
+drop 0**. The page was proven to *accept* the drag (`accepted: 1`, and the ghost appeared and
+followed), but the drop that would follow it in a real browser was never delivered. So the drop
+handler is covered by a synthetic drop, the acceptance by `defaultPrevented`, and **the join
+between them by hand**.
 
 ## Not covered here
 

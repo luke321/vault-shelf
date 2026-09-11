@@ -176,7 +176,7 @@ export function coverFor(key: string, kind: ClassifierKind): string {
  * than an unfamiliar-looking label.
  */
 export function plaqueFor(key: string, shelf: Shelf): string | null {
-  if (!shelf.plaques) return null;
+  if (!shelf.plaques || shelf.classifier === "pick") return null;
   if (key === UNDATED) return null;
   if (shelf.classifier === "month") return key.slice(0, 4);
   if (shelf.classifier === "week") return key.slice(0, 4);
@@ -200,7 +200,14 @@ export function decadeOf(year: string): string | null {
  * design/0002
  */
 
-export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "oldest"): ShelfView {
+/**
+ * design/0019 -- a pick shelf classifies nothing. Its books are other shelves' books, resolved
+ * against `sources` -- the views of every other shelf, hidden ones included -- so `buildLibrary`
+ * is the caller that has them; handed nothing, a pick shelf is simply empty.
+ */
+export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "oldest",
+                           sources: ShelfView[] = []): ShelfView {
+  if (shelf.classifier === "pick") return buildPicks(shelf, sources);
   const includeSubtags = shelf.includeSubtags !== false;
   const members = notes.filter((n) => matchesSource(n, shelf.source, includeSubtags));
   const byKey = new Map<string, Note[]>();
@@ -236,6 +243,91 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
     books: shelf.direction === "manual" ? arrange(books, shelf.order) : books,
     noteCount: members.length,
   };
+}
+
+/**
+ * design/0019 -- A FAVOURITE IS THE SOURCE BOOK, LIVE. Its label, notes and bands are read off
+ * the source on every build, so a favourite Year 2024 grows as notes arrive; only the address
+ * is its own -- `<pick shelf>/<source address>`, the key being the whole source address, which
+ * is what `decisions/0002` says survives. A pick that resolves to nothing is SKIPPED, not
+ * dropped: reading is where a filter is in force, and a filter is not a deletion. The plaque
+ * is null because a shelf arranged by dropping has no unit above the book.
+ */
+function buildPicks(shelf: Shelf, sources: ShelfView[]): ShelfView {
+  const byId = new Map<string, Book>();
+  for (const view of sources) {
+    if (view.shelf.classifier === "pick") continue;
+    for (const book of view.books) byId.set(book.id, book);
+  }
+  const books: Book[] = [];
+  const seen = new Set<string>();
+  for (const pick of shelf.picks ?? []) {
+    const source = byId.get(pick);
+    if (!source) continue;
+    books.push({
+      id: bookId(shelf.id, pick),
+      shelfId: shelf.id,
+      key: pick,
+      label: source.label,
+      /* github#12 -- a favourite wears the source's cover, not its own: the spine on the
+       * Favourites rail and the spine it points at are the same book. */
+      cover: source.cover,
+      plaque: null,
+      notes: source.notes,
+      bands: source.bands.map((b) => ({ ...b })),
+      matches: 0,
+    });
+    for (const n of source.notes) seen.add(n.id);
+  }
+  return { shelf, books, noteCount: seen.size };
+}
+
+/**
+ * design/0019 -- every shelf, in position order, with the pick shelves built LAST and against
+ * the rest: a favourite at position 0 can only be resolved once the shelf it points at exists.
+ * Hidden shelves are built too -- hiding keeps a shelf's books, so a favourite of one still
+ * resolves.
+ */
+export function buildLibrary(shelves: Shelf[], notes: Note[], order: NoteOrder = "oldest"): ShelfView[] {
+  const ordered = shelves.slice().sort((a, b) => a.position - b.position);
+  const built = new Map<string, ShelfView>();
+  const sources: ShelfView[] = [];
+  for (const shelf of ordered) {
+    if (shelf.classifier === "pick") continue;
+    const view = buildShelf(shelf, notes, order);
+    built.set(shelf.id, view);
+    sources.push(view);
+  }
+  return ordered.map((shelf) => built.get(shelf.id) ?? buildShelf(shelf, notes, order, sources));
+}
+
+/** design/0019 -- every address a pick can currently point at: the books of every non-pick shelf. */
+export function pickable(views: ShelfView[]): Set<string> {
+  const out = new Set<string>();
+  for (const view of views) {
+    if (view.shelf.classifier === "pick") continue;
+    for (const book of view.books) out.add(book.id);
+  }
+  return out;
+}
+
+/**
+ * design/0019 -- ONE WRITE FOR ADD, MOVE AND REMOVE, and it is the write that drops dead picks.
+ * `live` is what the UNFILTERED library can resolve, so a source a filter is hiding keeps its
+ * place and one the vault has lost goes -- on save, the only moment either question has an
+ * answer nobody has to guess (design/0018). `moveBefore` takes the pick out and puts it back
+ * in front of `before`, which is what makes a drop of a new book and a drop of one already on
+ * the shelf the same act.
+ */
+export function pickBefore(picks: string[] | undefined, live: Set<string>, sourceId: string,
+                           before: string | null): string[] {
+  const kept = (picks ?? []).filter((p) => live.has(p));
+  if (!live.has(sourceId)) return kept;
+  return moveBefore(kept, sourceId, before);
+}
+
+export function unpick(picks: string[] | undefined, live: Set<string>, sourceId: string): string[] {
+  return (picks ?? []).filter((p) => live.has(p) && p !== sourceId);
 }
 
 /**
@@ -406,7 +498,7 @@ export function markMatches(views: ShelfView[], query: string): { books: number;
 export function alsoShelvedIn(noteId: string, views: ShelfView[], exceptBook: string): Book[] {
   const out: Book[] = [];
   for (const view of views) {
-    if (view.shelf.hidden) continue;
+    if (view.shelf.hidden || view.shelf.classifier === "pick") continue;
     for (const book of view.books) {
       if (book.id === exceptBook) continue;
       if (book.notes.some((n) => n.id === noteId)) out.push(book);
@@ -486,10 +578,13 @@ export function plaqueBookFor(view: ShelfView, plaque: string, noteId: string | 
  * re-resolved rather than trusted: the book it names if that book still holds the note,
  * otherwise the first visible book anywhere that does.
  */
+/* design/0019 -- THE READER NEVER SEES A PICK SHELF. A favourite is its source book, so the
+ * reading place, the ribbon and the also-shelved-in list all name the source; offering the
+ * favourite as well would be the same book twice under two addresses. */
 export function resolveReading(noteId: string, bookId_: string, views: ShelfView[],
                                order: NoteOrder = "oldest"): Book | null {
   for (const view of views) {
-    if (view.shelf.hidden) continue;
+    if (view.shelf.hidden || view.shelf.classifier === "pick") continue;
     for (const book of view.books) {
       if (book.id === bookId_ && book.notes.some((n) => n.id === noteId)) return book;
     }
@@ -504,7 +599,7 @@ export function resolveReading(noteId: string, bookId_: string, views: ShelfView
     }
   }
   for (const view of views) {
-    if (view.shelf.hidden) continue;
+    if (view.shelf.hidden || view.shelf.classifier === "pick") continue;
     for (const book of view.books) {
       if (book.notes.some((n) => n.id === noteId)) return book;
     }

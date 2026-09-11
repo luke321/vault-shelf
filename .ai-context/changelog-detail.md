@@ -1,5 +1,153 @@
 # Changelog detail
 
+## 2026-09-11 — A Favourites shelf you drag books onto
+
+> "drag and drop shelf should be at the top as favourites"
+
+`design/0018` gave any shelf a manual order, but a manual shelf still only holds the books its
+own classifier makes. The library now opens on a **Favourites** shelf at position 0 that starts
+empty and holds whichever books were dragged onto it, from any shelf, in the order they were
+dropped. `design/0019` records the model; `decisions/0002` is what it rests on.
+
+**A favourite is a reference, stored as the source book's address.** `ClassifierKind` gains
+`"pick"`; a pick shelf carries `picks: string[]` and classifies nothing. `core.buildLibrary`
+builds the ordinary shelves first and the pick shelves against them, so a shelf at position 0
+resolves against shelves that come after it, hidden ones included. The favourite's key is the
+whole source address, so its own address has two slashes (`favourites/years/2024`) — nothing in
+the page splits an address on more than the first one, and the drop check now carries the case.
+Label, notes, bands and plaque (`null`) are the source's, live.
+
+**`picks` is the only list.** A pick shelf is `manual` always and never carries `order`:
+membership and sequence are one question here. One write serves add, move and remove
+(`core.pickBefore` / `core.unpick`), made against what the **unfiltered** library resolves — so
+a dead pick is dropped on save and never on read, which is the argument `design/0018` makes
+about a manual key under a filter.
+
+**Schema 9 → 10.** A file without a pick shelf gets one at position 0 and every other shelf
+moves down one place in the order it already had; a file already at 10 is left alone, and one
+whose own shelf took the id gets `favourites-2`. A hand-edited pick shelf comes up normalised:
+of `["years/2024", 7, "years/2024", "nope", "", "people/Ada Lovelace"]` the two real addresses
+survive, `order` is dropped and `plaques` goes off.
+
+**The ribbon is the board's own colour, deeper.** *"the complimentary default color ribbon for
+the standard leather book is ugly as hell, suggest something better ... I don't [think]
+complimentary works here."* Right: an opposite hue is for two colours competing for attention,
+and a ribbon is not competing with the book it is sewn into — a binder does not put green silk in
+an oxblood book. `threadOf()` is the old `complementOf()` with the hue turn taken out; the
+saturation lift and the lightness push stay, because the separation was never the problem. A grey
+keeps the one warm thread. Measured: **21/21** spines keep their board's hue, **21/21** a fifth of
+the lightness away.
+
+**The drag layer, reworked.** *"the dragging a book between 2 books is flakey"*, *"shelf dragging
+has no indicator at all where the shelf will end, let me drag the whole shelf with preview and
+make space for it"*, *"make the open book a bit smaller, the clicking outside of it is fragile"*.
+
+*A book.* The spine answered `dragover` for itself, and the gap a mark opens is the target's own
+margin — so the moment it opened, the pointer was in the gap rather than on the book, the mark
+cleared, the gap shut, and it started again twice a second. The **row** hears the drag now and
+picks the place by geometry, so opening a gap cannot take the target away from the pointer. The
+gap is the carried book's own width: **53px for a 47px book**.
+
+*A shelf.* It leaves the room while carried and a **ghost of its own height** — named, outlined —
+stands wherever it would land, pushing everything below it down by what is coming back. Measured:
+**226px**, *Years · 17 books*, and nothing left behind afterwards.
+
+*The book on the desk.* The spread filled the measure, so the desk you click to put a book down
+was a few pixels at the edges. It is inset by 96px: the desk beside it went **42px → 90px**, and
+the note is unaffected, being capped at 66ch anyway.
+
+**The look was painting over the thread.** The tonal rule was only half of it: leather hard-coded
+`#ad5447` on every `.vs-ribbon`, so no book's own thread ever reached the shelf in the look a
+fresh library opens in. Both looks paint `var(--ribbon)` under their own sheen now. The check
+that should have caught it was reading the custom property rather than the paint, and passed; it
+reads `backgroundColor` now and compares it to what the book asked for. Demo: **6** distinct
+threads where there was **1**, **22/22** painted as chosen.
+
+**A magnifying glass at the head of the index.** The reader's right-hand strip jumps to places in
+the book; the box that searches *inside* the book is at the top of the left page, where nobody is
+looking while reading the right one. A glass tab above the index scrolls the left page up and
+puts the cursor in that box — **400px → 0** and focused — and Ctrl/Cmd+F does the same. It is the
+same height as a year tab (15 × 1.15 is 11.5 × 1.5), and every check that counts index tabs
+excludes it, because it names an act rather than a position.
+
+**The colour picker offers the twelve.** A slot's swatch opened the operating system's picker —
+sixteen million colours and none of the library's own — so putting slot 7's dye on a ribbon meant
+reading a hex out of one control and typing it into another. It opens a popover of the twelve,
+with *Custom…* behind them and the way back to the look's own on a changed slot.
+
+**A shelf can be deleted from the sheet it is edited in**, not only from Manage, and it asks
+twice there too.
+
+**The room parts where a thing will land.** A 3px bar in a 3px gap said where without saying that
+anything was about to happen. The neighbour steps aside and the bar stands in the gap: a book's
+neighbour **0 → 18px**, a shelf **0 → 34px**, both settling back. It is the parting the query
+already does to the room, one gesture along.
+
+**Three things Manage could not do.** *"there is no delete shelf button"*, *"when I add a shelf
+with the top new shelf button i want it to be on top"*, *"make the shelf floor draggable to re
+arrange shelves"* and *"for that make shelf floors a bit thicker"*.
+
+A Manage row gains **Delete**, which arms on the first press and deletes on the second — no
+`confirm()`, because inside Obsidian that is the app's modal and reads as a bug. It takes the
+deleted shelf's wear and hand-given colours with it, and the favourites pointing at its books,
+which is `design/0019`'s rule that a dead pick goes on save. A reading place survives, because it
+names a note. The empty-room card now tells the two causes apart: every shelf hidden offers *Show
+every shelf*, every shelf **deleted** offers *Build the default shelves*.
+
+**The + New shelf at the top builds at the top**, and the one at the foot appends. Both used to
+append, so the top button sent the shelf past everything.
+
+**A shelf is carried by its floor** (`design/0014`), dropped on the half of another shelf it
+should land on. The grip is a transparent strip laid over the board rather than a floor rebuilt
+as an element, sized from `--board` so all three looks keep their own painting of it — and
+`--board` went **3px → 5px**, because a hairline is fine to look at and impossible to grab.
+Leather already painted **10px** and is unchanged. Measured: grips == rows, an *after* mark on
+the lower half, **0** marks left behind, and a book dragged in the same breath leaving the shelf
+order alone.
+
+**A pick shelf is a kind of shelf, not one shelf.** *"allow users to add multiple favourite type
+shelfs"* — so "What makes a book?" gains **Books you drag onto it**, and a library can hold as
+many as it likes. The form drops the source question, the order and the recipes but keeps the
+classifier, which is the way back out; the right-click menu offers one line per pick shelf, by
+name; a spine's peek names the shelf when there is one and counts them when there are more. A
+book can be on several at once, each reference its own, which is the product's own law one level
+out. Measured: **2** shelves over **2** rails holding **1 and 2** books, the shared year carrying
+**2 addresses**, and taking it off one leaving the other at **2**.
+
+**Dragging one off takes it off.** Carry a favourite off the rail, drop it anywhere else in the
+library, and the shelf loses it; the shelf you dropped it on does not gain it, because
+`takes` only lets a foreign spine land on a pick shelf. It is bound to a **drop** rather than to
+`dragend` so that Escape and a drop outside the window both cancel — a book thrown away by a
+change of mind is the one unrecoverable act here. The spine left on the rail goes to a dashed
+outline while the drop would remove it. The menu line stays as the pointer-free path.
+
+**The interaction.** Every spine in the library is now `draggable` — **17/17**, **6/6** and
+**12/12** Years spines on the three shapes — while **0** of them became `data-hand` handles:
+lifting is not arranging, and an automatic shelf still takes no drop. The Favourites rail is a
+drop target along its whole length; the empty one draws a dashed landing **132px** tall saying
+*Drag a book here* and takes the accent while a book is over it; once there is a book on the
+shelf the **3px** mark from `design/0018` says where the next one goes. The `#vs-dye` menu gains
+one line — *Take off Favourites* on a favourite, *Add to Favourites* on any other spine.
+
+**What was measured.** A Years book dropped on the empty rail arrived with the source's
+**2 / 70 / 303 notes** (demo / sparse / library); a People book dropped past it landed second;
+dragging it onto the first's left half reversed the two and left **0** marks behind. A rebuild,
+a folder filter (**4 of 40**, **96 of 115**, **68 of 843** notes) and `core.migrate` over the
+blob all read back the same picks, with the favourites' addresses unchanged. A year and one of
+its months on the shelf give **3 places / 2 unique**, **86 / 70** and **338 / 303** notes, and
+the shelf claims the unique count. Hiding the source shelf keeps **2 of 2** resolving; deleting
+it leaves **1 of 2** drawn with both picks still in the file until the next save.
+
+**The reader was told nothing.** Opening a favourite opens the source book, so `resolveReading`,
+`alsoShelvedIn` and the wikilink search skip pick shelves: a favourite is a way to reach a book,
+not a second place the note lives. The spine still carries everything that is about the source —
+its wear, its ribbons, its hand-given colour.
+
+Addresses did not move, because the shelf ships empty: **447 / 194 / 709** on demo / sparse /
+library, the same list element for element across a rebuild. `__vs.counts().shelves` is **6 ->
+7**. The suite is
+**66 → 74** checks (eight new, and *the six default shelves* is now *the seven*), green on all
+three shapes.
 ## 2026-09-11 — A plaque opens its run
 
 > github#6: "would be cool if clicking a plaque does something".
@@ -461,7 +609,6 @@ validate.
 | `release.ps1` | 292 lines, pushed the branch and the tag | **609** lines, pushes the tag alone |
 | `.githooks/pre-push` | 313 lines, no lock, suite every gated push | **377** lines, lock held, suite once per tree |
 | `.ai-context/releasing.md` | 125 lines | **295** (the sister repo's is 425; Sigma, the mobile harness and the per-feature doc gallery do not apply here) |
-
 ## 2026-09-11 — A ribbon per book colour, and the colours block became a table
 
 > "make it ribbons so you can choose a color per book color, so basically a table, use

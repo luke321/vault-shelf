@@ -96,8 +96,11 @@
           <option value="tag">Tag</option>
           <option value="folder">Folder</option>
           <option value="property">A note property</option>
+          <option value="pick">Books you drag onto it</option>
         </select>
         <select id="vs-bproperty" aria-label="Which note property" hidden></select>
+        <p id="vs-pickhint" class="vs-hint" hidden>No rule: this shelf holds the books you drag
+          onto it, in the order you drop them.</p>
       </fieldset>
 
       <div class="vs-field vs-row">
@@ -126,11 +129,13 @@
       <div class="vs-mini vs-wide vs-sheetactions">
         <button id="vs-bsave" class="vs-primary">Save shelf</button>
         <button id="vs-bcancel">Cancel</button>
+        <button id="vs-bdelete" class="vs-delete" hidden>Delete shelf</button>
       </div>
     </div>
   </div>
 
   <div id="vs-dye" class="vs-dye" hidden role="menu" aria-label="Colour of this book"></div>
+  <div id="vs-swatchpick" class="vs-dye" hidden role="menu" aria-label="Choose a colour"></div>
   <div id="vs-peek" class="vs-peek" hidden role="tooltip"></div>
 
   <div id="vs-manage" class="vs-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="vs-managetitle">

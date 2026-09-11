@@ -204,6 +204,15 @@ const POINTER_DRIVEN = [
   "drag and drop",
   /* github#5 -- a golden of every box on the page, read at a fixed viewport. */
   "golden snapshot",
+  /* design/0019 -- the same, onto the Favourites rail, and the drag that takes one off it. */
+  "onto Favourites",
+  "dragged off",
+  /* design/0019 -- it clicks the builder open and reads the form it draws. */
+  "second favourites shelf",
+  /* github#0 -- it reads boxes: a drop on the lower half of a shelf, and a floor grip. */
+  "carried by its floor",
+  /* github#0 -- it reads margins while a drag is in the air. */
+  "the room parts",
 ];
 const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
 
@@ -224,9 +233,9 @@ check("__vs is present and the library rendered", async (p) => {
            detail: `${c.notes} notes, ${c.shelves} shelves, ${c.books} books, ${c.spines} spines drawn` };
 });
 
-check("the six default shelves are there, in order", async (p) => {
+check("the seven default shelves are there, in order, Favourites first", async (p) => {
   const ids = await p.j("__vs.views().map(function(v){return v.shelf.id})");
-  const want = ["encyclopedia", "years", "months", "weeks", "people", "tags"];
+  const want = ["favourites", "encyclopedia", "years", "months", "weeks", "people", "tags"];
   const ok = JSON.stringify(ids) === JSON.stringify(want);
   return { ok, detail: ok ? want.join(" -> ") : `got ${ids.join(" -> ")}` };
 });
@@ -684,6 +693,9 @@ check("a settings file from an older schema comes up with the newer defaults", a
       reading: [], wear: { "years/2026": 3 }, dateFields: ["date"],
       peopleFields: ["people"], useFileStamp: false
     };
+    var only = function (settings, id) {
+      return settings.shelves.filter(function (s) { return s.id === id; })[0];
+    };
     var up = core.migrate(old);
     var byId = {};
     up.shelves.forEach(function (s) { byId[s.id] = s; });
@@ -718,12 +730,15 @@ check("a settings file from an older schema comes up with the newer defaults", a
              fields: up.dateFields.join(","), keptOff: keptYears.plaques,
              stamp: up.useFileStamp, keptStampOff: core.migrate(atThree).useFileStamp,
              order: up.noteOrder,
-             lettered: core.migrate({ schema: 5, shelves: [{ id: "people", name: "People",
+             /* design/0019 -- BY ID, NOT BY POSITION: schema 10 puts a Favourites shelf in
+              * front of whatever a file carried, so shelves[0] is no longer the shelf under
+              * test. */
+             lettered: only(core.migrate({ schema: 5, shelves: [{ id: "people", name: "People",
                source: { kind: "all" }, classifier: "person", direction: "alphabetical",
-               hidden: false, position: 0, plaques: false }] }).shelves[0].plaques,
-             weeksHidden: core.migrate({ schema: 1, shelves: [{ id: "weeks", name: "Weeks",
+               hidden: false, position: 0, plaques: false }] }), "people").plaques,
+             weeksHidden: only(core.migrate({ schema: 1, shelves: [{ id: "weeks", name: "Weeks",
                source: { kind: "all" }, classifier: "week", direction: "chronological",
-               hidden: false, position: 0, plaques: true }] }).shelves[0].hidden,
+               hidden: false, position: 0, plaques: true }] }), "weeks").hidden,
              keptShown: shown ? shown.hidden === false : false };
   })()`);
   /* People carries plaques from schema 6 too -- the alphabet is a unit above the book like a
@@ -795,7 +810,7 @@ check("the index tabs cut the book the way the book is ordered", async (p) => {
   const r = await p.j(`(function(){
     function tabsFor(id) {
       __vs.openBook(id, null);
-      var out = [].slice.call(document.querySelectorAll("#vs-tabs button"))
+      var out = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab)"))
         .map(function (b) { return b.textContent; });
       var titles = [].slice.call(document.querySelectorAll("#vs-contents .vs-t"))
         .map(function (t) { return t.textContent; });
@@ -1156,6 +1171,944 @@ check("a filter narrows an arranged shelf without shuffling it", async (p) => {
     detail: `an arranged People shelf opening ${r.head.join(", ")}: ${r.full} books narrow to ` +
             `${r.narrow} under "${folder}" and every one of them is still in the arranged order ` +
             `(${r.ordered}); clearing the filter puts all ${r.full} back in it (${r.back})`
+  };
+});
+
+/* design/0019 -- the four that hold the Favourites shelf up. Each one empties the picks again
+ * on its way out, because the checks in a shard share one page. */
+
+check("Favourites comes first and empty, fresh and by migration from schema 9", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var byPos = function (list) {
+      return list.slice().sort(function (a, b) { return a.position - b.position; });
+    };
+    var ids = function (list) { return byPos(list).map(function (s) { return s.id; }); };
+    var fresh = byPos(core.emptySettings().shelves);
+    var nine = { schema: 9, shelves: [
+      { id: "years", name: "Years", source: { kind: "all" }, classifier: "year",
+        direction: "chronological", hidden: false, position: 0, plaques: true },
+      { id: "people", name: "People", source: { kind: "all" }, classifier: "person",
+        direction: "alphabetical", hidden: true, position: 1, plaques: true },
+      { id: "tags", name: "Tags", source: { kind: "all" }, classifier: "tag",
+        direction: "manual", order: ["b", "a"], hidden: false, position: 2, plaques: true }
+    ] };
+    var up = core.migrate(nine);
+    var fav = up.shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    var tags = up.shelves.filter(function (s) { return s.id === "tags"; })[0];
+    /* A file already at 10 means what it says, even with no pick shelf in it. */
+    var ten = core.migrate({ schema: 10, shelves: nine.shelves });
+    /* A shelf a person made and called Favourites already holds the id. */
+    var taken = core.migrate({ schema: 9, shelves: [
+      { id: "favourites", name: "Favourites", source: { kind: "tag", value: "fav" },
+        classifier: "tag", direction: "alphabetical", hidden: false, position: 0, plaques: false }
+    ] });
+    /* A hand-edited pick shelf comes up well-formed. */
+    var hand = core.migrate({ schema: 10, shelves: [
+      { id: "favourites", name: "Favourites", source: { kind: "all" }, classifier: "pick",
+        direction: "alphabetical", order: ["x"], plaques: true, hidden: false, position: 0,
+        picks: ["years/2024", 7, "years/2024", "nope", "", "people/Ada Lovelace"] }
+    ] }).shelves[0];
+    return { freshFirst: fresh[0].id, freshKind: fresh[0].classifier,
+             freshPicks: fresh[0].picks.length, freshIds: ids(fresh),
+             schema: up.schema, ids: ids(up.shelves), favPos: fav ? fav.position : -1,
+             favPicks: fav ? fav.picks.length : -1, favDir: fav ? fav.direction : "",
+             peopleHidden: up.shelves.filter(function (s) { return s.id === "people"; })[0].hidden,
+             tagsOrder: (tags.order || []).join("|"),
+             tenIds: ids(ten.shelves), takenIds: ids(taken.shelves),
+             hand: { direction: hand.direction, order: hand.order === undefined,
+                     picks: hand.picks.join("|"), plaques: hand.plaques } };
+  })()`);
+  const want = ["favourites", "encyclopedia", "years", "months", "weeks", "people", "tags"];
+  const ok = r.freshFirst === "favourites" && r.freshKind === "pick" && r.freshPicks === 0 &&
+             JSON.stringify(r.freshIds) === JSON.stringify(want) &&
+             r.schema === 10 &&
+             JSON.stringify(r.ids) === JSON.stringify(["favourites", "years", "people", "tags"]) &&
+             r.favPos === 0 && r.favPicks === 0 && r.favDir === "manual" &&
+             r.peopleHidden === true && r.tagsOrder === "b|a" &&
+             JSON.stringify(r.tenIds) === JSON.stringify(["years", "people", "tags"]) &&
+             JSON.stringify(r.takenIds) === JSON.stringify(["favourites-2", "favourites"]) &&
+             r.hand.direction === "manual" && r.hand.order && r.hand.plaques === false &&
+             r.hand.picks === "years/2024|people/Ada Lovelace";
+  return {
+    ok,
+    detail: `fresh: ${r.freshIds.join(" -> ")}, the first a ${r.freshKind} shelf with ` +
+            `${r.freshPicks} picks; schema 9 -> ${r.schema}: ${r.ids.join(" -> ")}, Favourites ` +
+            `at ${r.favPos} with ${r.favPicks} picks and direction "${r.favDir}", People still ` +
+            `hidden (${r.peopleHidden}) and Tags' arrangement kept (${r.tagsOrder}); a file ` +
+            `already at 10 keeps ${r.tenIds.join(" -> ")}; a taken id gives ` +
+            `${r.takenIds.join(" -> ")}; a hand-edited pick shelf comes up ${r.hand.direction} ` +
+            `with no order (${r.hand.order}), no plaques (${!r.hand.plaques}) and the picks ` +
+            `"${r.hand.picks}"`
+  };
+});
+
+check("a drop onto Favourites adds the book where it landed, and a rebuild keeps it", async (p) => {
+  await p.eval(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    fav.picks = [];
+    __vs.setFilters({});
+    document.getElementById("vs-library").scrollTop = 0;
+  })(); void 0`);
+  await sleep(250);
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    var rail = document.querySelector('[data-shelf="' + fav.id + '"] .vs-shelfrail');
+    var zone = rail.querySelector(".vs-dropzone");
+    var favBooks = function () {
+      return __vs.views().filter(function (v) { return v.shelf.id === fav.id; })[0];
+    };
+    var spineOf = function (id) {
+      return document.querySelector('#vs-shelves [data-book="' + id.replace(/"/g, '\\"') + '"]');
+    };
+    var at = function (el, dt, where) {
+      var box = el.getBoundingClientRect();
+      var x = where === "left" ? box.left + 3 : where === "right" ? box.right - 3 : box.left + box.width / 2;
+      return { bubbles: true, cancelable: true, dataTransfer: dt, clientX: x, clientY: box.top + box.height / 2 };
+    };
+    var carry = function (from, onto, where) {
+      var dt = new DataTransfer();
+      from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+      var payload = dt.getData("text/plain");
+      onto.dispatchEvent(new DragEvent("dragover", at(onto, dt, where)));
+      var out = { payload: payload, lifted: from.getAttribute("data-dragging"),
+                  landing: rail.getAttribute("data-drop"),
+                  mark: rail.querySelector("[data-drop]") ? rail.querySelector("[data-drop]").getAttribute("data-drop") : null,
+                  bar: rail.querySelector(".vs-drop") ? Math.round(rail.querySelector(".vs-drop").getBoundingClientRect().width) : 0 };
+      onto.dispatchEvent(new DragEvent("drop", at(onto, dt, where)));
+      from.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+      return out;
+    };
+    var emptyHint = zone ? zone.textContent : "";
+    var emptyHeight = zone ? Math.round(zone.getBoundingClientRect().height) : 0;
+
+    /* 1. a Years spine onto the empty rail, aimed at the landing rather than a spine */
+    var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0].books[0];
+    var yearsSpine = spineOf(years.id);
+    var first = carry(yearsSpine, rail.querySelector(".vs-track"), "middle");
+    var one = favBooks();
+    var sameNotes = one.books.length === 1 &&
+      one.books[0].notes.map(function (n) { return n.id; }).join("|") ===
+      years.notes.map(function (n) { return n.id; }).join("|");
+
+    /* 2. a People spine, dropped on the rail past the last book */
+    var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0].books[0];
+    rail = document.querySelector('[data-shelf="' + fav.id + '"] .vs-shelfrail');
+    var second = carry(spineOf(people.id), rail.querySelector(".vs-track"), "middle");
+    var two = favBooks();
+    var twoNotes = two.noteCount;
+    var seqAfterTwo = __vs.sequence(fav.id).slice();
+
+    /* 3. a drag within: the second favourite onto the left half of the first */
+    rail = document.querySelector('[data-shelf="' + fav.id + '"] .vs-shelfrail');
+    var favSpines = rail.querySelectorAll(".vs-spine");
+    var within = carry(favSpines[1], favSpines[0], "left");
+    var seqMoved = __vs.sequence(fav.id).slice();
+    var marksLeft = document.querySelectorAll('[data-shelf="' + fav.id + '"] .vs-drop').length +
+                    document.querySelectorAll('[data-shelf="' + fav.id + '"] [data-drop]').length;
+
+    /* 4. a rebuild, a filter and migrate() all keep the picks */
+    var stored = fav.picks.slice();
+    __vs.setFilters({});
+    var rebuilt = __vs.sequence(fav.id).slice();
+    var addressesBefore = __vs.addresses().filter(function (a) { return a.indexOf(fav.id + "/") === 0; });
+    var folder = years.notes[0].folder;
+    __vs.setFilters({ folders: [folder] });
+    var narrowed = favBooks();
+    var picksUnderFilter = fav.picks.slice();
+    __vs.setFilters({ folders: [] });
+    var addressesAfter = __vs.addresses().filter(function (a) { return a.indexOf(fav.id + "/") === 0; });
+    var reread = core.migrate(JSON.parse(JSON.stringify(__vs.settings())))
+      .shelves.filter(function (s) { return s.classifier === "pick"; })[0].picks;
+    var jump = document.querySelector('#vs-jump [data-jump="' + fav.id + '"] .vs-n').textContent;
+    var draggableElsewhere = document.querySelectorAll('[data-shelf="years"] .vs-spine[draggable="true"]').length;
+    var handElsewhere = document.querySelectorAll('[data-shelf="years"] .vs-spine[data-hand="1"]').length;
+    var yearsSpines = document.querySelectorAll('[data-shelf="years"] .vs-spine').length;
+
+    fav.picks = [];
+    __vs.setFilters({});
+    var emptied = favBooks().books.length;
+    var hintBack = !!document.querySelector('[data-shelf="' + fav.id + '"] .vs-dropzone');
+    return { hint: emptyHint, emptyHeight: emptyHeight, first: first, sameNotes: sameNotes,
+             oneCount: one.noteCount, sourceCount: years.notes.length, oneKey: one.books[0].key,
+             oneId: one.books[0].id, second: second, twoBooks: two.books.length,
+             twoNotes: twoNotes,
+             seqAfterTwo: seqAfterTwo, within: within, seqMoved: seqMoved, marksLeft: marksLeft,
+             stored: stored, rebuilt: rebuilt, narrowedBooks: narrowed.books.length,
+             narrowedNotes: narrowed.noteCount, picksUnderFilter: picksUnderFilter,
+             addressesStable: addressesBefore.join("|") === addressesAfter.join("|"),
+             reread: reread, jump: jump, draggableElsewhere: draggableElsewhere,
+             handElsewhere: handElsewhere, yearsSpines: yearsSpines, emptied: emptied,
+             hintBack: hintBack, yearsId: years.id, peopleId: people.id };
+  })()`);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const ok = r.hint === "Drag a book here" && r.emptyHeight > 100 &&
+             r.first.landing === "1" && r.first.lifted === "1" && r.first.payload === r.yearsId &&
+             r.sameNotes && r.oneCount === r.sourceCount && r.oneKey === r.yearsId &&
+             r.oneId === "favourites/" + r.yearsId &&
+             r.second.mark === "after" && r.second.bar === 3 && r.twoBooks === 2 &&
+             same(r.seqAfterTwo, [r.yearsId, r.peopleId]) &&
+             r.within.mark === "before" && same(r.seqMoved, [r.peopleId, r.yearsId]) &&
+             r.marksLeft === 0 && same(r.stored, r.seqMoved) && same(r.rebuilt, r.seqMoved) &&
+             r.narrowedBooks <= 2 && r.narrowedNotes < r.twoNotes &&
+             same(r.picksUnderFilter, r.seqMoved) && r.addressesStable &&
+             same(r.reread, r.seqMoved) && r.jump === "2" &&
+             r.draggableElsewhere === r.yearsSpines && r.handElsewhere === 0 &&
+             r.emptied === 0 && r.hintBack;
+  return {
+    ok,
+    detail: `the empty rail says "${r.hint}" at ${r.emptyHeight}px and lit for the drop ` +
+            `(${r.first.landing === "1"}); ${r.yearsId} landed with the source's ` +
+            `${r.sourceCount} notes (${r.sameNotes}) as ${r.oneId}; ${r.peopleId} dropped past it ` +
+            `drew an "${r.second.mark}" mark ${r.second.bar}px wide and the sequence is ` +
+            `${r.seqAfterTwo.join(", ")}; dragging the second onto the first's left half gave ` +
+            `${r.seqMoved.join(", ")} with ${r.marksLeft} marks left; a rebuild (${same(r.rebuilt, r.seqMoved)}), ` +
+            `a folder filter (${r.narrowedBooks} books / ${r.narrowedNotes} of ${r.twoNotes} notes, picks kept: ` +
+            `${same(r.picksUnderFilter, r.seqMoved)}, addresses stable: ${r.addressesStable}) and ` +
+            `migrate() (${same(r.reread, r.seqMoved)}) keep the picks; the jump chip says ${r.jump}; ` +
+            `${r.draggableElsewhere}/${r.yearsSpines} Years spines lift and ${r.handElsewhere} ` +
+            `are handles; emptied to ${r.emptied} and the hint is back (${r.hintBack})`
+  };
+});
+
+check("a favourite comes off by the menu, and a dead pick is dropped on save and not before",
+      async (p) => {
+  const r = await p.j(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    var shelves = __vs.settings().shelves;
+    var favView = function () {
+      return __vs.views().filter(function (v) { return v.shelf.id === fav.id; })[0];
+    };
+    var bookOn = function (shelfId) {
+      return __vs.views().filter(function (v) { return v.shelf.id === shelfId; })[0].books[0].id;
+    };
+    var spineOf = function (id) {
+      return document.querySelector('#vs-shelves [data-book="' + id.replace(/"/g, '\\"') + '"]');
+    };
+    var menuLine = function (spine) {
+      spine.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 200, clientY: 200 }));
+      var menu = document.getElementById("vs-dye");
+      var line = menu.querySelector(".vs-dyepick");
+      var out = { shown: !menu.hidden, text: line ? line.textContent : null };
+      if (line) line.click();
+      out.closed = menu.hidden;
+      return out;
+    };
+    var years = bookOn("years"), people = bookOn("people"), months = bookOn("months");
+    fav.picks = [];
+    __vs.pick(years);
+    __vs.pick(people);
+    var two = favView().books.length;
+
+    /* off, by the menu, from the favourite's own spine */
+    var off = menuLine(spineOf("favourites/" + years));
+    var afterOff = fav.picks.slice();
+    /* on again, by the same menu, from the source's spine */
+    var onAgain = menuLine(spineOf(years));
+    var afterOn = fav.picks.slice();
+
+    /* a hidden source shelf still resolves */
+    var peopleShelf = shelves.filter(function (s) { return s.id === "people"; })[0];
+    peopleShelf.hidden = true;
+    __vs.setFilters({});
+    var whileHidden = favView().books.length;
+    peopleShelf.hidden = false;
+
+    /* a deleted source shelf: skipped on read, dropped on the next save */
+    var at = shelves.indexOf(peopleShelf);
+    shelves.splice(at, 1);
+    __vs.setFilters({});
+    var whileGone = favView().books.length;
+    var picksWhileGone = fav.picks.slice();
+    __vs.pick(months);
+    var afterSave = fav.picks.slice();
+    shelves.splice(at, 0, peopleShelf);
+    __vs.setFilters({});
+    var restored = favView().books.length;
+
+    fav.picks = [];
+    __vs.setFilters({});
+    return { two: two, off: off, afterOff: afterOff, onAgain: onAgain, afterOn: afterOn,
+             whileHidden: whileHidden, whileGone: whileGone, picksWhileGone: picksWhileGone,
+             afterSave: afterSave, restored: restored, years: years, people: people,
+             months: months, left: favView().books.length };
+  })()`);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const ok = r.two === 2 && r.off.shown && r.off.text === "Take off Favourites" && r.off.closed &&
+             same(r.afterOff, [r.people]) && r.onAgain.text === "Add to Favourites" &&
+             same(r.afterOn, [r.people, r.years]) && r.whileHidden === 2 &&
+             r.whileGone === 1 && same(r.picksWhileGone, [r.people, r.years]) &&
+             same(r.afterSave, [r.years, r.months]) && r.restored === 2 && r.left === 0;
+  return {
+    ok,
+    detail: `${r.two} favourites; the menu on ${r.years} said "${r.off.text}" and left ` +
+            `[${r.afterOff.join(", ")}]; on the source spine it said "${r.onAgain.text}" and gave ` +
+            `[${r.afterOn.join(", ")}]; with People hidden ${r.whileHidden} still resolve; with ` +
+            `People deleted ${r.whileGone} resolves and the picks are still ` +
+            `[${r.picksWhileGone.join(", ")}] until a save, after which they are ` +
+            `[${r.afterSave.join(", ")}]; People back: ${r.restored} books; emptied to ${r.left}`
+  };
+});
+
+check("a favourite dragged off the shelf comes off, and a cancelled drag does not", async (p) => {
+  await p.eval(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    fav.picks = [];
+    __vs.setFilters({});
+    document.getElementById("vs-library").scrollTop = 0;
+  })(); void 0`);
+  await sleep(250);
+  const r = await p.j(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    var bookOn = function (id) {
+      return __vs.views().filter(function (v) { return v.shelf.id === id; })[0].books[0].id;
+    };
+    var years = bookOn("years"), people = bookOn("people"), months = bookOn("months");
+    [years, people, months].forEach(function (id) { __vs.pick(id); });
+    var started = fav.picks.slice();
+
+    var spineOf = function (id) {
+      return document.querySelector('#vs-shelves [data-book="' + id.replace(/"/g, '\\"') + '"]');
+    };
+    var favSpine = function (source) { return spineOf(fav.id + "/" + source); };
+    var at = function (el, dt) {
+      var b = el.getBoundingClientRect();
+      return { bubbles: true, cancelable: true, dataTransfer: dt,
+               clientX: b.left + b.width / 2, clientY: b.top + b.height / 2 };
+    };
+
+    /* 1. carried off the rail and dropped on another shelf: it comes off, and the shelf it was
+     *    dropped on does NOT take it. */
+    var dt = new DataTransfer();
+    var from = favSpine(people);
+    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+    var onto = document.querySelector('[data-shelf="years"] .vs-track');
+    onto.dispatchEvent(new DragEvent("dragover", at(onto, dt)));
+    var leavingMark = __vs.leaving(fav.id + "/" + people);
+    var railMarks = document.querySelectorAll('[data-shelf="' + fav.id + '"] .vs-drop').length;
+    onto.dispatchEvent(new DragEvent("drop", at(onto, dt)));
+    from.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+    var afterDrop = fav.picks.slice();
+    var yearsSeq = __vs.sequence("years").length;
+
+    /* 2. carried off and then back over the rail before dropping: it stays. */
+    var dt2 = new DataTransfer();
+    var from2 = favSpine(years);
+    from2.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt2 }));
+    var away = document.querySelector('[data-shelf="months"] .vs-track');
+    away.dispatchEvent(new DragEvent("dragover", at(away, dt2)));
+    var wasLeaving = __vs.leaving(fav.id + "/" + years);
+    var back = document.querySelector('[data-shelf="' + fav.id + '"] .vs-track');
+    back.dispatchEvent(new DragEvent("dragover", at(back, dt2)));
+    var stoppedLeaving = !__vs.leaving(fav.id + "/" + years);
+    back.dispatchEvent(new DragEvent("drop", at(back, dt2)));
+    from2.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt2 }));
+    var afterReturn = fav.picks.slice();
+
+    /* 3. a drag that ends with no drop -- Escape, or a drop outside the window -- is a CANCEL
+     *    and has to put the book back. */
+    var dt3 = new DataTransfer();
+    var from3 = favSpine(years);
+    from3.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt3 }));
+    var out = document.querySelector('[data-shelf="months"] .vs-track');
+    out.dispatchEvent(new DragEvent("dragover", at(out, dt3)));
+    from3.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt3 }));
+    var afterCancel = fav.picks.slice();
+    var leftOver = document.querySelectorAll('#vs-shelves .vs-spine[data-leaving]').length +
+                   document.querySelectorAll('#vs-shelves .vs-spine[data-dragging]').length;
+
+    /* 4. a spine from an ordinary shelf dragged across the library is not a take-off. */
+    var dt4 = new DataTransfer();
+    var plain = spineOf(months);
+    plain.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt4 }));
+    var floor = document.querySelector('[data-shelf="years"] .vs-track');
+    floor.dispatchEvent(new DragEvent("dragover", at(floor, dt4)));
+    floor.dispatchEvent(new DragEvent("drop", at(floor, dt4)));
+    plain.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt4 }));
+    var afterPlain = fav.picks.slice();
+
+    fav.picks = [];
+    __vs.setFilters({});
+    return { started: started, leavingMark: leavingMark, railMarks: railMarks,
+             afterDrop: afterDrop, yearsSeq: yearsSeq, wasLeaving: wasLeaving,
+             stoppedLeaving: stoppedLeaving, afterReturn: afterReturn,
+             afterCancel: afterCancel, leftOver: leftOver, afterPlain: afterPlain,
+             years: years, people: people, months: months,
+             emptied: __vs.views().filter(function (v) { return v.shelf.id === fav.id; })[0].books.length };
+  })()`);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const sameSet = (a, b) => same(a.slice().sort(), b.slice().sort());
+  /* A book carried back over the rail and dropped on the rail itself lands at the END, which
+   * is what a drop past the last book means everywhere else on this shelf (design/0019). So
+   * what step 2 asserts is that it is still ON the shelf, and where it stands is reported. */
+  const ok = same(r.started, [r.years, r.people, r.months]) &&
+             r.leavingMark === true && r.railMarks === 0 &&
+             same(r.afterDrop, [r.years, r.months]) &&
+             r.wasLeaving === true && r.stoppedLeaving === true &&
+             sameSet(r.afterReturn, [r.years, r.months]) &&
+             same(r.afterCancel, r.afterReturn) && r.leftOver === 0 &&
+             same(r.afterPlain, r.afterReturn) && r.emptied === 0;
+  return {
+    ok,
+    detail: `3 favourites [${r.started.join(", ")}]: carrying ${r.people} off the rail marked the ` +
+            `spine as leaving (${r.leavingMark}) with ${r.railMarks} insertion marks left on the ` +
+            `rail, and dropping it on the Years shelf left [${r.afterDrop.join(", ")}] -- Years ` +
+            `itself still has ${r.yearsSeq} books. Carried off and back over the rail, the mark ` +
+            `cleared (${r.stoppedLeaving}) and the book stayed, landing at the end of the rail the way ` +
+            `any drop past the last book does: [${r.afterReturn.join(", ")}]. A ` +
+            `drag ended with no drop -- Escape, or a drop outside the window -- kept it too ` +
+            `([${r.afterCancel.join(", ")}]), with ${r.leftOver} spines still marked. A spine from ` +
+            `an ordinary shelf dragged across the library changed nothing ` +
+            `([${r.afterPlain.join(", ")}])`
+  };
+});
+
+check("a second favourites shelf is built from the builder and holds its own books", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var shelves = __vs.settings().shelves;
+    var before = __vs.picks().length;
+
+    /* Built the way a person builds one: the builder's own controls, not addShelf. The button
+     * at the FOOT of the library, so this check stays about pick shelves; which end each button
+     * builds at is measured by "made at the end the button is at". */
+    document.getElementById("vs-newshelf2").click();
+    var name = document.getElementById("vs-bname");
+    name.value = "Reading list";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+    var kind = document.getElementById("vs-bclassifier");
+    var offered = [].map.call(kind.options, function (o) { return o.value; });
+    kind.value = "pick";
+    kind.dispatchEvent(new Event("change", { bubbles: true }));
+    var form = {
+      source: document.getElementById("vs-bsource").closest("fieldset").hidden,
+      classifier: kind.closest("fieldset").hidden,
+      order: document.getElementById("vs-bdirection").closest("label").hidden,
+      recipes: document.getElementById("vs-recipes").closest(".vs-field").hidden,
+      hint: !document.getElementById("vs-pickhint").hidden,
+      preview: document.getElementById("vs-previewcount").textContent
+    };
+    document.getElementById("vs-bsave").click();
+
+    var made = shelves.filter(function (s) { return s.name === "Reading list"; })[0];
+    var sound = made && made.classifier === "pick" && made.direction === "manual" &&
+                Array.isArray(made.picks) && made.picks.length === 0 &&
+                made.order === undefined && made.plaques === false;
+
+    /* Two shelves, different books, and neither disturbs the other. */
+    var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0].books[0].id;
+    var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0].books[0].id;
+    var first = __vs.picks().filter(function (s) { return s.id === "favourites"; })[0].id;
+    __vs.pick(years, null, first);
+    __vs.pick(people, null, made.id);
+    __vs.pick(years, null, made.id);
+    var both = __vs.picks();
+
+    var viewOf = function (id) {
+      return __vs.views().filter(function (v) { return v.shelf.id === id; })[0];
+    };
+    var mine = viewOf(made.id), theirs = viewOf(first);
+    var rails = document.querySelectorAll("#vs-shelves .vs-shelfrail[data-pick]").length;
+    var addresses = __vs.addresses();
+    var shared = addresses.filter(function (a) { return a === made.id + "/" + years; }).length +
+                 addresses.filter(function (a) { return a === first + "/" + years; }).length;
+
+    /* The same book on two pick shelves is two references and one book: taking it off one
+     * leaves the other alone. */
+    __vs.unpick(years, first);
+    var afterOff = { first: viewOf(first).books.length, mine: viewOf(made.id).books.length };
+
+    /* The right-click menu names every shelf that would take the book. */
+    var spine = document.querySelector('#vs-shelves [data-shelf="months"] .vs-spine');
+    spine.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true,
+                                                        clientX: 200, clientY: 200 }));
+    var lines = [].map.call(document.querySelectorAll("#vs-dye .vs-dyepick"),
+                            function (b) { return b.textContent; });
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    /* Put the library back. */
+    var at = shelves.indexOf(made);
+    shelves.splice(at, 1);
+    shelves.filter(function (s) { return s.classifier === "pick"; })
+           .forEach(function (s) { s.picks = []; });
+    __vs.setFilters({});
+
+    return { before: before, offered: offered.indexOf("pick") >= 0, sound: !!sound,
+             form: form, madeId: made ? made.id : "", count: both.length,
+             names: both.map(function (s) { return s.name; }),
+             held: both.map(function (s) { return s.picks.length; }),
+             mine: mine.books.length, theirs: theirs.books.length,
+             mineNotes: mine.noteCount, rails: rails, shared: shared,
+             afterOff: afterOff, lines: lines,
+             after: __vs.picks().length };
+  })()`);
+  const ok = r.before === 1 && r.offered && r.sound && r.madeId === "reading-list" &&
+             r.form.source === true && r.form.classifier === false && r.form.order === true &&
+             r.form.recipes === true && r.form.hint === true &&
+             r.count === 2 && JSON.stringify(r.names) === JSON.stringify(["Favourites", "Reading list"]) &&
+             JSON.stringify(r.held) === JSON.stringify([1, 2]) &&
+             r.mine === 2 && r.theirs === 1 && r.rails === 2 && r.shared === 2 &&
+             r.afterOff.first === 0 && r.afterOff.mine === 2 &&
+             r.lines.length === 2 && r.lines[0] === "Add to Favourites" &&
+             r.lines[1] === "Add to Reading list" && r.after === 1;
+  return {
+    ok,
+    detail: `the builder offers "pick" (${r.offered}) and saving one gives ${r.madeId}: manual, ` +
+            `0 picks, no order, no plaques (${r.sound}); the form drops the source question ` +
+            `(${r.form.source}), the order (${r.form.order}) and the recipes (${r.form.recipes}), ` +
+            `keeps the classifier (${!r.form.classifier}) and shows the hint (${r.form.hint}). ` +
+            `${r.count} pick shelves — ${r.names.join(", ")} — holding ${r.held.join(" and ")} ` +
+            `books over ${r.rails} rails; the shared year has ${r.shared} addresses, one per ` +
+            `shelf. Taking it off the first left ${r.afterOff.first} there and ${r.afterOff.mine} ` +
+            `on the second. The menu offered: ${r.lines.join(" | ")}. Back to ${r.after} shelf`
+  };
+});
+
+check("a note in two favourites is one note on the shelf", async (p) => {
+  const r = await p.j(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0].books
+      .filter(function (b) { return b.key !== "-undated" && b.notes.length; })[0];
+    var month = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0].books
+      .filter(function (b) { return b.key.indexOf(years.key + "-") === 0; })[0];
+    fav.picks = [];
+    __vs.pick(years.id);
+    __vs.pick(month.id);
+    var view = __vs.views().filter(function (v) { return v.shelf.id === fav.id; })[0];
+    var report = __vs.checkMembership().filter(function (r) { return r.shelf === fav.id; })[0];
+    var head = document.querySelector('[data-shelf="' + fav.id + '"] .vs-shelfhead .vs-meta').textContent;
+    fav.picks = [];
+    __vs.setFilters({});
+    return { years: years.id, yearsNotes: years.notes.length, month: month.id,
+             monthNotes: month.notes.length, books: view.books.length, claimed: view.noteCount,
+             unique: report.unique, sum: report.sum, ok: report.ok, head: head };
+  })()`);
+  const ok = r.books === 2 && r.ok && r.sum === r.yearsNotes + r.monthNotes &&
+             r.unique === r.yearsNotes && r.claimed === r.unique && r.sum > r.unique &&
+             r.head.indexOf(r.claimed + " notes") >= 0;
+  return {
+    ok,
+    detail: `${r.years} (${r.yearsNotes} notes) and ${r.month} (${r.monthNotes}) on Favourites: ` +
+            `${r.sum} places, ${r.unique} unique notes, the shelf claims ${r.claimed} and the ` +
+            `header says "${r.head}"`
+  };
+});
+
+check("a shelf is deleted on the second press, made at the end the button is at, and carried by its floor",
+      async (p) => {
+  const r = await p.j(`(function(){
+    var shelves = __vs.settings().shelves;
+    var order = function () { return __vs.views().map(function (v) { return v.shelf.id; }); };
+    var was = order();
+
+    /* 1. the button at the TOP makes a shelf at the top; the one at the foot appends. */
+    __vs.newShelf("top");
+    document.getElementById("vs-bname").value = "Top shelf";
+    document.getElementById("vs-bname").dispatchEvent(new Event("input", { bubbles: true }));
+    document.getElementById("vs-bsave").click();
+    var afterTop = order();
+
+    __vs.newShelf("end");
+    document.getElementById("vs-bname").value = "Foot shelf";
+    document.getElementById("vs-bname").dispatchEvent(new Event("input", { bubbles: true }));
+    document.getElementById("vs-bsave").click();
+    var afterEnd = order();
+
+    /* 2. the floor is a handle: every row of every shelf carries one, and the preview does not. */
+    var grips = document.querySelectorAll("#vs-shelves .vs-floorgrip[draggable=true]").length;
+    var rows = document.querySelectorAll("#vs-shelves .vs-track").length;
+    var board = getComputedStyle(document.querySelector("#vs-shelves .vs-track"))
+                  .getPropertyValue("background-size");
+
+    /* Carry the top shelf by its floor and drop it on the lower half of the last one. */
+    var section = document.querySelector('[data-shelf="top-shelf"]');
+    var grip = section.querySelector(".vs-floorgrip");
+    var last = document.querySelector('[data-shelf="foot-shelf"]');
+    var dt = new DataTransfer();
+    grip.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+    var payload = dt.getData("text/plain");
+    var box = last.getBoundingClientRect();
+    var at = { bubbles: true, cancelable: true, dataTransfer: dt,
+               clientX: box.left + 40, clientY: box.top + box.height - 6 };
+    last.dispatchEvent(new DragEvent("dragover", at));
+    /* github#0 -- read AFTER a dragover: the shelf leaves the room on the tick after dragstart
+     * (hiding it inside dragstart cancels the drag), so the first dragover is the first moment
+     * the lift is certain to have happened. */
+    var carrying = section.getAttribute("data-carrying");
+    var mark = last.getAttribute("data-shelfdrop");
+    last.dispatchEvent(new DragEvent("drop", at));
+    grip.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+    var afterDrag = order();
+    var marksLeft = document.querySelectorAll("#vs-shelves [data-shelfdrop], #vs-shelves [data-carrying]").length;
+
+    /* A spine drag is not a shelf drag: dropping a book must leave the shelf order alone. */
+    var spine = document.querySelector('[data-shelf="years"] .vs-spine');
+    var dt2 = new DataTransfer();
+    spine.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt2 }));
+    var favRail = document.querySelector('[data-shelf="favourites"] .vs-track');
+    var fb = favRail.getBoundingClientRect();
+    var at2 = { bubbles: true, cancelable: true, dataTransfer: dt2,
+                clientX: fb.left + fb.width / 2, clientY: fb.top + fb.height / 2 };
+    favRail.dispatchEvent(new DragEvent("dragover", at2));
+    favRail.dispatchEvent(new DragEvent("drop", at2));
+    spine.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt2 }));
+    var afterBook = order();
+    var favHolds = __vs.picks()[0].picks.length;
+
+    /* 3. Delete asks once. The first press arms the row, the second removes the shelf. */
+    document.getElementById("vs-manageopen").click();
+    var rowOf = function (name) {
+      return [].filter.call(document.querySelectorAll("#vs-managelist .vs-managerow"),
+        function (r) { return r.querySelector(".vs-name").textContent === name; })[0];
+    };
+    var del = rowOf("Foot shelf").querySelector(".vs-delete");
+    var firstLabel = del.textContent;
+    del.click();
+    var armedLabel = rowOf("Foot shelf").querySelector(".vs-delete").textContent;
+    var armedFlag = rowOf("Foot shelf").querySelector(".vs-delete").getAttribute("data-armed");
+    var stillThere = order().indexOf("foot-shelf") >= 0;
+    rowOf("Foot shelf").querySelector(".vs-delete").click();
+    var afterDelete = order();
+    /* Another row's Delete disarms the first: only one row can be asking. */
+    rowOf("Top shelf").querySelector(".vs-delete").click();
+    var otherArmed = rowOf("Top shelf").querySelector(".vs-delete").getAttribute("data-armed");
+    rowOf("Top shelf").querySelector(".vs-delete").click();
+    var afterBoth = order();
+    document.getElementById("vs-mclose").click();
+
+    /* The wear and the hand-given colour of a deleted shelf's book go with it. */
+    var wearKeys = Object.keys(__vs.settings().wear)
+      .filter(function (k) { return k.indexOf("top-shelf/") === 0; }).length;
+
+    __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })
+      .forEach(function (s) { s.picks = []; });
+    __vs.setFilters({});
+    return { was: was, afterTop: afterTop, afterEnd: afterEnd, grips: grips, rows: rows,
+             board: board, carrying: carrying, payload: payload, mark: mark,
+             afterDrag: afterDrag, marksLeft: marksLeft, afterBook: afterBook,
+             favHolds: favHolds, firstLabel: firstLabel, armedLabel: armedLabel,
+             armedFlag: armedFlag, stillThere: stillThere, afterDelete: afterDelete,
+             otherArmed: otherArmed, afterBoth: afterBoth, wearKeys: wearKeys,
+             back: order() };
+  })()`);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const ok = r.afterTop[0] === "top-shelf" && same(r.afterTop.slice(1), r.was) &&
+             r.afterEnd[r.afterEnd.length - 1] === "foot-shelf" &&
+             r.grips === r.rows && r.grips > 0 && /5px|10px/.test(r.board) &&
+             r.carrying === "1" && r.payload === "top-shelf" && r.mark === "after" &&
+             r.afterDrag[r.afterDrag.length - 1] === "top-shelf" &&
+             r.afterDrag[r.afterDrag.length - 2] === "foot-shelf" && r.marksLeft === 0 &&
+             same(r.afterBook, r.afterDrag) && r.favHolds === 1 &&
+             r.firstLabel === "Delete" && r.armedLabel === "Really delete?" &&
+             r.armedFlag === "1" && r.stillThere &&
+             r.afterDelete.indexOf("foot-shelf") < 0 && r.otherArmed === "1" &&
+             r.afterBoth.indexOf("top-shelf") < 0 && r.wearKeys === 0 &&
+             same(r.back, r.was);
+  return {
+    ok,
+    detail: `${r.was.length} shelves: the top button put "top-shelf" first (${r.afterTop[0]}) and ` +
+            `the foot button put "foot-shelf" last (${r.afterEnd[r.afterEnd.length - 1]}). ` +
+            `${r.grips}/${r.rows} rows carry a floor grip, the board reads ${r.board}; carrying ` +
+            `the top shelf onto the lower half of the last drew an "${r.mark}" mark and left the ` +
+            `order ${r.afterDrag.slice(-2).join(", ")} with ${r.marksLeft} marks behind. A book ` +
+            `dragged onto Favourites left the shelf order alone (${same(r.afterBook, r.afterDrag)}) ` +
+            `and landed (${r.favHolds} pick). Delete read "${r.firstLabel}", then ` +
+            `"${r.armedLabel}" with the shelf still there (${r.stillThere}), and was gone on the ` +
+            `second press; arming another row works too (${r.otherArmed === "1"}), and ${r.wearKeys} ` +
+            `wear keys of the deleted shelf survive. Back to ${r.back.length} shelves`
+  };
+});
+
+check("the room parts where a thing will land, the twelve are offered, and a shelf goes from its own sheet",
+      async (p) => {
+  await p.eval(`(function(){
+    __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })
+      .forEach(function (s) { s.picks = []; });
+    var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0].books[0].id;
+    var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0].books[0].id;
+    __vs.pick(years);
+    __vs.pick(people);
+    document.getElementById("vs-library").scrollTop = 0;
+  })(); void 0`);
+  await sleep(300);
+
+  /* 1. A BOOK'S NEIGHBOUR STEPS ASIDE. The gap is a transition, so it is read after it runs. */
+  const resting = await p.j(`(function(){
+    var s = document.querySelectorAll('[data-shelf="favourites"] .vs-spine');
+    window.__part = { from: s[1], target: s[0], dt: new DataTransfer() };
+    return Math.round(parseFloat(getComputedStyle(s[0]).marginLeft));
+  })()`);
+  await p.eval(`(function(){
+    var P = window.__part;
+    P.from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: P.dt }));
+    var b = P.target.getBoundingClientRect();
+    P.target.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true,
+      dataTransfer: P.dt, clientX: b.left + 3, clientY: b.top + b.height / 2 }));
+  })(); void 0`);
+  await sleep(320);
+  const parted = await p.j(`(function(){
+    var P = window.__part;
+    P.carriedWidth = Math.round(P.from.getBoundingClientRect().width);
+    var bar = P.target.querySelector(".vs-drop");
+    var barBox = bar ? bar.getBoundingClientRect() : null;
+    var spineBox = P.target.getBoundingClientRect();
+    return { margin: Math.round(parseFloat(getComputedStyle(P.target).marginLeft)),
+             carried: P.carriedWidth,
+             side: P.target.getAttribute("data-drop"),
+             barWidth: barBox ? Math.round(barBox.width) : 0,
+             inTheGap: barBox ? barBox.right <= spineBox.left + 1 : false };
+  })()`);
+  await p.eval(`(function(){
+    var P = window.__part;
+    P.from.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: P.dt }));
+  })(); void 0`);
+  await sleep(320);
+  const settled = await p.j(`Math.round(parseFloat(getComputedStyle(window.__part.target).marginLeft))`);
+
+  /* 2. A SHELF MAKES ROOM THE SAME WAY, one axis along. */
+  const shelfResting = await p.j(`(function(){
+    window.__sp = { section: document.querySelector('[data-shelf="encyclopedia"]'),
+                    grip: document.querySelector('[data-shelf="years"] .vs-floorgrip'),
+                    dt: new DataTransfer() };
+    window.__sp.section.scrollIntoView(true);
+    return { margin: Math.round(parseFloat(getComputedStyle(window.__sp.section).marginTop)),
+             onScreen: window.__sp.section.getBoundingClientRect().top < window.innerHeight,
+             grip: !!window.__sp.grip };
+  })()`);
+  await p.eval(`(function(){
+    var S = window.__sp;
+    S.grip.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: S.dt }));
+    var b = S.section.getBoundingClientRect();
+    var over = new DragEvent("dragover", { bubbles: true, cancelable: true,
+      dataTransfer: S.dt, clientX: b.left + 40, clientY: b.top + 6 });
+    S.section.dispatchEvent(over);
+    /* github#0 -- A DRAGOVER NOBODY ACCEPTS MEANS NO DROP AT ALL: the browser only offers a
+     * drop where something called preventDefault. A synthetic drop lands either way, which is
+     * how a shelf that could never be dropped anywhere still passed every check. */
+    S.accepted = over.defaultPrevented;
+  })(); void 0`);
+  await sleep(320);
+  const shelfParted = await p.j(`(function(){
+    var S = window.__sp;
+    var ghost = document.querySelector("#vs-shelves .vs-shelfghost");
+    var carried = document.querySelector("#vs-shelves .vs-shelf[data-carrying]");
+    return { accepted: S.accepted === true,
+             ghost: !!ghost,
+             ghostHeight: ghost ? Math.round(ghost.getBoundingClientRect().height) : 0,
+             ghostName: ghost ? ghost.textContent : "",
+             above: ghost && S.section
+               ? Math.round(ghost.getBoundingClientRect().top) <=
+                 Math.round(S.section.getBoundingClientRect().top) + 1 : false,
+             hidden: carried ? getComputedStyle(carried).display === "none" : false,
+             side: S.section.getAttribute("data-shelfdrop") };
+  })()`);
+  await p.eval(`(function(){
+    var S = window.__sp;
+    S.grip.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: S.dt }));
+  })(); void 0`);
+  await sleep(320);
+  const shelfSettled = await p.j(`(function(){
+    return { ghosts: document.querySelectorAll("#vs-shelves .vs-shelfghost").length,
+             carrying: document.querySelectorAll("#vs-shelves [data-carrying]").length };
+  })()`);
+
+  /* 3. THE TWELVE ARE OFFERED, and 4. a shelf goes from the sheet it is edited in. */
+  const rest = await p.j(`(function(){
+    var out = {};
+    document.getElementById("vs-manageopen").click();
+    document.querySelector("#vs-mpalette .vs-dyerows .vs-slot .vs-swatch").click();
+    var menu = document.getElementById("vs-swatchpick");
+    var swatches = menu.querySelectorAll(".vs-swatch");
+    out.pick = {
+      shown: !menu.hidden, swatches: swatches.length,
+      distinct: new Set([].map.call(swatches, function (b) {
+        return getComputedStyle(b).backgroundColor; })).size,
+      custom: [].some.call(menu.querySelectorAll(".vs-dyeauto"), function (b) {
+        return b.textContent.indexOf("Custom") === 0; })
+    };
+    var seventh = getComputedStyle(swatches[6]).backgroundColor;
+    swatches[6].click();
+    out.pick.took = getComputedStyle(
+      document.querySelector("#vs-mpalette .vs-dyerows .vs-slot .vs-swatch")).backgroundColor === seventh;
+    out.pick.saved = __vs.settings().palette.length;
+    document.getElementById("vs-mpalettereset").click();
+    document.getElementById("vs-mclose").click();
+
+    __vs.newShelf("end");
+    document.getElementById("vs-bname").value = "Doomed";
+    document.getElementById("vs-bname").dispatchEvent(new Event("input", { bubbles: true }));
+    out.binOnNew = !document.getElementById("vs-bdelete").hidden;
+    document.getElementById("vs-bsave").click();
+    var live = function () { return __vs.views().map(function (v) { return v.shelf.id; }); };
+    out.made = live().indexOf("doomed") >= 0;
+
+    __vs.editShelf("doomed");
+    var bin = document.getElementById("vs-bdelete");
+    out.binOnEdit = !bin.hidden;
+    out.first = bin.textContent;
+    bin.click();
+    out.armed = bin.textContent;
+    out.stillThere = live().indexOf("doomed") >= 0;
+    bin.click();
+    out.gone = live().indexOf("doomed") < 0;
+    out.sheetClosed = document.getElementById("vs-builder").hidden;
+
+    /* A ribbon nobody chose is now the BOARD'S OWN HUE, deeper -- not its opposite.
+     *
+     * MEASURED AS PAINT, NOT AS A VARIABLE, and in the look the page actually opens in. The
+     * first version of this read --ribbon off the spine and passed while every ribbon in the
+     * leather look was one flat #ad5447: the look painted its own colour over the book's and
+     * the custom property never reached the shelf. A check that reads the input to a rule
+     * cannot see a rule that ignores its input. */
+    /* A ribbon has to be IN a book before it hangs off one, so a few are left here and taken
+     * out again -- the same thing the picture-taking path does before it shoots the reader. */
+    var marked = [];
+    __vs.views().filter(function (v) { return v.shelf.id === "encyclopedia"; })[0].books
+      .slice(0, 8).forEach(function (b) {
+        if (!b.notes.length) return;
+        __vs.openBook(b.id, b.notes[0].id);
+        var stub = document.querySelector("#vs-marks .vs-markstub");
+        if (stub) { stub.click(); marked.push(b.id); }
+      });
+    __vs.closeReader();
+    out.threads = [].slice.call(document.querySelectorAll("#vs-shelves .vs-spine .vs-ribbon"))
+      .slice(0, 24)
+      .map(function (r) {
+        var spine = r.closest(".vs-spine");
+        var want = getComputedStyle(spine).getPropertyValue("--ribbon").trim();
+        var probe = document.createElement("span");
+        probe.style.color = want;
+        document.body.appendChild(probe);
+        var asRgb = getComputedStyle(probe).color;
+        probe.remove();
+        return { dye: getComputedStyle(spine).getPropertyValue("--spine-tint").trim(),
+                 thread: getComputedStyle(r).backgroundColor,
+                 /* the look has to PAINT the thread the book chose, not one of its own */
+                 honoured: getComputedStyle(r).backgroundColor === asRgb };
+      }).filter(function (x) { return x.dye && x.thread; });
+    out.look = document.getElementById("vs-app").getAttribute("data-look");
+    out.ribbonsPainted = out.threads.length;
+    out.oneColourForAll = new Set(out.threads.map(function (x) { return x.thread; })).size;
+
+    /* github#0 -- THE GLASS AT THE HEAD OF THE INDEX. */
+    /* The fattest book in the library, so the contents page is long enough to scroll away from. */
+    var fattest = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) {
+        if (!fattest || b.notes.length > fattest.notes.length) fattest = b;
+      });
+    });
+    __vs.openBook(fattest.id, null);
+    var tabs = document.querySelectorAll("#vs-tabs button:not(.vs-findtab)");
+    var glass = document.querySelector("#vs-tabs .vs-findtab");
+    var left = document.querySelector("#vs-reader .vs-page.vs-left");
+    left.scrollTop = 400;
+    var scrolledAway = left.scrollTop;
+    glass.click();
+    out.find = {
+      /* the glass heads the WHOLE strip; tabs above is the index entries without it */
+      first: (function () {
+        var all = document.querySelectorAll("#vs-tabs button");
+        return all.length > 1 && all[0].classList.contains("vs-findtab");
+      })(),
+      indexTabs: tabs.length,
+      glyph: glass ? glass.textContent : "",
+      named: glass ? glass.getAttribute("aria-label") : "",
+      scrolledAway: scrolledAway,
+      scrolledBack: left.scrollTop,
+      focused: document.activeElement === document.getElementById("vs-within"),
+      sameHeight: glass && tabs[1]
+        ? Math.round(glass.getBoundingClientRect().height) ===
+          Math.round(tabs[1].getBoundingClientRect().height)
+        : false
+    };
+    __vs.closeReader();
+
+    /* the ribbons were for the picture, not for the file */
+    marked.forEach(function (id) {
+      var book = __vs.views().reduce(function (found, v) {
+        return found || v.books.filter(function (b) { return b.id === id; })[0] || null;
+      }, null);
+      if (!book || !book.notes.length) return;
+      __vs.openBook(id, book.notes[0].id);
+      var mark = document.querySelector("#vs-marks .vs-mark");
+      if (mark) mark.click();
+    });
+    __vs.closeReader();
+    out.ribbonsLeft = document.querySelectorAll("#vs-shelves .vs-spine .vs-ribbon").length;
+
+    __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })
+      .forEach(function (s) { s.picks = []; });
+    __vs.setFilters({});
+    return out;
+  })()`);
+
+  /* The thread keeps the board's hue and leaves its lightness. */
+  const hsl = (css) => {
+    const m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/.exec(css);
+    const hex = /^#([0-9a-f]{6})$/i.exec(css);
+    let R, G, B;
+    if (m) { [R, G, B] = [m[1], m[2], m[3]].map((v) => Number(v) / 255); }
+    else if (hex) { [R, G, B] = [0, 2, 4].map((i) => parseInt(hex[1].slice(i, i + 2), 16) / 255); }
+    else return null;
+    const max = Math.max(R, G, B), min = Math.min(R, G, B), l = (max + min) / 2, d = max - min;
+    let h = 0;
+    if (d) h = max === R ? ((G - B) / d + (G < B ? 6 : 0)) / 6 : max === G ? ((B - R) / d + 2) / 6 : ((R - G) / d + 4) / 6;
+    return { h, l, sat: d };
+  };
+  const function_honoured = (t) => t.honoured;
+  const pairs = rest.threads.map(({ dye, thread }) => ({ a: hsl(dye), b: hsl(thread) }))
+    .filter((x) => x.a && x.b && x.a.sat > 0.08);
+  const tonal = pairs.filter((x) => {
+    const dh = Math.abs(x.a.h - x.b.h);
+    return Math.min(dh, 1 - dh) < 0.08;
+  }).length;
+  const separated = pairs.filter((x) => Math.abs(x.a.l - x.b.l) > 0.18).length;
+
+  const ok = parted.margin >= parted.carried && parted.side === "before" &&
+             parted.barWidth === 3 && parted.inTheGap && settled === resting &&
+             shelfParted.accepted && shelfParted.ghost && shelfParted.ghostHeight > 80 &&
+             shelfParted.hidden &&
+             shelfParted.above &&
+             shelfSettled.ghosts === 0 && shelfSettled.carrying === 0 &&
+             shelfResting.onScreen && shelfResting.grip &&
+             rest.pick.shown && rest.pick.swatches === 12 && rest.pick.distinct >= 10 &&
+             rest.pick.custom && rest.pick.took && rest.pick.saved === 12 &&
+             rest.made && rest.binOnNew === false && rest.binOnEdit === true &&
+             rest.first === "Delete shelf" && rest.armed === "Really delete?" &&
+             rest.stillThere && rest.gone && rest.sheetClosed &&
+             pairs.length > 0 && tonal === pairs.length && separated === pairs.length &&
+             /* the look paints the book's thread rather than one of its own */
+             rest.threads.every(function_honoured) &&
+             rest.find.first && rest.find.glyph === "\u2315" && rest.find.named &&
+             rest.ribbonsPainted >= 4 && rest.ribbonsLeft === 0 &&
+             rest.find.scrolledAway > 0 && rest.find.scrolledBack === 0 &&
+             rest.find.focused && rest.find.sameHeight;
+  return {
+    ok,
+    detail: `a book's neighbour parts ${resting} -> ${parted.margin}px for a ${parted.carried}px book, ` +
+            `with the ${parted.barWidth}px ` +
+            `bar standing in the gap (${parted.inTheGap}), and settles back to ${settled}px; a shelf ` +
+            `leaves the room while carried (${shelfParted.hidden}), the drag is accepted ` +
+            `(${shelfParted.accepted}) and a ${shelfParted.ghostHeight}px ghost ` +
+            `named "${shelfParted.ghostName}" stands where it would land (${shelfParted.above}); ` +
+            `(on screen: ${shelfResting.onScreen}, grip: ${shelfResting.grip}) and ` +
+            `Nothing left behind: ${shelfSettled.ghosts} ghosts, ${shelfSettled.carrying} carried. ` +
+            `The colour picker offers ${rest.pick.swatches} ` +
+            `swatches, ${rest.pick.distinct} distinct, plus Custom; the seventh took ` +
+            `(${rest.pick.took}) and saved ${rest.pick.saved}. Delete shows only when editing ` +
+            `(new ${rest.binOnNew}, edit ${rest.binOnEdit}), reads "${rest.first}" then ` +
+            `"${rest.armed}" with the shelf still there (${rest.stillThere}), gone on the second ` +
+            `(${rest.gone}). Ribbons: ${tonal}/${pairs.length} keep their board's hue and ` +
+            `${separated}/${pairs.length} are a fifth of the lightness away from it, painted in ` +
+            `${rest.oneColourForAll} different colours under "${rest.look || "modern"}", every one of them ` +
+            `the thread the book chose (${rest.threads.every(function_honoured)}). The glass tab heads ` +
+            `the index (${rest.find.first}), ` +
+            `reads "${rest.find.glyph}" above ${rest.find.indexTabs} index tabs, is the same height as ` +
+            `one of them (${rest.find.sameHeight}), ` +
+            `and took the left page from ${rest.find.scrolledAway}px back to ` +
+            `${rest.find.scrolledBack}px with the cursor in the find box (${rest.find.focused})`
   };
 });
 
@@ -2432,7 +3385,7 @@ check("the date index is layered: years over months over days, each only where i
   const r = await p.j(`(function(){
     var tabsOf = function (id) {
       __vs.openBook(id, null);
-      var t = [].slice.call(document.querySelectorAll("#vs-tabs button")).map(function (b) {
+      var t = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab)")).map(function (b) {
         return { label: b.textContent, level: Number(b.getAttribute("data-level") || 0) };
       });
       __vs.closeReader();
@@ -2491,7 +3444,7 @@ check("the reader's index tabs stay countable on the biggest book", async (p) =>
     });
     __vs.openBook(biggest.id, null);
     return { book: biggest.id, notes: biggest.notes.length,
-             tabs: document.querySelectorAll("#vs-tabs button").length };
+             tabs: document.querySelectorAll("#vs-tabs button:not(.vs-findtab)").length };
   })()`);
   return { ok: r.tabs > 0 && r.tabs <= 26,
            detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} tabs (cap 26)` };

@@ -579,7 +579,7 @@
       rgba(255, 255, 255, 0.45) 0 1px,
       rgba(0, 0, 0, 0) 1px 60%,
       rgba(0, 0, 0, 0.3) 100%),
-    var(--vs-hot);
+    var(--ribbon);
   box-shadow: 0 0 10px rgba(255, 46, 151, 0.6);
 }
 

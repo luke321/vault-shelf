@@ -55,6 +55,15 @@ of measuring it.** Build the page, drive it, read the numbers.
   and nothing else: not an address, not membership, not what is inside a book. A key it does
   not name goes to the end, a key the vault has lost is dropped on save, and the toggle in the
   top bar cannot reach it. `design/0018`.
+- **A favourite is a reference, never a copy.** The shelf at position 0 is a `pick` shelf: it
+  classifies nothing and holds the **addresses** of other shelves' books, in the order they were
+  dropped, so its label, notes and bands are the source's and are live. `picks` is the only
+  list — membership and sequence are one question here — a dead pick is dropped **on save** like
+  a manual key, a hidden source still resolves, and the reader is never told a pick shelf
+  exists: opening a favourite opens the source book. **Dragging one off the shelf takes it off**,
+  and it is bound to a drop rather than to `dragend` so Escape cancels. A pick shelf is a **kind**
+  of shelf, not one shelf: the builder makes as many as a person wants, a book may sit on several,
+  and every reference is its own. `design/0019`.
 - **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` the
   other one on offer, `"cyber"` shelved until its redesign but still shipped and still
   measured — and it may repaint anything and move nothing: not a shelf's
