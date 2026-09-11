@@ -1,5 +1,34 @@
 # Changelog detail
 
+## 2026-09-11 — One answer to which fixture is the current one
+
+Merging #7 (a new demo fixture) on top of #5's layout goldens and #8's fixture-store fix
+produced a failure neither branch could have seen alone: **the goldens were re-taken against
+the vault nobody was measuring.**
+
+`scripts/update-layout-snapshots.mjs` picked its fixture with `readdirSync(store).sort()` and
+took the **last** name. That was harmless while the store held one directory per fixture —
+which stopped being true when #8 stopped a regeneration deleting its siblings. The store then
+held `demo-vault-2f973453` (424 notes, written by the new generator) and
+`demo-vault-5bd2a221` (396 notes, stale), and `"5bd2a221"` sorts after `"2f973453"`, so the
+updater measured 396 notes and wrote a golden the suite immediately failed against: **26
+differences, encyclopedia 29 books against the golden's 20.**
+
+Five scripts reached into the store this way and **three disagreed with each other**:
+`update-layout-snapshots` and `refresh-check` and `teardown-check` took the last name,
+`suite-stamp` took the **first** (`.sort()[0]`), `record-demo` took whatever `.find()` returned.
+Two of those disagreeing is worse than either being wrong: `suite-stamp` would have vouched for
+a tree the suite never measured.
+
+`scripts/fixture-store.mjs` is now the one answer — **the build whose `.stamp.json` was written
+last**, which is what the last suite run used. No hashing, so nothing can drift out of step with
+the digest `smoke.mjs` computes. All five scripts call it.
+
+Goldens re-taken against the current fixture: demo **5 shelves, 8 rows, 198 spines, 40 plaques,
+room 1125px**; sparse **5 / 6 / 77 / 19**; library **5 / 10 / 186 / 33**. Suite **70/70 on all
+three shapes, exit 0**. Comment baseline 1304 → 1320.
+
+
 ## 2026-09-11 — A demo fixture that reads like a vault
 
 > github#7: "make the demo fixture more fidelic to show off all the different features"

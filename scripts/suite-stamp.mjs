@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpath
          writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
+import { currentFixture } from "./fixture-store.mjs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -58,13 +59,11 @@ export function describeFixture(dir) {
 }
 
 export function currentFixtures(cwd = ROOT) {
-  const store = fixtureStore(cwd);
   const out = [];
-  let dirs = [];
-  try { dirs = readdirSync(store); } catch { dirs = []; }
   for (const name of FIXTURE_NAMES) {
-    const dir = dirs.filter((d) => d.startsWith(name + "-")).sort()[0];
-    const desc = dir ? describeFixture(join(store, dir)) : null;
+    /* github#13 -- the current build. Sorting by name vouched for a stale one. */
+    const dir = currentFixture(cwd, name);
+    const desc = dir ? describeFixture(dir) : null;
     out.push(desc ? { name, ...desc } : { name, digest: null, day: null, pinned: false });
   }
   return out;

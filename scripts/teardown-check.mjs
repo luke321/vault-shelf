@@ -2,8 +2,9 @@
 // github#5 -- mount, unmount, and count what is left behind
 
 import { spawn, spawnSync } from "node:child_process";
+import { currentFixture } from "./fixture-store.mjs";
 import { createServer } from "node:net";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -40,14 +41,8 @@ const freePort = () => new Promise((res, rej) => {
 
 // github#5 -- the suite's shared fixture store
 export function storeVault(name) {
-  const g = spawnSync("git", ["-C", ROOT, "rev-parse", "--git-common-dir"], { encoding: "utf8" });
-  if (g.status !== 0 || !g.stdout.trim()) return "";
-  const common = g.stdout.trim();
-  const abs = /^[A-Za-z]:[\\/]|^\//.test(common) ? common : join(ROOT, common);
-  const store = join(dirname(abs), ".fixtures");
-  if (!existsSync(store)) return "";
-  const hit = readdirSync(store).filter((d) => d.startsWith(name + "-")).sort();
-  return hit.length ? join(store, hit[hit.length - 1]) : "";
+  /* github#13 -- one answer to which build is current, shared with the suite. */
+  return currentFixture(ROOT, name);
 }
 
 /** @returns {{ url: string, scratch: string }} */

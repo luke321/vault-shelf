@@ -2,11 +2,12 @@
 // design/0007
 
 import { attach } from "./cdp.mjs";
+import { currentFixture } from "./fixture-store.mjs";
 import { spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -120,7 +121,7 @@ function sourceVault() {
 
   const store = fixtureStore();
   const hit = existsSync(store)
-    ? readdirSync(store).find((d) => d.startsWith("demo-vault-") && statSync(join(store, d)).isDirectory())
+    ? (basename(currentFixture(ROOT, "demo-vault")) || undefined)
     : null;
   if (!hit) {
     throw new Error("no demo-vault-* fixture in " + store +

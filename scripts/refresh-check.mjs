@@ -2,8 +2,9 @@
 // github#5 -- does the library follow a changed vault, once
 
 import { spawn, spawnSync } from "node:child_process";
+import { currentFixture } from "./fixture-store.mjs";
 import { createServer } from "node:net";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -177,14 +178,8 @@ const freePort = () => new Promise((res, rej) => {
 });
 
 function storeVault(name) {
-  const g = spawnSync("git", ["-C", ROOT, "rev-parse", "--git-common-dir"], { encoding: "utf8" });
-  if (g.status !== 0 || !g.stdout.trim()) return "";
-  const common = g.stdout.trim();
-  const abs = /^[A-Za-z]:[\\/]|^\//.test(common) ? common : join(ROOT, common);
-  const store = join(dirname(abs), ".fixtures");
-  if (!existsSync(store)) return "";
-  const hit = readdirSync(store).filter((d) => d.startsWith(name + "-")).sort();
-  return hit.length ? join(store, hit[hit.length - 1]) : "";
+  /* github#13 -- one answer to which build is current, shared with the suite. */
+  return currentFixture(ROOT, name);
 }
 
 async function pageHalf() {

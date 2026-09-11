@@ -2,8 +2,9 @@
 // github#5 -- rewrite the golden geometry, deliberately
 
 import { spawn, spawnSync } from "node:child_process";
+import { currentFixture } from "./fixture-store.mjs";
 import { createServer } from "node:net";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -26,21 +27,11 @@ const FIXTURES = [
   { name: "library-vault", script: "make-library-vault.mjs", args: ["--notes", "10000", "--years", "10"] },
 ];
 
-function storeRoot() {
-  const g = spawnSync("git", ["-C", ROOT, "rev-parse", "--git-common-dir"], { encoding: "utf8" });
-  if (g.status !== 0 || !g.stdout.trim()) return join(ROOT, ".fixtures");
-  const common = g.stdout.trim();
-  const abs = /^[A-Za-z]:[\\/]|^\//.test(common) ? common : join(ROOT, common);
-  return join(dirname(abs), ".fixtures");
-}
-
 /** @param {{ name: string, script: string, args: string[] }} fx @returns {{ dir: string, temp: boolean }} */
 function vaultFor(fx) {
-  const store = storeRoot();
-  if (existsSync(store)) {
-    const hit = readdirSync(store).filter((d) => d.startsWith(fx.name + "-")).sort();
-    if (hit.length) return { dir: join(store, hit[hit.length - 1]), temp: false };
-  }
+  /* github#13 -- the CURRENT build, not whichever name sorts last. */
+  const hit = currentFixture(ROOT, fx.name);
+  if (hit) return { dir: hit, temp: false };
   console.log(`  ${fx.name}: not in the shared fixture store, generating ...`);
   const dir = mkdtempSync(join(tmpdir(), "vs-snap-vault-"));
   const r = spawnSync(process.execPath, [join(HERE, fx.script), "--out", dir, ...fx.args], { encoding: "utf8" });
