@@ -181,8 +181,14 @@ of measuring it.** Build the page, drive it, read the numbers.
   Integrating finished branches and shipping them is the orchestrator's job alone, so one place
   is answerable for what is actually on `develop` and what a release contains. The orchestrator
   itself never implements: it stays on the integration branch, surveys, dispatches, reviews and
-  merges. "Merge to `develop`" authorises the local merge and nothing more; the push is its own
-  ask. **At most six Orca worktrees work at once**: when six are in progress the orchestrator
+  merges. **A merge is always an ask, never an initiative**: "merge N" authorises that one local
+  merge and nothing more, the push is its own ask again, and no branch is merged because it
+  looks finished. **The rule bites at `git merge`, not at the commit** — not a trial merge, not
+  `--no-commit` to see whether it conflicts, not "just to run the suite on it". An unasked merge
+  is a mistake the moment it starts, and aborting it is damage control rather than a defence.
+  **A worker's handover is a claim, not a verdict** — a green gate table and "stopped at the
+  branch" say the worker believes it is done, which is not the same as it being done, and the
+  orchestrator has no standing to decide that on its own. **At most six Orca worktrees work at once**: when six are in progress the orchestrator
   spawns nothing more — it files the issue and the brief, and dispatches when one has finished
   and been merged. (Copied from Vault Graph, 2026-09-11; the cap added the same day.)
 - **A release is the range, not the work in hand.** Everything it needs — a `CHANGELOG.md`
