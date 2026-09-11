@@ -678,6 +678,51 @@ now tells a **fresh** same-digest directory (another run got there first — kee
 **stale** one (rename aside, replace, delete), and never renames onto an existing directory,
 which on Windows throws rather than replacing.
 
+## A tree is gated once, and a partial run never claims to be a full one
+
+Not a check in `smoke.mjs` but a property of the gates themselves, held by
+`node scripts/suite-stamp.mjs --selftest` — **16 cases**, against a throwaway repository and a
+seeded fixture store. `decisions/0010`.
+
+What it asserts: a clean tree records a stamp; the same tree hits again from a **new commit**
+and from a **`--no-ff` merge commit**, which is the whole point, since the merge that reaches
+`main` is a new commit carrying `develop`'s tree; a changed tree misses; an earlier tree still
+hits when asked for by revision; a **dirty** tree refuses to record; a run that lost a fixture
+to a failed generator refuses to record; a stamp naming only two of the three fixtures misses;
+a **regenerated** fixture misses and hits again when the store is put back; an **unpinned**
+fixture older than `FIXTURE_MAX_AGE_DAYS` (7) misses, because the next run would regenerate it
+and measure something else; a **pinned** fixture never ages; and the CLI answers where it is
+invoked from rather than exiting 0 in silence.
+
+That last one is not hypothetical next door: the sister repo's copy guarded its CLI body by
+comparing `process.argv[1]` as typed against a realpath'd `import.meta.url`, so through a
+directory junction — which is how every Orca worktree is reached — it printed nothing and
+exited 0, and both gates read that as "stamped". Every push from a worktree went out
+unmeasured. Here both sides are realpath'd, and the hook and `release.ps1` both require the
+`passed the invariant suite` **line** rather than an exit code.
+
+Measured warm on the reference machine, 2026-09-11: a full run is **39.0 s** for **198 checks**
+(66 × 3 shapes) — 7.7 s of builds (the 10k fixture alone 6.5 s), ~6 s of check time across 12
+parallel shards on 4 Chromes, **22 s** in the serial lane of 13 layout-reading checks per shape
+— against **43 s** cold with all three fixtures regenerated, and **7.5 s** for the static gates
+ahead of it. So a stamped push to `develop` costs 7.5 s and an unstamped one 46.5 s, both
+measured by driving the hook with the ref lines git hands it.
+
+## Every release guard fires, and none of them writes a tag
+
+`.\scriptselease.ps1 -SelfTest` — **10 cases**. A throwaway bare repository stands in for
+`origin` (the guards *fetch* `origin/main`, so a self-test that faked the ref in a clone of the
+real repo would have it overwritten mid-run), a clone of it carries the working tree's
+`scripts/`, and each case breaks exactly one thing: a `v` prefix, a malformed version, a
+manifest that disagrees, a missing CHANGELOG section, a branch other than `main`, a `main` one
+commit **ahead** of `origin/main`, a `main` one commit **behind**, a HEAD **off
+`origin/main`'s first-parent line** (built as a real `--no-ff` merge and reached with
+`-AllowAnyBranch`, which is vault-graph#47's 1.8.0 exactly), and a dirty tree. The tenth case
+breaks nothing and is asserted on reaching the lint gate.
+
+Every case asserts the tag count **before and after**, and all ten are `0 -> 0`: a guard that
+fires after a tag has been written is not a guard, and a published tag cannot be moved.
+
 ## Not covered here
 
 - **Anything about how it looks.** Every check above asserts a number; none of them can see

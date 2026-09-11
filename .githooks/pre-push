@@ -13,12 +13,18 @@
 # WHY pre-push AND NOT pre-commit: the suite builds the standalone page and drives a real
 # Chrome, and does it THREE TIMES -- against the demo vault, the sparse one and a
 # 10,000-note library -- because a change that is right on 394 notes can still be wrong on a
-# shelf carrying 520 week books. Call it a minute or two. A fine price per push to develop or main, an
-# intolerable one per commit -- and an unearned one on a feature branch nobody has asked to
-# merge yet, which is why the gate checks below are scoped to gated_push and skip entirely
-# on any other branch. The main-ancestry policy just below stays unconditional regardless
-# -- it only ever fires for a push whose remote ref IS main, so scoping it further would be
-# scoping a no-op.
+# shelf carrying 520 week books. Measured warm on the reference machine 2026-09-11: 39 s for
+# 198 checks (66 x 3 shapes), of which 22 s is the serial lane of layout-reading checks and
+# 7.7 s is the three builds; the static gates above it are 7.5 s together. A fine price per
+# push to develop or main, an intolerable one per commit -- and an unearned one on a feature
+# branch nobody has asked to merge yet, which is why the gate checks below are scoped to
+# gated_push and skip entirely on any other branch. The main-ancestry policy just below stays
+# unconditional regardless -- it only ever fires for a push whose remote ref IS main, so
+# scoping it further would be scoping a no-op.
+#
+# AND ONCE PER TREE, NOT ONCE PER PUSH: a green full run stamps the tree it measured and the
+# block at the bottom skips the suite for a tree that already carries one (github#5,
+# decisions/0010).
 #
 # Skipping the gate checks on a develop/main push is still deliberate and cheap, because
 # there are honest reasons to (a docs-only change, no Chrome on the machine, a hurry):
