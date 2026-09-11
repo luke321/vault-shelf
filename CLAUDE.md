@@ -191,6 +191,17 @@ of measuring it.** Build the page, drive it, read the numbers.
   orchestrator has no standing to decide that on its own. **At most six Orca worktrees work at once**: when six are in progress the orchestrator
   spawns nothing more — it files the issue and the brief, and dispatches when one has finished
   and been merged. (Copied from Vault Graph, 2026-09-11; the cap added the same day.)
+- **Every issue the orchestrator files carries a label, and "unsure" is a question for Lukas, not
+  a reason to skip it.** `gh issue create` without `--label` silently succeeds, so an unlabelled
+  issue is never caught at filing time — and unlabelled is what this backlog already is: **31 of
+  31 open issues carried no label on 2026-09-11**, which is how a label stops being worth
+  filtering on at all. The set is the GitHub default: `bug`, `enhancement`, `documentation`,
+  `accessibility`, `question`, plus `duplicate` / `invalid` / `wontfix` for closing. Most work
+  here is `bug` or `enhancement`, and the split is about what the issue *claims*: something the
+  library already promises and does not do is a `bug`; something it does not promise yet is an
+  `enhancement`. **When it is genuinely either — a behaviour that is defensible as designed but
+  reads as broken — ask Lukas which, and file after the answer.** Do not guess and do not file
+  bare. (Copied from Vault Graph, 2026-09-11.)
 - **A release is the range, not the work in hand.** Everything it needs — a `CHANGELOG.md`
   section accounting for every merge since the last tag, every clip it embeds, every doc naming
   the version, the release body itself — is finished on `release/<version>` and read there
