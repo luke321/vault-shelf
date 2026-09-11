@@ -1,5 +1,48 @@
 # Changelog detail
 
+## 2026-09-11 — The contents follow the jump
+
+> github#11: "when I click an index tab on the right, the index on the left should also move a
+> marker there and scroll".
+
+**The marker moved and the list did not.** `goTo()` set `reader.noteId` and `renderContents()`
+put `aria-current` on the right row, but `.vs-page.vs-left` is `overflow-y: auto` and nothing
+ever set its `scrollTop`, so on the demo vault's biggest book — `people/-unfiled`, 199 notes —
+clicking the last tab left the marked row **3,398px** below the fold. From where the reader
+sat, the tab had done nothing.
+
+`revealCurrent()` runs at the end of every `renderContents()` and scrolls the left page to the
+marked row by the **smallest move that brings it in**: a row already in view is left alone; one
+below the fold comes up so it sits one row's height inside the bottom edge; one above comes
+down the same way. Never centred, so turning one page does not jerk the whole list; never
+`scrollIntoView()`, which walks every scrolling ancestor and inside Obsidian those are the
+app's own. Smooth unless `prefers-reduced-motion` says otherwise, in which case the position is
+set outright. And **only when the note changed**: `reader.revealed` holds the note the list was
+last brought to, so a re-render for the find-within box — which calls the same function —
+cannot pull the list out from under somebody who has scrolled it by hand.
+
+Measured, one new check on all three shapes (last tab → Previous → a ribbon followed from the
+far end):
+
+| shape | biggest book | tab | scrollTop before → after | Previous | ribbon back |
+|---|---|---|---|---|---|
+| demo | `people/-unfiled`, 199 notes, 16 tabs | `2026` → row 147 | **0 → 3398** | row 146, 3398 | row 0, 120 |
+| sparse | `people/-unfiled`, 501 notes, 5 tabs | `2026` → row 383 | **0 → 9431** | row 382, 9431 | row 0, 120 |
+| 10k library | `people/-unfiled`, 6,937 notes, 11 tabs | `2026` → row 6461 | **0 → 164800** | row 6460, 164800 | row 0, 120 |
+
+Exactly **1** row marked in every case, at the index the tab named; the marked row's box inside
+the page's box in every case. The ribbon lands at 120 rather than 0 because row 0 comes into
+view one row inside the edge and the book's title, count and search box above it are what
+stays out of sight — the smallest move, not the top of the page.
+
+**The marker reads as a marker now.** A current row was `color` and `font-weight: 600` in the
+default look and vanished on a dense index of forty rows in one face. It carries an inset
+**3px** bar in `--accent` and an 8% tint of the same, which is paint (an inset shadow moves
+nothing) and what the leather look already did in its own oxblood. Cyber keeps its neon colour.
+
+The suite gained `--shot-book biggest|<address>` and `--shot-tab last|<n>` so the picture of a
+long book after a late tab is a flag rather than a hand. 71 checks per shape.
+
 ## 2026-09-11 — Four gates Vault Graph had and this repo did not, and the two bugs they found
 
 > github#5: "Gates Vault Graph has and we do not" — `check-data-escape`, `teardown-check`,

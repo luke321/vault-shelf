@@ -853,7 +853,13 @@
 }
 
 .vault-shelf .vs-contents button:hover { color: var(--text-1); background: color-mix(in srgb, var(--text-1) 5%, transparent); }
-.vault-shelf .vs-contents button[aria-current="true"] { color: var(--text-1); font-weight: 600; }
+/* github#11, design/0015 */
+.vault-shelf .vs-contents button[aria-current="true"] {
+  color: var(--text-1);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: inset 3px 0 var(--accent);
+}
 .vault-shelf .vs-contents .vs-t { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vault-shelf .vs-contents .vs-leader {
   flex: 1 1 auto;

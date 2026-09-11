@@ -164,6 +164,9 @@ const SHOT_NOTE = arg("shot-note", "");
  * with one slot and the ribbon changed, because a colours block with nothing changed shows
  * none of the marks the block exists to show; both are put back before the sheet closes. */
 const SHOT_OPEN = arg("shot-open", "");
+/* github#11 */
+const SHOT_BOOK = arg("shot-book", "");
+const SHOT_TAB = arg("shot-tab", "");
 const GRID = argv.includes("--no-grid") ? false
           : argv.includes("--grid") ? true
           : JOBS > 1;
@@ -2323,6 +2326,87 @@ check("the reader's index tabs stay countable on the biggest book", async (p) =>
            detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} tabs (cap 26)` };
 });
 
+/* github#11, design/0015 */
+check("the contents scroll to the current row after a tab, Previous and a ribbon", async (p) => {
+  const read = () => p.j(`(function(){
+    var page = document.querySelector(".vs-page.vs-left");
+    var rows = [].slice.call(document.querySelectorAll("#vs-contents button"));
+    var marked = rows.filter(function (b) { return b.getAttribute("aria-current") === "true"; });
+    var pb = page.getBoundingClientRect(), rb = marked.length ? marked[0].getBoundingClientRect() : null;
+    return { scrollTop: Math.round(page.scrollTop), overflows: page.scrollHeight > page.clientHeight + 1,
+             marked: marked.length, markedAt: marked.length ? rows.indexOf(marked[0]) : -1,
+             inside: !!rb && rb.top >= pb.top - 0.5 && rb.bottom <= pb.bottom + 0.5,
+             index: __vs.reader().index };
+  })()`);
+  /* github#11 */
+  const measure = async () => {
+    let last = null;
+    for (let i = 0; i < 60; i++) {
+      const now = await read();
+      if (last && now.inside && now.scrollTop === last.scrollTop) return now;
+      last = now;
+      await sleep(50);
+    }
+    return last;
+  };
+  const opened = await p.j(`(function(){
+    var biggest = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { if (!biggest || b.notes.length > biggest.notes.length) biggest = b; });
+    });
+    __vs.openBook(biggest.id, null);
+    var tabs = document.querySelectorAll("#vs-tabs button");
+    return { book: biggest.id, notes: biggest.notes.length, tabs: tabs.length,
+             scrollTop: Math.round(document.querySelector(".vs-page.vs-left").scrollTop) };
+  })()`);
+  if (opened.tabs < 2) return { ok: false, detail: `${opened.book} has ${opened.tabs} tab(s); nothing to jump to` };
+
+  const named = await p.j(`(function(){
+    var tabs = document.querySelectorAll("#vs-tabs button");
+    var tab = tabs[tabs.length - 1];
+    tab.click();
+    return { label: tab.textContent, index: __vs.reader().index };
+  })()`);
+  const tab = await measure();
+  await p.eval('document.getElementById("vs-prevnote").click(); void 0');
+  const prev = await measure();
+  const ribbon = await p.j(`(function(){
+    var book = __vs.reader().book;
+    __vs.openBook(book, null);
+    var stub = document.querySelector("#vs-marks .vs-markstub");
+    var already = !stub;
+    if (stub) stub.click();
+    var tabs = document.querySelectorAll("#vs-tabs button");
+    tabs[tabs.length - 1].click();
+    var far = Math.round(document.querySelector(".vs-page.vs-left").scrollTop);
+    var marks = [].slice.call(document.querySelectorAll("#vs-marks .vs-mark"))
+      .filter(function (b) { return b.getAttribute("aria-current") !== "true"; });
+    if (marks.length) marks[0].click();
+    return { far: far, hadRibbon: marks.length > 0, already: already };
+  })()`);
+  const back = await measure();
+  if (!ribbon.already) {
+    await p.j(`(function(){
+      var mine = document.querySelector('#vs-marks .vs-mark[aria-current="true"]');
+      if (mine) mine.click();
+      return 1;
+    })()`);
+  }
+  await p.eval("__vs.closeReader(); void 0");
+
+  const one = (m, at) => m.marked === 1 && m.markedAt === at && m.inside;
+  const moved = !opened.overflows || tab.scrollTop > opened.scrollTop;
+  const ok = one(tab, named.index) && one(prev, named.index - 1) && ribbon.hadRibbon &&
+             one(back, 0) && moved && (!tab.overflows || back.scrollTop < ribbon.far);
+  return { ok,
+           detail: `${opened.book} (${opened.notes} notes, ${opened.tabs} tabs, ` +
+                   `${tab.overflows ? "contents overflow" : "contents fit"}): ` +
+                   `tab "${named.label.trim()}" -> row ${named.index}, scrollTop ${opened.scrollTop} -> ${tab.scrollTop}, ` +
+                   `marked ${tab.marked} row(s) at ${tab.markedAt}, inside ${tab.inside}; ` +
+                   `Previous -> row ${prev.index}, scrollTop ${prev.scrollTop}, inside ${prev.inside}; ` +
+                   `ribbon from scrollTop ${ribbon.far} -> row ${back.index}, scrollTop ${back.scrollTop}, inside ${back.inside}` };
+});
+
 check("previous and next walk the book and stop at its ends", async (p) => {
   const r = await p.j(`(function(){
     var book = null;
@@ -3264,7 +3348,16 @@ async function capture(page, out) {
         }); });
         return home ? __vs.openBook(home, note.id) : false;
       })()`)
-    : await page.j('__vs.openBook(__vs.addresses()[0], null)');
+    : SHOT_BOOK
+      ? await page.j(`(function(){
+          var want = ${JSON.stringify(SHOT_BOOK)};
+          var pick = null;
+          __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+            if (want === "biggest" ? (!pick || b.notes.length > pick.notes.length) : b.id === want) pick = b;
+          }); });
+          return pick ? __vs.openBook(pick.id, null) : false;
+        })()`)
+      : await page.j('__vs.openBook(__vs.addresses()[0], null)');
   if (opened) {
     /* WITH RIBBONS IN IT. A reader with none shows an empty strip where the feature is, which
      * is a picture of the wrong thing; two are marked for the shot and taken out again. */
@@ -3291,6 +3384,14 @@ async function capture(page, out) {
         var here = __vs.reader();
         return note && here ? __vs.openBook(here.book, note.id) : false;
       })()`);
+    }
+    if (SHOT_TAB) {
+      await page.eval(`(function(){
+        var tabs = document.querySelectorAll("#vs-tabs button");
+        var at = ${JSON.stringify(SHOT_TAB)} === "last" ? tabs.length - 1 : Number(${JSON.stringify(SHOT_TAB)});
+        if (tabs[at]) tabs[at].click();
+      })(); void 0`);
+      await sleep(900);
     }
     await sleep(400);
     await shoot(out.replace(/(\.png)?$/i, "-reader.png"));

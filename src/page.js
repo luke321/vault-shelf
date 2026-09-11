@@ -213,7 +213,7 @@ function mountVaultShelf(root, data, options) {
   var bookIndex = {};
   /** The biggest book in the library, which every thickness is scaled against. */
   var thickest = 1;
-  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null }|null} */
+  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
   var history = [];
@@ -1264,6 +1264,29 @@ function mountVaultShelf(root, data, options) {
       empty.appendChild(el("span", "vs-hint", needle ? "Nothing in this book matches." : "This book is empty."));
       box.appendChild(empty);
     }
+    revealCurrent(box);
+  }
+
+  /* github#11, design/0015 */
+  /** @param {HTMLElement} box */
+  function revealCurrent(box) {
+    if (!reader || reader.revealed === reader.noteId) return;
+    var row = /** @type {HTMLElement|null} */ (box.querySelector('button[aria-current="true"]'));
+    var page = /** @type {HTMLElement|null} */ (box.closest(".vs-page"));
+    if (!row || !page || !page.clientHeight) return;
+    var pageBox = page.getBoundingClientRect();
+    var rowBox = row.getBoundingClientRect();
+    var top = rowBox.top - pageBox.top + page.scrollTop;
+    var bottom = top + rowBox.height;
+    var margin = Math.round(rowBox.height);
+    var target = page.scrollTop;
+    if (top < page.scrollTop + margin) target = top - margin;
+    else if (bottom > page.scrollTop + page.clientHeight - margin) target = bottom - page.clientHeight + margin;
+    target = Math.max(0, Math.min(target, page.scrollHeight - page.clientHeight));
+    reader.revealed = reader.noteId;
+    if (Math.abs(target - page.scrollTop) < 1) return;
+    if (reduceMotion || !page.scrollTo) page.scrollTop = target;
+    else page.scrollTo({ top: target, behavior: "smooth" });
   }
 
   /**

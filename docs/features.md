@@ -254,6 +254,11 @@ needs no setting.
 
 Above 26 tabs the list collapses into twelve ranges. A tab you cannot hit is decoration.
 
+**The contents follow.** A tab, Previous, Next, the arrow keys, a ribbon or a followed link
+brings the current row into view on the left page — the smallest move that does it, the way a
+printed index is thumbed to, never a re-centring — and the row is marked with a bar in the
+margin. A list you have scrolled yourself is not moved by a redraw that changes nothing.
+
 `design/0015`, `design/0004`
 
 ### Also shelved in

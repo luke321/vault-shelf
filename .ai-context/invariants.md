@@ -305,6 +305,20 @@ book is `people/-unfiled` at **228 notes behind 20 tabs**. On the library fixtur
 Encyclopedia volume runs to hundreds of notes and the tabs collapse to twelve ranges;
 `design/0004` says why a tab you cannot hit is not navigation.
 
+`"the contents scroll to the current row after a tab, Previous and a ribbon"` opens the biggest
+book in the vault, clicks the **last** index tab and asserts the marked row's box is inside the
+left page's visible box, that the page's `scrollTop` moved (printed before and after), and that
+exactly one row carries `aria-current` — the one at the index the tab named. Then Previous from
+there, and then a ribbon left in the first page and followed from the far end, each measured
+the same way. Measured on the demo vault: `people/-unfiled`, **199 notes behind 16 tabs**, tab
+`2026` → row 147, scrollTop **0 → 3398**; Previous → row 146 with the list unmoved (3398); the
+ribbon → row 0, scrollTop **3398 → 120**. Sparse: 501 notes, **0 → 9431**, back to 120. 10k
+library: 6,937 notes, **0 → 164800**, back to 120. The reveal is the smallest move that brings
+the row in, one row's height inside the edge, by the page's own `scrollTop` and never
+`scrollIntoView()`; instant under `prefers-reduced-motion`; and only when the note changed, so
+a re-render for the find-within box never moves a list somebody has scrolled by hand.
+`github#11`, `design/0015`.
+
 `"previous and next walk the book and stop at its ends"` opens a book with at least three
 notes, asserts it opens at index 0 with **previous** disabled, that next moves to 1, and that
 clicking next past the end stops at the last note with **next** disabled.
@@ -912,7 +926,8 @@ measured by driving the hook with the ref lines git hands it.
 
 ## Every release guard fires, and none of them writes a tag
 
-`.\scriptselease.ps1 -SelfTest` — **10 cases**. A throwaway bare repository stands in for
+`.\scripts
+elease.ps1 -SelfTest` — **10 cases**. A throwaway bare repository stands in for
 `origin` (the guards *fetch* `origin/main`, so a self-test that faked the ref in a clone of the
 real repo would have it overwritten mid-run), a clone of it carries the working tree's
 `scripts/`, and each case breaks exactly one thing: a `v` prefix, a malformed version, a
