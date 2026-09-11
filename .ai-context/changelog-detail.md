@@ -29,6 +29,28 @@ whose own shelf took the id gets `favourites-2`. A hand-edited pick shelf comes 
 of `["years/2024", 7, "years/2024", "nope", "", "people/Ada Lovelace"]` the two real addresses
 survive, `order` is dropped and `plaques` goes off.
 
+**The ribbon is the board's own colour, deeper.** *"the complimentary default color ribbon for
+the standard leather book is ugly as hell, suggest something better ... I don't [think]
+complimentary works here."* Right: an opposite hue is for two colours competing for attention,
+and a ribbon is not competing with the book it is sewn into — a binder does not put green silk in
+an oxblood book. `threadOf()` is the old `complementOf()` with the hue turn taken out; the
+saturation lift and the lightness push stay, because the separation was never the problem. A grey
+keeps the one warm thread. Measured: **21/21** spines keep their board's hue, **21/21** a fifth of
+the lightness away.
+
+**The colour picker offers the twelve.** A slot's swatch opened the operating system's picker —
+sixteen million colours and none of the library's own — so putting slot 7's dye on a ribbon meant
+reading a hex out of one control and typing it into another. It opens a popover of the twelve,
+with *Custom…* behind them and the way back to the look's own on a changed slot.
+
+**A shelf can be deleted from the sheet it is edited in**, not only from Manage, and it asks
+twice there too.
+
+**The room parts where a thing will land.** A 3px bar in a 3px gap said where without saying that
+anything was about to happen. The neighbour steps aside and the bar stands in the gap: a book's
+neighbour **0 → 18px**, a shelf **0 → 34px**, both settling back. It is the parting the query
+already does to the room, one gesture along.
+
 **Three things Manage could not do.** *"there is no delete shelf button"*, *"when I add a shelf
 with the top new shelf button i want it to be on top"*, *"make the shelf floor draggable to re
 arrange shelves"* and *"for that make shelf floors a bit thicker"*.
@@ -92,7 +114,7 @@ its wear, its ribbons, its hand-given colour.
 Addresses did not move, because the shelf ships empty: **447 / 194 / 709** on demo / sparse /
 library, the same list element for element across a rebuild. `__vs.counts().shelves` is **6 ->
 7**. The suite is
-**66 → 73** checks (seven new, and *the six default shelves* is now *the seven*), green on all
+**66 → 74** checks (eight new, and *the six default shelves* is now *the seven*), green on all
 three shapes.
 ## 2026-09-11 — A ribbon per book colour, and the colours block became a table
 

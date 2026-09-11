@@ -147,7 +147,18 @@ sheet narrows. Only the Manage sheet is widened; the builder is a form, which re
 drawn with the same notch the spine hangs (`page.css`, `.vs-ribbonswatch`), so the table says
 which thread comes out of which board with no legend.
 
-**The default is the dye's complement, computed and not stored.** `complementOf()` turns the
+> **Superseded, 2026-09-11:** *"the complimentary default color ribbon for the standard leather
+> book is ugly as hell ... I don't [think] complimentary works here."* The rule below is kept
+> because the reasoning it got wrong is worth keeping: **an opposite hue is what you reach for
+> when two colours have to compete for attention, and a ribbon is not competing with the book it
+> is sewn into.** A binder does not put green silk in an oxblood book. The thread is now the
+> **board's own hue, deeper** — same colour, richer, and far enough along in lightness to read
+> against the board it hangs from. `threadOf()` is the old function with the hue turn taken out:
+> the separation was never the problem, the rotation was. A grey still gets the one warm thread,
+> because a grey has no hue to deepen. Measured on the demo vault: **21 of 21** painted spines
+> keep their board's hue and **21 of 21** sit a fifth of the lightness away from it.
+
+**The default was the dye's complement, computed and not stored.** `complementOf()` turns the
 hue 180°, raises the saturation, and then moves the lightness *whichever way has more room*
 inside `[0.32, 0.78]`. All three steps earn their place:
 

@@ -626,8 +626,15 @@
   pointer-events: none;
   z-index: 4;
 }
-.vault-shelf .vs-drop[data-side="before"] { left: -3px; }
-.vault-shelf .vs-drop[data-side="after"] { right: -3px; }
+/* github#0 -- THE SHELF PARTS WHERE THE BOOK WILL LAND. A 3px bar in a 3px gap is accurate and
+ * almost invisible: it says where, but not that anything is about to happen. The neighbour
+ * steps aside instead -- the same parting the query already does to the room (design/0008) --
+ * and the bar stands in the space that opens, so the gesture reads before the detail does.
+ * The spine's own transition already covers margin, so nothing jumps. */
+.vault-shelf .vs-spine[data-drop="before"] { margin-left: 18px; }
+.vault-shelf .vs-spine[data-drop="after"] { margin-right: 18px; }
+.vault-shelf .vs-drop[data-side="before"] { left: -11px; }
+.vault-shelf .vs-drop[data-side="after"] { right: -11px; }
 
 /* ---- BEGIN: favourites -------------------------------------------------------
  * design/0019 -- the one shelf that starts empty says what it is for, in the row where the
@@ -697,8 +704,14 @@
   pointer-events: none;
   z-index: 4;
 }
-.vault-shelf .vs-shelf[data-shelfdrop="before"]::after { top: -8px; }
-.vault-shelf .vs-shelf[data-shelfdrop="after"]::after { bottom: -8px; }
+/* github#0 -- and a shelf makes room the same way, one axis along: the shelf under the pointer
+ * steps down (or up) and the bar stands in the gap. Without it a shelf drag was a hairline
+ * somewhere in a tall room and no sense that anything had moved. */
+.vault-shelf .vs-shelf { transition: margin 160ms ease; }
+.vault-shelf .vs-shelf[data-shelfdrop="before"] { margin-top: 34px; }
+.vault-shelf .vs-shelf[data-shelfdrop="after"] { margin-bottom: 34px; }
+.vault-shelf .vs-shelf[data-shelfdrop="before"]::after { top: -19px; }
+.vault-shelf .vs-shelf[data-shelfdrop="after"]::after { bottom: -19px; }
 
 .vault-shelf .vs-delete[data-armed="1"] {
   color: #fff;
@@ -1450,6 +1463,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .vault-shelf .vs-shelf { transition: none; }
   .vault-shelf .vs-spine { transition: none; }
   .vault-shelf .vs-spine:hover, .vault-shelf .vs-spine:focus-visible { transform: none; }
   .vault-shelf[data-query="1"] .vs-spine[data-match="1"] { transform: none; }

@@ -134,6 +134,8 @@ const POINTER_DRIVEN = [
   "second favourites shelf",
   /* github#0 -- it reads boxes: a drop on the lower half of a shelf, and a floor grip. */
   "carried by its floor",
+  /* github#0 -- it reads margins while a drag is in the air. */
+  "the room parts",
 ];
 const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
 
@@ -1566,6 +1568,182 @@ check("a shelf is deleted on the second press, made at the end the button is at,
             `"${r.armedLabel}" with the shelf still there (${r.stillThere}), and was gone on the ` +
             `second press; arming another row works too (${r.otherArmed === "1"}), and ${r.wearKeys} ` +
             `wear keys of the deleted shelf survive. Back to ${r.back.length} shelves`
+  };
+});
+
+check("the room parts where a thing will land, the twelve are offered, and a shelf goes from its own sheet",
+      async (p) => {
+  await p.eval(`(function(){
+    __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })
+      .forEach(function (s) { s.picks = []; });
+    var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0].books[0].id;
+    var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0].books[0].id;
+    __vs.pick(years);
+    __vs.pick(people);
+    document.getElementById("vs-library").scrollTop = 0;
+  })(); void 0`);
+  await sleep(300);
+
+  /* 1. A BOOK'S NEIGHBOUR STEPS ASIDE. The gap is a transition, so it is read after it runs. */
+  const resting = await p.j(`(function(){
+    var s = document.querySelectorAll('[data-shelf="favourites"] .vs-spine');
+    window.__part = { from: s[1], target: s[0], dt: new DataTransfer() };
+    return Math.round(parseFloat(getComputedStyle(s[0]).marginLeft));
+  })()`);
+  await p.eval(`(function(){
+    var P = window.__part;
+    P.from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: P.dt }));
+    var b = P.target.getBoundingClientRect();
+    P.target.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true,
+      dataTransfer: P.dt, clientX: b.left + 3, clientY: b.top + b.height / 2 }));
+  })(); void 0`);
+  await sleep(320);
+  const parted = await p.j(`(function(){
+    var P = window.__part;
+    var bar = P.target.querySelector(".vs-drop");
+    var barBox = bar ? bar.getBoundingClientRect() : null;
+    var spineBox = P.target.getBoundingClientRect();
+    return { margin: Math.round(parseFloat(getComputedStyle(P.target).marginLeft)),
+             side: P.target.getAttribute("data-drop"),
+             barWidth: barBox ? Math.round(barBox.width) : 0,
+             inTheGap: barBox ? barBox.right <= spineBox.left + 1 : false };
+  })()`);
+  await p.eval(`(function(){
+    var P = window.__part;
+    P.from.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: P.dt }));
+  })(); void 0`);
+  await sleep(320);
+  const settled = await p.j(`Math.round(parseFloat(getComputedStyle(window.__part.target).marginLeft))`);
+
+  /* 2. A SHELF MAKES ROOM THE SAME WAY, one axis along. */
+  const shelfResting = await p.j(`(function(){
+    window.__sp = { section: document.querySelector('[data-shelf="encyclopedia"]'),
+                    grip: document.querySelector('[data-shelf="years"] .vs-floorgrip'),
+                    dt: new DataTransfer() };
+    window.__sp.section.scrollIntoView(true);
+    return { margin: Math.round(parseFloat(getComputedStyle(window.__sp.section).marginTop)),
+             onScreen: window.__sp.section.getBoundingClientRect().top < window.innerHeight,
+             grip: !!window.__sp.grip };
+  })()`);
+  await p.eval(`(function(){
+    var S = window.__sp;
+    S.grip.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: S.dt }));
+    var b = S.section.getBoundingClientRect();
+    S.section.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true,
+      dataTransfer: S.dt, clientX: b.left + 40, clientY: b.top + 6 }));
+  })(); void 0`);
+  await sleep(320);
+  const shelfParted = await p.j(`(function(){
+    var S = window.__sp;
+    return { margin: Math.round(parseFloat(getComputedStyle(S.section).marginTop)),
+             side: S.section.getAttribute("data-shelfdrop") };
+  })()`);
+  await p.eval(`(function(){
+    var S = window.__sp;
+    S.grip.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: S.dt }));
+  })(); void 0`);
+  await sleep(320);
+  const shelfSettled = await p.j(`Math.round(parseFloat(getComputedStyle(window.__sp.section).marginTop))`);
+
+  /* 3. THE TWELVE ARE OFFERED, and 4. a shelf goes from the sheet it is edited in. */
+  const rest = await p.j(`(function(){
+    var out = {};
+    document.getElementById("vs-manageopen").click();
+    document.querySelector("#vs-mpalette .vs-dyerows .vs-slot .vs-swatch").click();
+    var menu = document.getElementById("vs-swatchpick");
+    var swatches = menu.querySelectorAll(".vs-swatch");
+    out.pick = {
+      shown: !menu.hidden, swatches: swatches.length,
+      distinct: new Set([].map.call(swatches, function (b) {
+        return getComputedStyle(b).backgroundColor; })).size,
+      custom: [].some.call(menu.querySelectorAll(".vs-dyeauto"), function (b) {
+        return b.textContent.indexOf("Custom") === 0; })
+    };
+    var seventh = getComputedStyle(swatches[6]).backgroundColor;
+    swatches[6].click();
+    out.pick.took = getComputedStyle(
+      document.querySelector("#vs-mpalette .vs-dyerows .vs-slot .vs-swatch")).backgroundColor === seventh;
+    out.pick.saved = __vs.settings().palette.length;
+    document.getElementById("vs-mpalettereset").click();
+    document.getElementById("vs-mclose").click();
+
+    __vs.newShelf("end");
+    document.getElementById("vs-bname").value = "Doomed";
+    document.getElementById("vs-bname").dispatchEvent(new Event("input", { bubbles: true }));
+    out.binOnNew = !document.getElementById("vs-bdelete").hidden;
+    document.getElementById("vs-bsave").click();
+    var live = function () { return __vs.views().map(function (v) { return v.shelf.id; }); };
+    out.made = live().indexOf("doomed") >= 0;
+
+    __vs.editShelf("doomed");
+    var bin = document.getElementById("vs-bdelete");
+    out.binOnEdit = !bin.hidden;
+    out.first = bin.textContent;
+    bin.click();
+    out.armed = bin.textContent;
+    out.stillThere = live().indexOf("doomed") >= 0;
+    bin.click();
+    out.gone = live().indexOf("doomed") < 0;
+    out.sheetClosed = document.getElementById("vs-builder").hidden;
+
+    /* A ribbon nobody chose is now the BOARD'S OWN HUE, deeper -- not its opposite. */
+    out.threads = [].slice.call(document.querySelectorAll("#vs-shelves .vs-spine")).slice(0, 24)
+      .map(function (s) {
+        var cs = getComputedStyle(s);
+        return { dye: cs.getPropertyValue("--spine-tint").trim(),
+                 thread: cs.getPropertyValue("--ribbon").trim() };
+      }).filter(function (x) { return x.dye && x.thread; });
+
+    __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })
+      .forEach(function (s) { s.picks = []; });
+    __vs.setFilters({});
+    return out;
+  })()`);
+
+  /* The thread keeps the board's hue and leaves its lightness. */
+  const hsl = (css) => {
+    const m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/.exec(css);
+    const hex = /^#([0-9a-f]{6})$/i.exec(css);
+    let R, G, B;
+    if (m) { [R, G, B] = [m[1], m[2], m[3]].map((v) => Number(v) / 255); }
+    else if (hex) { [R, G, B] = [0, 2, 4].map((i) => parseInt(hex[1].slice(i, i + 2), 16) / 255); }
+    else return null;
+    const max = Math.max(R, G, B), min = Math.min(R, G, B), l = (max + min) / 2, d = max - min;
+    let h = 0;
+    if (d) h = max === R ? ((G - B) / d + (G < B ? 6 : 0)) / 6 : max === G ? ((B - R) / d + 2) / 6 : ((R - G) / d + 4) / 6;
+    return { h, l, sat: d };
+  };
+  const pairs = rest.threads.map(({ dye, thread }) => ({ a: hsl(dye), b: hsl(thread) }))
+    .filter((x) => x.a && x.b && x.a.sat > 0.08);
+  const tonal = pairs.filter((x) => {
+    const dh = Math.abs(x.a.h - x.b.h);
+    return Math.min(dh, 1 - dh) < 0.08;
+  }).length;
+  const separated = pairs.filter((x) => Math.abs(x.a.l - x.b.l) > 0.18).length;
+
+  const ok = parted.margin >= resting + 12 && parted.side === "before" &&
+             parted.barWidth === 3 && parted.inTheGap && settled === resting &&
+             shelfParted.margin >= shelfResting.margin + 20 && shelfParted.side === "before" &&
+             shelfSettled === shelfResting.margin && shelfResting.onScreen && shelfResting.grip &&
+             rest.pick.shown && rest.pick.swatches === 12 && rest.pick.distinct >= 10 &&
+             rest.pick.custom && rest.pick.took && rest.pick.saved === 12 &&
+             rest.made && rest.binOnNew === false && rest.binOnEdit === true &&
+             rest.first === "Delete shelf" && rest.armed === "Really delete?" &&
+             rest.stillThere && rest.gone && rest.sheetClosed &&
+             pairs.length > 0 && tonal === pairs.length && separated === pairs.length;
+  return {
+    ok,
+    detail: `a book's neighbour parts ${resting} -> ${parted.margin}px with the ${parted.barWidth}px ` +
+            `bar standing in the gap (${parted.inTheGap}), and settles back to ${settled}px; a shelf ` +
+            `parts ${shelfResting.margin} -> ${shelfParted.margin}px on its "${shelfParted.side}" side ` +
+            `(on screen: ${shelfResting.onScreen}, grip: ${shelfResting.grip}) and ` +
+            `settles back to ${shelfSettled}px. The colour picker offers ${rest.pick.swatches} ` +
+            `swatches, ${rest.pick.distinct} distinct, plus Custom; the seventh took ` +
+            `(${rest.pick.took}) and saved ${rest.pick.saved}. Delete shows only when editing ` +
+            `(new ${rest.binOnNew}, edit ${rest.binOnEdit}), reads "${rest.first}" then ` +
+            `"${rest.armed}" with the shelf still there (${rest.stillThere}), gone on the second ` +
+            `(${rest.gone}). Ribbons: ${tonal}/${pairs.length} keep their board's hue and ` +
+            `${separated}/${pairs.length} are a fifth of the lightness away from it`
   };
 });
 

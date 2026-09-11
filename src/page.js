@@ -248,7 +248,7 @@ function mountVaultShelf(root, data, options) {
     OWN.slots = SLOT_KEYS.map(function (k) {
       return toHex((bare.getPropertyValue(k) || "").trim() || "#6f6e67");
     });
-    OWN.ribbons = OWN.slots.map(complementOf);
+    OWN.ribbons = OWN.slots.map(threadOf);
 
     /* design/0005 -- A PERSON'S PALETTE OVER THE LOOK'S. Twelve chosen colours are written
      * inline on the root so the cascade below resolves to them in every look; none chosen
@@ -1257,18 +1257,24 @@ function mountVaultShelf(root, data, options) {
   function ribbonFor(dye) {
     var i = SLOTS.indexOf(dye);
     if (i >= 0 && settings.ribbons[i]) return settings.ribbons[i];
-    return i >= 0 && OWN.ribbons[i] ? OWN.ribbons[i] : complementOf(dye);
+    return i >= 0 && OWN.ribbons[i] ? OWN.ribbons[i] : threadOf(dye);
   }
 
   /**
-   * The opposite hue, pulled away from the dye in saturation and lightness until it reads as
-   * silk against it. A straight 180-degree rotation is not enough on its own: the complement
-   * of a dark leather oxblood is a dark leather green, and two dark colours at the same
-   * lightness are one shape. So the hue turns, the saturation comes up, and the lightness
-   * moves away from the binding's -- lighter on a dark dye, darker on a light one.
+   * github#0 -- THE SILK IS THE SAME COLOUR AS THE BOARD, DEEPER. The first rule here was the
+   * dye's complement -- the opposite hue -- and it was wrong for what this is: an opposite hue
+   * is what you reach for when two colours have to compete for attention, and a ribbon is not
+   * competing with the book it is sewn into. A binder does not put green silk in an oxblood
+   * book. The thread is the binding's own colour, richer and further along in lightness, so it
+   * reads as part of the same object rather than as a flag stuck in it.
+   *
+   * The hue is therefore KEPT. What still has to happen is the separation: two colours at the
+   * same lightness are one shape, so the saturation comes up and the lightness moves away from
+   * the board's -- lighter on a dark dye, darker on a light one, within bounds where a thread
+   * still reads against the room as well as against the board.
    * @param {string} colour @returns {string}
    */
-  function complementOf(colour) {
+  function threadOf(colour) {
     var hex = toHex(colour);
     var r = parseInt(hex.slice(1, 3), 16) / 255;
     var g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -1283,8 +1289,7 @@ function mountVaultShelf(root, data, options) {
       else if (max === g) h = ((b - r) / d + 2) / 6;
       else h = ((r - g) / d + 4) / 6;
     }
-    h = (h + 0.5) % 1;
-    /* A grey has no opposite hue, so its ribbon is the one warm thread a binder would use on
+    /* A grey has no hue to deepen, so its ribbon is the one warm thread a binder would use on
      * a plain cloth board rather than a fourth shade of the same grey. */
     if (sat < 0.08) { h = 0.02; sat = 0.62; }
     else sat = Math.min(0.82, Math.max(0.5, sat * 1.25));
@@ -2110,6 +2115,12 @@ function mountVaultShelf(root, data, options) {
 
     $("buildertitle").textContent = existing ? "Edit shelf" : "New shelf";
     $("bsave").textContent = existing ? "Save changes" : "Save shelf";
+    /* github#0 -- "we can't remove shelfs when editing a shelf". The sheet you are already in
+     * is where a person looks for it; Manage keeps its own, and both ask twice. */
+    var bin = /** @type {HTMLButtonElement} */ (node("bdelete"));
+    bin.hidden = !existing;
+    bin.textContent = "Delete shelf";
+    bin.removeAttribute("data-armed");
     fillSourceValues();
     fillProperties();
     fillRecipes();
@@ -2579,7 +2590,15 @@ function mountVaultShelf(root, data, options) {
     input.value = hex;
     input.tabIndex = -1;
     input.setAttribute("aria-label", "Pick " + name);
-    on(sw, "click", function () { input.click(); });
+    /* github#0 -- THE TWELVE FIRST, THE WHOLE SPECTRUM SECOND. A slot's swatch used to open the
+     * operating system's colour picker, which offers sixteen million colours and none of the
+     * twelve this library is actually painted in -- so putting slot 7's dye on a ribbon meant
+     * reading a hex out of one control and typing it into another. The twelve are the answer
+     * nearly every time; "Custom" is still there for the other times. */
+    on(sw, "click", function () {
+      openSwatchPick(sw, hex, name, function (chosenHex) { pick(chosenHex); },
+                     function () { input.click(); }, changed ? reset : null);
+    });
     on(input, "change", function () { pick(input.value.toLowerCase()); });
     slot.appendChild(sw);
     slot.appendChild(input);
@@ -2592,6 +2611,61 @@ function mountVaultShelf(root, data, options) {
       slot.appendChild(x);
     }
     return slot;
+  }
+
+  /* ---- the twelve, offered ------------------------------------------------------
+   * github#0 -- one popover, wherever a colour is chosen in the Manage sheet.
+   */
+
+  /** @type {boolean} */
+  var picking = false;
+
+  /**
+   * @param {HTMLElement} anchor @param {string} current @param {string} name
+   * @param {(hex: string) => void} pick @param {() => void} custom @param {(() => void)|null} reset
+   */
+  function openSwatchPick(anchor, current, name, pick, custom, reset) {
+    var menu = node("swatchpick");
+    clear(menu);
+    picking = true;
+    menu.appendChild(el("div", "vs-dyename", name));
+    var row = el("div", "vs-swatches");
+    SLOTS.forEach(function (colour, i) {
+      var one = /** @type {HTMLButtonElement} */ (el("button", "vs-swatch"));
+      one.type = "button";
+      one.style.setProperty("--swatch", colour);
+      one.title = "Colour " + (i + 1) + " " + toHex(colour);
+      one.setAttribute("aria-label", one.title);
+      if (toHex(colour) === current) one.setAttribute("aria-pressed", "true");
+      on(one, "click", function () { closeSwatchPick(); pick(toHex(colour)); });
+      row.appendChild(one);
+    });
+    menu.appendChild(row);
+    var other = /** @type {HTMLButtonElement} */ (el("button", "vs-dyeauto", "Custom\u2026"));
+    other.type = "button";
+    on(other, "click", function () { closeSwatchPick(); custom(); });
+    menu.appendChild(other);
+    if (reset) {
+      var back = /** @type {HTMLButtonElement} */ (el("button", "vs-dyeauto", "Back to the look's own"));
+      back.type = "button";
+      on(back, "click", function () { closeSwatchPick(); reset(); });
+      menu.appendChild(back);
+    }
+    menu.hidden = false;
+    var host = root.getBoundingClientRect();
+    var at = anchor.getBoundingClientRect();
+    var w = menu.offsetWidth, h = menu.offsetHeight;
+    var left = Math.min(at.left - host.left, host.width - w - 8);
+    var top = Math.min(at.bottom - host.top + 6, host.height - h - 8);
+    menu.style.left = Math.max(8, left) + "px";
+    menu.style.top = Math.max(8, top) + "px";
+    var first = menu.querySelector("button");
+    if (first instanceof HTMLElement) first.focus();
+  }
+
+  function closeSwatchPick() {
+    picking = false;
+    $("swatchpick").hidden = true;
   }
 
   /**
@@ -2827,9 +2901,11 @@ function mountVaultShelf(root, data, options) {
   /* The dye menu closes the way a menu does: a click anywhere else, or Escape. */
   on(DOC, "mousedown", function (e) {
     if (dyeing && e.target instanceof Node && !$("dye").contains(e.target)) closeDye();
+    if (picking && e.target instanceof Node && !$("swatchpick").contains(e.target)) closeSwatchPick();
   });
   on(DOC, "keydown", function (e) {
     if (dyeing && /** @type {KeyboardEvent} */ (e).key === "Escape") closeDye();
+    if (picking && /** @type {KeyboardEvent} */ (e).key === "Escape") closeSwatchPick();
   });
   on($("mnew"), "click", newShelfFromManage);
   on($("mclose"), "click", function () { $("manage").hidden = true; node("library").focus(); });
@@ -2841,6 +2917,18 @@ function mountVaultShelf(root, data, options) {
   });
   on($("bsave"), "click", saveBuilder);
   on($("bcancel"), "click", closeBuilder);
+  on($("bdelete"), "click", function () {
+    if (!builder || !builder.editing) return;
+    var bin = /** @type {HTMLButtonElement} */ (node("bdelete"));
+    if (bin.getAttribute("data-armed") !== "1") {
+      bin.setAttribute("data-armed", "1");
+      bin.textContent = "Really delete?";
+      return;
+    }
+    var id = builder.editing;
+    closeBuilder();
+    deleteShelf(id);
+  });
   ["bname", "bsource", "bsourceval", "bclassifier", "bproperty", "bdirection",
    "bplaques", "bsubtags", "bvary"].forEach(function (id) {
     on($(id), "change", function () { readBuilderFields(); previewBuilder(); });
@@ -3063,6 +3151,14 @@ function mountVaultShelf(root, data, options) {
     moveShelf: function (id, beforeId, side) {
       moveShelf(id, beforeId, side === "after" ? "after" : "before");
       return views.map(function (v) { return v.shelf.id; });
+    },
+    /** github#0 -- open the builder on an existing shelf, as Manage's Edit does.
+     * @param {string} id */
+    editShelf: function (id) {
+      var shelf = shelfById(id);
+      if (!shelf) return false;
+      openBuilder(shelf);
+      return true;
     },
     /** github#0 -- open the builder as one of the two "+ New shelf" buttons does.
      * @param {"top"|"end"} at */

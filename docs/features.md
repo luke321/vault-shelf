@@ -128,9 +128,16 @@ centred, and the chrome stays full-bleed while its contents do not.
 
 `design/0009`
 
+### The room parts where the thing will land
+
+Drag a book and its new neighbour steps aside, with a thin accent bar standing in the gap that
+opens. Drag a shelf by its floor and the shelf under the pointer makes room the same way, above
+or below depending on which half you are over. It is the same parting the search does to the
+room: nothing is removed, things move aside.
+
 ### Deleting, placing and carrying a shelf
 
-**Delete** is on every row in Manage. It asks once — the button becomes *Really delete?* and only
+**Delete** is on every row in Manage, and in the shelf's own Edit sheet. It asks once — the button becomes *Really delete?* and only
 the second press does it — and it takes with it the wear and the colours you gave that shelf's
 books, and any favourites pointing at them. A ribbon survives, because a ribbon names a note
 rather than a shelf. If you delete every shelf, the room offers to build the default six back.

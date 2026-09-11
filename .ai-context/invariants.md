@@ -314,6 +314,36 @@ opens the source book, so `resolveReading`, `alsoShelvedIn` and the wikilink sea
 pick shelves — the argument is in `design/0019`, and what a check would have to assert is the
 absence of a second address for one book.
 
+## The room parts, the twelve are offered, and the thread is tonal
+
+`"the room parts where a thing will land, the twelve are offered, and a shelf goes from its own
+sheet"` measures four things a person asked for in one breath.
+
+**The room parts.** A 3px bar in a 3px gap is accurate and nearly invisible. The neighbour steps
+aside instead and the bar stands in the space that opens — the same parting the query does to the
+room. Because it is a CSS transition, it is read **after** it runs rather than in the same tick:
+a book's neighbour goes **0 → 18px** and back to 0, a shelf **0 → 34px** and back, and the bar is
+**3px** wide and clear of the spine's left edge.
+
+The shelf half of that has a condition worth knowing: a `.vs-shelf` off screen has
+`content-visibility: auto`, so its rendering is skipped and **the transition never runs** —
+measured on the 10k library, where the check read 0 → 0 until it scrolled the shelf into view
+first. That is right for the product (a person parts the shelf they are looking at) and a trap
+for a check, which has to scroll before it measures.
+
+**The twelve are offered.** A slot's swatch used to open the operating system's colour picker,
+which has sixteen million colours and none of this library's twelve. It opens a popover of the
+**12** current slots — 12 distinct — with *Custom…* behind them and, on a changed slot, the way
+back to the look's own. Choosing the seventh puts that colour on the slot and saves **12**.
+
+**A shelf goes from the sheet it is edited in.** *Delete shelf* appears in the builder only when
+editing (not on a new one), reads *Delete*, then *Really delete?*, leaves the shelf standing
+until the second press, and closes the sheet when it goes.
+
+**The thread is tonal.** Every unchosen ribbon keeps its board's hue (**21/21** on the demo) and
+sits more than a fifth of the lightness away from it (**21/21**), which is what makes it visible
+without making it a different colour.
+
 ## A shelf can be deleted, placed and carried
 
 `"a shelf is deleted on the second press, made at the end the button is at, and carried by its
@@ -620,7 +650,7 @@ the rail's field.
 ### A ribbon is per book colour
 
 `design/0008`. There are **twelve ribbons, one per palette slot** (`settings.ribbons`), and a
-ribbon nobody has chosen is its dye's **complement**, computed from the cascade rather than
+ribbon nobody has chosen is its dye's own hue **deepened**, computed from the cascade rather than
 stored so it follows the look and the host theme. `--ribbon` is written per spine and per
 open book, never once on the root.
 
@@ -650,7 +680,7 @@ after *Reset colours*.
 "all settings persistent naturally") runs each thing the sheet can set through `persist()`
 and back through `core.migrate`, which is the reload path in both hosts. It asserts the block
 opens as **12 rows, 12 dyes painted their slot's colour, 12 ribbons, numbered 1-12, 0 marked
-and the reset disabled**; that every unchosen ribbon is its dye's complement — **12 of 12** a
+and the reset disabled**; that every unchosen ribbon is separated from its dye — **12 of 12** a
 third of the hue wheel away or a fifth of the lightness apart, and **12 of 12** visibly
 lighter or darker than their dye, which is the assertion that caught a rule returning a thread
 the same weight as its board on mid-lightness dyes; picking slot 3
