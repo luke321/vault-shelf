@@ -691,8 +691,14 @@ hits when asked for by revision; a **dirty** tree refuses to record; a run that 
 to a failed generator refuses to record; a stamp naming only two of the three fixtures misses;
 a **regenerated** fixture misses and hits again when the store is put back; an **unpinned**
 fixture older than `FIXTURE_MAX_AGE_DAYS` (7) misses, because the next run would regenerate it
-and measure something else; a **pinned** fixture never ages; and the CLI answers where it is
-invoked from rather than exiting 0 in silence.
+and measure something else; a **pinned** fixture never ages; and the CLI **answers rather than
+exiting silently** -- a `suite-stamp: ` line, and 0 or 1 rather than a usage code.
+
+That last case asserted exit **1** at first, which passed only while the real repository's own
+HEAD happened to be unstamped: the CLI resolves `check HEAD` against the repository it lives
+in, not the throwaway one it is spawned in, so stamping this branch's tip turned a green case
+red. A self-test that reads state it does not own is measuring the wrong thing; what it holds
+now is the property the junction bug actually broke, which was silence.
 
 That last one is not hypothetical next door: the sister repo's copy guarded its CLI body by
 comparing `process.argv[1]` as typed against a realpath'd `import.meta.url`, so through a

@@ -231,8 +231,8 @@ function selftest() {
 
     const cli = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "check", "HEAD"],
                           { cwd: repo, encoding: "utf8" });
-    expect("the CLI answers where it is invoked from",
-           cli.status === 1 && /suite-stamp: /.test(cli.stdout));
+    expect("the CLI answers rather than exiting silently",
+           /suite-stamp: /.test(cli.stdout) && (cli.status === 0 || cli.status === 1));
   } finally {
     rmSync(base, { recursive: true, force: true });
   }

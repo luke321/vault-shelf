@@ -86,8 +86,8 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | The plugin behaves inside a real Obsidian (601) | — no check named in the section |
 | No two suite runs, and no fixture pulled out from under one (644) | — no check named in the section |
 | A tree is gated once, and a partial run never claims to be a full one (681) | — no check named in the section |
-| Every release guard fires, and none of them writes a tag (711) | — no check named in the section |
-| Not covered here (726) | — no check named in the section |
+| Every release guard fires, and none of them writes a tag (717) | — no check named in the section |
+| Not covered here (732) | — no check named in the section |
 
 ## `__vs.*` entry points → callers outside page.js — 21
 
