@@ -52,6 +52,7 @@ changing what a shelf contains or how a book is addressed.
 | `0017-the-cyberpunk-look` | The third look, and the selector that picks it: neon is the light in the room, never the paint on the objects |
 | `0018-the-manual-shelf` | A shelf with no rule: the order a person dragged the books into, stored as keys, and what a plaque means once a run is whatever is adjacent |
 | `0019-the-favourites-shelf` | The shelf at the top that holds references to other shelves' books: why a favourite is an address rather than a copy, and why the reader is never told about it |
+| `0020-a-book-made-on-the-shelf` | A book made on a pick shelf by right-clicking empty space: a saved query with an address of its own, why it is a place a note lives when a reference is not, and why off the rail means delete |
 
 **ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
 it explains *why not the other thing*. A DDR describes how a part actually works and the
@@ -92,6 +93,8 @@ __vs.checkMembership()    // unique notes per shelf vs what the shelf claims
 __vs.addresses()          // every book's stable address, in order
 __vs.sequence("people")   // one shelf's books in the order they stand, as keys (design/0018)
 __vs.pick("years/2024")   // drop a book onto Favourites; __vs.unpick() takes it off (design/0019)
+__vs.makeBook("favourites", { name: "Dailies", source: { kind: "folder", value: "Dailies" } })
+                          // a book made on the shelf; __vs.editBook() and __vs.unmakeBook() (design/0020)
 __vs.setFilters({ search: "garden" })
 __vs.openBook("months/2026-09", null)
 __vs.setQuery("garden")   // the shelf parts; nothing is removed

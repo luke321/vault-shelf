@@ -136,8 +136,7 @@ const POINTER_DRIVEN = [
   "carried by its floor",
   /* github#0 -- it reads margins while a drag is in the air. */
   "the room parts",
-  /* design/0020 -- a right-click is a pointer position against a row, and a drag off the rail
-   * is the same geometry the dragged-off check reads. */
+  /* design/0020 -- a right-click and a drag off the rail read boxes. */
   "made on the shelf",
   "edited, emptied",
 ];
@@ -1453,8 +1452,7 @@ check("a note in two favourites is one note on the shelf", async (p) => {
   };
 });
 
-/* design/0020 -- a book made on the shelf: built by the real menu and sheet, then measured
- * against every law a book on a pick shelf has to keep. */
+/* design/0020 -- built by the real menu and sheet, then measured. */
 check("a book made on the shelf holds the notes it points at, where it was made", async (p) => {
   await p.eval(`(function(){
     var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
@@ -1660,7 +1658,7 @@ check("a book made on the shelf holds the notes it points at, where it was made"
   };
 });
 
-/* design/0020 -- the same book, edited, emptied and deleted, and the vault untouched throughout. */
+/* design/0020 -- edited, emptied, deleted; the vault untouched. */
 check("a made book is edited, emptied and deleted from its own menu, and the vault does not move",
       async (p) => {
   await p.eval(`(function(){

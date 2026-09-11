@@ -352,12 +352,7 @@ function arrangedBy(shelf: Shelf): Shelf {
  * that is not a pick shelf loses any `picks` the same way. `plaques` is off because there is
  * no unit above a book somebody dropped.
  */
-/*
- * design/0020 -- AND A MADE BOOK IS A PICK WITH A DEFINITION BESIDE IT. A made key survives
- * in `picks` only while `made` still defines it, and a definition the list forgot goes to the
- * end rather than being lost -- a person wrote it. No schema bump: a file without `made` is a
- * shelf with no made books, which is what every file written before this was.
- */
+/* design/0020 -- a made key stays in picks while `made` defines it. */
 function pickedBy(shelf: Shelf): Shelf {
   if (shelf.classifier !== "pick") {
     if (shelf.picks === undefined && shelf.made === undefined) return shelf;
@@ -382,7 +377,7 @@ function pickedBy(shelf: Shelf): Shelf {
 
 const SOURCE_KINDS: SourceKind[] = ["all", "tag", "person", "folder"];
 
-/** A made book is a non-empty name and a source of a known kind; anything else is not one. */
+/** design/0020 -- a name and a source of a known kind, or nothing. */
 function madeOf(raw: unknown): Record<string, MadeBook> {
   const out: Record<string, MadeBook> = {};
   if (!raw || typeof raw !== "object") return out;

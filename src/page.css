@@ -676,6 +676,7 @@
  * nothing (design/0016). A made spine is a spine. */
 .vault-shelf .vs-railline { width: 100%; justify-content: center; }
 .vault-shelf .vs-sheetbody.vs-narrow { max-width: 440px; }
+.vault-shelf .vs-sheetbody .vs-lede { margin: -6px 0 16px; }
 
 /* github#0 -- DELETE LOOKS ORDINARY UNTIL IT IS ARMED, and then it looks like what it is. It
  * lives in this block rather than beside the other Manage rules because the Manage sheet is

@@ -314,6 +314,49 @@ opens the source book, so `resolveReading`, `alsoShelvedIn` and the wikilink sea
 pick shelves — the argument is in `design/0019`, and what a check would have to assert is the
 absence of a second address for one book.
 
+## A book made on the shelf is a saved query, and a place a note lives
+
+`design/0020`. Two checks, both driven through the real right-click menu and the real sheet,
+and both empty the shelf again on the way out.
+
+`"a book made on the shelf holds the notes it points at, where it was made"` right-clicks the
+empty landing and asserts the rail menu (`#vs-railmenu`) offers exactly **"New book here…"**
+under the shelf's name while the dye menu stays shut; that the sheet opens with the name field
+focused and no Delete on it; that the count under the form is the **real** one; and that Save
+makes a book addressed `favourites/-made-dailies` — key `-made-dailies`, label `Dailies`,
+holding exactly the notes of the vault's biggest folder, on a spine that is draggable, a hand
+handle, focused, and has taken the landing's place, with the jump chip reading **1**. Then the
+laws: a year favourite beside it overlaps it and the shelf claims the **unique** count; a filter
+to another folder leaves the book on the shelf with the same address and picks (an empty spine
+when nothing survives); `migrate` round-trips `picks` and `made`, and a hand-edited file of
+`picks: ["-made-gone", "years/2024", "-made-x"]` with definitions for `-made-x`, a nameless
+`-made-bad`, an unlisted `-made-lost` and a slashed key comes up as
+`[years/2024, -made-x, -made-lost]` defining `[-made-x, -made-lost]`; a second book
+right-clicked into the gap before the year lands **between** (`[-made-dailies,
+-made-everything, years/…]`) holding the whole vault, with the value list hidden for "the whole
+vault"; Alt+Right moves it one place; and a ribbon left in it **resolves to it**, is drawn on
+its spine, puts it on the Reading shelf, *also shelved in* offers it and **not** the reference
+beside it, and opening it opens it. Measured — demo / sparse / library: **112 / 620 / 694** notes
+in `04 - Daily Notes` / `Notes` / `Archive`; with the year beside it **120 / 690 / 997** places
+are **119 / 629 / 973** unique notes and the header says so; the whole-vault book holds
+**396 / 758 / 10000**.
+
+`"a made book is edited, emptied and deleted from its own menu, and the vault does not move"`
+right-clicks a made spine and asserts the dye menu offers the **12** swatches and then exactly
+`Edit book… | Delete book` — no *Take off*; that *Edit* opens the sheet filled in (`Dailies`,
+folder, the folder's name, Delete offered) and that a rename to `Journal` and a new predicate
+keep the **same address** while the notes become the tag's (**78 / 73 / 1198** for the vault's
+top tag); that a source the vault has lost leaves an **empty spine** (`data-empty`) which a save
+keeps, unlike a dead reference; that an abandoned drag (marked leaving, then `dragend`) keeps the
+book and a drop on the Years shelf **deletes** it — its colour and wear go with it, Years still
+has **17 / 6 / 12** books; that the menu's *Delete book* and the sheet's own Delete each remove
+it and the landing comes back; and that the vault's notes are **byte-identical** across all of
+it (**396 / 758 / 10000** notes).
+
+Not covered by a number: a made book dragged onto *another* pick shelf does nothing — that
+shelf refuses it and the take-off drop declines while over it — which is asserted only as the
+absence of a change and is easier to see than to count.
+
 ## The room parts, the twelve are offered, and the thread is tonal
 
 `"the room parts where a thing will land, the twelve are offered, and a shelf goes from its own

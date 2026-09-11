@@ -93,6 +93,10 @@ arithmetic a drop uses), or at the end. The empty landing now says *Drag a book 
 right-click to make one*, because a right-click on an empty shelf is not a gesture anybody
 tries unprompted.
 
+**The keyboard's way in is the shelf head**: a pick shelf's *Edit · Hide* gains *New book*,
+which opens the same sheet with the book going to the end, because a right-click needs a
+pointer and the rail menu is where the pointer is, not where a tab stop is.
+
 **The sheet** is a name and *what it holds* — the four source kinds and the value list the
 builder's second question already fills — with the real count under it, over the notes the
 shelf is built from. Save makes the book and focuses its spine. A made book **is a spine**: it

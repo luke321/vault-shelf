@@ -20,10 +20,7 @@ export function slug(text: string): string {
 }
 
 /* ---- a book made on the shelf --------------------------------------------
- * design/0020 -- a made book's key starts with a hyphen like the two special keys, and with a
- * word no classifier produces, so it can never collide with a source address (which has a
- * slash) or with a real tag, person, initial or date. The key is fixed when the book is made
- * and survives a rename, which is what decisions/0002 asks of an address.
+ * design/0020 -- the key is fixed at creation and is never an address.
  */
 
 const MADE = "-made-";
@@ -32,7 +29,7 @@ export function isMadeKey(key: string): boolean {
   return key.indexOf(MADE) === 0;
 }
 
-/** The key a new made book gets: its name as a slug, made unique against `taken`. */
+/** design/0020 -- a slug, unique against `taken`. */
 export function madeKey(name: string, taken: string[]): string {
   const base = MADE + (name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "book");
   let key = base;
@@ -40,12 +37,7 @@ export function madeKey(name: string, taken: string[]): string {
   return key;
 }
 
-/**
- * design/0020 -- A REFERENCE IS NOT A PLACE A NOTE LIVES, AND A MADE BOOK IS. A favourite is
- * its source book under a second name, so the reader, the reading places and "also shelved
- * in" skip it (design/0019). A made book has no source: it is the only address its notes have
- * under that name, so a ribbon left in it resolves to it and nothing skips it.
- */
+/** design/0020 -- a reference is not a place a note lives; a made book is. */
 export function isReference(shelf: Shelf, book: Book): boolean {
   return shelf.classifier === "pick" && !isMadeKey(book.key);
 }
@@ -54,11 +46,7 @@ export function madeKeys(shelf: Shelf): string[] {
   return Object.keys(shelf.made ?? {});
 }
 
-/**
- * design/0020 -- what a pick shelf's list is saved against: every address the library
- * resolves, and the shelf's own made keys -- a made book is live by definition, since its
- * definition is on the shelf, and `pickBefore` would otherwise drop it on every save.
- */
+/** design/0020 -- a made key is live by definition. */
 export function liveOn(shelf: Shelf, live: Set<string>): Set<string> {
   const out = new Set(live);
   for (const key of madeKeys(shelf)) out.add(key);
@@ -295,13 +283,7 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
  * dropped: reading is where a filter is in force, and a filter is not a deletion. The plaque
  * is null because a shelf arranged by dropping has no unit above the book.
  */
-/*
- * design/0020 -- A MADE BOOK IS BUILT HERE TOO, from the same filtered notes every other shelf
- * is built from, so a filter narrows it exactly as it narrows its neighbours. One whose
- * predicate admits nothing is an EMPTY BOOK rather than a skipped one: a dead reference has
- * lost the thing that explained it, but a made book's explanation is its own definition,
- * which somebody wrote and can edit.
- */
+/* design/0020 -- built from the same notes; empty, never skipped. */
 function buildPicks(shelf: Shelf, notes: Note[], order: NoteOrder, sources: ShelfView[]): ShelfView {
   const byId = new Map<string, Book>();
   for (const view of sources) {
@@ -567,10 +549,7 @@ export function alsoShelvedIn(noteId: string, views: ShelfView[], exceptBook: st
  * re-resolved rather than trusted: the book it names if that book still holds the note,
  * otherwise the first visible book anywhere that does.
  */
-/* design/0019 -- THE READER NEVER SEES A REFERENCE. A favourite is its source book, so the
- * reading place, the ribbon and the also-shelved-in list all name the source; offering the
- * favourite as well would be the same book twice under two addresses. A book MADE on the pick
- * shelf is not a reference and is seen like any other (design/0020). */
+/* design/0019, design/0020 -- the reader skips a reference, never a made book. */
 export function resolveReading(noteId: string, bookId_: string, views: ShelfView[]): Book | null {
   for (const view of views) {
     if (view.shelf.hidden) continue;
