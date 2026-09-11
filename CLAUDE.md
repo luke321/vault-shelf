@@ -93,6 +93,14 @@ of measuring it.** Build the page, drive it, read the numbers.
 
 - `node scripts/smoke.mjs --only "<substring>"` is the iteration loop. The full suite runs on
   the push to `develop` (the pre-push hook); do not run it by hand unless asked.
+- **Two Chromes at once, and two is a ceiling.** `--jobs` clamps to 2 and says so; `--jobs 1` is
+  the quiet run, and is what to use beside a recording. Four was the default until github#39, and
+  it is the load that hard-restarted the sister repo's machine across six worktrees. **The cap
+  costs time and is worth it anyway**: 78 s at four lanes against 90 s at two, before the fixture
+  audit took the whole run to 41-43 s. **A check declares which shapes it needs** — `check(name, fn, { on: "demo" })`, or a
+  list of fixture names — and **the default is all three**, deliberately the opposite of
+  `vault-graph#113`: a forgotten annotation must cost time, not coverage. **A check that returns
+  with the page still moving fails**, naming what it left open or in flight. `decisions/0013`.
 - **Numbers cannot see.** Every check in the suite asserts a number, and none of them can see
   that something looks wrong. Two real bugs here were found only by taking a screenshot: a
   stray `DEL` byte inside `"-undated"` (printed identically, compared unequal, emptied every
@@ -224,7 +232,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 89 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP): 89 checks, **146 runs over three vault shapes in two Chromes** — each check says which shapes it needs (`decisions/0013`) |
 | `scripts/release.ps1` | the local half of a release: the guards, the gates, the tag, the tag push. `-SelfTest` drives every refusal in a throwaway clone; `.ai-context/releasing.md` is the authority on the flow |
 | `scripts/suite-stamp.mjs` | which trees have passed the suite (`decisions/0010`), read by the pre-push hook and `release.ps1`. `--selftest` proves the hit and miss cases |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |

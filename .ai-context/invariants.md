@@ -1352,12 +1352,90 @@ stamp naming fewer than three. Since github#27 the runner says which one: `not s
 run: a run without sparse-vault (the generator failed) is not the full suite` — measured by
 breaking the sparse generator for one run: 87/87 on the two shapes that ran, exit 0, no stamp.
 
-Measured warm on the reference machine, 2026-09-11: a full run is **39.0 s** for **198 checks**
-(66 × 3 shapes) — 7.7 s of builds (the 10k fixture alone 6.5 s), ~6 s of check time across 12
-parallel shards on 4 Chromes, **22 s** in the serial lane of 13 layout-reading checks per shape
-— against **43 s** cold with all three fixtures regenerated, and **7.5 s** for the static gates
-ahead of it. So a stamped push to `develop` costs 7.5 s and an unstamped one 46.5 s, both
-measured by driving the hook with the ref lines git hands it.
+A stamped push to `develop` costs **7.5 s** and an unstamped one the suite on top, both measured
+by driving the hook with the ref lines git hands it. What the suite itself costs is the next
+section.
+
+## Two Chromes, and a check says which shapes it needs
+
+`decisions/0013`, github#39. Three rules, and each one is read off the run's own output.
+
+**Two lanes is a ceiling, not a default.** `LANE_CAP = 2`; `--jobs` clamps to it and says so
+(`--jobs 4 clamped to 2: two Chromes is this suite's ceiling, not its default`). `--jobs 1` is
+the quiet run. It was four — the load that hard-restarted the sister repo's machine across six
+worktrees (`vault-graph#110`, which answered by going to one; why this repo stopped at two is in
+the ADR).
+
+**The cap costs time, and the audit pays for it.** Measured on the unchanged runner with the
+lock free: `--jobs 4` **78 s**, `--jobs 2` **90 s**. Capping the lanes on its own is **+12 s** —
+it buys safety, not speed, and anyone reading this table should not expect otherwise. The
+fixture audit and the lane-sizing rule below are what take it to 41-43 s.
+
+**A check declares the shapes its assertion depends on, and the default is all of them.**
+`check(name, fn, { on })` — `"demo"`, a list of fixture names, or absent for every shape. The
+default is the safe direction on purpose: a forgotten annotation costs time, not coverage.
+`on` is validated against `FIXTURE_NAMES`, so a misspelt shape fails the run by name.
+
+| | checks | of them layout-reading |
+|---|---|---|
+| demo vault | **89** | 24 |
+| sparse vault | **28** | 6 |
+| 10k library vault | **29** | 7 |
+| **runs** | **146** | against 267 if every check ran on every shape |
+
+**61 checks narrowed, 28 kept every shape.** The 28 are the Laws and the checks that actually
+read the vault: membership and unique counts, every note having an address, Undated, impossible
+dates, oldest-first, the 0-9 volume, the plaque-book and its ribbon, decade plaques, the index
+tabs, spine thickness, stable addresses, the filter, a note in two favourites, the date shelf's
+dye, the query's parting, the two room-width checks, the layered date index, the biggest book's
+tabs, a reading place re-resolving, people-never-from-prose, the network, the peek, the tag
+cover, and the golden snapshot. Two of the 61 were asserting *nothing* on two shapes before
+this: `a wide table scrolls inside the page` and `a wikilink in a book goes to that note` look
+for notes only `make-demo-vault.mjs` writes, and returned *"this vault has no …; nothing to
+assert"* on the other two. `scrolling the library stays smooth in every look` keeps the demo and
+10k shapes and drops the sparse one — it measures frame times against scale, and sparse is an
+edge-case shape at demo's size.
+
+**A lane is only opened when there is work to fill it.** `MIN_PER_LANE = 32` steady checks,
+which after the audit only the demo vault has. **7 Chromes**, against 15.
+
+**A check that returns with the page still moving FAILS, and says what it left.** After every
+check the runner asks the page whether anything is in flight — `settleRoom`'s coalescing 60 ms
+timer (`__vs.room().pending`), a drag still in the air, a reader or sheet left open — and fails
+*that* check, naming it, then settles the page so the next one starts clean. The failure reads
+`… -- LEFT THE PAGE BUSY: left open: reader`.
+
+This is the class `vault-graph#112` found next door, and serialising surfaced two kinds here:
+
+- **`shelf wear is recorded and drawn` asserted an unworn library**, which is true only of
+  whichever shard runs it first. Wear is cumulative and every check that opens a book adds some,
+  so *which* checks share a page — round-robin by `JOBS` — decided whether it passed. At four
+  lanes `a book with several ribbons in it` landed elsewhere; at two it lands immediately before
+  and leaves the Encyclopedia spine worn. Measured with `--jobs 1` over those two checks: **2
+  worn spines and a FAIL, against 1 and a pass alone.** It sets the floor itself now, and clears
+  it again on the way out.
+- **Five checks returned with the reader open**, painted over the library for everything after
+  them in the same page: `previous and next walk the book`, `also shelved in moves to another
+  book`, `previous collection walks back`, `clicking a spine opens a book`, and `the reader's
+  index tabs stay countable`. All five close it now. This is the same shape as the defect
+  `.ai-context` already records under *numbers cannot see* — the reader painting over the
+  library while every attribute-reading check passed.
+
+**Measured on the reference machine, 2026-09-11, lock free and timed by the runner's own clock
+(printed after the lock, so a wait for another worktree's suite is not counted):**
+
+| | before | after |
+|---|---|---|
+| wall | **78 s** | **41-43 s** (two runs) |
+| Chromes | 15 | **7** |
+| check runs | 267 | **146** |
+| check time | 75.0 s | **34.1 s** |
+
+Per shape, after: demo 20.2 s of check time, 10k library 10.4 s, sparse 3.4 s. The slowest
+remaining are `scrolling the library stays smooth in every look` (9.6 s over two shapes), the
+golden snapshot (4.9 s over three) and `the contents scroll to the current row` (2.4 s, demo
+only — it was 15.1 s on the 10k shape alone). `--timings <file>` writes every check's
+milliseconds per shape as JSON, which is how this table was made.
 
 ## Every release guard fires, and none of them writes a tag
 
