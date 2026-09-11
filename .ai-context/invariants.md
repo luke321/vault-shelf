@@ -205,8 +205,24 @@ golden is unchanged by it.
 and asserts that widths rise with note counts, that the fullest book is as wide as any book on
 the shelf, and that every width falls between **22px and 58px**. Measured:
 **40px for a 54-note book, 56px for the 1,697-note one**; before `github#17` **45px at 309
-notes and 50px at 1020**. It is a tie, not an identity: two counts a few notes apart round to
-the same pixel. The scale is logarithmic and it is taken against the largest book in the whole
+notes and 50px at 1020**.
+
+**An index fits on one shelf, and is squeezed until it does** (`github#34`). `0-9` and the
+alphabet across two rows reads as a broken set rather than as a bookcase, so an `initial`
+shelf reserves **`INDEX_SLOTS` = 35** volumes — `0-9`, A–Z and eight more for whatever scripts
+a vault has — and scales every volume on it by a single factor until they fit one row, with a
+floor of **13px** rather than the usual 22. Thickness still rises with the note count there;
+the scale is smaller. The factor is found by **measuring, not by dividing**: every width is
+rounded to a pixel, and a rounded sum overflows the room the ratio said would hold it.
+
+Measured on this vault: **35 volumes on 1 row**, widths **21–40px**, against **23 + 12 across
+two rows** at 30–57px before. The library is **10 rows** where it was 11. Below roughly a
+640px room the alphabet cannot fit even at the floor, and it wraps again — "always" has that
+edge, and the golden at 390px is where it shows.
+
+The check above measures the **Years** shelf, which is not an index and is unaffected.
+A width being equal is a tie, not an identity: two counts a few notes apart round to the same
+pixel. The scale is logarithmic and it is taken against the largest book in the whole
 **library**, never in the shelf, so the same thickness means the same size everywhere on the
 page. `design/0011`.
 
@@ -1136,12 +1152,12 @@ Seeded 2026-09-11 at 1180×900, where the room measures **1125px**:
 | shelf | rows | books | plaques |
 |---|---|---|---|
 | Favourites | 1 | 0 | 0 |
-| Encyclopedia | 2 | 35 | 0 |
+| Encyclopedia | **1** | 35 | 0 |
 | Years | 1 | 12 | 2 |
 | Months | 4 | 110 | 14 |
 | People | 1 | 26 | 18 |
 | Tags | 2 | 44 | 18 |
-| **total** | **11** | **227 spines** | **52** |
+| **total** | **10** | **227 spines** | **52** |
 
 Six shelves, not seven: Weeks is hidden by default from schema 4 on, and Favourites ships
 empty. A decade run that wraps is

@@ -4,205 +4,208 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 3843 lines, 23 sections, 165 functions
+## `src/page.js` — 3880 lines, 23 sections, 168 functions
 
 ### Sections
 
 | lines | section |
 |---|---|
 | 1–60 | types |
-| 61–190 | palette |
-| 191–273 | state |
-| 274–302 | membership |
-| 303–324 | the rail |
-| 325–345 | the reading shelf |
-| 346–873 | library |
-| 874–1140 | a shelf carried by its floor |
-| 1141–1371 | a shelf arranged by hand |
-| 1372–1419 | favourites |
-| 1420–1639 | a book made on the shelf |
-| 1640–1754 | the peek |
-| 1755–1869 | the dye menu |
-| 1870–1916 | the shelf parts as you type |
-| 1917–2604 | reader |
-| 2605–2857 | builder |
-| 2858–3157 | manage |
-| 3158–3304 | the twelve, offered |
-| 3305–3326 | filters |
-| 3327–3415 | refresh |
-| 3416–3569 | the wiring |
-| 3570–3803 | debug api — stripped from the plugin build |
-| 3804–3843 | the wiring (continued) |
+| 61–193 | palette |
+| 194–276 | state |
+| 277–305 | membership |
+| 306–327 | the rail |
+| 328–348 | the reading shelf |
+| 349–877 | library |
+| 878–1144 | a shelf carried by its floor |
+| 1145–1375 | a shelf arranged by hand |
+| 1376–1423 | favourites |
+| 1424–1676 | a book made on the shelf |
+| 1677–1791 | the peek |
+| 1792–1906 | the dye menu |
+| 1907–1953 | the shelf parts as you type |
+| 1954–2641 | reader |
+| 2642–2894 | builder |
+| 2895–3194 | manage |
+| 3195–3341 | the twelve, offered |
+| 3342–3363 | filters |
+| 3364–3452 | refresh |
+| 3453–3606 | the wiring |
+| 3607–3840 | debug api — stripped from the plugin build |
+| 3841–3880 | the wiring (continued) |
 
 ### Functions
 
 | line | function |
 |---|---|
-| 99 | `mountVaultShelf` |
-| 106 | `$` |
-| 116 | `attempt` |
-| 126 | `on` |
-| 137 | `el` |
-| 145 | `clear` |
-| 153 | `node` |
-| 163 | `field` |
-| 171 | `flat` |
-| 182 | `uniqueSorted` |
-| 230 | `persist` |
-| 247 | `readTheme` |
-| 279 | `rebuild` |
-| 308 | `renderRail` |
-| 332 | `readingBooks` |
-| 350 | `renderLibrary` |
-| 355 | `drawLibrary` |
-| 396 | `renderReadingShelf` |
-| 422 | `renderShelf` |
-| 470 | `plusOf` |
-| 489 | `landingOf` |
-| 496 | · `overSpine` |
-| 501 | · `refused` |
-| 540 | `rowsOf` |
-| 556 | · `closeRun` |
-| 561 | · `flush` |
-| 598 | `plaqueWidth` |
-| 613 | `room` |
-| 628 | `settleRoom` |
-| 643 | `shelfWidth` |
-| 662 | `watchRoom` |
-| 665 | · `measure` |
-| 706 | `renderTrack` |
-| 747 | `openPlaque` |
-| 759 | `viewById` |
-| 769 | `fitsUpright` |
-| 795 | `takesBooks` |
-| 797 | · `takes` |
-| 841 | `placeIn` |
-| 858 | `keyOfSpine` |
-| 865 | `afterKey` |
-| 870 | `onShelf` |
-| 897 | `liftShelf` |
-| 916 | `dropShelfGhost` |
-| 924 | `gripOf` |
-| 953 | `sectionOf` |
-| 959 | `markShelf` |
-| 966 | `clearShelfMark` |
-| 976 | `shelfUnder` |
-| 1006 | `moveShelf` |
-| 1022 | `shelfDropZone` |
-| 1062 | `renderSpine` |
-| 1161 | `liftable` |
-| 1206 | `leaving` |
-| 1220 | `carriedSpine` |
-| 1232 | `carriedInto` |
-| 1238 | `handleOf` |
-| 1246 | `markDrop` |
-| 1259 | `clearDrop` |
-| 1273 | `takeOffZone` |
-| 1301 | `markLanding` |
-| 1315 | `neighbour` |
-| 1333 | `arrangeBook` |
-| 1356 | `nudge` |
-| 1378 | `isPick` |
-| 1387 | `pickShelves` |
-| 1394 | `sourceOf` |
-| 1401 | `liveSources` |
-| 1407 | `liveFor` |
-| 1412 | `takeOff` |
-| 1433 | `offersBook` |
-| 1454 | `openRailMenu` |
-| 1468 | `closeRailMenu` |
-| 1477 | `openMadeBook` |
-| 1492 | `closeMadeBook` |
-| 1498 | `writeMadeFields` |
-| 1507 | `readMadeFields` |
-| 1526 | `nameFor` |
-| 1534 | `previewMadeBook` |
-| 1544 | `saveMadeBook` |
-| 1563 | `writeMadeBook` |
-| 1584 | `deleteMadeBook` |
-| 1602 | `thicknessOf` |
-| 1619 | `dyeOf` |
-| 1647 | `showPeek` |
-| 1674 | `hidePeek` |
-| 1684 | `ribbonFor` |
-| 1704 | `threadOf` |
-| 1734 | `hslHex` |
-| 1740 | · `two` |
-| 1747 | `hashSlot` |
-| 1764 | `openDye` |
-| 1836 | `placeMenu` |
-| 1846 | `closeDye` |
-| 1852 | `setBookColor` |
-| 1862 | `ribbonsIn` |
-| 1875 | `applyQuery` |
-| 1904 | `scrollToShelf` |
-| 1913 | `cssEscape` |
-| 1922 | `openBook` |
-| 1942 | `markWear` |
-| 1952 | `closeReader` |
-| 1962 | `renderReader` |
-| 1994 | `renderMarks` |
-| 2060 | `renderContents` |
-| 2091 | `revealCurrent` |
-| 2123 | `indexSections` |
-| 2157 | `cutBy` |
-| 2181 | `letterTabs` |
-| 2202 | `titlePrefix` |
-| 2229 | `dateTabs` |
-| 2268 | `runsOf` |
-| 2283 | `renderTabs` |
-| 2316 | `findInBook` |
-| 2324 | `renderNote` |
-| 2379 | `renderMeta` |
-| 2398 | `linked` |
-| 2423 | `renderMarkdownInto` |
-| 2474 | `goTo` |
-| 2503 | `openNote` |
-| 2535 | `noteByLink` |
-| 2548 | `shelfById` |
-| 2556 | `isBookmarked` |
-| 2565 | `toggleBookmark` |
-| 2580 | `previousCollection` |
-| 2593 | `findBook` |
-| 2617 | `openBuilder` |
-| 2643 | `closeBuilder` |
-| 2649 | `writeBuilderFields` |
-| 2696 | `readBuilderFields` |
-| 2727 | `fillSourceValues` |
-| 2736 | `fillValuesInto` |
-| 2752 | `fillProperties` |
-| 2771 | `fillRecipes` |
-| 2790 | `previewBuilder` |
-| 2808 | `saveBuilder` |
-| 2841 | `seedOrder` |
-| 2852 | `uniqueId` |
-| 2860 | `openManage` |
-| 2869 | `newShelfFromManage` |
-| 2885 | `deleteShelf` |
-| 2908 | `renderManage` |
-| 3048 | `renderColours` |
-| 3077 | `colourRow` |
-| 3104 | `anyRibbon` |
-| 3119 | `slotControl` |
-| 3169 | `openSwatchPick` |
-| 3208 | `closeSwatchPick` |
-| 3218 | `inkOn` |
-| 3220 | · `lin` |
-| 3229 | `pickSlot` |
-| 3237 | `resetSlot` |
-| 3250 | `setPalette` |
-| 3264 | `setRibbon` |
-| 3277 | `toHex` |
-| 3286 | · `hex` |
-| 3291 | `reorder` |
-| 3307 | `renderActiveFilters` |
-| 3320 | `clearFilters` |
-| 3340 | `paintOrder` |
-| 3358 | `fillLooks` |
-| 3370 | `toggleOrder` |
-| 3379 | `applyLook` |
-| 3388 | `refresh` |
-| 3510 | `offBook` |
+| 102 | `mountVaultShelf` |
+| 109 | `$` |
+| 119 | `attempt` |
+| 129 | `on` |
+| 140 | `el` |
+| 148 | `clear` |
+| 156 | `node` |
+| 166 | `field` |
+| 174 | `flat` |
+| 185 | `uniqueSorted` |
+| 233 | `persist` |
+| 250 | `readTheme` |
+| 282 | `rebuild` |
+| 311 | `renderRail` |
+| 335 | `readingBooks` |
+| 353 | `renderLibrary` |
+| 358 | `drawLibrary` |
+| 399 | `renderReadingShelf` |
+| 425 | `renderShelf` |
+| 473 | `plusOf` |
+| 492 | `landingOf` |
+| 499 | · `overSpine` |
+| 504 | · `refused` |
+| 543 | `rowsOf` |
+| 560 | · `closeRun` |
+| 565 | · `flush` |
+| 602 | `plaqueWidth` |
+| 617 | `room` |
+| 632 | `settleRoom` |
+| 647 | `shelfWidth` |
+| 666 | `watchRoom` |
+| 669 | · `measure` |
+| 710 | `renderTrack` |
+| 751 | `openPlaque` |
+| 763 | `viewById` |
+| 773 | `fitsUpright` |
+| 799 | `takesBooks` |
+| 801 | · `takes` |
+| 845 | `placeIn` |
+| 862 | `keyOfSpine` |
+| 869 | `afterKey` |
+| 874 | `onShelf` |
+| 901 | `liftShelf` |
+| 920 | `dropShelfGhost` |
+| 928 | `gripOf` |
+| 957 | `sectionOf` |
+| 963 | `markShelf` |
+| 970 | `clearShelfMark` |
+| 980 | `shelfUnder` |
+| 1010 | `moveShelf` |
+| 1026 | `shelfDropZone` |
+| 1066 | `renderSpine` |
+| 1165 | `liftable` |
+| 1210 | `leaving` |
+| 1224 | `carriedSpine` |
+| 1236 | `carriedInto` |
+| 1242 | `handleOf` |
+| 1250 | `markDrop` |
+| 1263 | `clearDrop` |
+| 1277 | `takeOffZone` |
+| 1305 | `markLanding` |
+| 1319 | `neighbour` |
+| 1337 | `arrangeBook` |
+| 1360 | `nudge` |
+| 1382 | `isPick` |
+| 1391 | `pickShelves` |
+| 1398 | `sourceOf` |
+| 1405 | `liveSources` |
+| 1411 | `liveFor` |
+| 1416 | `takeOff` |
+| 1437 | `offersBook` |
+| 1458 | `openRailMenu` |
+| 1472 | `closeRailMenu` |
+| 1481 | `openMadeBook` |
+| 1496 | `closeMadeBook` |
+| 1502 | `writeMadeFields` |
+| 1511 | `readMadeFields` |
+| 1530 | `nameFor` |
+| 1538 | `previewMadeBook` |
+| 1548 | `saveMadeBook` |
+| 1567 | `writeMadeBook` |
+| 1588 | `deleteMadeBook` |
+| 1604 | `isIndex` |
+| 1610 | `widthOf` |
+| 1620 | `squeezeIndex` |
+| 1639 | `thicknessOf` |
+| 1656 | `dyeOf` |
+| 1684 | `showPeek` |
+| 1711 | `hidePeek` |
+| 1721 | `ribbonFor` |
+| 1741 | `threadOf` |
+| 1771 | `hslHex` |
+| 1777 | · `two` |
+| 1784 | `hashSlot` |
+| 1801 | `openDye` |
+| 1873 | `placeMenu` |
+| 1883 | `closeDye` |
+| 1889 | `setBookColor` |
+| 1899 | `ribbonsIn` |
+| 1912 | `applyQuery` |
+| 1941 | `scrollToShelf` |
+| 1950 | `cssEscape` |
+| 1959 | `openBook` |
+| 1979 | `markWear` |
+| 1989 | `closeReader` |
+| 1999 | `renderReader` |
+| 2031 | `renderMarks` |
+| 2097 | `renderContents` |
+| 2128 | `revealCurrent` |
+| 2160 | `indexSections` |
+| 2194 | `cutBy` |
+| 2218 | `letterTabs` |
+| 2239 | `titlePrefix` |
+| 2266 | `dateTabs` |
+| 2305 | `runsOf` |
+| 2320 | `renderTabs` |
+| 2353 | `findInBook` |
+| 2361 | `renderNote` |
+| 2416 | `renderMeta` |
+| 2435 | `linked` |
+| 2460 | `renderMarkdownInto` |
+| 2511 | `goTo` |
+| 2540 | `openNote` |
+| 2572 | `noteByLink` |
+| 2585 | `shelfById` |
+| 2593 | `isBookmarked` |
+| 2602 | `toggleBookmark` |
+| 2617 | `previousCollection` |
+| 2630 | `findBook` |
+| 2654 | `openBuilder` |
+| 2680 | `closeBuilder` |
+| 2686 | `writeBuilderFields` |
+| 2733 | `readBuilderFields` |
+| 2764 | `fillSourceValues` |
+| 2773 | `fillValuesInto` |
+| 2789 | `fillProperties` |
+| 2808 | `fillRecipes` |
+| 2827 | `previewBuilder` |
+| 2845 | `saveBuilder` |
+| 2878 | `seedOrder` |
+| 2889 | `uniqueId` |
+| 2897 | `openManage` |
+| 2906 | `newShelfFromManage` |
+| 2922 | `deleteShelf` |
+| 2945 | `renderManage` |
+| 3085 | `renderColours` |
+| 3114 | `colourRow` |
+| 3141 | `anyRibbon` |
+| 3156 | `slotControl` |
+| 3206 | `openSwatchPick` |
+| 3245 | `closeSwatchPick` |
+| 3255 | `inkOn` |
+| 3257 | · `lin` |
+| 3266 | `pickSlot` |
+| 3274 | `resetSlot` |
+| 3287 | `setPalette` |
+| 3301 | `setRibbon` |
+| 3314 | `toHex` |
+| 3323 | · `hex` |
+| 3328 | `reorder` |
+| 3344 | `renderActiveFilters` |
+| 3357 | `clearFilters` |
+| 3377 | `paintOrder` |
+| 3395 | `fillLooks` |
+| 3407 | `toggleOrder` |
+| 3416 | `applyLook` |
+| 3425 | `refresh` |
+| 3547 | `offBook` |
 
 ## `scripts/smoke.mjs` — 5486 lines, 6 sections, 90 functions, 88 checks
 

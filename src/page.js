@@ -86,6 +86,9 @@ var MARKS_SHOWN = 3;
 var SPINE_GAP = 3;
 var SPINE_MIN = 22;
 var SPINE_MAX = 58;
+// github#34
+var INDEX_SLOTS = 35;
+var INDEX_MIN = 13;
 
 var ID = "vs-";
 
@@ -454,7 +457,7 @@ function mountVaultShelf(root, data, options) {
     /* design/0020 -- a hand-arranged shelf ends in a plus. */
     var makes = view.shelf.direction === "manual";
     var rail = el("div", "vs-shelfrail");
-    var rows = rowsOf(view.books, makes ? SPINE_MIN + SPINE_GAP : 0);
+    var rows = rowsOf(view.books, makes ? SPINE_MIN + SPINE_GAP : 0, view.shelf);
     rows.forEach(function (row, i) {
       var last = i === rows.length - 1;
       rail.appendChild(renderTrack(row, view.shelf, true, makes && last ? plusOf(view.shelf) : null));
@@ -535,10 +538,11 @@ function mountVaultShelf(root, data, options) {
    * under the part of its run that landed on THIS shelf. Every width is already known --
    * `thicknessOf` is arithmetic on the note count -- so the packing needs no layout pass.
    *
-   * @param {Book[]} books @returns {Book[][]}
+   * @param {Book[]} books @param {number} [tail] @param {Shelf} [shelf] @returns {Book[][]}
    */
-  function rowsOf(books, tail) {
+  function rowsOf(books, tail, shelf) {
     var avail = room();
+    squeezeIndex(shelf, books, avail - (tail || 0));
     /** @type {Book[][]} */
     var rows = [];
     /** @type {Book[]} */
@@ -565,7 +569,7 @@ function mountVaultShelf(root, data, options) {
     }
 
     books.forEach(function (book) {
-      var w = thicknessOf(book.notes.length) + SPINE_GAP;
+      var w = widthOf(book, shelf) + SPINE_GAP;
       var mine = book.plaque;
       if (!plaque || mine !== label) {
         closeRun();
@@ -1064,7 +1068,7 @@ function mountVaultShelf(root, data, options) {
     b.type = "button";
     b.setAttribute("data-book", book.id);
     if (!book.notes.length) b.setAttribute("data-empty", "1");
-    b.style.setProperty("--spine-w", thicknessOf(book.notes.length) + "px");
+    b.style.setProperty("--spine-w", widthOf(book, shelf) + "px");
 
     var dye = dyeOf(book, shelf);
     b.style.setProperty("--spine-tint", dye);
@@ -1126,7 +1130,7 @@ function mountVaultShelf(root, data, options) {
     on(b, "mouseleave", hidePeek);
     on(b, "blur", hidePeek);
     /* A one-letter label reads better upright than turned on its side: A, K, 0-9, Ü. */
-    if (book.cover.length <= 3 && fitsUpright(book.cover, thicknessOf(book.notes.length))) {
+    if (book.cover.length <= 3 && fitsUpright(book.cover, widthOf(book, shelf))) {
       b.setAttribute("data-upright", "1");
     }
 
@@ -1591,6 +1595,39 @@ function mountVaultShelf(root, data, options) {
     delete settings.bookColors[id];
     persist();
     refresh();
+  }
+
+  /** @type {Record<string, number>} */
+  var indexScale = {};
+
+  /** @param {Shelf} [shelf] @returns {boolean} */
+  function isIndex(shelf) {
+    return !!shelf && shelf.classifier === "initial";
+  }
+
+  // github#34, design/0011
+  /** @param {Book} book @param {Shelf} [shelf] @returns {number} */
+  function widthOf(book, shelf) {
+    var w = thicknessOf(book.notes.length);
+    if (!isIndex(shelf)) return w;
+    var k = indexScale[shelf.id];
+    if (typeof k !== "number" || k >= 1) return w;
+    return Math.max(INDEX_MIN, Math.round(w * k));
+  }
+
+  // github#34
+  /** @param {Shelf} [shelf] @param {Book[]} books @param {number} avail */
+  function squeezeIndex(shelf, books, avail) {
+    if (!isIndex(shelf)) return;
+    var slots = books.slice(0, INDEX_SLOTS);
+    var k = 1;
+    for (var step = 0; step < 40; step++) {
+      indexScale[shelf.id] = k;
+      var used = 0;
+      for (var i = 0; i < slots.length; i++) used += widthOf(slots[i], shelf) + SPINE_GAP;
+      if (used <= avail) return;
+      k *= 0.95;
+    }
   }
 
   /**

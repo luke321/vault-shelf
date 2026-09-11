@@ -16,20 +16,20 @@
   },
   {
    "shelf": "encyclopedia",
-   "rows": 2,
+   "rows": 1,
    "books": 35,
    "plaques": [],
    "first": {
     "x": 0,
     "y": 47,
-    "w": 57,
+    "w": 40,
     "h": 132,
     "name": "encyclopedia/0-9"
    },
    "last": {
-    "x": 392,
-    "y": 225,
-    "w": 30,
+    "x": 1063,
+    "y": 47,
+    "w": 21,
     "h": 132,
     "name": "encyclopedia/読"
    }
