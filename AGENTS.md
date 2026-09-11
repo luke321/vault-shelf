@@ -9,7 +9,8 @@ different rules.
 (`C:\git-personal\vault-shelf`) is the orchestrator: it surveys, dispatches, reviews, merges,
 pushes and releases, and it never implements. A session in an Orca worktree is a worker: it
 implements one piece of work, runs its own gates, and stops at its own branch. Say which one
-you are before you start.
+you are before you start, and if you are the orchestrator, **take the name**:
+`/rename vault-shelf-orchestrator`, so a session in the sister repo can address you.
 
 Five things are worth knowing before you touch anything, all expanded in `CLAUDE.md`:
 

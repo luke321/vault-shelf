@@ -170,7 +170,10 @@ of measuring it.** Build the page, drive it, read the numbers.
   main checkout (`C:\git-personal\vault-shelf`, on `develop` or an integration branch) *is* the
   orchestrator, and says so at the start rather than waiting to be told; a session opened in an
   Orca worktree is a worker, and never becomes an orchestrator by finishing well. The checkout
-  is the role, so the answer never depends on who remembered to mention it.
+  is the role, so the answer never depends on who remembered to mention it. **And it says so
+  in its name**: the orchestrator session is called `vault-shelf-orchestrator`, because a
+  sister session with something to say about the shared mutex has to be able to find it in a
+  list of sixty. `/rename vault-shelf-orchestrator` at the start, or `claude -n` at launch.
 - **Only the orchestrator session pushes to `develop` or cuts a release.** A dispatched
   worktree — an Orca worktree of its own, never a child of the orchestrator's, one per piece of
   work — implements, runs its own gates, and stops at its own branch: it never pushes past that
