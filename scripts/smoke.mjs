@@ -1376,6 +1376,35 @@ check("a drop onto Favourites adds the book where it landed, and a rebuild keeps
   };
 });
 
+// github#35, design/0019
+check("a fresh library seeds its favourites from its own shelves", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var views = __vs.views();
+    var picks = core.seedPicks(views);
+    var live = {};
+    views.forEach(function (v) { v.books.forEach(function (b) { live[b.id] = b; }); });
+    var books = picks.map(function (id) { return live[id]; });
+    var shelves = {};
+    picks.forEach(function (id) { shelves[id.slice(0, id.indexOf("/"))] = 1; });
+    return {
+      picks: picks,
+      dead: picks.filter(function (id) { return !live[id]; }).length,
+      empty: books.filter(function (b) { return b && !b.notes.length; }).length,
+      placeholder: picks.filter(function (id) { return id.indexOf("/-") >= 0; }).length,
+      shelves: Object.keys(shelves).length,
+      labels: books.map(function (b) { return b ? b.label + " (" + b.notes.length + ")" : "(gone)"; })
+    };
+  })()`);
+  return {
+    ok: r.picks.length >= 3 && r.dead === 0 && r.empty === 0 && r.placeholder === 0 &&
+        r.shelves === r.picks.length,
+    detail: `seeded ${r.picks.length} favourite(s) off ${r.shelves} different shelves, ` +
+            `${r.dead} of them dead and ${r.empty} empty, ${r.placeholder} an -undated or ` +
+            `-unfiled book: ${r.labels.join(", ")}`
+  };
+});
+
 check("a favourite comes off by the menu, and a dead pick is dropped on save and not before",
       async (p) => {
   const r = await p.j(`(function(){
@@ -4837,6 +4866,16 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
     return { ok: true, detail: `no golden for ${name || "this vault"} -- ` +
                                `node scripts/update-layout-snapshots.mjs writes it` };
   }
+  // github#35
+  const emptied = await p.j(`(function(){
+    var s = __vs.settings();
+    var shelf = s.shelves.filter(function (x) { return x.classifier === "pick"; })[0];
+    if (!shelf || !shelf.picks || !shelf.picks.length) return 0;
+    var n = shelf.picks.length;
+    shelf.picks = [];
+    __vs.setFilters({});
+    return n;
+  })()`);
   await p.send("Emulation.setDeviceMetricsOverride",
                { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
   await p.j(`window.dispatchEvent(new Event("resize"))`);
@@ -4850,6 +4889,7 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
   const rows = now.shelves.reduce((n, s) => n + s.rows, 0);
   const spines = now.shelves.reduce((n, s) => n + s.books, 0);
   const plaques = now.shelves.reduce((n, s) => n + s.plaques.length, 0);
+  void emptied;
   return {
     ok: problems.length === 0,
     detail: problems.length

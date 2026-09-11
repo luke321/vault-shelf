@@ -1966,10 +1966,11 @@ function mountVaultShelf(root, data, options) {
     }
     reader = { book: book, index: index, noteId: book.notes.length ? book.notes[index].id : null,
                within: "", opener: /** @type {HTMLElement|null} */ (DOC.activeElement) };
-    /* design/0008 -- the book is handled now, and the shelf will show it. */
-    settings.wear[book.id] = (settings.wear[book.id] || 0) + 1;
+    // design/0008, design/0019, github#35
+    var worn = sourceOf(book).id;
+    settings.wear[worn] = (settings.wear[worn] || 0) + 1;
     persist();
-    markWear(book.id);
+    markWear(worn);
     $("reader").hidden = false;
     renderReader();
     node("reader").focus();
@@ -3422,6 +3423,16 @@ function mountVaultShelf(root, data, options) {
     readTheme();
   }
 
+  // github#35, design/0019
+  function seedFavourites() {
+    if (opts.settings) return;
+    var shelf = settings.shelves.filter(isPick)[0];
+    if (!shelf || (shelf.picks && shelf.picks.length)) return;
+    rebuild();
+    var picks = core.seedPicks(views);
+    if (picks.length) shelf.picks = picks;
+  }
+
   function refresh() {
     applyLook();
     rebuild();
@@ -3601,6 +3612,7 @@ function mountVaultShelf(root, data, options) {
     if (e.key === "ArrowRight") { goTo(reader.index + 1); e.preventDefault(); }
   });
 
+  seedFavourites();
   readTheme();
   refresh();
 

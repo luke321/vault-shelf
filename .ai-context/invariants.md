@@ -7,6 +7,28 @@ that fails.
 
 Run one: `node scripts/smoke.mjs --only "<substring>"`. Run all of them: the pre-push hook does.
 
+**A fresh library seeds its Favourites shelf** (`github#35`). The shelf still ships empty in
+`core.defaults()` — the check that pins that is unchanged — but a page mounted with no saved
+settings at all seeds it from the library it has just built: the newest year, the newest month,
+the busiest person and the busiest tag, four addresses off four different shelves. A reader
+meeting an empty rail learns nothing about what a favourite *is*, and the film is shot on a
+fresh library. `"a fresh library seeds its favourites from its own shelves"` measures what
+`core.seedPicks` chooses rather than what is on the rail, because seeding happens once at mount
+and the checks in a shard share one page. Measured: **4 favourites off 4 shelves, 0 dead, 0
+empty, 0 an `-undated` or `-unfiled` book** — `2026 (1697)`, `Sep 2026 (301)`,
+`Mira Vance (613)`, `#project/website-migration (866)`, **2,547 unique notes** against a sum of
+3,477, which is the unique-notes law one level out.
+
+Seeding fires only when the host passed **no settings at all**. Once anything has been saved,
+an emptied Favourites shelf stays emptied.
+
+**A favourite is worn by its source's address** (`github#35`, `design/0019`). The spine read
+`wear[sourceOf(book).id]` and `openBook` wrote `wear[book.id]` — the same string for an
+ordinary book and two different ones for a favourite, so wear recorded through a favourite's
+address was wear nobody ever read back. Found because seeding put a book on that shelf: the
+wear check picks the first book in the library, which had never been a reference before. Now
+**2 spines** show it, the favourite and its source.
+
 Measured 2026-09-11 on **the** fixture vault — `decisions/0012` replaced three with one, so
 a number here no longer comes in threes: **4,938 notes / 17 folders / 25 people / 43 tags /
 523 undated**. It draws **227 spines** across the five visible default shelves and holds
@@ -1149,6 +1171,12 @@ golden and `--check` diffs it without the suite. What is in it:
 
 Seeded 2026-09-11 at 1180×900, where the room measures **1125px**:
 
+The golden is taken with the **Favourites shelf emptied**: its contents are the vault's
+rather than the packing's, and the checks in a shard share one page, so this check used to
+measure whatever the shard before it had left on the rail. It passed for that reason rather
+than on its merits — run alone it failed the moment a fresh library came up with four
+favourites on it (`github#35`).
+
 | shelf | rows | books | plaques |
 |---|---|---|---|
 | Favourites | 1 | 0 | 0 |
@@ -1295,7 +1323,7 @@ breaking the sparse generator for one run — 87/87 on the two shapes that still
 stamp; with one fixture there is no partial run left to have, which is why the selftest now
 drives `record({ fixtures: [] })` instead.
 
-Measured on this machine, 2026-09-11, warm: a full run is **28 s** for **88 checks** on the one
+Measured on this machine, 2026-09-11, warm: a full run is **28 s** for **89 checks** on the one
 vault — against **75 s** for 264 checks over the three shapes it replaced (`github#17`,
 `decisions/0012`). Twelve times the notes and the suite is 2.7× faster, because the cost was
 three builds and three browser warm-ups rather than the size of any one vault. A cold run,
