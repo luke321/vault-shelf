@@ -548,6 +548,38 @@ transition).
 Windows, blocks the page while it is open. *Back to the look's own* does preview — it is one of
 the things being chosen between.
 
+## A right-click dyes a book, a plate's run or a shelf
+
+`"a right-click dyes a book, a plate's run or a shelf, and hovering paints it first"`
+(`github#44`, `design/0022`), on all three shapes. The twelve are offered in four places now, and
+all four preview the same way.
+
+**The unit is what the right-click landed on**: a spine is one book; a plate is **its run**, the
+adjacent books it names (`design/0018`, so a shelf a person has split shows two plates and dyeing
+one dyes one); a shelf's head or its empty rail is every book standing on it. A hover paints the
+whole unit at once and **saves 0 keys**; a click saves **one key per book**; *Automatic* takes
+every one of them off again and the room is byte-identical to where it started.
+
+**A hand-given colour is a stamp, not a rule.** Each book keeps its own `bookColors` key, so it
+survives a rebuild by address and one spine can be re-dyed afterwards. A book that joins the
+shelf later does not inherit it.
+
+**The threads follow the boards**, with nothing added: a thread falls out of the board it is sewn
+into (`design/0008`), so the check reads `--ribbon` across the library and asserts it moved with
+the boards on a plate's whole run.
+
+**The shelf's menu leads with the act tied to where the hand landed.** Right-clicking empty rail
+space is about a position — it is how a book is made at that gap (`design/0020`) — so
+*New book here…* is still the first button and the twelve sit under it.
+
+**The lines below the twelve are one book's.** Edit, delete and the per-pick-shelf lines appear on
+a spine's menu and on no other; a plate's and a shelf's carry **0** of them.
+
+**Both new checks clear the palette, the ribbons and the hand-given colours before they measure.**
+They read boxes, so they sit in the serial lane, and the checks that run before them there leave
+all three behind; what these measure is a difference, and a leftover palette made one preview
+land on the colour its slot already wore.
+
 ## A shelf can be deleted, placed and carried
 
 `"a shelf is deleted on the second press, made at the end the button is at, and carried by its

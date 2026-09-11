@@ -1,5 +1,50 @@
 # Changelog detail
 
+## 2026-09-11 — A plate dyes what is under it, and a shelf dyes itself (github#44)
+
+> "right click on plague, change colors for everyting under the plague, right click on shelf the
+> whole shelf" — and "live update for the ribbons as well, naturally"
+
+The same preview, in the three other places the twelve are offered. Asked for while looking at
+the first half of `github#44` running, so it ships on the same branch; it is a **new gesture**
+rather than a preview of an existing one, and may want its own issue number.
+
+| | before | after |
+|---|---|---|
+| places a colour is given by hand | a spine | a spine, **a plate's run**, **a shelf** |
+| hovering one of the twelve there | did nothing | paints the whole unit, and its threads |
+| written by a hover over any of them | — | **0** keys |
+| written by a click on a shelf of 130 | — | **130** keys, one per book, by address |
+| *Automatic* after that | — | **0** keys, room byte-identical to where it started |
+| lines below the twelve (edit, delete, add to…) | a spine's | still a spine's only — **0** on the others |
+| the shelf menu's first button | *New book here…* | *New book here…*, twelve below it |
+| `smoke.mjs` | 90 checks | **91 checks** |
+| `check-comments` baseline | 1500 | 1500 |
+
+**A plate's unit is its run, not its label.** `design/0018` settled that a run is what is adjacent
+and `openPlaque()` opens the same run, so a shelf a person has split shows two plates and dyeing
+one dyes one. A plate says what is under it.
+
+**A stamp, not a rule.** `setBookColors()` writes one `bookColors` key per book, exactly as
+right-clicking each spine in turn would. A rule new books would inherit needs a field on `Shelf`
+and a `migrate` clause, and `migrate` lives in `src/core`, which this branch was told not to
+touch.
+
+**The ribbons needed nothing.** A thread falls out of the board it is sewn into (`design/0008`),
+so previewing a board previews its ribbon — on one spine or on a hundred and thirty. The check
+reads `--ribbon` across the library and asserts it moved.
+
+**Two suite checks took the shelf menu's first button by position**, which is how the twelve going
+in above it was caught: the second made book came back holding **-1 notes**, because the click
+that should have opened *New book here…* landed on swatch 1 instead. The twelve went below the
+line — right-clicking a gap is a gesture about a position, so the act tied to that position leads
+— and one of the two checks now asks for `.vs-railline` by name.
+
+**Both new checks clear the palette, the ribbons and the hand-given colours before measuring.**
+They read boxes, so they sit in the serial lane, and the checks that run before them there leave
+all three behind; what these measure is a difference, and a leftover palette made a preview land
+on the colour a slot already wore.
+
 ## 2026-09-11 — A swatch says what the library would look like (github#44)
 
 > "colors should live preview when the swatch is open and hovering"

@@ -249,6 +249,7 @@ const POINTER_DRIVEN = [
   "moves nothing",
   /* github#44, design/0022 -- it reads every spine's box, before and after a hover. */
   "hovered swatch",
+  "a right-click dyes",
   /* design/0020 -- a right-click and a drag off the rail read boxes. */
   "made on the shelf",
   "edited, emptied",
@@ -1769,7 +1770,8 @@ check("a book made on the shelf holds the notes it points at, where it was made"
     track.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true,
       clientX: Math.round(lb.left + lb.width / 2), clientY: Math.round(lb.top + lb.height / 2) }));
     var menu = document.getElementById("vs-railmenu");
-    var line = menu.querySelector("button");
+    /* github#44 -- the twelve stand above it, so the line is asked by name */
+    var line = menu.querySelector(".vs-railline");
     var offered = { shown: !menu.hidden, text: line ? line.textContent : null,
                     named: menu.querySelector(".vs-dyename").textContent,
                     dyeShut: document.getElementById("vs-dye").hidden };
@@ -2832,6 +2834,14 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
     out.wearing = best;
     var away = (row + 6) % 12;
 
+    /* github#44 -- the checks before this leave palettes behind, and this measures a
+     * difference, so it starts from none */
+    var kept = __vs.settings();
+    kept.palette = [];
+    kept.ribbons = kept.ribbons.map(function () { return ""; });
+    Object.keys(kept.bookColors).forEach(function (k) { delete kept.bookColors[k]; });
+    __vs.setFilters({});
+
     var menu = document.getElementById("vs-swatchpick");
     var slotSwatch = function (column) {
       return document.querySelectorAll("#vs-mpalette .vs-dyerows tr")[row]
@@ -2938,6 +2948,185 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
                : r.wearing > 0
                  ? `a hover wrote ${r.saved} colours to settings; a preview saves nothing`
                  : "no spine wears any of the twelve, so nothing was measured" };
+});
+
+/* github#44, design/0022 -- the same preview where a hand gives a colour */
+check("a right-click dyes a book, a plate's run or a shelf, and hovering paints it first", async (p) => {
+  /* github#44 -- boxes are read, so the first packing has to have landed */
+  for (let wait = 0; wait < 20; wait++) {
+    const up = await p.j(`(function(){
+      var one = document.querySelector("#vs-shelves .vs-spine");
+      return one ? Math.round(one.getBoundingClientRect().width) : 0;
+    })()`);
+    if (up > 0) break;
+    await sleep(150);
+  }
+  const r = await p.j(`(function(){
+    var out = {};
+    var shelves = document.getElementById("vs-shelves");
+    var dye = document.getElementById("vs-dye");
+    var rail = document.getElementById("vs-railmenu");
+    var fire = function (el, type, x, y) {
+      el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true,
+                                              clientX: x || 200, clientY: y || 200 }));
+    };
+    var enter = function (el) {
+      el.dispatchEvent(new MouseEvent("mouseenter", { bubbles: false, cancelable: true }));
+    };
+    var escape = function () {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    };
+    var read = function (sel, prop) {
+      var parts = [], all = shelves.querySelectorAll(sel);
+      for (var i = 0; i < all.length; i++) {
+        parts.push(getComputedStyle(all[i]).getPropertyValue(prop).trim());
+      }
+      return parts.join(",");
+    };
+    var boards = function () { return read(".vs-spine", "--spine-tint"); };
+    var threads = function () { return read(".vs-spine", "--ribbon"); };
+    var furniture = function () {
+      var parts = [], all = shelves.querySelectorAll(".vs-spine");
+      for (var i = 0; i < all.length; i++) {
+        var b = all[i].getBoundingClientRect();
+        parts.push(Math.round(b.left) + ":" + Math.round(b.top) + ":" +
+                   Math.round(b.width) + ":" + Math.round(b.height));
+      }
+      return parts;
+    };
+    var samePacking = function (was, now) {
+      if (was.length !== now.length) return false;
+      for (var i = 0; i < was.length; i++) {
+        if (was[i] !== "0:0:0:0" && was[i] !== now[i]) return false;
+      }
+      return true;
+    };
+    var tinted = function (ids) {
+      return ids.map(function (id) {
+        var sp = shelves.querySelector('[data-book="' + CSS.escape(id) + '"]');
+        return sp ? getComputedStyle(sp).getPropertyValue("--spine-tint").trim() : "?";
+      }).join(",");
+    };
+    var swatches = function (menu) { return menu.querySelectorAll(".vs-swatches .vs-swatch"); };
+
+    /* github#44 -- the same: a hand-given colour left by an earlier check is not this one's */
+    var kept = __vs.settings();
+    kept.palette = [];
+    kept.ribbons = kept.ribbons.map(function () { return ""; });
+    Object.keys(kept.bookColors).forEach(function (k) { delete kept.bookColors[k]; });
+    __vs.setFilters({});
+    var given = function () { return Object.keys(__vs.settings().bookColors).length; };
+
+    var before = boards() + "/" + threads();
+    var geometry = furniture();
+    out.laidOut = geometry.filter(function (b) { return b !== "0:0:0:0"; }).length > 0;
+    out.clean = given() === 0;
+
+    /* github#44 -- 1. one spine: the twelve, hovered, then put back */
+    var spine = shelves.querySelector(".vs-spine[data-book]");
+    var one = spine.getAttribute("data-book");
+    fire(spine, "contextmenu");
+    out.spineMenu = !dye.hidden && swatches(dye).length === 12;
+    out.spineQuiet = boards() + "/" + threads() === before;
+    enter(swatches(dye)[7]);
+    out.spinePainted = boards() !== before.split("/")[0] && tinted([one]) !== "?";
+    out.spineSaved = given();
+    out.spinePacked = samePacking(geometry, furniture());
+    escape();
+    out.spineBack = boards() + "/" + threads() === before && dye.hidden;
+
+    /* github#44 -- 2. a plate dyes its whole run, and only its run */
+    var plate = shelves.querySelector(".vs-plaque");
+    out.hasPlate = !!plate;
+    if (plate) {
+      var run = [].map.call(plate.parentElement.querySelectorAll(".vs-spine[data-book]"),
+                            function (s) { return s.getAttribute("data-book"); });
+      out.runSize = run.length;
+      fire(plate, "contextmenu");
+      out.plateMenu = !dye.hidden && swatches(dye).length === 12 &&
+                      dye.querySelector(".vs-dyename").textContent === plate.textContent;
+      out.plateNoLines = dye.querySelectorAll(".vs-dyepick").length === 0;
+      out.plateQuiet = boards() + "/" + threads() === before;
+      enter(swatches(dye)[4]);
+      var painted = tinted(run).split(",");
+      out.plateWholeRun = painted.length === run.length &&
+                          painted.every(function (c) { return c === painted[0]; }) &&
+                          painted[0] !== "";
+      out.plateSaved = given();
+      out.platePacked = samePacking(geometry, furniture());
+      /* github#44 -- the thread follows the board it is sewn into */
+      out.plateThreads = threads() !== before.split("/")[1];
+      escape();
+      out.plateBack = boards() + "/" + threads() === before;
+    }
+
+    /* github#44 -- 3. the shelf head dyes every book on the shelf */
+    /* the first shelf that HOLDS something: Favourites stands at position 0 and is empty
+     * until somebody drops a book on it, and dyeing nothing proves nothing */
+    var section = null;
+    var sections = shelves.querySelectorAll(".vs-shelf");
+    for (var si = 0; si < sections.length && !section; si++) {
+      if (sections[si].querySelector(".vs-shelfhead") &&
+          sections[si].querySelectorAll(".vs-spine[data-book]").length) section = sections[si];
+    }
+    var head = section.querySelector(".vs-shelfhead");
+    var mine = [].map.call(section.querySelectorAll(".vs-spine[data-book]"),
+                           function (s) { return s.getAttribute("data-book"); });
+    out.shelfSize = mine.length;
+    fire(head, "contextmenu");
+    out.shelfMenu = !rail.hidden && swatches(rail).length === 12 &&
+                    !!rail.querySelector(".vs-railline");
+    out.shelfQuiet = boards() + "/" + threads() === before;
+    enter(swatches(rail)[10]);
+    var shelfPainted = tinted(mine).split(",");
+    out.shelfWhole = shelfPainted.length === mine.length &&
+                     shelfPainted.every(function (c) { return c === shelfPainted[0]; }) &&
+                     shelfPainted[0] !== "";
+    out.shelfSaved = given();
+    out.shelfPacked = samePacking(geometry, furniture());
+    escape();
+    out.shelfBack = boards() + "/" + threads() === before && rail.hidden;
+
+    /* github#44 -- 4. a click commits what a hover only offered */
+    fire(head, "contextmenu");
+    swatches(rail)[10].click();
+    out.committed = boards() !== before.split("/")[0] && given() === mine.length;
+    out.committedSame = tinted(mine) === shelfPainted.join(",");
+    out.railShut = rail.hidden;
+    /* and a preview over a commit goes back to the commit, not to automatic */
+    var committed = boards() + "/" + threads();
+    fire(head, "contextmenu");
+    enter(swatches(rail)[2]);
+    out.overCommitted = boards() + "/" + threads() !== committed;
+    escape();
+    out.backToCommitted = boards() + "/" + threads() === committed;
+
+    /* github#44 -- 5. Automatic takes it all off again */
+    fire(head, "contextmenu");
+    rail.querySelector(".vs-dyeauto").click();
+    out.automatic = boards() + "/" + threads() === before && given() === 0;
+    out.shut = dye.hidden && rail.hidden;
+    return out;
+  })()`);
+  const want = ["laidOut", "clean", "spineMenu", "spineQuiet", "spinePainted", "spinePacked",
+                "spineBack", "hasPlate", "plateMenu", "plateNoLines", "plateQuiet",
+                "plateWholeRun", "platePacked", "plateThreads", "plateBack", "shelfMenu",
+                "shelfQuiet", "shelfWhole", "shelfPacked", "shelfBack", "committed",
+                "committedSame", "railShut", "overCommitted", "backToCommitted", "automatic",
+                "shut"];
+  const bad = want.filter((k) => r[k] !== true);
+  const wrote = r.spineSaved === 0 && r.plateSaved === 0 && r.shelfSaved === 0;
+  const ok = !bad.length && wrote;
+  return { ok,
+           detail: ok
+             ? `a spine, a plate over ${r.runSize} books and a shelf of ${r.shelfSize} each ` +
+               "offer the twelve; a hover paints the whole unit and its threads and saves " +
+               "nothing, a click saves one key per book, Automatic takes them all off, and no " +
+               "box moved at any point"
+             : bad.length
+               ? `${bad.join(", ")} -- not what a hand-given colour does`
+               : `a hover wrote ${r.spineSaved}/${r.plateSaved}/${r.shelfSaved} keys; ` +
+                 "a preview saves nothing" };
 });
 
 check("the theme follows the host, and the slots are re-read when it changes", async (p) => {

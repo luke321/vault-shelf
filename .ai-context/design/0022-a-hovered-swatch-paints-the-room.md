@@ -121,6 +121,45 @@ the *Custom…* button previews nothing either, because there is no colour behin
 the trial, the same as leaving the row. **Back to the look's own** does preview, because it is one
 of the things you are choosing between: it behaves like a thirteenth swatch.
 
+## The other three places the twelve are offered
+
+The Manage sheet is where a slot is chosen; the right-click is where a *book* is given one by
+hand, and asked for on the same day the preview was: a plate should dye what is under it, and a
+shelf its whole self.
+
+**One menu builder serves all three.** `dyeRow()` puts the twelve and *Automatic* into a menu and
+hands back its offers; `openDye()` takes a **list** of books rather than one, and the lines below
+the twelve — edit, delete, add to a pick shelf — are a single book's and only appear for one. The
+unit each entry point passes:
+
+| right-click | the unit | where |
+|---|---|---|
+| a spine | that book | `renderSpine` |
+| a plate | **its run** — the adjacent books it names, wrapped rows included | `renderTrack` |
+| a shelf's head, or empty rail | every book standing on the shelf | `renderShelf`, `offersBook` |
+
+A plate's unit is its **run**, not every book that shares its label, because that is what a plate
+already means everywhere else: `design/0018` settled that a run is what is adjacent, and
+`openPlaque()` opens the same run. A shelf a person has split shows two plates, and dyeing one
+dyes one.
+
+**It is a stamp, not a rule.** `setBookColors()` writes one `bookColors` key per book, exactly as
+right-clicking each spine in turn would — so it survives a rebuild by address, a single spine can
+be re-dyed afterwards, and *Automatic* takes them all off again. A book that joins the shelf
+later does **not** inherit the colour. A rule would need a new field on `Shelf` and a `migrate`
+clause, and `migrate` lives in `src/core`, which this branch was told not to touch; it is worth
+its own issue rather than a guess made here.
+
+**The threads follow.** Nothing extra was needed: a thread falls out of the board it is sewn into
+(`design/0008`), so previewing a board previews its ribbon, on one spine or on a hundred and
+thirty. The check reads `--ribbon` across the library and asserts it moved.
+
+**The shelf menu leads with the act tied to where the hand landed.** Right-clicking empty rail
+space is a gesture about a *position* — it is how a book is made at that gap (`design/0020`) — so
+*New book here…* stays first and the twelve sit under it. Two checks in the suite took that
+button by position, and one of them came back holding **-1 notes** when the twelve went in above
+it; that one now asks for `.vs-railline` by name, which is what it always meant.
+
 ## The check
 
 `a hovered swatch paints the room, and leaving puts it back`, on all three shapes. It drives the
@@ -141,5 +180,12 @@ the browser catching up rather than a preview moving something.
 Boxes are compared **across a preview and never across a commit**: choosing a colour re-renders
 the library, which puts its scroll back to the top, and that is what committing has always done
 rather than anything a hover did.
+
+A second check, `a right-click dyes a book, a plate's run or a shelf, and hovering paints it
+first`, drives the other three menus on all three shapes: each offers the twelve, a hover paints
+the whole unit and its threads and saves nothing, a click saves one key per book, *Automatic*
+takes them all off, and no box moves across any preview. Both checks clear the palette, the
+ribbons and the hand-given colours before they measure — the checks that run before them in the
+serial lane leave all three behind, and what these measure is a difference.
 
 `--shot-open swatch` takes the picture of it, since numbers cannot see.
