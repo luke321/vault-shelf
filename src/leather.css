@@ -50,7 +50,6 @@
   --vs-gilt-dim: #ba9e6d;
   --vs-gilt-hi: #fff0c9;
   --vs-control: #30312b;
-  --vs-control-hover: #3a3a31;
   /* github#9, design/0019 -- THE PLATE IS BRASS, drawn by page.css */
   --vs-plate: #514936;
   --vs-plate-lo: #3c382c;
@@ -305,7 +304,6 @@
   --border-strong: #a59880;
   --accent: #793b3d;
   --vs-control: #efe8d8;
-  --vs-control-hover: #e5dbc6;
   /* github#9, design/0019 -- ON PAPER, A PLATE IS BONE, as a box is paper (github#2) */
   --vs-plate: #f3ecdc;
   --vs-plate-lo: #e5dbc4;
