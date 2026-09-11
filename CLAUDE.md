@@ -171,9 +171,15 @@ of measuring it.** Build the page, drive it, read the numbers.
   orchestrator, and says so at the start rather than waiting to be told; a session opened in an
   Orca worktree is a worker, and never becomes an orchestrator by finishing well. The checkout
   is the role, so the answer never depends on who remembered to mention it. **And it says so
-  in its name**: the orchestrator session is called `vault-shelf-orchestrator`, because a
-  sister session with something to say about the shared mutex has to be able to find it in a
-  list of sixty. `/rename vault-shelf-orchestrator` at the start, or `claude -n` at launch.
+  in its name: every orchestrator is called `Jarvis`.** `/rename Jarvis` at the start, or
+  `claude -n Jarvis` at launch. Named 2026-09-11 by Lukas, replacing `vault-shelf-orchestrator`.
+  A sister session with something to say about the shared mutex has to be able to find it in a
+  list of sixty, and one capitalised word does that better than a 22-character slug that reads
+  like a worktree. **Both repos' orchestrators share the name on purpose** — Lukas addresses the
+  role, not the instance (*"when I tell you to tell something to jarvis send it with orca send
+  to all jarvis running"*), so a message for Jarvis goes to **every** running Jarvis and the
+  worktree path is what tells two of them apart afterwards. The session in the SecondBrain vault
+  checkout is **Alfred**, and is the one that does that sending.
 - **Only the orchestrator session pushes to `develop` or cuts a release.** A dispatched
   worktree — an Orca worktree of its own, never a child of the orchestrator's, one per piece of
   work — implements, runs its own gates, and stops at its own branch: it never pushes past that
