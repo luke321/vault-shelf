@@ -129,12 +129,14 @@ guard stops it. The branch push the sister repo's script used to make was a no-o
 3. **Write the `CHANGELOG.md` section**, heading included:
 
    ```
-   ## 0.2.0 -- "The reading room" -- 2026-10-01
+   ## 0.2.0 — "The reading room" — 2026-10-01
    ```
 
-   The workflow reads the release **title** out of the quotes and the release **body** out of
-   the section, so the two cannot drift. Use an **ASCII hyphen**, not an em dash: a title
-   cannot be quietly fixed after it has been seen.
+   The form `CHANGELOG.md`'s own preamble states, em dashes included; the file is read with an
+   explicit UTF-8 encoding everywhere it is read. The workflow takes the release **title** from
+   the quotes (`0.2.0 - The reading room`, ASCII on its side) and the **body** from the
+   section, so the two cannot drift, and a title cannot be quietly fixed after it has been
+   seen.
 
 4. **Put the numbers in `.ai-context/changelog-detail.md.`** Before and after, for anything
    that changed what a shelf contains or where a book lives. `CHANGELOG.md` says what

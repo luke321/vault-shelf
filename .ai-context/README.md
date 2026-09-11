@@ -9,6 +9,7 @@ changing what a shelf contains or how a book is addressed.
 | `invariants.md` | Properties that must not regress, and the command that checks each one |
 | `changelog-detail.md` | What was measured, per change. The regression suite in prose |
 | `releasing.md` | The two halves of a release, and what has to be finished before the tag exists |
+| `verification-<version>.md` | Per release: what was run, what was looked at, what changed against the reference, and what was not verified |
 | `original-brief.md` | The founding brief, verbatim, with a table saying where each of its six open decisions was settled |
 | `decisions/` | **ADRs** — structural choices, what they cost, and what was rejected |
 | `design/` | **DDRs** — the as-built design of each part of the library |

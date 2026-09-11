@@ -1,5 +1,64 @@
 # Changelog detail
 
+## 2026-09-11 — The gate holes were closed; the proof was not (github#27)
+
+> "Bring the release practice level with Vault Graph's, and cut 0.1.0."
+
+The three holes `vault-graph@8ed846a` closed were already closed here by github#5 — read
+against our own copies: both sides of the CLI guard realpath'd, `record()` refusing a run
+missing a fixture, `lookup()` requiring all three, the hook and `release.ps1` matching the
+`passed the invariant suite` line, `close-issues.mjs` splitting on the first `..` (rehearsed on
+`0.1.0..0.2.0` below). What was missing was the measurement.
+
+| | before | after |
+|---|---|---|
+| `suite-stamp.mjs --selftest` | **16/16**, none of them through a link | **17/17** — the CLI spawned through a junction to `scripts/` prints its `suite-stamp: ` line and exits 0 or 1 |
+| the CLI through a real `mklink /J`, by hand, before the case existed | exit 0, `tree d0ee696 passed the invariant suite ... (261 checks, commit 303dec5 ...)` | the same; the hole was closed by github#5, and this is the proof |
+| a run whose sparse generator fails | `not stamping this run: a fixture that could not be generated is not the full suite` | `not stamping this run: a run without sparse-vault (the generator failed) is not the full suite` — 87/87 on the two shapes that ran, exit 0, **57 s**, no stamp written |
+| `release.ps1 -SelfTest` | 10/10, every case `0 -> 0` tags | the same, **13 s** |
+
+Two things the broken-generator run taught, both about the shared store. **Every fixture's
+digest covers every generator**, so breaking one gives all three a new digest, and the two
+that still generate are published under it; `fixture-store.mjs` then calls the newest
+`.stamp.json` current, and every stamp on the machine misses (`fixture demo-vault is not the
+one that passed (stamped 2f973453 ..., store has 1c12c5c8 ...)`) until the orphans are
+removed by hand — two directories, `demo-vault-1c12c5c8` and `library-vault-e01daf6a`, gone
+and `develop`'s stamp hitting again. And **a fresh Orca worktree has no `node_modules`**: the
+first attempt reported `FAIL 0/87` on both shapes because `build-shelf.mjs` could not find
+`esbuild`, which reads like a product failure and is `npm ci`.
+
+### The count the docs quoted, and the one the stamp holds
+
+| where | said | measured |
+|---|---|---|
+| `CHANGELOG.md` 0.1.0 | 37 checks, and 10 more inside a real Obsidian | **87 per shape, 261 a run**; the Obsidian harness was removed at `829725f` |
+| `CLAUDE.md` | 76 | 87 |
+| `decisions/0010`, `invariants.md` | 66 × 3 = 198 (true when measured, 2026-09-11 morning) | 261 by the afternoon; the dated measurements stand as history |
+
+### The rehearsal on this branch
+
+`release.ps1 0.1.0 -DryRun -AllowAnyBranch`, redirected to a log as the flow prescribes:
+every guard passed (`-AllowAnyBranch` waiving the branch one), the `=== hero ===` warning
+fired (`assets/demo.webp` committed 2026-09-10, `src/` moved 2026-09-11 — github#21), lint
+clean, the plugin built (`main.js` 151 KB, `styles.css` 119 KB), `no stamp for tree e78a750`,
+and then **87/87 on all three shapes, exit 0** — twelve parallel shards of 16–17 checks in
+1–16 s each and three serial jobs of 22 in 11, 11 and 19 s — and `-DryRun: stopping before
+the tag and the push`. Wall **1,117 s**, of which the first 17 minutes were `WAITING for
+suite -- held by pre-push develop`: the sister repo's hook held the lock for its own
+ten-minute run, a second Vault Shelf worktree queued behind it too, and the lock earned its
+keep a third time. **It did not stamp**, and rightly: four tracked docs were edited while it
+queued, so the tree it measured was dirty — `not stamping this run: the working tree differs
+from HEAD in 4 tracked file(s)`. The guard doing its job on its author. The committed tree
+was stamped by the full run recorded in the row below.
+
+### Gates
+
+| | before | after |
+|---|---|---|
+| `check-comments` baseline | 1527 | 1527 (the two new comments are bare pointers) |
+| `npm run lint` | 0 / 0 | 0 / 0 |
+| `code-map --check` | current | regenerated after the `smoke.mjs` edit, current |
+
 ## 2026-09-11 — The glass tab is not a plate that drifted
 
 Merging #10 on top of #9 and #3 produced a failure neither branch could have seen alone, and
