@@ -533,12 +533,19 @@ export function datedClassifier(classifier: string): boolean {
   return classifier === "year" || classifier === "month" || classifier === "week";
 }
 
-/** github#21, design/0005 -- Years by decade, Months by year. */
+/** github#21, github#33, design/0005 -- Years by decade, Months by year, an index by nothing. */
 export function colorRule(shelf: Shelf): ColorRule {
   if (shelf.colorBy) return shelf.colorBy;
   if (shelf.classifier === "year") return "decade";
   if (shelf.classifier === "month" || shelf.classifier === "week") return "year";
+  if (shelf.classifier === "initial") return "one";
   return "folder";
+}
+
+/** github#33, design/0005 -- a shelf of identities varies unless the file says otherwise. */
+export function variesColors(shelf: Shelf): boolean {
+  if (shelf.varyColors !== undefined) return shelf.varyColors;
+  return shelf.classifier === "person" || shelf.classifier === "tag";
 }
 
 /** github#21 -- the period a key's dye follows, null for the folder's. */

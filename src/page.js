@@ -209,6 +209,9 @@ function mountVaultShelf(root, data, options) {
   var query = "";
   /** @type {ShelfView[]} */
   var views = [];
+  /* github#33, design/0005 -- a varied shelf's slots, dealt unfiltered. */
+  /** @type {Record<string, number>} */
+  var dyeDeal = {};
   /** @type {Record<string, Book>} */
   var bookIndex = {};
   /** The biggest book in the library, which every thickness is scaled against. */
@@ -287,6 +290,13 @@ function mountVaultShelf(root, data, options) {
         if (book.notes.length > thickest) thickest = book.notes.length;
       });
     });
+    if (visible.length === notes.length) {
+      dyeDeal = {};
+      views.forEach(function (view) {
+        if (!core.variesColors(view.shelf)) return;
+        view.books.forEach(function (book, i) { dyeDeal[book.id] = i; });
+      });
+    }
     core.markMatches(views, query);
   }
 
@@ -1599,14 +1609,11 @@ function mountVaultShelf(root, data, options) {
    * design/0005 -- WHICH OF THE TWELVE A BOOK WEARS, in order of who said so:
    *
    *   1. the person, by right-clicking the spine (`bookColors`, keyed by address);
-   *   2. the shelf, if it varies its books -- a slot hashed from the address, so it stays put
-   *      as notes arrive and a shelf of people reads as people rather than as folders;
-   *   3. the note's dominant source folder, which is what a dye MEANS by default: a book from
-   *      the meetings folder and a book from the journal are different colours because they
-   *      are different kinds of book.
+   *   2. the shelf, if it varies its books -- a dealt slot (github#33);
+   *   3. the period, on a date shelf, or ONE dye on an index (github#33);
+   *   4. the note's dominant source folder, the default meaning of a dye.
    *
-   * The leather rework had made every book slot 0 unless a shelf varied, which is why a whole
-   * library came out one colour; that was a regression of design/0005 and this is its repair.
+   * The leather rework made every book slot 0; this repairs that.
    * @param {Book} book @param {Shelf} shelf @returns {string}
    */
   function dyeOf(book, shelf) {
@@ -1616,10 +1623,16 @@ function mountVaultShelf(root, data, options) {
     var home = source === book ? shelf : shelfById(source.shelfId) || shelf;
     var given = settings.bookColors[source.id];
     if (typeof given === "number" && SLOTS[given]) return SLOTS[given];
-    if (shelf.varyColors || home.varyColors) return SLOTS[hashSlot(source.id)];
+    if (core.variesColors(shelf) || core.variesColors(home)) {
+      /* A book the deal never saw -- a made book, say -- still gets a slot. */
+      var dealt = typeof dyeDeal[source.id] === "number" ? dyeDeal[source.id] : hashSlot(source.id);
+      return SLOTS[dealt % SLOTS.length];
+    }
     /* github#21, design/0005 -- a date shelf dyes by period. */
     var period = core.dyePeriod(home, source.key);
     if (period !== null) return SLOTS[period % SLOTS.length];
+    /* github#33 -- an index wears one dye, the look's own. */
+    if (core.colorRule(home) === "one") return SLOTS[0];
     if (book.bands.length && book.bands[0].slot) return String(book.bands[0].slot);
     return SLOTS[0];
   }
@@ -2664,7 +2677,7 @@ function mountVaultShelf(root, data, options) {
     field("bplaques").checked = !!d.plaques;
     field("bplaques").disabled = !PLAQUABLE[d.classifier];
     field("bsubtags").checked = d.includeSubtags !== false;
-    field("bvary").checked = !!d.varyColors;
+    field("bvary").checked = core.variesColors(d);
     field("bsubtags").disabled = d.classifier !== "tag" && d.source.kind !== "tag";
     /* design/0019 -- A PICK SHELF HAS NO PREDICATE AND NO RULE, so the first question and the
      * order come off the form -- but "what makes a book" STAYS, because it is the control that
@@ -2973,7 +2986,9 @@ function mountVaultShelf(root, data, options) {
       var sw = /** @type {HTMLInputElement} */ (DOC.createElement("input"));
       sw.type = "checkbox";
       sw.setAttribute("role", "switch");
-      sw.checked = !!shelf.varyColors;
+      /* github#33 -- the RESOLVED value, not the raw flag: People and Tags vary unless
+       * told not to, and a switch that read the flag showed off while the shelf varied. */
+      sw.checked = core.variesColors(shelf);
       sw.setAttribute("aria-label", "Vary colours on " + shelf.name);
       vary.title = "Each book on this shelf in a colour of its own, rather than its folder's";
       vary.appendChild(sw);

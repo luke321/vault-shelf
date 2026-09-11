@@ -449,16 +449,36 @@ it scrolled the shelf into view
 first. That is right for the product (a person parts the shelf they are looking at) and a trap
 for a check, which has to scroll before it measures.
 
-**A date shelf dyes by period, and Encyclopedia keeps its folder dye** (`github#21`,
-`design/0005`). Years by decade, Months and Weeks by year, unless `Shelf.colorBy` says
-otherwise; the slot is the period modulo **12**, so it is the calendar's and not the vault's.
-Measured: Months' **109** dated books over **11**
-years, **0** years torn between dyes and **0** neighbouring years sharing one; Years' **2**
-decades likewise; Encyclopedia **35** of **35** on the folder's dye. Manage
-offers `folder,year,decade` on a date shelf's row and nothing on Encyclopedia's or People's;
-Months by folder follows the folder on all **129 / 29 / 121**, by decade tears **0**, and saves
-as `"decade"`. Between *vary* and the folder in the ranking: a hand-given colour and a varied
-shelf both still win.
+**A date shelf dyes by period, an index wears one dye, and identities vary** (`github#21`,
+`github#33`, `design/0005`). Years by decade, Months and Weeks by year, unless `Shelf.colorBy`
+says otherwise; the slot is the period modulo **12**, so it is the calendar's and not the
+vault's.
+
+**A dye means "what kind of book is this", and the default answer — the dominant source folder
+— is the wrong one at both ends of the library** (`github#33`). An Encyclopedia volume is a
+slice of the alphabet, so dyeing each volume by whichever folder happened to dominate that
+letter was colour with nothing behind it: **35 volumes wore 6 dyes** for no reason a reader
+could name. And every person's book draws most of its notes from the meetings folder, so a
+People shelf came out **4 dyes over 26 books**. So: `initial` resolves to the `"one"` colour
+rule and wears slot 0 throughout, and `person` and `tag` vary unless the file says otherwise
+(`core.variesColors`, which is what the Manage switch reads — reading the raw flag instead
+showed the switch **off** while the shelf varied).
+
+**The twelve are dealt, not hashed** (`github#33`). Hashing an address into twelve slots is
+even only on average, and on 44 tag books it put **8 on one slot and 2 on another**. Dealing
+in key order uses every slot within one of every other and never twice in a row. The deal is
+taken from an **unfiltered** rebuild, so narrowing the room cannot recolour a book — the
+property `design/0005` already promised and the reason the deal is not simply the book's index
+in whatever is on screen.
+
+Measured: Months' **109** dated books over **11** years, **0** years torn between dyes and
+**0** neighbouring years sharing one; Years' **2** decades likewise; Encyclopedia's **35**
+volumes wear **1** dye. People **26** books over **12** slots at `3 3 2 2 2 2 2 2 2 2 2 2`
+and Tags **44** over **12** at `4 4 4 4 4 4 4 4 3 3 3 3` — **0 neighbouring books sharing a
+dye** on either, against 1 and 3 when they were hashed. Manage offers `folder,year,decade` on
+a date shelf's row and nothing on Encyclopedia's or People's; Months by folder follows the
+folder on all **109**, by decade tears **0**, and saves as `"decade"`. Between *vary* and the
+folder in the ranking: a hand-given colour and a varied shelf both still win.
 
 **The twelve are offered.** A slot's swatch used to open the operating system's colour picker,
 which has sixteen million colours and none of this library's twelve. It opens a popover of the
@@ -686,9 +706,11 @@ Month display labels use **Jan–Dec plus the four-digit year** (for example `Se
 Their keys remain `YYYY-MM`; addresses, date ordering and year plaques are unchanged.
 
 Encyclopedia (`initial`) volumes always share palette slot 1. **Manage → Vary book colors**
-is off by default, including when older settings are migrated. When enabled, other books
-choose one of the twelve slots by their stable address, never by changing folder counts or
-membership. A theme/look switch may repaint the palette; incoming notes may not reassign it.
+is off by default on every shelf except **People and Tags**, which vary unless the file says
+otherwise (`github#33`); migrating older settings does not turn it on anywhere else. When
+enabled, books are dealt the twelve slots in key order from an unfiltered rebuild, never by
+changing folder counts or membership. A theme/look switch may repaint the palette; incoming
+notes may not reassign it.
 
 `node scripts/smoke.mjs --only "book colors"` drives the checkbox and reloads its saved
 setting, changes the dominant folder by adding notes, and reverses folder ranks. Measured

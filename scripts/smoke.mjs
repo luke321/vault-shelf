@@ -3284,7 +3284,7 @@ check("a book's colour is the person's, then the shelf's, then the folder's", as
   };
 });
 
-check("a date shelf dyes its books by period, and Encyclopedia keeps its folder dye", async (p) => {
+check("a date shelf dyes by period, an index wears one dye, and identities vary", async (p) => {
   const r = await p.j(`(function(){
     var tint = function (id) {
       var el = document.querySelector('[data-book="' + id.replace(/"/g, '\\"') + '"]');
@@ -3311,6 +3311,15 @@ check("a date shelf dyes its books by period, and Encyclopedia keeps its folder 
     var years = split(dated("years"), decade);
     var enc = view("encyclopedia").books;
     var encByFolder = enc.filter(function (b) { return tint(b.id) === folderDye(b); }).length;
+    /* github#33 -- an index wears one dye; identities wear many. */
+    var distinct = function (books) {
+      var seen = {};
+      books.forEach(function (b) { seen[tint(b.id)] = 1; });
+      return Object.keys(seen).length;
+    };
+    var encDyes = distinct(enc);
+    var peopleDyes = distinct(view("people").books);
+    var tagDyes = distinct(view("tags").books);
 
     /* Months to folder, then to decade, through the select in Manage. */
     document.getElementById("vs-manageopen").click();
@@ -3330,19 +3339,22 @@ check("a date shelf dyes its books by period, and Encyclopedia keeps its folder 
     var peopleSelect = !!rowOf("People").querySelector("select.vs-colourby");
     document.getElementById("vs-mclose").click();
     return { months: months, years: years, monthsN: dated("months").length, enc: enc.length, encByFolder: encByFolder,
+             encDyes: encDyes, peopleDyes: peopleDyes, tagDyes: tagDyes,
              offered: offered, came: came, monthsFolder: monthsFolder, monthsDecade: monthsDecade, saved: saved,
              encSelect: encSelect, peopleSelect: peopleSelect };
   })()`);
   const ok = r.months.torn === 0 && r.months.shared === 0 && r.years.torn === 0 && r.years.shared === 0 &&
-             r.encByFolder === r.enc && r.offered === "folder,year,decade" && r.came === "year" &&
+             r.encDyes === 1 && r.peopleDyes > 3 && r.tagDyes > 3 &&
+             r.offered === "folder,year,decade" && r.came === "year" &&
              r.monthsFolder === r.monthsN && r.monthsDecade.torn === 0 && r.saved === "decade" &&
              !r.encSelect && !r.peopleSelect;
   return {
     ok,
     detail: `Months: ${r.monthsN} dated books over ${r.months.periods} years, ${r.months.torn} year(s) torn ` +
             `between dyes and ${r.months.shared} neighbouring years sharing one; Years: ${r.years.periods} ` +
-            `decade(s), ${r.years.torn} torn, ${r.years.shared} shared; Encyclopedia ${r.encByFolder}/${r.enc} ` +
-            `books wear their folder's dye; Manage offers "${r.offered}" on Months (came up "${r.came}"), ` +
+            `decade(s), ${r.years.torn} torn, ${r.years.shared} shared; Encyclopedia's ${r.enc} volumes ` +
+            `wear ${r.encDyes} dye (${r.encByFolder} of them their folder's), People ${r.peopleDyes} and ` +
+            `Tags ${r.tagDyes}; Manage offers "${r.offered}" on Months (came up "${r.came}"), ` +
             `by folder ${r.monthsFolder}/${r.monthsN} follow the folder, by decade ${r.monthsDecade.torn} ` +
             `torn, saved as "${r.saved}"; Encyclopedia has the select: ${r.encSelect}, People: ${r.peopleSelect}`
   };
@@ -3358,17 +3370,21 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
       return __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
     };
     var ids = people().books.slice(0, 8).map(function (b) { return b.id; });
-    /* The SET of dyes, not how many: a vault with eight source folders gives eight People
-     * books eight colours by folder already, and varying them changes which colours, not
-     * how many. */
-    var byFolderDyes = ids.map(tint).join(",");
-    var byFolder = new Set(ids.map(tint)).size;
+    var startDyes = ids.map(tint).join(",");
 
     /* Vary this shelf, through the button in Manage. */
     document.getElementById("vs-manageopen").click();
     var rows = [].slice.call(document.querySelectorAll("#vs-managelist .vs-managerow"));
     var row = rows.filter(function (r) { return r.textContent.indexOf("People") === 0; })[0];
     var vary = row.querySelector('.vs-toggle[data-fact="vary"] input[role="switch"]');
+    /* github#33 -- People varies by DEFAULT now, so reach the off state first. */
+    var variedByDefault = vary.checked;
+    if (variedByDefault) vary.click();
+    /* The SET of dyes, not how many: a vault with eight source folders gives eight People
+     * books eight colours by folder already, and varying them changes which colours, not
+     * how many. */
+    var byFolderDyes = ids.map(tint).join(",");
+    var byFolder = new Set(ids.map(tint)).size;
     vary.click();
     var variedDyes = ids.map(tint).join(",");
     var varied = new Set(ids.map(tint)).size;
@@ -3385,7 +3401,7 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
     __vs.setFilters({ folders: [] });
     var pressed = [].slice.call(document.querySelectorAll('#vs-managelist .vs-toggle[data-fact="vary"] input[role="switch"]'))
       .filter(function (b) { return b.checked; }).length;
-    vary.click();
+    if (!variedByDefault) vary.click();
     var backDyes = ids.map(tint).join(",");
     var back = new Set(ids.map(tint)).size;
 
@@ -3408,18 +3424,20 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
     var reset = __vs.slots()[0];
     document.getElementById("vs-mclose").click();
     return { byFolder: byFolder, varied: varied, pressed: pressed, back: back,
-             changed: variedDyes !== byFolderDyes, restored: backDyes === byFolderDyes,
-             recoloured: recoloured,
+             changed: variedDyes !== byFolderDyes, restored: backDyes === startDyes,
+             variedByDefault: variedByDefault, recoloured: recoloured,
              slotsBefore: slotsBefore, slot1: slotsAfter[0], first: first,
              underOther: underOther, reset: reset, other: other || "modern" };
   })()`);
-  const ok = r.changed && r.pressed === 1 && r.restored && r.recoloured === 0 &&
+  const ok = r.changed && r.pressed === 2 && r.restored && r.recoloured === 0 &&
+             r.variedByDefault &&
              r.slot1 === "#123456" && r.underOther === "#123456" && r.reset !== "#123456";
   return {
     ok,
     detail: `8 People books wear ${r.byFolder} colour(s) by folder and ${r.varied} varied -- ` +
-            `a different set (${r.changed}), one shelf pressed (${r.pressed === 1}), ` +
-            `${r.recoloured} recoloured by a narrowing rebuild, the folder dyes back after ` +
+            `a different set (${r.changed}); People and Tags vary by default ` +
+            `(${r.variedByDefault}), ${r.pressed} shelves pressed, ` +
+            `${r.recoloured} recoloured by a narrowing rebuild, back to the default after ` +
             `(${r.restored}); choosing ` +
             `#123456 for slot 1 makes it ${r.slot1}, still ${r.underOther} under the ` +
             `${r.other} look, and ${r.reset} after "Reset colours"`

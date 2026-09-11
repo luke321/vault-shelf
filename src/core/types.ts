@@ -97,8 +97,8 @@ export interface Shelf {
   colorBy?: ColorRule;
 }
 
-/** github#21 -- design/0005 */
-export type ColorRule = "folder" | "year" | "decade";
+/** github#21, github#33 -- design/0005 */
+export type ColorRule = "folder" | "year" | "decade" | "one";
 
 export interface Book {
   /** decisions/0002 */
