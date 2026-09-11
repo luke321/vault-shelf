@@ -58,6 +58,24 @@ right-click menu names every shelf that would take it.
 
 `design/0019`
 
+**Or make a book here.** Right-click the empty space on Favourites — the dashed landing, the
+gap after the last book — or press *New book* in the shelf's head, and the sheet asks two things: a **name**, and **what it
+holds** (a folder, a tag, a person, or the whole vault), with the real count under the form.
+The name is suggested from what it holds — pick the dailies folder and the book is called
+*Dailies* unless you say otherwise.
+The book appears where you right-clicked, in the manual order, and is a spine like any other:
+it drags along the shelf, takes a colour, wears, and hangs ribbons. It is a **saved query**,
+not a folder: nothing in the vault moves, and *Dailies* pointing at the dailies folder grows
+as dailies arrive. Unlike a favourite it is a place a note lives — a ribbon left in it stays
+in it, and *also shelved in* offers it. Right-click the spine to **edit** it (a rename keeps
+its address) or **delete** it; dragging it off the shelf deletes it too. What is lost is a
+name and a rule, never a note. **Any shelf arranged by hand can hold one**, not only
+Favourites: a *Dailies* among the years, if the Years shelf is yours to arrange. Every such
+shelf ends in a quiet **plus** — a book that is not there yet, standing where the books end —
+which opens the same sheet with the book going to the end.
+
+`design/0020`
+
 ### Six shelves, and every one of them is the whole vault
 
 Encyclopedia (title initial, with an explicit `0–9` volume), Years, Months, Weeks, People and

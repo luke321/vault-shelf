@@ -134,7 +134,40 @@
     </div>
   </div>
 
+  <div id="vs-madebook" class="vs-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="vs-mbtitle">
+    <div class="vs-sheetbody vs-narrow">
+      <h2 id="vs-mbtitle">New book</h2>
+      <p class="vs-hint vs-lede">A book of its own on this shelf: a name, and what it holds. The
+        notes stay where they are and the book follows them.</p>
+
+      <div class="vs-field">
+        <label for="vs-mbname">Name</label>
+        <input type="text" id="vs-mbname">
+      </div>
+
+      <fieldset class="vs-field">
+        <legend>What it holds</legend>
+        <select id="vs-mbsource">
+          <option value="folder">Notes in a folder</option>
+          <option value="tag">Notes with a tag</option>
+          <option value="person">Notes about a person</option>
+          <option value="all">The whole vault</option>
+        </select>
+        <select id="vs-mbsourceval" aria-label="Which folder, tag or person"></select>
+      </fieldset>
+
+      <p id="vs-mbcount" class="vs-hint" aria-live="polite"></p>
+
+      <div class="vs-mini vs-wide vs-sheetactions">
+        <button id="vs-mbsave" class="vs-primary">Make the book</button>
+        <button id="vs-mbcancel">Cancel</button>
+        <button id="vs-mbdelete" class="vs-delete" hidden>Delete book</button>
+      </div>
+    </div>
+  </div>
+
   <div id="vs-dye" class="vs-dye" hidden role="menu" aria-label="Colour of this book"></div>
+  <div id="vs-railmenu" class="vs-dye" hidden role="menu" aria-label="This shelf"></div>
   <div id="vs-swatchpick" class="vs-dye" hidden role="menu" aria-label="Choose a colour"></div>
   <div id="vs-peek" class="vs-peek" hidden role="tooltip"></div>
 

@@ -19,6 +19,40 @@ export function slug(text: string): string {
   return base || "shelf";
 }
 
+/* ---- a book made on the shelf --------------------------------------------
+ * design/0020 -- the key is fixed at creation and is never an address.
+ */
+
+const MADE = "-made-";
+
+export function isMadeKey(key: string): boolean {
+  return key.indexOf(MADE) === 0;
+}
+
+/** design/0020 -- a slug, unique against `taken`. */
+export function madeKey(name: string, taken: string[]): string {
+  const base = MADE + (name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "book");
+  let key = base;
+  for (let n = 2; taken.indexOf(key) >= 0; n++) key = base + "-" + n;
+  return key;
+}
+
+/** design/0020 -- a reference is not a place a note lives; a made book is. */
+export function isReference(shelf: Shelf, book: Book): boolean {
+  return shelf.classifier === "pick" && !isMadeKey(book.key);
+}
+
+export function madeKeys(shelf: Shelf): string[] {
+  return Object.keys(shelf.made ?? {});
+}
+
+/** design/0020 -- a made key is live by definition. */
+export function liveOn(shelf: Shelf, live: Set<string>): Set<string> {
+  const out = new Set(live);
+  for (const key of madeKeys(shelf)) out.add(key);
+  return out;
+}
+
 /* ---- the source predicate ------------------------------------------------
  * design/0002
  */
@@ -207,7 +241,7 @@ export function decadeOf(year: string): string | null {
  */
 export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "oldest",
                            sources: ShelfView[] = []): ShelfView {
-  if (shelf.classifier === "pick") return buildPicks(shelf, sources);
+  if (shelf.classifier === "pick") return buildPicks(shelf, notes, order, sources);
   const includeSubtags = shelf.includeSubtags !== false;
   const members = notes.filter((n) => matchesSource(n, shelf.source, includeSubtags));
   const byKey = new Map<string, Note[]>();
@@ -238,10 +272,38 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
   }
 
   books.sort((a, b) => compareKeys(a.key, b.key, autoDirection(shelf, order)));
+  /* design/0020 -- a made book stands on any shelf; its notes count once. */
+  const seen = new Set(members.map((n) => n.id));
+  for (const key of madeKeys(shelf)) {
+    const made = madeBookOf(shelf, key, notes, order);
+    if (!made) continue;
+    books.push(made);
+    for (const n of made.notes) seen.add(n.id);
+  }
   return {
     shelf,
     books: shelf.direction === "manual" ? arrange(books, shelf.order) : books,
-    noteCount: members.length,
+    noteCount: seen.size,
+  };
+}
+
+/** design/0020 -- one made book, from the same filtered notes as the shelf. */
+function madeBookOf(shelf: Shelf, key: string, notes: Note[], order: NoteOrder): Book | null {
+  const made = shelf.made?.[key];
+  if (!made) return null;
+  const members = notes.filter((n) => matchesSource(n, made.source, true));
+  return {
+    id: bookId(shelf.id, key),
+    shelfId: shelf.id,
+    key,
+    label: made.name,
+    /* github#12 -- a made book was named by a person, so its cover is that name: there is no
+     * classifier key underneath it to strip a hash from. */
+    cover: made.name,
+    plaque: null,
+    notes: members.slice().sort((a, b) => (order === "newest" ? 1 : -1) * byDateThenTitle(a, b)),
+    bands: bandsOf(members),
+    matches: 0,
   };
 }
 
@@ -253,7 +315,8 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
  * dropped: reading is where a filter is in force, and a filter is not a deletion. The plaque
  * is null because a shelf arranged by dropping has no unit above the book.
  */
-function buildPicks(shelf: Shelf, sources: ShelfView[]): ShelfView {
+/* design/0020 -- built from the same notes; empty, never skipped. */
+function buildPicks(shelf: Shelf, notes: Note[], order: NoteOrder, sources: ShelfView[]): ShelfView {
   const byId = new Map<string, Book>();
   for (const view of sources) {
     if (view.shelf.classifier === "pick") continue;
@@ -262,6 +325,12 @@ function buildPicks(shelf: Shelf, sources: ShelfView[]): ShelfView {
   const books: Book[] = [];
   const seen = new Set<string>();
   for (const pick of shelf.picks ?? []) {
+    const made = isMadeKey(pick) ? madeBookOf(shelf, pick, notes, order) : null;
+    if (made) {
+      books.push(made);
+      for (const n of made.notes) seen.add(n.id);
+      continue;
+    }
     const source = byId.get(pick);
     if (!source) continue;
     books.push({
@@ -393,6 +462,9 @@ export function moveBefore(keys: string[], key: string, before: string | null): 
  * would lose notes; putting them first would open every date shelf on its least useful page.
  */
 function compareKeys(a: string, b: string, direction: "alphabetical" | "chronological"): number {
+  /* design/0020 -- a made book sorts after the specials on an automatic shelf. */
+  const aMade = isMadeKey(a), bMade = isMadeKey(b);
+  if (aMade !== bMade) return aMade ? 1 : -1;
   const aSpecial = a === UNDATED || a === UNFILED;
   const bSpecial = b === UNDATED || b === UNFILED;
   if (aSpecial !== bSpecial) return aSpecial ? 1 : -1;
@@ -498,9 +570,9 @@ export function markMatches(views: ShelfView[], query: string): { books: number;
 export function alsoShelvedIn(noteId: string, views: ShelfView[], exceptBook: string): Book[] {
   const out: Book[] = [];
   for (const view of views) {
-    if (view.shelf.hidden || view.shelf.classifier === "pick") continue;
+    if (view.shelf.hidden) continue;
     for (const book of view.books) {
-      if (book.id === exceptBook) continue;
+      if (book.id === exceptBook || isReference(view.shelf, book)) continue;
       if (book.notes.some((n) => n.id === noteId)) out.push(book);
     }
   }
@@ -578,14 +650,13 @@ export function plaqueBookFor(view: ShelfView, plaque: string, noteId: string | 
  * re-resolved rather than trusted: the book it names if that book still holds the note,
  * otherwise the first visible book anywhere that does.
  */
-/* design/0019 -- THE READER NEVER SEES A PICK SHELF. A favourite is its source book, so the
- * reading place, the ribbon and the also-shelved-in list all name the source; offering the
- * favourite as well would be the same book twice under two addresses. */
+/* design/0019, design/0020 -- the reader skips a reference, never a made book. */
 export function resolveReading(noteId: string, bookId_: string, views: ShelfView[],
                                order: NoteOrder = "oldest"): Book | null {
   for (const view of views) {
-    if (view.shelf.hidden || view.shelf.classifier === "pick") continue;
+    if (view.shelf.hidden) continue;
     for (const book of view.books) {
+      if (isReference(view.shelf, book)) continue;
       if (book.id === bookId_ && book.notes.some((n) => n.id === noteId)) return book;
     }
   }
@@ -599,8 +670,9 @@ export function resolveReading(noteId: string, bookId_: string, views: ShelfView
     }
   }
   for (const view of views) {
-    if (view.shelf.hidden || view.shelf.classifier === "pick") continue;
+    if (view.shelf.hidden) continue;
     for (const book of view.books) {
+      if (isReference(view.shelf, book)) continue;
       if (book.notes.some((n) => n.id === noteId)) return book;
     }
   }

@@ -1662,3 +1662,56 @@ Every date-ordered book is cut years → months → days now, each layer only wh
 something, none for three notes or fewer, capped near thirty. `#archive`: 4 years, 26 months,
 30 tabs; a month book: days only; a three-note book: no tabs. 65 checks.
 
+
+## 2026-09-11 — A book made on the shelf
+
+> "ability to create books directly in the UI by right clicking an empty space in the favourite
+> rack, for example a book dailys pointing at the daylis folder"
+
+A pick shelf held only references (`design/0019`). It now also holds books **made** on it: a
+name and a source predicate — folder, tag, person, the whole vault — standing beside the
+favourites in the manual order, at the place the right-click landed. `design/0020` records the
+model and why the two bigger shapes from the issue were left.
+
+**A made book is a pick with a definition beside it.** Its key is `-made-<slug>` — no slash, so
+never an address — and it goes into `picks` like any reference, so the sequence stays one list
+and the drag, Alt+Arrow and `pickBefore` work on it unchanged; the definition lives in
+`Shelf.made` under that key. The key is fixed at creation, so a rename keeps the address.
+`liveOn` adds a shelf's made keys to what its list is saved against; without it `pickBefore`
+dropped a made book on every save. No schema bump: `migrate` keeps a made key only while `made`
+defines it, and appends a definition the list forgot.
+
+**A reference is not a place a note lives; a made book is.** `resolveReading`, `alsoShelvedIn`
+and the reader's nearest-shelf search skip *references* now (`core.isReference`) rather than
+pick shelves, so a ribbon in Dailies resolves to Dailies, is drawn on its spine, and puts it on
+the Reading shelf, and *also shelved in* offers it while still never offering the favourite
+beside it.
+
+**Edit and delete on the spine's own menu**, under the twelve: *Edit book…* / *Delete book*,
+no *Take off*. Dragging it off the rail deletes it by the same drop-not-`dragend` path a
+favourite comes off by, so Escape cancels. Another pick shelf refuses it, and the take-off
+drop declines while over one, so carrying Dailies onto a reading list does nothing rather
+than losing it. A source the vault has lost leaves an **empty spine**, kept through a save —
+a definition is a person's, unlike a dead reference.
+
+Measured — demo / sparse / library: the book made on the biggest folder holds **112 / 620 /
+694** notes, exactly the folder's; with a year favourite beside it **120 / 690 / 997** places
+are **119 / 629 / 973** unique notes and the header says so; a second book right-clicked into
+the gap before the year lands between them; renamed and repointed at the top tag it keeps
+`favourites/-made-dailies` and holds **78 / 73 / 1198**; a drop on Years deletes it and Years
+still has **17 / 6 / 12** books; the vault's **396 / 758 / 10000** notes are byte-identical
+across making, editing, emptying and deleting. The empty landing now reads *Drag a book here,
+or right-click to make one*. Two checks, 79 in the suite; the demo film gains `makebook` and
+`editbook`, and the recorder draws a pointer of its own because the camera has none.
+
+**Then: any shelf arranged by hand, and a plus.** *"should work on all manual book shelfs, I
+would like a plus symbol for a book on the left that moves with the edge of the books on the
+shelf please very subtle."* The first cut allowed a made book only on a pick shelf; the line
+that matters is whether a person has taken the sequence in hand, so it lives on any `manual`
+shelf now, its key in `order` where a pick shelf's is in `picks`, built after the classifier's
+books and counted into the same set. Switched back to automatic the shelf keeps it, sorted
+last. Every hand-arranged shelf ends in a **plus** — 22 × 132 px, a dashed edge at a third of
+the ink, after the last spine or on a row of its own that `rowsOf` reserves — which opens the
+sheet with the book going to the end. Measured on Years by hand — demo / sparse / library: the
+book holds **112 / 620 / 694**, the plus is **1** and after it; automatic Years has **0** and
+refuses `makeBook`. 80 checks.

@@ -1,4 +1,5 @@
-import type { Shelf } from "./types";
+import type { MadeBook, Shelf, SourceKind } from "./types";
+import { isMadeKey } from "./shelves";
 
 /* ---- the seven default shelves -------------------------------------------
  * design/0002
@@ -351,20 +352,46 @@ function arrangedBy(shelf: Shelf): Shelf {
  * that is not a pick shelf loses any `picks` the same way. `plaques` is off because there is
  * no unit above a book somebody dropped.
  */
+/* design/0020 -- a made key stays in picks while `made` defines it. */
 function pickedBy(shelf: Shelf): Shelf {
+  const made = madeOf(shelf.made);
   if (shelf.classifier !== "pick") {
-    if (shelf.picks === undefined) return shelf;
+    if (shelf.picks === undefined && shelf.made === undefined) return shelf;
     const rest: Shelf = { ...shelf };
     delete rest.picks;
+    if (Object.keys(made).length) rest.made = made; else delete rest.made;
     return rest;
   }
   const listed = Array.isArray(shelf.picks)
-    ? shelf.picks.filter((p): p is string => typeof p === "string" && p.indexOf("/") > 0)
+    ? shelf.picks.filter((p): p is string =>
+        typeof p === "string" && (p.indexOf("/") > 0 || made[p] !== undefined))
     : [];
   const seen = new Set<string>();
   const picks = listed.filter((p) => (seen.has(p) ? false : (seen.add(p), true)));
+  for (const key of Object.keys(made)) if (!seen.has(key)) picks.push(key);
   const out: Shelf = { ...shelf, direction: "manual", plaques: false, picks };
   delete out.order;
+  if (Object.keys(made).length) out.made = made; else delete out.made;
+  return out;
+}
+
+const SOURCE_KINDS: SourceKind[] = ["all", "tag", "person", "folder"];
+
+/** design/0020 -- a name and a source of a known kind, or nothing. */
+function madeOf(raw: unknown): Record<string, MadeBook> {
+  const out: Record<string, MadeBook> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!isMadeKey(key) || !value || typeof value !== "object") continue;
+    const m = value as Partial<MadeBook>;
+    const name = typeof m.name === "string" ? m.name.trim() : "";
+    const source = m.source && typeof m.source === "object" ? m.source : null;
+    const kind = source ? source.kind : undefined;
+    if (!name || !kind || SOURCE_KINDS.indexOf(kind) < 0) continue;
+    out[key] = kind === "all" || typeof source?.value !== "string"
+      ? { name, source: { kind } }
+      : { name, source: { kind, value: source.value } };
+  }
   return out;
 }
 

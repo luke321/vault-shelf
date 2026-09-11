@@ -64,6 +64,15 @@ of measuring it.** Build the page, drive it, read the numbers.
   and it is bound to a drop rather than to `dragend` so Escape cancels. A pick shelf is a **kind**
   of shelf, not one shelf: the builder makes as many as a person wants, a book may sit on several,
   and every reference is its own. `design/0019`.
+- **A book can be made on any shelf arranged by hand, and it is a saved query.** Right-click
+  empty rail space, or press the quiet plus where the books end: a name and a `Source` —
+  folder, tag, person, the whole vault — held in `Shelf.made` under a key `-made-<slug>` that
+  also stands in `picks` (a pick shelf) or `order` (any other manual shelf), so the sequence is
+  still one list. The key is fixed at creation, so a rename keeps the address. An automatic
+  shelf has no plus and keeps a made book it inherits, sorted last. **A reference is not a place a note
+  lives; a made book is**: the reader, the reading places and *also shelved in* skip references,
+  never made books. Off the rail means delete, another pick shelf refuses it, a lost source is
+  an empty spine rather than a dropped book, and nothing in the vault moves. `design/0020`.
 - **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` the
   other one on offer, `"cyber"` shelved until its redesign but still shipped and still
   measured — and it may repaint anything and move nothing: not a shelf's

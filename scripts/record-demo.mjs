@@ -167,7 +167,20 @@ html, body { background: #0b0c0d; }
 }
 #vsrec.paper b { color: #7a5c22; }
 #vsrec.paper .sub { color: #5c534b; }
+/* design/0020 -- A POINTER THE CAMERA CAN SEE. A screenshot has no cursor in it, and an act
+ * about a right-click is nothing without one, so the recorder draws its own: an arrow moved
+ * to wherever the act says the hand is, and hidden by every act that does not say. */
+#vsrec-cursor {
+  position: fixed; left: 0; top: 0; width: 26px; height: 26px; z-index: 100;
+  pointer-events: none; opacity: 0; transition: opacity 120ms linear;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+}
+#vsrec-cursor.press { transform: scale(0.85); transform-origin: 4px 3px; }
 `;
+
+const CURSOR_SVG = '<svg viewBox="0 0 24 24" width="26" height="26" xmlns="http://www.w3.org/2000/svg">' +
+  '<path d="M4 3 L4 19 L8.6 15.2 L11.4 21.4 L14.2 20.2 L11.4 14.2 L17.6 14.2 Z" ' +
+  'fill="#ffffff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>';
 
 /* ---------------------------------------------------------- the storyboard --
  * design/0007 -- every act declares how many SECONDS it lasts and is handed a normalised
@@ -175,8 +188,30 @@ html, body { background: #0b0c0d; }
  * else needs to know the frame rate.
  */
 function storyboard(P) {
-  const { go, j, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once } = P;
+  const { go, j, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once,
+          pointer, rightClick, centreOf } = P;
   let parted = "note";   // the search the parting act types, taken from the vault itself
+
+  /* design/0020 -- the dailies folder if there is one, else the biggest. */
+  const dailiesFolder = () => j(`(function(){
+    var byFolder = {};
+    __vs.data().notes.forEach(function (n) { byFolder[n.folder] = (byFolder[n.folder] || 0) + 1; });
+    var names = Object.keys(byFolder).sort(function (a, b) { return byFolder[b] - byFolder[a]; });
+    return names.filter(function (f) { return /daily|dailies|journal/i.test(f); })[0] || names[0] || "";
+  })()`);
+  const favId = () => j(`(__vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0] || {}).id || ""`);
+  /* design/0007 -- typed a letter at a time. */
+  const typeInto = (id, word, t, from, to) => {
+    const n = Math.max(0, Math.min(word.length, Math.floor(((t - from) / (to - from)) * word.length) + 1));
+    return go(`(function(){
+      var f = document.getElementById(${JSON.stringify(id)});
+      if (!f) return;
+      var want = ${JSON.stringify(word)}.slice(0, ${n});
+      if (f.value === want) return;
+      f.value = want;
+      f.dispatchEvent(new Event("input", { bubbles: true }));
+    })(); void 0`);
+  };
 
   return [
     {
@@ -382,6 +417,233 @@ function storyboard(P) {
       },
     },
     {
+      /* design/0020 -- right-click the empty space, name it, say what it holds. */
+      name: "makebook",
+      seconds: 12,
+      async at(t, first) {
+        await caption(t, 0.04, 0.94,
+          "Or <b>make</b> a book here.",
+          "Right-click the empty space on Favourites: a name, and what it holds. " +
+          "Nothing in the vault moves &mdash; the book follows it.");
+        if (first) {
+          await go(`(function(){
+            var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+            if (!fav) return;
+            fav.picks = [];
+            delete fav.made;
+            __vs.setQuery("");
+            __vs.setFilters({ folders: [] });
+            /* Beside a favourite from Years and one from People, as the issue pictured it. */
+            var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0];
+            var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
+            var dated = years ? years.books.filter(function (b) { return b.key !== "-undated"; }) : [];
+            if (dated.length) __vs.pick(dated[dated.length - 1].id);
+            if (people && people.books.length) __vs.pick(people.books[0].id);
+            document.getElementById("vs-library").scrollTop = 0;
+          })(); void 0`);
+          await pointer(null);
+        }
+        const fav = await favId();
+        const rail = `[data-shelf="${fav}"] .vs-shelfrail .vs-track`;
+        const last = await j(`(function(){
+          var spines = document.querySelectorAll(${JSON.stringify(rail)} + " .vs-spine");
+          var s = spines[spines.length - 1];
+          var t = document.querySelector(${JSON.stringify(rail)});
+          if (!t) return null;
+          var tb = t.getBoundingClientRect();
+          var right = s ? s.getBoundingClientRect().right : tb.left;
+          return { x: Math.round(right + 120), y: Math.round(tb.top + 60) };
+        })()`);
+        if (!last) return;
+        if (t >= 0.08 && t < 0.3) {
+          const k = easeInOut((t - 0.08) / 0.22);
+          await pointer({ x: Math.round(lerp(last.x + 380, last.x, k)), y: Math.round(lerp(last.y + 260, last.y, k)) });
+        }
+        await once("make-rightclick", 0.3, t, async () => {
+          const up = await rightClick(last);
+          if (!up) throw new Error("makebook: the right-click on the rail opened no menu");
+        });
+        if (t >= 0.36 && t < 0.46) {
+          const line = await centreOf("#vs-railmenu button");
+          if (line) await pointer(line);
+        }
+        await once("make-line", 0.46, t, () => go(`(function(){
+          var b = document.querySelector("#vs-railmenu button");
+          if (b) b.click();
+        })(); void 0`));
+        if (t >= 0.5 && t < 0.72) {
+          const box = await centreOf("#vs-mbname", 60, 0);
+          if (box) await pointer(box);
+          await typeInto("vs-mbname", "Dailies", t, 0.52, 0.7);
+        }
+        await once("make-folder", 0.74, t, async () => {
+          const folder = await dailiesFolder();
+          await go(`(function(){
+            var kind = document.getElementById("vs-mbsource");
+            kind.value = "folder";
+            kind.dispatchEvent(new Event("change", { bubbles: true }));
+            var val = document.getElementById("vs-mbsourceval");
+            val.value = ${JSON.stringify(folder)};
+            val.dispatchEvent(new Event("change", { bubbles: true }));
+          })(); void 0`);
+        });
+        if (t >= 0.76 && t < 0.88) {
+          const save = await centreOf("#vs-mbsave");
+          if (save) await pointer(save);
+        }
+        await once("make-save", 0.88, t, async () => {
+          await pointer(await centreOf("#vs-mbsave"), true);
+          await go(`document.getElementById("vs-mbsave").click(); void 0`);
+          const made = await j(`Object.keys(__vs.made(${JSON.stringify(fav)})).length`);
+          if (!made) throw new Error("makebook: Save made no book");
+        });
+        if (t > 0.9) {
+          const spine = await centreOf(`[data-shelf="${fav}"] .vs-spine[data-book$="-made-dailies"]`);
+          if (spine) await pointer({ x: spine.x + 40, y: spine.y + 90 });
+        }
+      },
+    },
+    {
+      /* design/0020 -- edited, then deleted, from its own menu. */
+      name: "editbook",
+      seconds: 10,
+      async at(t, first) {
+        await caption(t, 0.04, 0.94,
+          "Edit it, or delete it, from its own menu.",
+          "A rename keeps the address, so a ribbon left in it stays in it. Deleting loses a " +
+          "name and a rule &mdash; never a note.");
+        const fav = await favId();
+        if (first) {
+          /* design/0007 -- every act opens what it needs. */
+          const folder = await dailiesFolder();
+          await go(`(function(){
+            var fav = ${JSON.stringify(fav)};
+            if (!Object.keys(__vs.made(fav)).length) {
+              __vs.makeBook(fav, { name: "Dailies", source: { kind: "folder", value: ${JSON.stringify(folder)} } }, null);
+            }
+            document.getElementById("vs-library").scrollTop = 0;
+          })(); void 0`);
+          await pointer(null);
+        }
+        const spineSel = `[data-shelf="${fav}"] .vs-spine[data-book$="-made-dailies"]`;
+        if (t >= 0.06 && t < 0.2) {
+          const s = await centreOf(spineSel);
+          if (s) {
+            const k = easeInOut((t - 0.06) / 0.14);
+            await pointer({ x: Math.round(lerp(s.x + 260, s.x, k)), y: Math.round(lerp(s.y + 200, s.y, k)) });
+          }
+        }
+        await once("edit-menu", 0.2, t, async () => {
+          const s = await centreOf(spineSel);
+          if (!s) throw new Error("editbook: no made spine to right-click");
+          const up = await rightClick(s);
+          if (!up) throw new Error("editbook: the right-click on the spine opened no menu");
+        });
+        if (t >= 0.24 && t < 0.34) {
+          const line = await centreOf("#vs-dye .vs-dyepick");
+          if (line) await pointer(line);
+        }
+        await once("edit-line", 0.34, t, () => go(`(function(){
+          var b = document.querySelector("#vs-dye .vs-dyepick");
+          if (b) b.click();
+        })(); void 0`));
+        if (t >= 0.36 && t < 0.56) {
+          const box = await centreOf("#vs-mbname", 60, 0);
+          if (box) await pointer(box);
+          await typeInto("vs-mbname", "Journal", t, 0.38, 0.54);
+        }
+        if (t >= 0.56 && t < 0.62) {
+          const save = await centreOf("#vs-mbsave");
+          if (save) await pointer(save);
+        }
+        await once("edit-save", 0.62, t, () => go(`document.getElementById("vs-mbsave").click(); void 0`));
+        if (t >= 0.66 && t < 0.76) {
+          const s = await centreOf(spineSel);
+          if (s) await pointer(s);
+        }
+        await once("edit-menu2", 0.76, t, async () => {
+          const s = await centreOf(spineSel);
+          if (s) await rightClick(s);
+        });
+        if (t >= 0.8 && t < 0.9) {
+          const line = await centreOf("#vs-dye .vs-dyepick", 0, 0, 1);
+          if (line) await pointer(line);
+        }
+        await once("edit-delete", 0.9, t, async () => {
+          await go(`(function(){
+            var lines = document.querySelectorAll("#vs-dye .vs-dyepick");
+            if (lines[1]) lines[1].click();
+          })(); void 0`);
+          await pointer(null);
+        });
+      },
+    },
+    {
+      /* design/0020 -- the plus at the end of a shelf arranged by hand, on Years. */
+      name: "plusbook",
+      seconds: 10,
+      async at(t, first) {
+        await caption(t, 0.04, 0.94,
+          "Any shelf you arrange by hand takes one, and ends in a quiet <b>plus</b>.",
+          "It stands where the books end and moves with them. Press it: the book goes to the end.");
+        if (first) {
+          const folder = await dailiesFolder();
+          await go(`(function(){
+            var years = __vs.settings().shelves.filter(function (s) { return s.id === "years"; })[0];
+            if (years && years.direction !== "manual") {
+              years.direction = "manual";
+              years.order = __vs.sequence("years");
+            }
+            delete years.made;
+            years.order = (years.order || []).filter(function (k) { return k.indexOf("-made-") !== 0; });
+            __vs.setFilters({ folders: [] });
+            var lib = document.getElementById("vs-library");
+            var el = document.querySelector('[data-shelf="years"]');
+            lib.scrollTop = Math.max(0, el.offsetTop - 60);
+            window.__vsDailies = ${JSON.stringify(folder)};
+          })(); void 0`);
+          await pointer(null);
+        }
+        const plusSel = '[data-shelf="years"] .vs-plusbook';
+        if (t >= 0.06 && t < 0.3) {
+          const s = await centreOf(plusSel);
+          if (s) {
+            const k = easeInOut((t - 0.06) / 0.24);
+            await pointer({ x: Math.round(lerp(s.x + 300, s.x, k)), y: Math.round(lerp(s.y + 220, s.y, k)) });
+          }
+        }
+        if (t >= 0.3 && t < 0.4) { const s = await centreOf(plusSel); if (s) await pointer(s); }
+        await once("plus-click", 0.4, t, async () => {
+          const s = await centreOf(plusSel);
+          if (!s) throw new Error("plusbook: no plus on the Years shelf");
+          await pointer(s, true);
+          await go(`document.querySelector(${JSON.stringify(plusSel)}).click(); void 0`);
+          await go(`(function(){
+            var k = document.getElementById("vs-mbsource");
+            k.value = "folder";
+            k.dispatchEvent(new Event("change", { bubbles: true }));
+            var v = document.getElementById("vs-mbsourceval");
+            v.value = window.__vsDailies;
+            v.dispatchEvent(new Event("change", { bubbles: true }));
+          })(); void 0`);
+        });
+        if (t >= 0.42 && t < 0.68) {
+          const box = await centreOf("#vs-mbname", 60, 0);
+          if (box) await pointer(box);
+          await typeInto("vs-mbname", "Dailies", t, 0.44, 0.64);
+        }
+        if (t >= 0.68 && t < 0.78) { const s = await centreOf("#vs-mbsave"); if (s) await pointer(s); }
+        await once("plus-save", 0.78, t, async () => {
+          await pointer(await centreOf("#vs-mbsave"), true);
+          await go(`document.getElementById("vs-mbsave").click(); void 0`);
+        });
+        if (t > 0.8) {
+          const s = await centreOf(plusSel);
+          if (s) await pointer({ x: s.x + 60, y: s.y + 80 });
+        }
+      },
+    },
+    {
       name: "theme",
       seconds: 8,
       async at(t, first) {
@@ -511,6 +773,10 @@ try {
     var c = document.createElement("div");
     c.id = "vsrec";
     document.body.appendChild(c);
+    var k = document.createElement("div");
+    k.id = "vsrec-cursor";
+    k.innerHTML = ${JSON.stringify(CURSOR_SVG)};
+    document.body.appendChild(k);
   })(); void 0`);
 
   /* ---- the primitives the storyboard is written in ---- */
@@ -594,7 +860,43 @@ try {
     await fn();
   };
 
-  const P = { go, j, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once };
+  /* design/0020 -- the hand in shot: an arrow the recorder draws and moves. */
+  const pointer = async (p, pressed) => {
+    if (!p) { await go(`(function(){ var k = document.getElementById("vsrec-cursor"); if (k) k.style.opacity = 0; })(); void 0`); return; }
+    await hover(p);
+    await go(`(function(){
+      var k = document.getElementById("vsrec-cursor");
+      if (!k) return;
+      k.style.left = "${Math.round(p.x)}px";
+      k.style.top = "${Math.round(p.y)}px";
+      k.style.opacity = 1;
+      k.classList.toggle("press", ${pressed ? "true" : "false"});
+    })(); void 0`);
+  };
+  const rightClick = async (p) => {
+    await pointer(p, true);
+    await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: p.x, y: p.y, button: "right", clickCount: 1 });
+    await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: p.x, y: p.y, button: "right", clickCount: 1 });
+    const up = await j(`!document.getElementById("vs-railmenu").hidden || !document.getElementById("vs-dye").hidden`);
+    if (!up) {
+      /* design/0007 -- a fallback when CDP raised no contextmenu. */
+      await go(`(function(){
+        var el = document.elementFromPoint(${p.x}, ${p.y});
+        if (el) el.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: ${p.x}, clientY: ${p.y} }));
+      })(); void 0`);
+    }
+    await pointer(p, false);
+    return j(`!document.getElementById("vs-railmenu").hidden || !document.getElementById("vs-dye").hidden`);
+  };
+  const centreOf = async (sel, dx = 0, dy = 0, nth = 0) => j(`(function(){
+    var el = document.querySelectorAll(${JSON.stringify(sel)})[${nth}];
+    if (!el) return null;
+    var b = el.getBoundingClientRect();
+    return { x: Math.round(b.left + b.width / 2 + ${dx}), y: Math.round(b.top + b.height / 2 + ${dy}) };
+  })()`);
+
+  const P = { go, j, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once,
+              pointer, rightClick, centreOf };
   const acts = storyboard(P).filter((a) => !ONLY.length || ONLY.some((q) => a.name.toLowerCase().includes(q)));
   if (!acts.length) throw new Error("--act " + ONLY.join(",") + " matched no act");
 
