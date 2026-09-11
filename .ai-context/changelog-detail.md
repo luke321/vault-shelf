@@ -1,39 +1,50 @@
 # Changelog detail
 
-## 2026-09-11 — The docs site wears the product's dark look
+## 2026-09-11 — The docs site wears the product's dark look, and it is Vault Graph's sheet
 
 > github#1: "a theme close to vault-shelf's own dark look ... not a generic off-the-shelf
 > GitHub Pages theme"
 
-`docs/assets/css/style.scss` imports `jekyll-theme-midnight` and repaints it. **The palette is
-`src/page.css`'s dark block, value for value**, held as tokens under the names they were read
-from so a change to one is a change to the other: `--surface-0` `#121211` is the page ground,
-`--surface-1` `#1a1a19` the rail and code blocks, `--surface-2` `#232322` a control, `--border`
-`#33332f` every hairline, `--text-1/2/3` `#ffffff` / `#c3c2b7` / `#8d8c84` the text ramp, and
-`--accent` `#3987e5` the links. The two faces are the product's too: the rail, the title and
-every heading in the system-sans `--ui` stack, the body in the reading spread's serif
-`--prose` at the same `15px/1.65` as `.vs-prose`. An `h2` is drawn as a shelf label (13px,
-uppercase, `0.08em`, a hairline under it), an `h3` as a book's title in the serif, a table
-head as the shelf's meta line. The theme's fixed gradient ground, its 60px slab of a header
-with a green gradient button, the yellow links, bullet and rule images, inset shadows and
-text-shadows are all gone; the header is the library's 44px rail on `--surface-1` with the
-"View On GitHub" link drawn as a `.vs-jump`-style box. One static theme; theme-following is
-out of scope by the ticket.
+`docs/assets/css/style.scss` imports `jekyll-theme-midnight` unchanged and repaints its selectors
+with the page's dark tokens, copied verbatim from the `[data-theme="dark"]` block in
+`src/page.css`; `docs/_includes/head-custom.html` sets `theme-color` to the same background.
+**Both files are Vault Graph's, from luke321/vault-graph#100 as merged into its `develop`
+(`2242a33`), rule for rule** — the only edits are the issue pointers in the two comments. That
+is by design rather than convenience: the two products share one palette (`design/0005` copies
+the twelve slots, the surfaces and the text ramp out of Vault Graph's stylesheet value for
+value), so their two docs sites share one sheet, and a person who reads both should not be able
+to tell from the chrome which one they are on. A first draft here had gone its own way — a
+serif body from the reading spread, shelf-label headings, a 44px rail — and was thrown out for
+that reason.
 
-**Looked at, not built.** No Ruby on the machine, so Pages was reproduced without it: the
-theme's `_sass`, layout, fonts and images fetched from `pages-themes/midnight`, the override
-compiled with dart-sass over that load path (**23,964 bytes** of CSS, against **19,322** for the
-bare theme), `index.md` and `features.md` rendered with marked into the theme's
-`default.html` with its Liquid resolved by hand, and screenshotted at 1280×1000 in headless
-Chrome beside the demo export forced to the Modern look. Index and features both read; the
-features contents table, inline code and the section rules all take the tokens. The Pages
-build itself, which uses Jekyll's own sass and kramdown, was not run: what could differ is
-markdown edge cases, not colour.
+What the sheet does: ground `--surface-1` `#1a1a19` flat where the theme had a
+`#2a2a29→#1c1c1c` fixed gradient; body `--text-2` `#c3c2b7` in the system-sans stack where
+the theme shipped eight OpenSans files; headings `--text-1`; links `--accent` `#3987e5` with
+one lifted hover `--accent-hi` `#6aa6f0`, the one token that is not in `page.css`; inline code
+on `--surface-2` with a `--border` hairline, blocks on `--surface-0`; the header a
+`--surface-0` bar with a hairline under it and the "View On GitHub" link drawn as a flat
+bordered control; table heads `--text-3` in spaced capitals; no image bullets, no image rule,
+no shadows. Layout untouched (the theme's 650px column and fixed header). One static dark
+theme, by the issue's own scope.
 
-**Not verified.** A 400px-wide headless window clips the right edge of the text, identically
-with and without the override, so it is Chrome's minimum window width rather than the sheet;
-the theme's own 480px breakpoint was not exercised. The site is still not live: enabling
-Pages needs the repository public, `decisions/0009`.
+**Looked at, not built.** No Ruby on this machine, so Pages was reproduced without it: the
+theme's `_sass`, layout, fonts and images fetched from `pages-themes/midnight`, the sheet
+compiled with dart-sass over that load path, `index.md` and `features.md` rendered with marked
+into the theme's `default.html` with its Liquid resolved by hand, and screenshotted at
+1280×1000 in headless Chrome beside the demo export forced to the Modern look. Index and
+features both read; the contents table, inline code and the section rules all take the tokens,
+and the page and the library open on the same ground. Vault Graph measured the same sheet on
+its live site over CDP — 28 rules declared, 28 parsed; contrast `#c3c2b7` **9.72:1**, `--text-3`
+**5.16:1**, links **4.79:1**; theme requests per page **8 fonts → 0, 2 images → 0** — and since
+the tokens and the rules are the same bytes those numbers hold here unchanged. What was not
+run is the Pages build itself, Jekyll's own sass and kramdown; what could differ is markdown
+edge cases, not colour.
+
+**Not verified.** A 400px-wide headless window clips the right edge of the text identically
+with and without the sheet, so it is Chrome's minimum window width rather than the CSS; the
+theme's 480px breakpoint was not exercised. The site is still not live: enabling Pages needs
+the repository public, `decisions/0009`.
+
 ## 2026-09-11 — Cyberpunk shelved, and every control the same size in every look
 
 > "disable cyberpunk for now until redesign, make sure though to make changes to it aswell,
