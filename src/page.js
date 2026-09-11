@@ -3901,11 +3901,11 @@ function mountVaultShelf(root, data, options) {
    */
   function typing(target) {
     /* github#36 -- a popout has its own Element, so ask the node, not the class */
-    var el = /** @type {Element} */ (target);
-    if (!el || typeof el.tagName !== "string") return false;
-    var tag = el.tagName;
+    var focused = /** @type {Element} */ (target);
+    if (!focused || typeof focused.tagName !== "string") return false;
+    var tag = focused.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
-    return !!el.closest("[contenteditable]:not([contenteditable=false])");
+    return !!focused.closest("[contenteditable]:not([contenteditable=false])");
   }
 
   /* Global keys go on the OWNING document, not `document`: in a popout window those are two

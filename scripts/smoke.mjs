@@ -5050,7 +5050,7 @@ check("the turn sits under the spread, says the place, and yields to a caret", a
   })()`);
   if (!r.found) return { ok: false, detail: "no book with three notes in this vault" };
   const ok = r.first === `1 of ${r.size}` && r.second === `2 of ${r.size}` && r.at === 1 &&
-             r.afterTyping === 1 && r.afterKey === 0 && r.below >= 0 && r.lined;
+             r.afterTyping === 1 && r.afterKey === 0 && r.below >= 0 && r.below <= 40 && r.lined;
   return { ok,
            detail: `the place read ${JSON.stringify(r.first)} then ${JSON.stringify(r.second)} ` +
                    `over ${r.size} notes; the turn sits ${r.below}px under the spread and is ` +
