@@ -50,7 +50,18 @@
   --vs-gilt-dim: #ba9e6d;
   --vs-gilt-hi: #fff0c9;
   --vs-control: #30312b;
-  --vs-control-hover: #3a3a31;
+  /* github#9, design/0019 -- THE PLATE IS BRASS, drawn by page.css */
+  --vs-plate: #514936;
+  --vs-plate-lo: #3c382c;
+  --vs-plate-edge: #766548;
+  --vs-plate-ink: #e2d0a7;
+  --vs-plate-shadow: inset 0 1px #ffffff0a, 0 2px 3px #00000020;
+  --vs-plate-ink-shadow: 0 1px #00000050;
+  --vs-plate-lit: #625841;
+  --vs-plate-lit-lo: #48432f;
+  --vs-plate-lit-edge: #957f56;
+  --vs-plate-lit-ink: #f6e8c4;
+  --vs-plate-lit-shadow: inset 0 1px #ffffff14, 0 2px 4px #00000030;
   /* github#2 -- the field a box or a dropdown is filled with in the room, and the arrow on
    * it; the paper sheet and the reading page declare their own below. */
   --vs-field: #20211e;
@@ -93,20 +104,8 @@
   text-overflow: ellipsis;
 }
 
-.vault-shelf[data-look="leather"] button {
-  color: var(--text-2);
-  background: var(--vs-control);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: none;
-  text-shadow: none;
-}
-
-.vault-shelf[data-look="leather"] button:hover {
-  color: var(--text-1);
-  background: var(--vs-control-hover);
-  border-color: var(--border-strong);
-}
+/* github#9 */
+.vault-shelf[data-look="leather"] button { border-radius: 4px; }
 
 .vault-shelf[data-look="leather"] button.vs-primary {
   color: #25251e;
@@ -184,23 +183,11 @@
   background-blend-mode: normal, overlay, normal, normal;
 }
 
+/* github#9 -- the brass is the tokens; the face and tracking stay */
 .vault-shelf[data-look="leather"] .vs-plaque {
-  color: #e2d0a7;
-  background: linear-gradient(180deg, #514936, #3c382c);
-  border: 1px solid #766548;
   border-radius: 2px;
   font: 500 10.5px/1.5 var(--ui);
   letter-spacing: 0.1em;
-  box-shadow: inset 0 1px #ffffff0a, 0 2px 3px #00000020;
-  text-shadow: 0 1px #00000050;
-}
-/* github#6 */
-.vault-shelf[data-look="leather"] .vs-plaque:hover,
-.vault-shelf[data-look="leather"] .vs-plaque:focus-visible {
-  color: #f6e8c4;
-  background: linear-gradient(180deg, #625841, #48432f);
-  border-color: #957f56;
-  box-shadow: inset 0 1px #ffffff14, 0 2px 4px #00000030;
 }
 
 /* ---- the binding: tooling stays outside the title panel ---------------- */
@@ -322,7 +309,18 @@
   --border-strong: #a59880;
   --accent: #793b3d;
   --vs-control: #efe8d8;
-  --vs-control-hover: #e5dbc6;
+  /* github#9, design/0019 -- ON PAPER, A PLATE IS BONE, as a box is paper (github#2) */
+  --vs-plate: #f3ecdc;
+  --vs-plate-lo: #e5dbc4;
+  --vs-plate-edge: #b8a98b;
+  --vs-plate-ink: #4a4032;
+  --vs-plate-shadow: inset 0 1px #ffffffa6, 0 1px 2px #00000018;
+  --vs-plate-ink-shadow: 0 1px #ffffff8c;
+  --vs-plate-lit: #faf5ea;
+  --vs-plate-lit-lo: #ede4d0;
+  --vs-plate-lit-edge: #957f56;
+  --vs-plate-lit-ink: #2b261d;
+  --vs-plate-lit-shadow: inset 0 1px #ffffffc4, 0 1px 3px #00000024;
   /* github#2 -- ON PAPER, A BOX IS PAPER: a light field, dark ink, a dark arrow. */
   --vs-field: #faf6ee;
   --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%23575247' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
@@ -375,10 +373,8 @@
 .vault-shelf[data-look="leather"] .vs-prose h3,
 .vault-shelf[data-look="leather"] .vs-notemeta strong { font-family: var(--prose); color: var(--text-1); }
 .vault-shelf[data-look="leather"] .vs-notemeta strong { font-size: 20px; font-weight: 400; }
+/* github#9 -- a tab is a brass plate; its cut edge and shadow stay */
 .vault-shelf[data-look="leather"] .vs-tabs button {
-  color: #e4cf9d;
-  background: #493334;
-  border: 1px solid #6a4944;
   border-left: 0;
   border-radius: 0 3px 3px 0;
   font-family: var(--prose);
@@ -433,7 +429,7 @@
   .vault-shelf[data-look="leather"] .vs-page.vs-left { border-bottom: 1px solid var(--border); }
   .vault-shelf[data-look="leather"] .vs-page::after { display: none; }
   .vault-shelf[data-look="leather"] .vs-tabs { background: #f0eadc; }
-  .vault-shelf[data-look="leather"] .vs-tabs button { border-radius: 3px; border-left: 1px solid #6a4944; }
+  .vault-shelf[data-look="leather"] .vs-tabs button { border-radius: 3px; border-left: 1px solid var(--vs-plate-edge); }
 }
 
 @media (max-width: 520px) {

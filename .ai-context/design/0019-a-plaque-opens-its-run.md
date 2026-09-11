@@ -111,3 +111,104 @@ on the same shelf, which is how you step from the year down to the month you wer
 Whether a plaque-book should show a ribbon mark of its own on the shelf. The month spines
 under it already hang a ribbon for every marked note they hold, so the mark is on the shelf
 either way; a mark on the plate would be a second copy of the same fact. Left off.
+
+## The furniture, and what it is made of (github#9)
+
+> "make the buttons look like the plaques and vice versa"
+
+Once a plaque was a button, the library had two families of small label that did not look
+related. A plaque was engraved furniture — brass under leather, a lit acrylic sign under cyber,
+a capped label under the shelf floor in modern — and a button was a plain filled rectangle in
+every look: `--surface-2`, a hairline, radius 3. They sat centimetres apart in the same room and
+read as two products. The bookcase is the thing with a point of view, so the chrome now belongs
+to it: **a button is a plate**.
+
+### One material is one token set
+
+The plate is declared once, as tokens, and both rules read it. `page.css` sets `--vs-plate`
+and `--vs-plate-lo` (the two ends of a shallow vertical gradient), `--vs-plate-edge` (the
+hairline), `--vs-plate-ink`, `--vs-plate-shadow` (a lit top edge and a cast shadow) and
+`--vs-plate-ink-shadow` (the engraving under the letters), with a `-lit-` set for hover and
+focus. `.vault-shelf button` and `.vault-shelf .vs-plaque` are both drawn from those and nothing
+else, so there is exactly one declaration of what the furniture is made of, and a look changes
+the material by restating the tokens in its own token block — the brass under leather is the
+values the plaque rule used to carry, moved up; the sign under cyber likewise. The alternative,
+pasting the plaque's gradient into each look's `button` rule, was rejected because two copies of
+a material become two materials the next time one is edited, which is exactly the drift this
+started as.
+
+Modern's values are written against the theme tokens (`color-mix` of `--text-1` into
+`--surface-2`), so the plate follows Obsidian's light and dark the way the rest of that look
+does. A paper surface may restate the set again: under leather, `.vs-sheetbody` and `.vs-page`
+declare a **bone** plate — the same engraved label cut from ivory, dark ink, a pale engraving
+shadow — for the reason a dropdown on paper is paper (`design/0016`, github#2). A brass plate on
+a paper sheet was tried and looked screwed on rather than printed.
+
+**Hover and focus are a token swap, not a paint rule.** `button:hover` and `.vs-plaque:hover`
+set `--vs-plate: var(--vs-plate-lit)` and the rest, and declare no colour, background or
+shadow of their own. That is what keeps the lit plate off a spine, a ribbon, a swatch and a
+contents row: every one of those is a `<button>` too, and a hover rule that set a background
+would paint a plate over a book. They never read the tokens, so a swap cannot reach them. A look
+therefore ships no hover rule for a button or a plaque at all; the lit tokens are the hover.
+
+### Where the line is drawn: tracking
+
+A plaque says `2024`, `M`, `2010-2019` — one token — and is spaced like an engraving:
+**0.14em** in modern, **0.1em** under leather, **0.22em** under cyber, each look's own. A button
+says `Previous collection`, and 0.14em on a sentence is not legible. A button gets **0.03em**,
+set once in `page.css` for every look, and no case change: small caps at 11.5px in Georgia is
+too small to read, and `text-transform` on a sentence is what the issue warned against. So the
+two families share everything but the tracking, and the check asserts the gap in both directions
+(a plaque at or above 0.1em, a button at or below 0.05em).
+
+### The families afterwards
+
+This list is the deliverable as much as the CSS. Everything clickable in the library is one of
+five things:
+
+1. **Plate** — engraved furniture, drawn from the plate tokens: every plain `button` (the top bar,
+   the reader bar, the shelf-head row, the sheets' rows and buttons, *Also shelved in*, *Edit in
+   Obsidian*, the dye menu's *Automatic*, the builder's recipes), the index tabs (`.vs-tabs
+   button`, a plate on the fore-edge that keeps its cut-from-the-page shape and its own cast
+   shadow) and the plaque.
+2. **Action** — `.vs-primary`: *Save shelf*, *Done*, *Show every shelf*. An accent fill, no
+   engraving, no shadow. It is the one button on a sheet that is not a label.
+3. **Silk** — the ribbons, `.vs-mark` and `.vs-markstub` (`design/0008`). Dyed fabric, not metal.
+4. **Colour** — the swatches, the slot's reset mark and the ribbon swatch (github#4). A swatch is
+   the colour it offers, and nothing may sit on top of that.
+5. **Paper and cloth** — things that are a `<button>` for the keyboard and are not furniture: a
+   spine (a book), a contents row (typography), a shelf jump in the rail (a chip that is nothing
+   until hovered), *New shelf* (a dashed invitation). Each resets the plate's `letter-spacing`,
+   `box-shadow` and `text-shadow` explicitly, because the base `button` rule reaches every one
+   of them and an inherited engraving shadow under a spine title is the kind of leak nobody
+   reports and everybody sees.
+
+### Geometry did not move, except where it was already wrong
+
+`page.css` owns every size (`design/0016`), and the plate is paint: gradient, hairline, shadow,
+ink, tracking. *Every control is the same size in every look* still measures **38** controls
+with 0 off. One thing did move, and it was a drift the check's one-pixel tolerance had hidden:
+the leather plaque rule set `border: 1px solid` on all four sides, which overrode the shared
+`border-top: 0`, so a leather plaque was **21.75px** high where modern's was **20.75**. The look
+no longer sets a border at all, both are 20.75, and the layout goldens were rewritten
+deliberately: every plaque row under leather is **1px** shorter, so each following row sits 1px
+higher — three rows down, 3px. That is the same-height law finally holding for the one control
+it had a pixel of slack on, and it is the kind of thing github#16's audit of the look sheets is
+for.
+
+Tracking widens a text-sized button by a few pixels in every look alike — *Manage* is 3px wider
+than it was — and a button that sizes to its text is allowed to (`invariants.md`, *Every control
+is the same size in every look*). `#vs-order` is pinned at 92px and *Newest first* still fits.
+
+### What the check reads
+
+*The furniture is one material* reads computed style back through CDP rather than comparing
+source: in every look, and in both themes of modern, the Order button, Manage, Back, Next and an
+index tab resolve to the plaque's `background-image`, `color`, `border-bottom-color` and
+`text-shadow`, rested, hovered and focused — with `CSS.forcePseudoState`, since a synthetic
+event cannot put an element into `:hover` — and *Also shelved in*, a Manage row's button and
+*New shelf…* resolve to the sheet's plate. A spine, a contents row, the ribbon stub, a shelf jump,
+*New shelf* and *Done* must not carry the plate's face or its engraving shadow. A focused plate
+draws an outline. And the contrast of the ink against both ends of the gradient, rested and lit,
+room and paper, is measured against WCAG's **4.5:1**, compositing the sign's alpha over the room
+under cyber: the lowest is **5.77:1**, the lit brass plate under leather.
