@@ -143,7 +143,7 @@ of measuring it.** Build the page, drive it, read the numbers.
   long a blocked run waits before naming the holder and giving up. **There is nothing left to
   wrap by hand.** Driving a window yourself is the one case:
 
-  ```bash
+  ```powershell
   node scripts/lock.mjs acquire screen-left --owner "#12 plaques"   # blocks; exit 1 = give up
   node scripts/lock.mjs release screen-left --owner "#12 plaques"
   node scripts/lock.mjs status
@@ -225,7 +225,7 @@ of measuring it.** Build the page, drive it, read the numbers.
   scripts/suite-stamp.mjs check` says what a push will do before you make it, `list` shows every
   tree this machine has passed, and `release.ps1 -ForceSuite` re-earns one. A partial run
   (`--only`, `--vault`, `--url`, `--look`) and a dirty tree never stamp, which is the point:
-  `SKIP_SMOKE=1` leaves no record of what was trusted, and a stamp cannot say "recently" — only
+  `$env:SKIP_SMOKE=1` leaves no record of what was trusted, and a stamp cannot say "recently" — only
   which tree, measured against which fixtures, and when.
 - `npm run lint` holds every finding at zero, and typechecks `src/core` under `strict` first.
   `check-pii`, `check-scope`, `check-network`, `check-comments`, `check-data-escape`,
