@@ -6,6 +6,9 @@ import PAGE_HTML from "raw:../src/page.html";
 export const VIEW_TYPE = "vault-shelf-view";
 export const ICON_ID = "vault-shelf-books";
 
+// github#5 -- how long a burst of changes may coalesce, in ms
+export const REBUILD_MS = 400;
+
 /* ================================================================= the icon ==
  * design/0005 -- a shelf, not a book. Obsidian's own `library` icon is a stack of volumes and
  * reads as "a book" at 18px, which is the wrong noun: the thing in the sidebar is the room,
@@ -353,6 +356,12 @@ export default class VaultShelfPlugin extends Plugin {
   /** @type {Persisted} */
   config = core.emptySettings();
 
+  /** @type {number} */
+  pending = 0;
+
+  /** @type {number} */
+  rebuilds = 0;
+
   async onload() {
     /** @type {unknown} */
     const saved = await this.loadData();
@@ -376,9 +385,31 @@ export default class VaultShelfPlugin extends Plugin {
     });
 
     this.addSettingTab(new ShelfSettingTab(this.app, this));
+
+    // github#5 -- the three signals that a note's metadata moved
+    this.registerEvent(this.app.metadataCache.on("changed", () => this.scheduleRebuild()));
+    this.registerEvent(this.app.metadataCache.on("deleted", () => this.scheduleRebuild()));
+    this.registerEvent(this.app.vault.on("rename", () => this.scheduleRebuild()));
+  }
+
+  /* github#5 -- one rebuild per burst, not one per changed file */
+  scheduleRebuild() {
+    if (this.pending) return;
+    this.pending = window.setTimeout(() => {
+      this.pending = 0;
+      this.rebuildViews();
+    }, REBUILD_MS);
+  }
+
+  /** github#5 -- every open library, rebuilt from the cache */
+  rebuildViews() {
+    this.rebuilds++;
+    this.eachView((view) => view.rebuild());
   }
 
   onunload() {
+    if (this.pending) window.clearTimeout(this.pending);
+    this.pending = 0;
     this.eachView((view) => attempt(() => view.onClose()));
   }
 
