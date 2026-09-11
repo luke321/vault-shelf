@@ -463,12 +463,15 @@
 }
 
 /* THE RACK MARKING at the tail: two machined bars over the count. It is the one piece of
- * detail that is decoration rather than data, and it is two pixels tall for that reason. */
+ * detail that is decoration rather than data, and it is two pixels tall for that reason.
+ * github#45 -- it draws over the COUNT, not at the tail of the title, so it sits below
+ * --spine-tail rather than at it; the sides are the declared ones. Cyber cleared the title by
+ * seven pixels by luck before, and by fourteen by construction now. */
 .vault-shelf[data-look="cyber"] .vs-spine::after {
   content: "";
   position: absolute;
-  left: 4px;
-  right: 4px;
+  left: var(--spine-rule-side);
+  right: var(--spine-rule-side);
   bottom: 16px;
   height: 3px;
   pointer-events: none;
