@@ -451,13 +451,16 @@ costs the grid nothing). The hover lift is **6px and no rotation**, one pixel ov
 ### Every control is the same size in every look
 
 `"every control is the same size in every look"` (2026-09-11, "make sure all components
-buttons etc have the same size in all themes, some seem off") measures **28 controls** —
+buttons etc have the same size in all themes, some seem off") measures **37 controls** —
 the search box, the order button, the look selector, Manage, a shelf jump, the rail, New shelf,
 a shelf head, a plaque, a spine; the reader bar and its four buttons, the find-within box, an
 index tab, a contents row, the ribbon row, a ribbon and the stub, the spread, an also-in
-button; a Manage row and its button, the Vary switch's knob, Done, a palette swatch and the
-reset; a dye swatch — in every look `core.LOOKS` knows, shelved included, against the modern
-look's reading. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
+button; a Manage row and its button, the Shown and Vary switches' knobs, Done, a palette
+slot, a slot's reset mark, the ribbon slot and Reset colours; the builder's Name box, its
+source and classifier dropdowns, its order dropdown and Save; a dye swatch — in every look
+`core.LOOKS` knows, shelved included, against the modern look's reading. Since github#2 and
+github#4 (2026-09-11) the palette slot is **36×28**, the builder's dropdown **31.5** high and
+the same in all three, and every dropdown is measured with its box taken back from the host. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
 (a button that sizes to its text may be a different width in a different face).
 
 Measured before: **21 controls off under leather** — the rail 60.5 vs 46.5px and the reader
@@ -471,6 +474,28 @@ on buttons and boxes, `font-size: 13px` on boxes — and a look sets colour, bor
 face only. Modern's own numbers did not move: button **27.3px**, search box **232×29.5**,
 tab **27.3**, ribbon **30**, swatch **25.5** wide.
 
+### Every dropdown paints itself
+
+`"every dropdown paints itself, whatever the host says a select is"` (2026-09-11, github#2)
+puts Obsidian's own `select` rule — copied out of `app.css`: `appearance: none`, a 40px
+height, its own padding, no border, a red box-shadow, two gradient background layers with a
+blend mode, `#202020` on `#dadada` — into the page ahead of ours, paints every look
+`core.LOOKS` knows through `__vs.setLook()`, opens the builder and Manage, and asserts for
+every visible `select` that its computed field is the look's own `--vs-field`, its appearance
+is `none`, its chevron is a drawn data URI and not the host's gradients, and that none of the
+host's height, padding, border or shadow reached it; for every search and text box that its
+field is the token's; and under leather that everything on the paper sheet and the reading
+page is light with dark ink and everything in the rail is dark with light ink. The two boxes
+the host could resize are measured before and after the rule goes in.
+
+Measured: **12 dropdowns and 6 boxes under 3 looks, 0 wrong** on all three shapes; leather
+paper `rgb(250, 246, 238)` on `rgb(48, 46, 39)`, leather rail `rgb(32, 33, 30)` on
+`rgb(204, 197, 181)`; `#vs-look` **28 → 28** and the builder's source dropdown
+**31.5 → 31.5** with the host's rule in. Before, on the page built from the previous commit:
+**34 wrong**, `#vs-look` **28 → 40**, the builder's **29 → 40**, no chevron on any of the
+twelve, and the leather rail selector wearing `--surface-2` (`rgb(50, 51, 45)`) rather than
+the rail's field.
+
 ## Whose colour a book wears
 
 `"a book's colour is the person's, then the shelf's, then the folder's"` reads `--spine-tint`
@@ -483,9 +508,22 @@ slot, that a **rebuild keeps it**, and that the menu closed itself.
 `"a shelf can vary its books, and a chosen palette beats the look's"` counts the distinct dyes
 on eight People books by folder, presses that shelf's *Vary colours* in Manage and asserts
 more distinct dyes and exactly **one** shelf pressed, presses it again and asserts the count
-comes back; then changes slot 1 to `#123456` through the palette input and asserts
+comes back; then changes slot 1 to `#123456` through the slot's picker and asserts
 `__vs.slots()[0]` is `#123456`, **still is under another look**, and is the look's own again
-after *Use the look's own*.
+after *Reset colours*.
+
+`"colours and hidden shelves set in Manage persist through a reload"` (2026-09-11, github#4,
+"all settings persistent naturally") runs each thing the sheet can set through `persist()`
+and back through `core.migrate`, which is the reload path in both hosts. It asserts the block
+opens with **12 painted, numbered slots, 0 marked and the reset disabled**; picking slot 3
+saves **12 hex** with slot 3 `#3355aa`, marks exactly that slot, enables the reset and
+repaints the cascade; the ribbon saves as `#aa3355` and reaches `--ribbon`; that slot's own
+× saves **0** (all twelve are the look's own again, so nothing is pinned) and leaves the
+ribbon; two slots picked and one put back saves **12** with the reset one equal to the look's
+own; *Reset colours* saves **0** and `""`, disables itself and clears every mark; and the
+Tags row's **Shown** switch, off, saves `hidden: true`, takes the visible count down by
+**one** while the shelf is still built (**16** books on the demo), leaves **0** Hide/Show
+buttons on the sheet, and on again saves `hidden: false` with the count restored.
 
 `"a book with several ribbons in it shows them side by side"` marks four notes of one book
 and asserts **0 → 3 → 3** ribbon elements on its spine (three at most; the rest are on the

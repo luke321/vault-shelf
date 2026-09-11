@@ -233,7 +233,23 @@ function mountVaultShelf(root, data, options) {
    * whenever the host says the theme changed, so light and dark each get their own values
    * rather than one set tinted twice.
    */
+  /**
+   * github#4 -- THE LOOK'S OWN twelve and ribbon, as hex, read with the person's choice lifted
+   * off. Manage compares a slot against these to say whether it has been changed, and a
+   * per-slot reset writes one of them back.
+   * @type {{ slots: string[], ribbon: string }}
+   */
+  var OWN = { slots: [], ribbon: "" };
+
   function readTheme() {
+    SLOT_KEYS.forEach(function (k) { root.style.removeProperty(k); });
+    root.style.removeProperty("--ribbon");
+    var bare = WIN.getComputedStyle(root);
+    OWN.slots = SLOT_KEYS.map(function (k) {
+      return toHex((bare.getPropertyValue(k) || "").trim() || "#6f6e67");
+    });
+    OWN.ribbon = toHex((bare.getPropertyValue("--ribbon") || "").trim() || "#6f6e67");
+
     /* design/0005 -- A PERSON'S PALETTE OVER THE LOOK'S. Twelve chosen colours are written
      * inline on the root so the cascade below resolves to them in every look; none chosen
      * means the inline values are cleared and the look's own come through. The ribbon the
@@ -1872,7 +1888,7 @@ function mountVaultShelf(root, data, options) {
     ordered.forEach(function (shelf, i) {
       var row = el("div", "vs-managerow");
       row.appendChild(el("span", "vs-name", shelf.name));
-      row.appendChild(el("span", "vs-meta", shelf.classifier + (shelf.hidden ? " \u00b7 hidden" : "")));
+      row.appendChild(el("span", "vs-meta", shelf.classifier));
 
       var up = el("button", "", "\u2191");
       up.type = "button";
@@ -1888,10 +1904,24 @@ function mountVaultShelf(root, data, options) {
       down.disabled = i === ordered.length - 1;
       on(down, "click", function () { reorder(shelf.id, 1); });
 
-      var vis = el("button", "", shelf.hidden ? "Show" : "Hide");
-      vis.type = "button";
-      on(vis, "click", function () {
-        shelf.hidden = !shelf.hidden;
+      /* github#4 -- SHOWN IS A FACT, NOT AN ACTION. A button that said "Hide" on one row and
+       * "Show" on the next read differently depending on the state it was in; a switch reads
+       * the same way whichever way it is set, like Vary colours beside it. Hiding still never
+       * deletes, and "Show every shelf" is still at the foot of the sheet. */
+      var shown = el("label", "vs-toggle");
+      shown.setAttribute("data-fact", "shown");
+      var vis = /** @type {HTMLInputElement} */ (DOC.createElement("input"));
+      vis.type = "checkbox";
+      vis.setAttribute("role", "switch");
+      vis.checked = !shelf.hidden;
+      vis.setAttribute("aria-label", shelf.name + " shown");
+      shown.title = "Off takes this shelf out of the library. Hiding never deletes: the shelf " +
+                    "keeps its definition and its books.";
+      shown.appendChild(vis);
+      shown.appendChild(el("span", "vs-knob"));
+      shown.appendChild(el("span", "vs-togglename", "Shown"));
+      on(vis, "change", function () {
+        shelf.hidden = !vis.checked;
         persist();
         renderManage();
         refresh();
@@ -1905,6 +1935,7 @@ function mountVaultShelf(root, data, options) {
       /* design/0005 -- A TOGGLE, because it is a state and not an action: a button that
        * reads "Vary colours" says what pressing it does, and a switch says what is so. */
       var vary = el("label", "vs-toggle");
+      vary.setAttribute("data-fact", "vary");
       var sw = /** @type {HTMLInputElement} */ (DOC.createElement("input"));
       sw.type = "checkbox";
       sw.setAttribute("role", "switch");
@@ -1922,7 +1953,7 @@ function mountVaultShelf(root, data, options) {
 
       row.appendChild(up);
       row.appendChild(down);
-      row.appendChild(vis);
+      row.appendChild(shown);
       row.appendChild(vary);
       row.appendChild(edit);
       box.appendChild(row);
@@ -1930,33 +1961,129 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0005 -- THE TWELVE, EDITABLE. Twelve colour inputs showing what the cascade
-   * currently resolves -- the look's own until a person changes one, at which point all twelve
-   * become theirs, because a palette with one chosen colour and eleven that change with the
-   * look is not a palette anybody chose.
+   * design/0005 -- THE TWELVE, EDITABLE. Twelve slots showing what the cascade currently
+   * resolves -- the look's own until a person changes one, at which point all twelve become
+   * theirs, because a palette with one chosen colour and eleven that change with the look is
+   * not a palette anybody chose. github#4 -- drawn as painted, numbered swatches rather than
+   * bare colour inputs, each marked when it is no longer the look's own, with the ribbon
+   * beside them and one reset for the lot.
    */
   function renderPalette() {
     var box = $("mpalette");
     clear(box);
+    var chosen = settings.palette.length === 12;
     SLOTS.forEach(function (colour, i) {
-      var input = /** @type {HTMLInputElement} */ (DOC.createElement("input"));
-      input.type = "color";
-      input.value = toHex(colour);
-      input.title = "Colour " + (i + 1);
-      input.setAttribute("aria-label", input.title);
-      on(input, "change", function () {
-        var next = settings.palette.length === 12 ? settings.palette.slice() : SLOTS.map(toHex);
-        next[i] = input.value.toLowerCase();
-        settings.palette = next;
-        persist();
-        readTheme();
-        refresh();
-        renderPalette();
-      });
-      box.appendChild(input);
+      var changed = chosen && toHex(colour) !== OWN.slots[i];
+      box.appendChild(slotControl(colour, "Colour " + (i + 1), i + 1, changed,
+        function (hex) { pickSlot(i, hex); },
+        function () { resetSlot(i); }));
     });
-    field("mribbon").value = toHex(settings.ribbon ||
-      WIN.getComputedStyle(root).getPropertyValue("--ribbon").trim() || SLOTS[7]);
+    var ribbonBox = $("mribbon");
+    clear(ribbonBox);
+    var ribbon = settings.ribbon || OWN.ribbon;
+    ribbonBox.appendChild(slotControl(ribbon, "Ribbon", "", !!settings.ribbon,
+      function (hex) { setRibbon(hex); },
+      function () { setRibbon(""); }));
+    /* Disabled when there is nothing to put back, so the button says whether anything here
+     * is the person's. */
+    /** @type {HTMLButtonElement} */ (node("mpalettereset")).disabled = !chosen && !settings.ribbon;
+  }
+
+  /**
+   * github#4 -- ONE PAINTED SLOT: a swatch that shows its colour and its number, the native
+   * picker behind it, and -- only when the slot is no longer the look's own -- the mark that
+   * puts it back. The mark is the reset, because "this one is changed" and "undo this one"
+   * are the same fact about the same slot, and a corner badge is found by looking where a
+   * right-click has to be known about.
+   * @param {string} colour @param {string} name @param {string|number} tag
+   * @param {boolean} changed
+   * @param {(hex: string) => void} pick @param {() => void} reset
+   * @returns {HTMLElement}
+   */
+  function slotControl(colour, name, tag, changed, pick, reset) {
+    var slot = el("span", "vs-slot");
+    var hex = toHex(colour);
+    var sw = /** @type {HTMLButtonElement} */ (el("button", "vs-swatch"));
+    sw.type = "button";
+    sw.style.setProperty("--swatch", colour);
+    sw.style.setProperty("--swatch-ink", inkOn(hex));
+    sw.title = name + " " + hex + (changed ? ", changed from the look's own" : "");
+    sw.setAttribute("aria-label", sw.title);
+    if (changed) sw.setAttribute("data-changed", "1");
+    if (tag !== "") sw.appendChild(el("span", "vs-n", tag));
+    var input = /** @type {HTMLInputElement} */ (DOC.createElement("input"));
+    input.type = "color";
+    input.value = hex;
+    input.tabIndex = -1;
+    input.setAttribute("aria-label", "Pick " + name);
+    on(sw, "click", function () { input.click(); });
+    on(input, "change", function () { pick(input.value.toLowerCase()); });
+    slot.appendChild(sw);
+    slot.appendChild(input);
+    if (changed) {
+      var x = /** @type {HTMLButtonElement} */ (el("button", "vs-slotreset", "\u00d7"));
+      x.type = "button";
+      x.title = "Back to the look's own";
+      x.setAttribute("aria-label", "Reset " + name + " to the look's own");
+      on(x, "click", reset);
+      slot.appendChild(x);
+    }
+    return slot;
+  }
+
+  /**
+   * The ink a slot's number is written in: dark on a light dye, light on a dark one, by
+   * relative luminance of the hex.
+   * @param {string} hex @returns {string}
+   */
+  function inkOn(hex) {
+    /** @param {string} c */
+    var lin = function (c) {
+      var v = parseInt(c, 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    };
+    var l = 0.2126 * lin(hex.slice(1, 3)) + 0.7152 * lin(hex.slice(3, 5)) + 0.0722 * lin(hex.slice(5, 7));
+    return l > 0.4 ? "#1a1a1a" : "#ffffff";
+  }
+
+  /** @param {number} i @param {string} hex */
+  function pickSlot(i, hex) {
+    var next = settings.palette.length === 12 ? settings.palette.slice() : OWN.slots.slice();
+    next[i] = hex;
+    setPalette(next);
+  }
+
+  /** github#4 -- one slot back to the look's own; the other eleven stay the person's. */
+  /** @param {number} i */
+  function resetSlot(i) {
+    if (settings.palette.length !== 12) return;
+    var next = settings.palette.slice();
+    next[i] = OWN.slots[i];
+    setPalette(next);
+  }
+
+  /**
+   * Twelve that are all the look's own are not a palette anybody chose, so they are saved as
+   * none: the file says "the look's own" and follows the look, rather than pinning one look's
+   * colours under every other.
+   * @param {string[]} next
+   */
+  function setPalette(next) {
+    var own = next.every(function (hex, i) { return hex === OWN.slots[i]; });
+    settings.palette = own ? [] : next;
+    persist();
+    readTheme();
+    refresh();
+    renderPalette();
+  }
+
+  /** @param {string} hex -- empty for the look's own */
+  function setRibbon(hex) {
+    settings.ribbon = hex === OWN.ribbon ? "" : hex;
+    persist();
+    readTheme();
+    refresh();
+    renderPalette();
   }
 
   /**
@@ -2120,12 +2247,7 @@ function mountVaultShelf(root, data, options) {
   on($("newshelf"), "click", function () { openBuilder(null); });
   on($("newshelf2"), "click", function () { openBuilder(null); });
   on($("manageopen"), "click", openManage);
-  on($("mribbon"), "change", function () {
-    settings.ribbon = field("mribbon").value.toLowerCase();
-    persist();
-    readTheme();
-    refresh();
-  });
+  /* github#4 -- palette and ribbon together; a slot's own mark puts one slot back. */
   on($("mpalettereset"), "click", function () {
     settings.palette = [];
     settings.ribbon = "";

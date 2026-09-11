@@ -180,3 +180,37 @@ it never covers the book it describes.
 
 **A label of three characters or fewer stands upright.** An Encyclopedia's A is read as A,
 not tilted; so is `0-9`, and so is Ü.
+
+## The colours block in Manage (2026-09-11)
+
+> "colors in manage look terrible to select, also there needs to be a reset button"
+
+The twelve were twelve bare `<input type="color">` and inside Obsidian those are the host's
+native wells: small, unlabelled, no sense of which slot was which or whether it had been
+touched, and "Use the look's own" under them did not read as a reset. The model is unchanged
+— `settings.palette` is twelve hex or empty, `settings.ribbon` hex or empty — and the
+presentation is:
+
+- **twelve painted, numbered swatches** plus one for the ribbon, drawn by the same three-deep
+  rule the dye menu's swatches use (`.vault-shelf .vs-slot .vs-swatch`, beside
+  `.vault-shelf .vs-dye .vs-swatch`), so a look's own `button` rule cannot strip the colour
+  off them. The number is written in dark or light ink by the slot's relative luminance. A
+  click opens the native picker, which is an off-screen `<input type="color">` the swatch
+  clicks — it is the *row* that has to read, not the picker;
+- **a mark on a changed slot that is also its reset.** A small × in the swatch's corner
+  appears when the slot's value is not the look's own and puts it back. The other choice was a
+  right-click, which is what a spine has; a swatch has a corner to put a badge in and a spine
+  does not, a badge is found by looking where a right-click has to be known about, and inside
+  Obsidian a right-click on a control is the app's own menu;
+- **one Reset colours** for palette and ribbon together, disabled when nothing is the
+  person's, so the button itself says whether anything here has been customised.
+
+**The look's own is read, not remembered.** `readTheme()` lifts the inline overrides off the
+root, reads what the cascade resolves the twelve and the ribbon to, keeps those as `OWN`, and
+only then writes the person's choice back. A slot is marked when it differs from `OWN`; a
+per-slot reset writes `OWN[i]` into the palette; and **twelve that are all the look's own are
+saved as none** — otherwise one reset under leather would pin leather's twelve under every
+other look, which is the "palette nobody chose" this record already refused.
+
+`"colours and hidden shelves set in Manage persist through a reload"` drives every one of
+these through the sheet and back through `core.migrate`.

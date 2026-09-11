@@ -100,9 +100,10 @@ centred, and the chrome stays full-bleed while its contents do not.
 
 ### Hiding never deletes
 
-**Manage shelves** reorders, hides and restores. A hidden shelf keeps its definition and its
-books, and hiding everything still leaves a way back. Ribbons in a hidden shelf's books
-re-resolve rather than breaking.
+**Manage shelves** reorders, hides and restores. Each row carries a **Shown** switch beside
+its *Vary colours* one, so a row reads as two facts and no actions; a hidden shelf keeps its
+definition and its books, and hiding everything still leaves a way back. Ribbons in a hidden
+shelf's books re-resolve rather than breaking.
 
 `design/0009`, `decisions/0002`
 
@@ -184,7 +185,12 @@ right-clicking the spine: twelve swatches and *Automatic*, kept by the book's ad
 rebuild keeps it. **The shelf**, if it *varies* its books — a colour of its own per book,
 hashed from the address so it never changes as notes arrive; per shelf, on its row in Manage,
 Encyclopedia included. **The folder**, otherwise. And the twelve themselves are yours to edit in
-Manage, along with the ribbon's colour; a chosen palette is written over every look.
+Manage, along with the ribbon's colour: twelve painted, numbered swatches and one for the
+ribbon, each opening a picker, each marked with a small × once it is no longer the look's own
+— the mark is also that slot's reset — and one **Reset colours** for the lot, quiet when
+nothing is yours. A chosen palette is written over every look; twelve that are all the look's
+own again are saved as none, so the file follows the look rather than pinning one look's
+colours under the next.
 
 `design/0002`, `design/0005`
 
@@ -374,8 +380,16 @@ after, on all three vault shapes, while the spine colours, the twelve slots and 
 change.
 
 **And every control is the same size in every look.** A button, a box, a tab, a ribbon, a
-swatch, a switch: the same height everywhere, measured — a look paints a control and does not
-resize it.
+swatch, a switch, a dropdown: the same height everywhere, measured — a look paints a control
+and does not resize it.
+
+**Every dropdown paints itself.** Obsidian styles every `select` in the app — its own height,
+padding, field colour and a drawn arrow — and inside the plugin that landed on ours, so the
+Manage and builder dropdowns came up dark on leather's paper sheet. Now every dropdown in
+every look takes its box back: an explicit field, ink and border from the look's own tokens
+and a chevron drawn as inline SVG, so one on the paper sheet reads as paper, one in the rail
+as the rail's field, and one under the modern look as your theme's. The check puts Obsidian's
+actual `select` rule into the page and measures.
 
 The dyes are the ones a binder had, in slot order: oxblood, tan, dark green, ochre, forest,
 plum, navy, vermilion, teal, aubergine, chestnut and near-black calf. Nothing is fetched to

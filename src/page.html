@@ -142,10 +142,10 @@
       <h3 class="vs-sheetsub">Colours</h3>
       <p class="vs-hint">The twelve a library is dyed with, and the ribbon. Empty means the look's
         own; a book keeps a colour you gave it by right-clicking its spine.</p>
-      <div id="vs-mpalette" class="vs-palette"></div>
-      <div class="vs-mini vs-wide">
-        <label class="vs-coloroption"><span>Ribbon</span> <input id="vs-mribbon" type="color"></label>
-        <button id="vs-mpalettereset">Use the look's own</button>
+      <div id="vs-mpalette" class="vs-palette" role="group" aria-label="The twelve colours"></div>
+      <div class="vs-mini vs-wide vs-colourrow">
+        <span class="vs-coloroption"><span class="vs-hint">Ribbon</span> <span id="vs-mribbon" class="vs-slot"></span></span>
+        <button id="vs-mpalettereset">Reset colours</button>
       </div>
       <div class="vs-mini vs-wide vs-sheetactions">
         <button id="vs-mnew">New shelf&hellip;</button>

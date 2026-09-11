@@ -134,3 +134,31 @@ cyberpunk**. Leather is what a fresh library opens in, from settings schema 6 �
 bound books is what this product is a picture of, and the modern look is the one that follows
 your Obsidian theme when you would rather it did.
 
+
+## Addendum, 2026-09-11 — a dropdown on paper is paper
+
+> "dropdowns in manage do not show the correct background color, looks like dark theme"
+
+Inside Obsidian, under this look, the `<select>`s on the paper sheets came up dark. The
+standalone never showed it, and the reason is the lesson above for the fourth time: the
+standalone is not a preview of the plugin. Obsidian's `app.css` styles every `select` in the
+app — `appearance: none`, `height: var(--input-height)`, its own padding, no border, a
+box-shadow, a chevron drawn as two background layers with a blend mode, and
+`background-color: var(--dropdown-background)` — and every one of those a rule of ours left
+unset landed on our dropdowns.
+
+So `page.css` now sets every property the host sets, for every `select` in every look
+(github#2): `appearance: none`, `height: auto`, its own padding, a chevron drawn from
+`--vs-chevron`, and a field from `--vs-field`. This look supplies the two tokens twice: on the
+root, the rail's dark field with a pale stroke; on `.vs-sheetbody` and `.vs-page`, the paper
+field `#faf6ee` with a dark stroke — so a dropdown, a search box or a text box on a sheet
+reads as paper and one in the rail as the rail. The look's own box rule sets
+`background-color` and never the shorthand, because the shorthand would wipe the chevron.
+
+`"every dropdown paints itself, whatever the host says a select is"` puts Obsidian's actual
+`select` rule into the page and asserts every dropdown's field is the look's own, its
+appearance none, its chevron drawn, and that the host's height did not reach it. Before: the
+rail selector went **28 → 40px** high under the host's rule and the builder's **29 → 40**;
+after: **28 → 28** and **31.5 → 31.5**. The builder's dropdown is 31.5 now rather than 29
+because the box is ours: it is the same height as the Name box above it, which the platform's
+menulist never was.

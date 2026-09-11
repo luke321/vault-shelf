@@ -1,5 +1,49 @@
 # Changelog detail
 
+## 2026-09-11 — Dropdowns paint themselves, and the Manage sheet reads as one thing
+
+> "dropdowns in manage do not show the correct background color, looks like dark theme"
+> (github#2); "colors in manage look terrible to select, also there needs to be a reset
+> button", "make hide show a toggle as well", "all settings persistent naturally" (github#4)
+
+**The host's select rule, measured rather than guessed.** Obsidian's `app.css` rule for
+`select` was read out of the shipped bundle and put into the page by a new check. On the page
+from the previous commit, with that rule in: **34 wrong** — the rail selector **28 → 40px**
+high, the builder's dropdown **29 → 40**, no chevron on any of the twelve dropdowns, the
+leather rail selector wearing `--surface-2`. After: **0 wrong**, **28 → 28** and
+**31.5 → 31.5**, every field the look's own, on all three shapes. `page.css` now sets every
+property the host sets on a `select`; each look supplies `--vs-field` and `--vs-chevron`
+(leather twice: the dark rail and the paper sheet), and the cyberpunk look's private fix for
+`#vs-look` is gone. Leather paper reads `rgb(250, 246, 238)` on `rgb(48, 46, 39)`, the rail
+`rgb(32, 33, 30)` on `rgb(204, 197, 181)`. The builder's dropdown is **31.5** now rather
+than 29 because the box is ours: the same height as the Name box above it.
+
+**Twelve bare colour wells became twelve painted, numbered slots**, drawn by the dye menu's
+three-deep rule, each marked with a × once it is not the look's own — the mark is that slot's
+reset — with the ribbon beside them and one *Reset colours* that is disabled when nothing is
+customised. The look's own twelve are read off the cascade with the person's overrides lifted
+(`OWN` in `readTheme()`), and twelve that are all the look's own again save as none, so a
+reset under one look never pins its colours under another. Hide/Show on a Manage row is a
+**Shown** switch beside Vary colours. Everything goes through `persist()` and back through
+`core.migrate`: **12 hex** saved after one pick, `#3355aa` in slot 3 and in the cascade,
+**0** saved after that slot's ×, **12** after two picks and one ×, **0 / ""** after Reset
+colours, `hidden: true` then `false` from the switch with **5 → 4 → 5** visible on the demo
+and the hidden shelf still holding **16** books, **0** Hide/Show buttons left.
+
+**The same size in every look, still.** The same-size check grew from 28 to **37 controls** —
+the Shown knob, a palette slot (**36×28**), a slot's reset mark, the ribbon slot, Reset
+colours, and the builder's Name box, three dropdowns and Save — and reads **0 off** under
+leather and cyber on all three shapes. Modern's own numbers did not move: button 27.3, search
+232×29.5, ribbon 30, dye swatch 25.5.
+
+Looked at: Manage open under leather, modern and cyber, and the builder under leather and
+modern (`--shot-open manage|builder`, new). What the pictures changed: *Reset colours* was
+a bar across the whole row because the sheet's wide-row rule outranked the colour row's; it is
+one button at the end of the row now. What could not be looked at: the real Obsidian
+rendering — the check injects the host's rule, and the plugin was not installed into a vault.
+
+The suite is **66 → 68** checks.
+
 ## 2026-09-11 — Cyberpunk shelved, and every control the same size in every look
 
 > "disable cyberpunk for now until redesign, make sure though to make changes to it aswell,
