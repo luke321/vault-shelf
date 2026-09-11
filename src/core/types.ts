@@ -85,6 +85,8 @@ export interface Book {
   /** The raw classifier key -- "2026-09", "A", "Mira". Sorting is done on this. */
   key: string;
   label: string;
+  /** github#12 */
+  cover: string;
   /** design/0003 */
   plaque: string | null;
   notes: Note[];

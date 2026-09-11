@@ -213,7 +213,7 @@ function mountVaultShelf(root, data, options) {
   var bookIndex = {};
   /** The biggest book in the library, which every thickness is scaled against. */
   var thickest = 1;
-  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null }|null} */
+  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
   var history = [];
@@ -345,6 +345,7 @@ function mountVaultShelf(root, data, options) {
   function drawLibrary() {
     var box = $("shelves");
     clear(box);
+    uprightFit = {};
     var anyVisible = false;
 
     var marked = readingBooks();
@@ -634,6 +635,28 @@ function mountVaultShelf(root, data, options) {
     return track;
   }
 
+  /** @type {Record<string, boolean>} */
+  var uprightFit = {};
+
+  /* github#12, design/0002 -- three characters stand upright only when they fit the spine. */
+  /** @param {string} cover @param {number} width @returns {boolean} */
+  function fitsUpright(cover, width) {
+    var key = cover + "|" + width;
+    if (key in uprightFit) return uprightFit[key];
+    var probe = el("div", "vs-probe");
+    var spine = el("button", "vs-spine");
+    spine.setAttribute("data-upright", "1");
+    spine.style.setProperty("--spine-w", width + "px");
+    var title = el("span", "vs-title", cover);
+    spine.appendChild(title);
+    probe.appendChild(spine);
+    root.appendChild(probe);
+    var fits = title.scrollWidth <= title.clientWidth;
+    root.removeChild(probe);
+    uprightFit[key] = fits;
+    return fits;
+  }
+
   /** @param {Book} book @param {Shelf} shelf @param {boolean} hand @returns {HTMLElement} */
   function renderSpine(book, shelf, hand) {
     var b = el("button", "vs-spine");
@@ -648,7 +671,8 @@ function mountVaultShelf(root, data, options) {
      * this spine is wearing, so a green book and a red one hang different threads. */
     b.style.setProperty("--ribbon", ribbonFor(dye));
     b.style.setProperty("--ribbon-ink", inkOn(toHex(ribbonFor(dye))));
-    b.appendChild(el("span", "vs-title", book.label));
+    /* github#12 */
+    b.appendChild(el("span", "vs-title", book.cover));
     b.appendChild(el("span", "vs-n", String(book.notes.length)));
 
     /* design/0008 -- the three things that make a shelf look used rather than printed. */
@@ -696,7 +720,9 @@ function mountVaultShelf(root, data, options) {
     on(b, "mouseleave", hidePeek);
     on(b, "blur", hidePeek);
     /* A one-letter label reads better upright than turned on its side: A, K, 0-9, Ü. */
-    if (book.label.length <= 3) b.setAttribute("data-upright", "1");
+    if (book.cover.length <= 3 && fitsUpright(book.cover, thicknessOf(book.notes.length))) {
+      b.setAttribute("data-upright", "1");
+    }
 
     on(b, "click", function () { openBook(book, null); });
     if (hand && shelf.direction === "manual") handleOf(b, book, shelf);
@@ -1264,6 +1290,29 @@ function mountVaultShelf(root, data, options) {
       empty.appendChild(el("span", "vs-hint", needle ? "Nothing in this book matches." : "This book is empty."));
       box.appendChild(empty);
     }
+    revealCurrent(box);
+  }
+
+  /* github#11, design/0015 */
+  /** @param {HTMLElement} box */
+  function revealCurrent(box) {
+    if (!reader || reader.revealed === reader.noteId) return;
+    var row = /** @type {HTMLElement|null} */ (box.querySelector('button[aria-current="true"]'));
+    var page = /** @type {HTMLElement|null} */ (box.closest(".vs-page"));
+    if (!row || !page || !page.clientHeight) return;
+    var pageBox = page.getBoundingClientRect();
+    var rowBox = row.getBoundingClientRect();
+    var top = rowBox.top - pageBox.top + page.scrollTop;
+    var bottom = top + rowBox.height;
+    var margin = Math.round(rowBox.height);
+    var target = page.scrollTop;
+    if (top < page.scrollTop + margin) target = top - margin;
+    else if (bottom > page.scrollTop + page.clientHeight - margin) target = bottom - page.clientHeight + margin;
+    target = Math.max(0, Math.min(target, page.scrollHeight - page.clientHeight));
+    reader.revealed = reader.noteId;
+    if (Math.abs(target - page.scrollTop) < 1) return;
+    if (reduceMotion || !page.scrollTo) page.scrollTop = target;
+    else page.scrollTo({ top: target, behavior: "smooth" });
   }
 
   /**

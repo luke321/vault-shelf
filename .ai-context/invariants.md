@@ -267,12 +267,27 @@ book that holds both and asserts the click **stays in that book**; and asserts a
 library does not hold is left to the host (`openNote` returns null). Measured on the demo
 vault: **38** linking notes; both cases hold. Vaults with no linked person report so and pass.
 
+`"a tag book's cover carries no hash, and every other place it is named keeps it"` walks every
+spine on the visible tag shelf and asserts **0** covers open with `#`, **0** differ from the
+book's key (`Untagged` for `-unfiled`), that every tagged book's label still is `#` + key and
+every peek's first line is that label; that no spine stands upright unless its cover is three
+characters or fewer; then opens the deepest hierarchical tag book and asserts the
+title bar reads `Tags · #<key>`, the heading `#<key>`, and every `Tags:` chip in *also shelved
+in* carries the hash; and that the address list is element for element what it was. Measured
+on the demo vault: **16 spines, 0 hashed, 15/15 labels still hashed, 16/16 peeks lead with the
+label, 1 upright of 2 short covers** (`学び` stands; `map` does not fit a 22px spine and stays
+on its side), opened `garden/seeds`. Sparse: 10 spines,
+9/9, none short, `archive/cold`. 10k library: 14 spines, 13/13, `attention/focus`, and the two
+`Tags:` chips on its first note both hashed. `github#12`, `design/0002`.
+
 `"a hovered spine shows one peek, big enough to read, and short labels stand upright"` asserts
 **0** spines carry a `title` or `aria-label` (two overlays otherwise), hovers the spine with
 the longest label and asserts one `#vs-peek` shows at **14px** with the name unclipped
 (`"Sanne de Vries"` in a **264px** card; `"Jun 2021"` in 340px), clear of the spine, and gone
 on leave; and that every Encyclopedia label of three characters or fewer is `horizontal-tb`
-(**23/23**, 20/20) while no longer label is.
+(**23/23**, 20/20) while no longer label is; and, since `github#12`, that **0** upright titles
+in view are clipped (21, 23 and 27 measured on the three shapes), naming any short cover that
+had to stay sideways because it did not fit its spine (`map` on the demo vault).
 
 `"the date index is layered: years over months over days, each only where it separates"`
 opens a multi-year tag book and asserts one level-0 tab per year (**`#archive`: 4 years, 4
@@ -316,6 +331,20 @@ vault and asserts its tab count is between 1 and 26. Measured on the demo vault:
 book is `people/-unfiled` at **250 notes behind 16 tabs**. On the library fixture the biggest
 Encyclopedia volume runs to hundreds of notes and the tabs collapse to twelve ranges;
 `design/0004` says why a tab you cannot hit is not navigation.
+
+`"the contents scroll to the current row after a tab, Previous and a ribbon"` opens the biggest
+book in the vault, clicks the **last** index tab and asserts the marked row's box is inside the
+left page's visible box, that the page's `scrollTop` moved (printed before and after), and that
+exactly one row carries `aria-current` — the one at the index the tab named. Then Previous from
+there, and then a ribbon left in the first page and followed from the far end, each measured
+the same way. Measured on the demo vault: `people/-unfiled`, **199 notes behind 16 tabs**, tab
+`2026` → row 147, scrollTop **0 → 3398**; Previous → row 146 with the list unmoved (3398); the
+ribbon → row 0, scrollTop **3398 → 120**. Sparse: 501 notes, **0 → 9431**, back to 120. 10k
+library: 6,937 notes, **0 → 164800**, back to 120. The reveal is the smallest move that brings
+the row in, one row's height inside the edge, by the page's own `scrollTop` and never
+`scrollIntoView()`; instant under `prefers-reduced-motion`; and only when the note changed, so
+a re-render for the find-within box never moves a list somebody has scrolled by hand.
+`github#11`, `design/0015`.
 
 `"previous and next walk the book and stop at its ends"` opens a book with at least three
 notes, asserts it opens at index 0 with **previous** disabled, that next moves to 1, and that
@@ -930,7 +959,8 @@ measured by driving the hook with the ref lines git hands it.
 
 ## Every release guard fires, and none of them writes a tag
 
-`.\scriptselease.ps1 -SelfTest` — **10 cases**. A throwaway bare repository stands in for
+`.\scripts
+elease.ps1 -SelfTest` — **10 cases**. A throwaway bare repository stands in for
 `origin` (the guards *fetch* `origin/main`, so a self-test that faked the ref in a clone of the
 real repo would have it overwritten mid-run), a clone of it carries the working tree's
 `scripts/`, and each case breaks exactly one thing: a `v` prefix, a malformed version, a

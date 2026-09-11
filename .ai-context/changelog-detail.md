@@ -1,5 +1,75 @@
 # Changelog detail
 
+## 2026-09-11 — The hash comes off a tag book's cover
+
+> github#12: "remove the tag symbol from book covers reads badly".
+
+`core.labelFor` named a tag book `#garden` and the spine drew that label sideways at 10.5px:
+a punctuation mark set vertically, the one glyph on the shelf that read as noise. `Book.cover`
+is a second form — `coverFor(key, kind)`, the bare key for a tag book and `labelFor` for
+everything else — and the spine's title and its upright rule read it. Nothing else does: the
+peek, the dye menu heading, the reader's title bar, the book heading and the *also shelved in*
+chips all keep the label, and `design/0002` says why: horizontally the hash is how a tag is
+written and what keeps `area/health/sleep` from reading as a folder path.
+
+A label is not an address. `key` is untouched, so no book moved, no count changed, no address
+differs; the check compares `__vs.addresses()` before and after element for element. Measured
+on the demo vault: **16** spines on the Tags shelf, **0** covers open with `#`, **15/15**
+tagged books' labels still `#`-prefixed, **16/16** peeks lead with the label; `Tags ·
+#garden/seeds` in the title bar and `#garden/seeds` in the heading. Sparse: 10 spines, 9/9;
+10k library: 14 spines, 13/13, and both `Tags:` chips under its first note hashed.
+
+**And the upright rule learned to measure.** Three characters or fewer stood upright, and
+`map` — three without its hash — stood up on a three-note spine 22px wide, where a screenshot
+showed `m…`. Every check was green; only the picture saw it. `fitsUpright()` now measures the
+cover on a probe spine of the real width under the root, in the look's own face, and a short
+cover that does not fit stays on its side. Demo vault: `学び` stands, `map` does not; **20/20,
+23/23, 27/27** Encyclopedia volumes still stand, and **0 of 21, 23, 27** upright titles in view
+are clipped — a number the peek check did not have before. 72 checks per shape.
+
+## 2026-09-11 — The contents follow the jump
+
+> github#11: "when I click an index tab on the right, the index on the left should also move a
+> marker there and scroll".
+
+**The marker moved and the list did not.** `goTo()` set `reader.noteId` and `renderContents()`
+put `aria-current` on the right row, but `.vs-page.vs-left` is `overflow-y: auto` and nothing
+ever set its `scrollTop`, so on the demo vault's biggest book — `people/-unfiled`, 199 notes —
+clicking the last tab left the marked row **3,398px** below the fold. From where the reader
+sat, the tab had done nothing.
+
+`revealCurrent()` runs at the end of every `renderContents()` and scrolls the left page to the
+marked row by the **smallest move that brings it in**: a row already in view is left alone; one
+below the fold comes up so it sits one row's height inside the bottom edge; one above comes
+down the same way. Never centred, so turning one page does not jerk the whole list; never
+`scrollIntoView()`, which walks every scrolling ancestor and inside Obsidian those are the
+app's own. Smooth unless `prefers-reduced-motion` says otherwise, in which case the position is
+set outright. And **only when the note changed**: `reader.revealed` holds the note the list was
+last brought to, so a re-render for the find-within box — which calls the same function —
+cannot pull the list out from under somebody who has scrolled it by hand.
+
+Measured, one new check on all three shapes (last tab → Previous → a ribbon followed from the
+far end):
+
+| shape | biggest book | tab | scrollTop before → after | Previous | ribbon back |
+|---|---|---|---|---|---|
+| demo | `people/-unfiled`, 199 notes, 16 tabs | `2026` → row 147 | **0 → 3398** | row 146, 3398 | row 0, 120 |
+| sparse | `people/-unfiled`, 501 notes, 5 tabs | `2026` → row 383 | **0 → 9431** | row 382, 9431 | row 0, 120 |
+| 10k library | `people/-unfiled`, 6,937 notes, 11 tabs | `2026` → row 6461 | **0 → 164800** | row 6460, 164800 | row 0, 120 |
+
+Exactly **1** row marked in every case, at the index the tab named; the marked row's box inside
+the page's box in every case. The ribbon lands at 120 rather than 0 because row 0 comes into
+view one row inside the edge and the book's title, count and search box above it are what
+stays out of sight — the smallest move, not the top of the page.
+
+**The marker reads as a marker now.** A current row was `color` and `font-weight: 600` in the
+default look and vanished on a dense index of forty rows in one face. It carries an inset
+**3px** bar in `--accent` and an 8% tint of the same, which is paint (an inset shadow moves
+nothing) and what the leather look already did in its own oxblood. Cyber keeps its neon colour.
+
+The suite gained `--shot-book biggest|<address>` and `--shot-tab last|<n>` so the picture of a
+long book after a late tab is a flag rather than a hand. 71 checks per shape.
+
 ## 2026-09-11 — One answer to which fixture is the current one
 
 Merging #7 (a new demo fixture) on top of #5's layout goldens and #8's fixture-store fix

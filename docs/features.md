@@ -254,7 +254,25 @@ needs no setting.
 
 Above 26 tabs the list collapses into twelve ranges. A tab you cannot hit is decoration.
 
+**The contents follow.** A tab, Previous, Next, the arrow keys, a ribbon or a followed link
+brings the current row into view on the left page — the smallest move that does it, the way a
+printed index is thumbed to, never a re-centring — and the row is marked with a bar in the
+margin. A list you have scrolled yourself is not moved by a redraw that changes nothing.
+
 `design/0015`, `design/0004`
+
+### A tag book's cover has no hash
+
+The spine of a tag book reads `garden` or `area/health/sleep`, not `#garden`: a `#` turned on
+its side at spine size is noise, and the shelf above it already says Tags. Everywhere the name
+is set horizontally — the hover peek, the dye menu, the reader's title bar and heading, the
+*also shelved in* chips — it keeps its hash, because that is how a tag is written and it is
+what keeps a hierarchical tag from reading as a folder path. The address is the key and the
+key did not change, so no book moves. A cover of three characters or fewer stands upright only
+if it fits its spine, which is measured rather than assumed: `map` on a thin spine stays on its
+side rather than being cut to `m…`.
+
+`design/0002`
 
 ### Also shelved in
 

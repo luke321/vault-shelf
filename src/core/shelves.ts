@@ -158,6 +158,11 @@ export function labelFor(key: string, kind: ClassifierKind): string {
   }
 }
 
+/* github#12, design/0002 -- the cover drops the hash; every horizontal place keeps it. */
+export function coverFor(key: string, kind: ClassifierKind): string {
+  return kind === "tag" && key !== UNFILED ? key : labelFor(key, kind);
+}
+
 /**
  * design/0003 -- plaques are date classifiers only; anything else groups under nothing.
  *
@@ -217,6 +222,7 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
       shelfId: shelf.id,
       key,
       label: labelFor(key, shelf.classifier),
+      cover: coverFor(key, shelf.classifier),
       plaque: plaqueFor(key, shelf),
       notes: list.slice().sort(alphabetical(shelf)
         ? byTitleThenDate

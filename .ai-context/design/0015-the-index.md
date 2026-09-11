@@ -125,3 +125,31 @@ The layers step in from the edge — a year tab is bold and widest, a month tab 
 tab steps in again — so the shape says which is which before the label does. The Encyclopedia
 keeps its letters; the letter cut and the date cut are the two orders a book can have, and the
 tabs follow whichever the book is in.
+
+## The contents follow the jump (2026-09-11)
+
+> "when I click an index tab on the right, the index on the left should also move a marker
+> there and scroll"
+
+A tab is a position in the contents, and the contents did not go there. The marker moved —
+`aria-current` was on the right row — but the left page is its own scroller and nothing ever
+set its `scrollTop`, so on a book of two hundred notes the marked row was three thousand pixels
+below the fold and the tab had, visibly, done nothing.
+
+`revealCurrent()` brings the row in after every render of the contents, and three choices are
+worth recording:
+
+- **The smallest move, not the centre.** A printed index is thumbed to the entry, not re-opened
+  at it. A row in view stays where it is; a row past the fold comes up until it sits one row's
+  height inside the edge. Turning one page with Next therefore moves the list by one row or
+  not at all, instead of re-centring forty rows every time.
+- **The page's own `scrollTop`, never `scrollIntoView()`.** That call walks every scrolling
+  ancestor it can find, and inside Obsidian those are the workspace's. This codebase has been
+  moved by it before.
+- **Only when the note changed.** The same function redraws the list for the find-within box,
+  and a redraw that changes nothing must not pull the list away from somebody reading it.
+  `reader.revealed` is the note the list was last brought to.
+
+Smooth unless `prefers-reduced-motion` asks for instant. And the marked row gained a bar in
+the margin in the default look — weight and colour alone were not a marker on forty rows of
+the same face; the leather look already knew this. `github#11`.
