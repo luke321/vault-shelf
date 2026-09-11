@@ -583,9 +583,10 @@ try {
 
   # AND STOP. .github/workflows/release.yml takes it from here: it builds main.js and
   # styles.css from the tagged commit, attests the three files with build provenance, and
-  # creates the Release with the CHANGELOG section as a first-draft body. That draft still
-  # has to be rewritten by hand -- see .ai-context/releasing.md -- and nothing fails if it
-  # is not, which is why it is the last thing printed here.
+  # creates the Release with the CHANGELOG section as its body, verbatim. That section was
+  # reviewed on the release branch as the page it was about to become (github#27, after
+  # vault-graph@af7a43f); once the tag exists nothing is edited, so nothing here asks for
+  # an edit. What is left is the record of what was run.
   Write-Host "`npushed $Version. The release is the workflow's now." -ForegroundColor Green
   Write-Host @"
 
@@ -597,14 +598,13 @@ try {
 
     gh attestation verify main.js --repo luke321/vault-shelf
 
-  STILL YOURS TO DO: the release body is the raw CHANGELOG section. Write the highlight
-  reel on top of it (.ai-context/releasing.md has the shape and the reasoning) and edit
-  it in place:
+  The release body is the '## $Version' section, verbatim, as it was reviewed on the
+  release branch. Do not edit it now: once the tag exists nothing changes, and a fix is
+  the next patch version.
 
-    gh release edit $Version --notes-file <file>
-
-  Then write .ai-context/verification-$Version.md -- what was run, what was measured, and
-  what was NOT verified. releasing.md has the template.
+  STILL YOURS TO DO: finish .ai-context/verification-$Version.md with the workflow run,
+  the three SHA-256s and the attestation check -- the rows only the tag run can fill.
+  releasing.md has the template.
 "@ -ForegroundColor Cyan
 } finally {
   Pop-Location

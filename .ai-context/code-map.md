@@ -204,7 +204,7 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 3346 | `refresh` |
 | 3468 | `offBook` |
 
-## `scripts/smoke.mjs` — 5409 lines, 6 sections, 80 functions, 87 checks
+## `scripts/smoke.mjs` — 5410 lines, 6 sections, 80 functions, 87 checks
 
 ### Sections
 
@@ -215,7 +215,7 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 223–4776 | the invariants |
 | 4777–4935 | which vaults, and why |
 | 4936–5290 | one run |
-| 5291–5409 | main |
+| 5291–5410 | main |
 
 ### Functions
 

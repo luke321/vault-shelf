@@ -1198,7 +1198,7 @@ which on Windows throws rather than replacing.
 ## A tree is gated once, and a partial run never claims to be a full one
 
 Not a check in `smoke.mjs` but a property of the gates themselves, held by
-`node scripts/suite-stamp.mjs --selftest` — **16 cases**, against a throwaway repository and a
+`node scripts/suite-stamp.mjs --selftest` — **17 cases**, against a throwaway repository and a
 seeded fixture store. `decisions/0010`.
 
 What it asserts: a clean tree records a stamp; the same tree hits again from a **new commit**
@@ -1222,7 +1222,19 @@ comparing `process.argv[1]` as typed against a realpath'd `import.meta.url`, so 
 directory junction — which is how every Orca worktree is reached — it printed nothing and
 exited 0, and both gates read that as "stamped". Every push from a worktree went out
 unmeasured. Here both sides are realpath'd, and the hook and `release.ps1` both require the
-`passed the invariant suite` **line** rather than an exit code.
+`passed the invariant suite` **line** rather than an exit code. **The seventeenth case is
+that junction**, driven rather than reasoned about (github#27): the self-test makes one to
+`scripts/`, spawns the CLI through it, and asserts the `suite-stamp: ` line and a 0 or 1 —
+the property the sister repo's bug broke, measured on the path that broke it. Driven by hand
+through a real `mklink /J` the same day, before the case existed, the CLI already answered:
+exit 0 and the pass line for `develop`'s tree. The hole was closed in code by github#5; what
+was missing was the proof.
+
+**A run that lost a fixture names it.** A generator that fails is dropped by `gen()` and the
+suite goes on with two shapes; `record()` refuses to stamp such a run and `lookup()` refuses a
+stamp naming fewer than three. Since github#27 the runner says which one: `not stamping this
+run: a run without sparse-vault (the generator failed) is not the full suite` — measured by
+breaking the sparse generator for one run: 87/87 on the two shapes that ran, exit 0, no stamp.
 
 Measured warm on the reference machine, 2026-09-11: a full run is **39.0 s** for **198 checks**
 (66 × 3 shapes) — 7.7 s of builds (the 10k fixture alone 6.5 s), ~6 s of check time across 12

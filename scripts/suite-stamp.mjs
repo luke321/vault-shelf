@@ -2,7 +2,7 @@
 // github#5, decisions/0010
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync,
-         writeFileSync } from "node:fs";
+         rmdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { currentFixture } from "./fixture-store.mjs";
@@ -232,6 +232,19 @@ function selftest() {
                           { cwd: repo, encoding: "utf8" });
     expect("the CLI answers rather than exiting silently",
            /suite-stamp: /.test(cli.stdout) && (cli.status === 0 || cli.status === 1));
+
+    // github#27
+    const link = join(base, "via-junction");
+    symlinkSync(HERE, link, "junction");
+    let via;
+    try {
+      via = spawnSync(process.execPath, [join(link, "suite-stamp.mjs"), "check", "HEAD"],
+                      { cwd: repo, encoding: "utf8" });
+    } finally {
+      try { rmdirSync(link); } catch { unlinkSync(link); }
+    }
+    expect("the CLI answers when invoked through a junction",
+           /suite-stamp: /.test(via.stdout) && (via.status === 0 || via.status === 1));
   } finally {
     rmSync(base, { recursive: true, force: true });
   }

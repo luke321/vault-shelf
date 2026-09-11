@@ -92,13 +92,14 @@ gh attestation verify main.js --repo luke321/vault-shelf
 | | |
 |---|---|
 | **Date properties** | comma-separated frontmatter fields, tried in order. A note with none of them falls back to a date at the start of its title |
-| **People property** | the property that names people. People are **never** inferred from a note's prose |
-| **Fall back to the file's own date** | off by default. A file's modification time is almost never the date the note is about — a sync or a bulk reformat restamps the whole vault — so a note with no date goes to **Undated** instead, where you can see it |
-| **Leather binding** | off by default. Leather bindings, walnut shelves and brass labels in a quiet charcoal room. Books open onto ivory pages inside an oxblood cover. Turn it off to follow your Obsidian theme |
+| **People properties** | comma-separated properties that name people, merged — `people, attendees, person` by default, because a vault rarely uses only one. Values may be wikilinks. People are **never** inferred from a note's prose |
+| **What makes a note a person** | `type: people` by default, or a `#tag`. A link to a note that matches names that person, by the note's own name, so an aliased link and a plain one are one book. Empty turns it off |
+| **Fall back to the file's creation date** | on by default. A note with no date property and no date in its title takes the **earlier** of the file's creation and modification stamps — the one that survives a bulk reformat and a copied vault. Turn it off to send those notes to **Undated**, where you can see how many there are |
 
-The theme is not a setting: by default the library follows Obsidian's and re-reads its palette
-when you change it. **Leather binding** is the one look that does not, which is exactly why it
-has to be asked for.
+The look is not a setting either: the selector in the library's own top bar offers **Leather**
+— walnut shelves, brass labels, ivory pages inside an oxblood cover, and what a fresh library
+opens in — and **Modern**, which follows Obsidian's theme and re-reads its palette when you
+change it.
 
 ## What it promises
 

@@ -23,7 +23,9 @@ Five things are worth knowing before you touch anything, all expanded in `CLAUDE
   **You do not have to remember it for a suite run.** `smoke.mjs` takes the `suite` lock itself
   and releases it on exit and on a signal, so the `--only` iteration loop is covered too. Do
   **not** wrap a run in `lock.mjs`: it would wait for its own parent. Only a caller that already
-  holds the lock passes `--no-lock` (the pre-push hook, `release.ps1`).
+  holds the lock passes `--no-lock` (the pre-push hook, `release.ps1`). **Nor a `git push` to
+  `develop` or `main`**: the hook takes the lock itself around its run, so an outer
+  acquire/release makes the hook block on you and the push hang.
 
   A screen recording is still taken by hand:
 

@@ -108,6 +108,13 @@ of measuring it.** Build the page, drive it, read the numbers.
   hook, `release.ps1` — passes `--no-lock`, and nothing else should. A blocked run names who is
   holding it and gives up rather than starting.
 
+  **The same goes for a `git push` to `develop` or `main`, and it is not a suite run you typed,
+  so it is the one that gets wrapped by reflex.** `.githooks/pre-push` takes the `suite` lock
+  itself around the run it makes and releases it on every way out. Wrap the push in an outer
+  acquire/release and the hook's own attempt blocks on yours, and the push hangs until the
+  outer lock's stale window expires. The sister repo hit that live, pushing a release
+  (`vault-graph@f9a167a`). A plain `git push origin develop` is correctly gated on its own.
+
   A **screen recording** is still wrapped by hand, and it is the only thing that is:
 
   ```bash
@@ -191,7 +198,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 76 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 87 checks over three vault shapes |
 | `scripts/release.ps1` | the local half of a release: the guards, the gates, the tag, the tag push. `-SelfTest` drives every refusal in a throwaway clone; `.ai-context/releasing.md` is the authority on the flow |
 | `scripts/suite-stamp.mjs` | which trees have passed the suite (`decisions/0010`), read by the pre-push hook and `release.ps1`. `--selftest` proves the hit and miss cases |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |

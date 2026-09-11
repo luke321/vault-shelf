@@ -286,11 +286,10 @@ jobs:
             echo '```'
             if [ "$DRY_RUN" != "true" ]; then
               echo
-              echo "**Still to do by hand:** the release body is the raw CHANGELOG section, a first draft."
-              echo "Write the highlight reel on top of it (.ai-context/releasing.md has the shape) and edit it in place:"
+              echo "The release body is the \`## $VERSION\` section of CHANGELOG.md, verbatim, as reviewed on the"
+              echo "release branch. Once the tag exists nothing changes; a fix is the next patch version."
               echo
-              echo '```'
-              echo "gh release edit $VERSION --notes-file <file>"
-              echo '```'
+              echo "**Still to do by hand:** finish \`.ai-context/verification-$VERSION.md\` with this run, the three"
+              echo "SHA-256s above and the attestation check (.ai-context/releasing.md has the template)."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
