@@ -53,6 +53,7 @@ changing what a shelf contains or how a book is addressed.
 | `0016-the-leather-look` | The opt-in leather binding: why a texture is allowed once it stops claiming to follow the theme |
 | `0017-the-cyberpunk-look` | The third look, and the selector that picks it: neon is the light in the room, never the paint on the objects |
 | `0018-the-manual-shelf` | A shelf with no rule: the order a person dragged the books into, stored as keys, and what a plaque means once a run is whatever is adjacent |
+| `0019-a-plaque-opens-its-run` | Clicking a plate opens the run under it as one book of unique notes, with an address of its own; why open rather than narrow, and why an address rather than none |
 
 **ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
 it explains *why not the other thing*. A DDR describes how a part actually works and the

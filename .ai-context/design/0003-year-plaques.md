@@ -68,3 +68,9 @@ list. `core.plaqueFor` falls through to `firstLetter(key)` for every classifier 
 date, and `-unfiled` is left without one for the same reason `-undated` is: it is not a letter
 and it sorts last.
 
+## A plate opens (2026-09-11)
+
+A plaque is a button now and opens the run under it as one book — `design/0019` has the
+decision, the address and what it cost. Nothing in this record changes: the plate is still
+inside the scroller, still as wide as its run, still named on every row a run reaches.
+

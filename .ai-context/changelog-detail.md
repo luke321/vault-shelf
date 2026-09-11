@@ -1,5 +1,44 @@
 # Changelog detail
 
+## 2026-09-11 — A plaque opens its run
+
+> github#6: "would be cool if clicking a plaque does something".
+
+A plaque was a `<div>` and a label. It is a `<button>` now, and clicking it opens the run under
+it as one book: the union of the books it names, **unique notes**, in the shelf's own reading
+order, with the index tabs cut the way any book's are — a year's contents fall into months, a
+decade's into years, a letter's into the span it covers, with no new code in `indexSections`.
+`design/0019` argues open over narrow (a filter changes the library; the product's verb is
+open) and an address over none (a book you cannot leave a ribbon in is not a book).
+
+**The address is `shelfId/-plaque-<label>`**, and the plaque-book is never on the shelf: it is
+synthesised from the run when asked for, so `__vs.addresses()`, every count and the layout
+golden are exactly what they were. `findBook` and `core.resolveReading` fall through to it,
+which is what makes a ribbon left in `years/-plaque-2010-2019` re-resolve through a rebuild and
+put the plaque-book on the Reading shelf as a spine. On a manual shelf a plate opens **the run
+under it** (`design/0018`), so a letter split into two runs is two plates that open two
+different books under one address, and re-resolution picks the run that holds the note — the
+law's own rule, one level down.
+
+Measured, three new checks on all three shapes:
+
+| shape | plate | unique / sum / books | tabs | plate drawn twice | ribbon in a plaque-book | manual split |
+|---|---|---|---|---|---|---|
+| demo | `Tags · A` | **145 / 158 / 7** | 16 | `2016`, same book | `years/-plaque-2010-2019`, 105 notes, survives rebuild | `acoustics`: 1 vs 145 |
+| sparse | `Tags · A` | **199 / 263 / 4** | 4 | `2026`, same book | `years/-plaque-2020-2029`, 605 | `archive`: 63 vs 160 |
+| 10k library | `Tags · A` | **4,501 / 5,519 / 5** | 11 | `2018`, same book | `years/-plaque-2020-2029`, 6,431 | `archive`: 1,097 vs 3,778 |
+
+**The button moved nothing.** The host's button geometry — this page's own 26px minimum
+height and Obsidian's — is reset on `.vs-plaque`; the plate still hangs **19px** below its books
+over a 3px floor with **0px** width difference, *every control is the same size in every look*
+still measures **38** controls with 0 off, and the three layout goldens are byte for byte what
+they were. Hover and focus are paint in each look: a brighter border and the reading colour in
+modern, a lit brass plate in leather, a neon glow in cyber. The reader's meta line says what it
+opened: `41 notes across 12 books · 9 source folders` for the demo vault's 2024.
+
+`--shot-book` now falls back to opening an address that is not on a shelf, so the picture of a
+plaque-book is `--shot-book months/-plaque-2024`. 75 checks per shape.
+
 ## 2026-09-11 — The hash comes off a tag book's cover
 
 > github#12: "remove the tag symbol from book covers reads badly".

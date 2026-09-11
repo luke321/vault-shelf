@@ -151,6 +151,40 @@ label.
 **This check is in the serial lane.** It reads a laid-out box, and four browsers contending for
 one GPU report a geometry that has more to do with the other three windows.
 
+## A plaque opens its run
+
+`"a plaque opens the run it names as one book of unique notes, and both plates of a wrapped run
+open the same one"` finds the plaque-run in the library with the widest gap between the sum of
+its books and its unique notes, clicks the plate (a `<button>`), and asserts the reader opened
+on `shelfId/-plaque-<label>` with exactly the unique count of rows, the title bar reading
+`<shelf> · <label>`, the meta line opening `<unique> notes across <n> books`, and that Escape
+closes it; then finds a plate drawn on two rows anywhere in the library, clicks both, and
+asserts the same book id; and that the address list, book count and spine count are what they
+were. Measured: demo `Tags · A` **145 unique across 7 books that sum to 158**, 16 tabs,
+`-plaque-2016` on two rows; sparse `Tags · A` **199 of 263 across 4**, 4 tabs, `2026` twice;
+10k library `Tags · A` **4,501 of 5,519 across 5**, 11 tabs, `2018` twice. `design/0019`.
+
+`"a ribbon left in a plaque-book re-resolves after a rebuild, and the Reading shelf holds it"`
+opens the biggest plaque-run on the first plaqued shelf **by address** through
+`__vs.openBook`, leaves a ribbon, asserts `settings.reading` holds one mark against that id and
+that `core.resolveReading` returns a book with that id; rebuilds (`setFilters({})`) and asserts
+the reader is on the same book and the same note and the Reading shelf shows the plaque-book as
+a spine whose count is its unique notes and which hangs one ribbon; takes the ribbon out and
+asserts the spine is gone. Measured: demo `years/-plaque-2010-2019` **105 notes**; sparse
+`years/-plaque-2020-2029` **605**; 10k library `years/-plaque-2020-2029` **6,431**.
+
+`"on a manual shelf a plate opens what is under it, not the whole letter"` turns Tags manual,
+moves the first book of the first letter with two or more books to the very end — past
+Untagged — so that letter is drawn on two plates, clicks each and asserts the last opens
+exactly that one book's notes and the first the rest of the letter's unique notes, under the
+same address; then puts the shelf back. Measured: demo `acoustics` **1 vs 145**; sparse
+`archive` **63 vs 160**; 10k library `archive` **1,097 vs 3,778**. `design/0018`, `design/0019`.
+
+The plate became a button without moving: *a plaque sits under the books it names* still reads
+**19px** below the books over a 3px floor with **0px** width difference; *every control is the
+same size in every look* measures **38** controls in three looks with 0 off; and the layout
+golden for all three fixtures is unchanged.
+
 ## A book is as thick as it is full
 
 `"a spine's thickness is its note count"` reads `--spine-w` off every spine on the Years shelf

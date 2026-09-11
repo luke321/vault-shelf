@@ -467,6 +467,175 @@ check("a plaque sits under the books it names, in the same scroller", async (p) 
                    `floor; same scroller: ${r.sameRail}; width differs by ${r.widthDiff}px` };
 });
 
+/* github#6, design/0019 */
+check("a plaque opens the run it names as one book of unique notes, and both plates of a wrapped run open the same one", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var best = null;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.hidden) return;
+      core.runsOf(v.books).forEach(function (run) {
+        if (run.plaque === null) return;
+        var seen = {}, sum = 0;
+        run.books.forEach(function (b) { sum += b.notes.length; b.notes.forEach(function (n) { seen[n.id] = 1; }); });
+        var unique = Object.keys(seen).length;
+        var score = (sum - unique) * 1000 + run.books.length;
+        if (!best || score > best.score) best = { view: v, run: run, unique: unique, sum: sum, score: score };
+      });
+    });
+    if (!best) return { found: false };
+    var shelf = best.view.shelf;
+    var before = __vs.addresses().join("|");
+    var counts = __vs.counts();
+    var plates = [].slice.call(document.querySelectorAll('[data-shelf="' + shelf.id + '"] .vs-plaque'))
+      .filter(function (b) { return b.textContent === best.run.plaque; });
+    var isButton = plates.length && plates[0].tagName === "BUTTON";
+    plates[0].click();
+    var opened = __vs.reader();
+    var rows = document.querySelectorAll("#vs-contents button").length;
+    var title = document.getElementById("vs-readertitle").textContent;
+    var meta = document.getElementById("vs-bookmeta").textContent;
+    var tabs = document.querySelectorAll("#vs-tabs button").length;
+    var shown = !document.getElementById("vs-reader").hidden;
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    var closed = document.getElementById("vs-reader").hidden;
+
+    /* a plate drawn twice, anywhere in the library, opens the same book from both rows */
+    var twice = null;
+    __vs.views().forEach(function (v) {
+      if (twice || v.shelf.hidden) return;
+      var byLabel = {};
+      [].slice.call(document.querySelectorAll('[data-shelf="' + v.shelf.id + '"] .vs-plaque'))
+        .forEach(function (b) { (byLabel[b.textContent] = byLabel[b.textContent] || []).push(b); });
+      Object.keys(byLabel).forEach(function (label) {
+        if (!twice && byLabel[label].length > 1) twice = { shelf: v.shelf.id, label: label, plates: byLabel[label] };
+      });
+    });
+    var same = null;
+    if (twice) {
+      twice.plates[0].click();
+      var a = __vs.reader();
+      __vs.closeReader();
+      twice.plates[1].click();
+      var b = __vs.reader();
+      __vs.closeReader();
+      same = { a: a.book, b: b.book, equal: a.book === b.book, rows: twice.plates.length };
+    }
+    var after = __vs.addresses().join("|");
+    var counts2 = __vs.counts();
+    return { found: true, shelf: shelf.id, plaque: best.run.plaque, books: best.run.books.length,
+             unique: best.unique, sum: best.sum, isButton: isButton, plates: plates.length,
+             id: opened && opened.book, want: core.plaqueBookId(shelf.id, best.run.plaque),
+             rows: rows, title: title, wantTitle: shelf.name + " \u00b7 " + best.run.plaque,
+             meta: meta, tabs: tabs, shown: shown, closed: closed, twice: same,
+             stable: before === after && counts.books === counts2.books && counts.spines === counts2.spines };
+  })()`);
+  if (!r.found) return { ok: false, detail: "no plaque in this library" };
+  const ok = r.isButton && r.id === r.want && r.rows === r.unique && r.title === r.wantTitle &&
+             r.meta.indexOf(r.unique + " notes across " + r.books + " books") === 0 &&
+             r.shown && r.closed && (!r.twice || r.twice.equal) && r.stable;
+  return { ok,
+           detail: `${r.shelf} plate "${r.plaque}" (a button: ${r.isButton}) opens ${r.id}: ${r.rows} rows for ` +
+                   `${r.unique} unique notes across ${r.books} books that sum to ${r.sum}; title "${r.title}", ` +
+                   `meta "${r.meta}", ${r.tabs} tabs; Escape closes it (${r.closed}); ` +
+                   (r.twice ? `"${r.twice.a.split("/").pop()}" drawn on ${r.twice.rows} rows opens the same book from both (${r.twice.equal}); `
+                            : "no plate is drawn twice in this library; ") +
+                   `addresses, book count and spine count unchanged (${r.stable})` };
+});
+
+/* github#6, design/0019 */
+check("a ribbon left in a plaque-book re-resolves after a rebuild, and the Reading shelf holds it", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var view = __vs.views().filter(function (v) { return !v.shelf.hidden && v.books.some(function (b) { return b.plaque !== null; }); })[0];
+    if (!view) return { found: false };
+    var run = core.runsOf(view.books).filter(function (x) { return x.plaque !== null; })
+      .sort(function (a, b) { return b.books.length - a.books.length; })[0];
+    var id = core.plaqueBookId(view.shelf.id, run.plaque);
+    var opened = __vs.openBook(id, null);
+    var here = __vs.reader();
+    var stub = document.querySelector("#vs-marks .vs-markstub");
+    var had = !stub;
+    if (stub) stub.click();
+    var saved = __vs.settings().reading.filter(function (m) { return m.bookId === id; }).length;
+    var order = __vs.settings().noteOrder;
+    var resolved = core.resolveReading(here.note, id, __vs.views(), order);
+    __vs.setFilters({});
+    var again = __vs.reader();
+    var spine = document.querySelector('[data-shelf="-reading"] [data-book="' + id.replace(/"/g, '\\"') + '"]');
+    var count = spine ? spine.querySelector(".vs-n").textContent : null;
+    var ribbons = spine ? spine.querySelectorAll(".vs-ribbon").length : 0;
+    if (!had) {
+      var mine = document.querySelector('#vs-marks .vs-mark[aria-current="true"]');
+      if (mine) mine.click();
+    }
+    __vs.setFilters({});
+    var gone = document.querySelector('[data-shelf="-reading"] [data-book="' + id.replace(/"/g, '\\"') + '"]');
+    __vs.closeReader();
+    return { found: true, id: id, opened: opened, note: here.note, saved: saved,
+             resolvedId: resolved ? resolved.id : null, resolvedHolds: resolved ? resolved.notes.length : 0,
+             sameBook: again && again.book === id, sameNote: again && again.note === here.note,
+             spine: !!spine, count: count, notes: here && resolved ? resolved.notes.length : 0, ribbons: ribbons,
+             gone: !had ? gone === null : true };
+  })()`);
+  if (!r.found) return { ok: false, detail: "no plaqued shelf in this library" };
+  const ok = r.opened && r.saved === 1 && r.resolvedId === r.id && r.sameBook && r.sameNote &&
+             r.spine && Number(r.count) === r.notes && r.ribbons === 1 && r.gone;
+  return { ok,
+           detail: `${r.id} opened by address (${r.opened}); one ribbon saved against it (${r.saved}); ` +
+                   `core.resolveReading gives ${r.resolvedId} with ${r.resolvedHolds} notes; after a rebuild the reader is on ` +
+                   `the same book (${r.sameBook}) and note (${r.sameNote}); the Reading shelf shows it as a spine (${r.spine}) ` +
+                   `of ${r.count} with ${r.ribbons} ribbon; taken out again it leaves the shelf (${r.gone})` };
+});
+
+/* github#6, design/0018, design/0019 */
+check("on a manual shelf a plate opens what is under it, not the whole letter", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var shelf = __vs.settings().shelves.filter(function (s) { return s.id === "tags"; })[0];
+    var view = __vs.views().filter(function (v) { return v.shelf.id === "tags"; })[0];
+    if (!shelf || !view || shelf.hidden) return { found: false };
+    var run = core.runsOf(view.books).filter(function (x) { return x.plaque !== null && x.books.length > 1; })[0];
+    if (!run) return { found: false, why: "no letter with two books on Tags" };
+    var was = shelf.direction;
+    var seq = __vs.sequence("tags");
+    var moved = run.books[0].key;
+    var others = seq.filter(function (k) { return k !== moved; });
+    /* the run's first book goes to the very end, past Untagged; the rest of the letter stays */
+    var order = others.concat([moved]);
+    shelf.direction = "manual";
+    shelf.order = order;
+    __vs.setFilters({});
+    var plates = [].slice.call(document.querySelectorAll('[data-shelf="tags"] .vs-plaque'))
+      .filter(function (b) { return b.textContent === run.plaque; });
+    var frontKeys = __vs.sequence("tags").slice(-1);
+    plates[plates.length - 1].click();
+    var first = __vs.reader();
+    var firstRows = document.querySelectorAll("#vs-contents button").length;
+    __vs.closeReader();
+    plates[0].click();
+    var rest = __vs.reader();
+    var restRows = document.querySelectorAll("#vs-contents button").length;
+    __vs.closeReader();
+    var restUnique = {};
+    run.books.slice(1).forEach(function (b) { b.notes.forEach(function (n) { restUnique[n.id] = 1; }); });
+    shelf.direction = was;
+    delete shelf.order;
+    __vs.setFilters({});
+    return { found: true, plaque: run.plaque, moved: moved, plates: plates.length, front: frontKeys[0],
+             firstId: first.book, firstRows: firstRows, movedNotes: run.books[0].notes.length,
+             restId: rest.book, restRows: restRows, restUnique: Object.keys(restUnique).length,
+             sameId: first.book === rest.book, want: core.plaqueBookId("tags", run.plaque) };
+  })()`);
+  if (!r.found) return { ok: false, detail: r.why || "no Tags shelf in this library" };
+  const ok = r.plates >= 2 && r.front === r.moved && r.firstRows === r.movedNotes &&
+             r.restRows === r.restUnique && r.sameId && r.firstId === r.want && r.firstRows !== r.restRows;
+  return { ok,
+           detail: `"${r.moved}" moved to the end of a manual Tags shelf splits letter ${r.plaque} into ${r.plates} plates; ` +
+                   `the last opens ${r.firstRows} notes (the one book under it holds ${r.movedNotes}), the first opens ` +
+                   `${r.restRows} (the rest of the letter, ${r.restUnique} unique); same address for both (${r.sameId}: ${r.firstId})` };
+});
+
 /* github#4 -- schema 10 gave every slot its own ribbon. A file from 9 carries one that every
  * book in the library wore, and that was a choice, so it becomes all twelve. */
 check("one ribbon from an older schema becomes a ribbon on every colour", async (p) => {
@@ -3429,7 +3598,7 @@ async function capture(page, out) {
           __vs.views().forEach(function (v) { v.books.forEach(function (b) {
             if (want === "biggest" ? (!pick || b.notes.length > pick.notes.length) : b.id === want) pick = b;
           }); });
-          return pick ? __vs.openBook(pick.id, null) : false;
+          return __vs.openBook(pick ? pick.id : want, null);
         })()`)
       : await page.j('__vs.openBook(__vs.addresses()[0], null)');
   if (opened) {

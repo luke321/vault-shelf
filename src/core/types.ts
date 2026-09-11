@@ -87,6 +87,8 @@ export interface Book {
   label: string;
   /** github#12 */
   cover: string;
+  /** github#6 */
+  holds?: number;
   /** design/0003 */
   plaque: string | null;
   notes: Note[];

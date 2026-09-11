@@ -325,7 +325,7 @@ function mountVaultShelf(root, data, options) {
     /** @type {Record<string, boolean>} */
     var seen = {};
     settings.reading.slice().sort(function (a, b) { return b.at - a.at; }).forEach(function (mark) {
-      var book = core.resolveReading(mark.noteId, mark.bookId, views);
+      var book = core.resolveReading(mark.noteId, mark.bookId, views, settings.noteOrder);
       if (!book || seen[book.id]) return;
       seen[book.id] = true;
       out.push(book);
@@ -629,10 +629,36 @@ function mountVaultShelf(root, data, options) {
       var row = el("div", "vs-books");
       group.books.forEach(function (book) { row.appendChild(renderSpine(book, shelf, hand)); });
       g.appendChild(row);
-      if (group.plaque !== null) g.appendChild(el("div", "vs-plaque", group.plaque));
+      if (group.plaque !== null) {
+        /* github#6, design/0019 */
+        var plate = el("button", "vs-plaque", group.plaque);
+        plate.type = "button";
+        var first = group.books[0];
+        on(plate, "click", function () { openPlaque(shelf, first); });
+        g.appendChild(plate);
+      }
       track.appendChild(g);
     });
     return track;
+  }
+
+  /* github#6, design/0019 */
+  /** @param {Shelf} shelf @param {Book} under */
+  function openPlaque(shelf, under) {
+    var view = viewById(shelf.id);
+    if (!view) return;
+    var run = core.runsOf(view.books).filter(function (r) {
+      return r.books.some(function (b) { return b.id === under.id; });
+    })[0];
+    if (!run) return;
+    var book = core.plaqueBook(view, run.books, settings.noteOrder);
+    if (book) openBook(book, null);
+  }
+
+  /** @param {string} shelfId @returns {import("./core/index").ShelfView|null} */
+  function viewById(shelfId) {
+    for (var i = 0; i < views.length; i++) if (views[i].shelf.id === shelfId) return views[i];
+    return null;
   }
 
   /** @type {Record<string, boolean>} */
@@ -1097,9 +1123,18 @@ function mountVaultShelf(root, data, options) {
     else root.removeAttribute("data-query");
 
     var spines = root.querySelectorAll("#" + ID + "shelves .vs-spine");
+    var needle = query.trim().toLowerCase();
     for (var i = 0; i < spines.length; i++) {
       var id = spines[i].getAttribute("data-book");
       var book = id ? bookIndex[id] : null;
+      /* github#6 */
+      if (!book && id) {
+        book = findBook(id);
+        if (book) {
+          book.matches = needle
+            ? book.notes.filter(function (n) { return core.matchesQuery(n, needle); }).length : 0;
+        }
+      }
       spines[i].setAttribute("data-match", book && book.matches > 0 ? "1" : "0");
     }
 
@@ -1175,6 +1210,7 @@ function mountVaultShelf(root, data, options) {
     $("bookname").textContent = book.label;
     $("bookmeta").textContent = book.notes.length +
       (book.notes.length === 1 ? " note" : " notes") +
+      (book.holds ? " across " + book.holds + (book.holds === 1 ? " book" : " books") : "") +
       (book.bands.length ? " \u00b7 " + book.bands.length + " source folders" : "");
     $("prevcollection").disabled = !history.length;
 
@@ -1757,7 +1793,7 @@ function mountVaultShelf(root, data, options) {
   function previousCollection() {
     var last = history.pop();
     if (!last) return;
-    var book = findBook(last.bookId);
+    var book = findBook(last.bookId, last.noteId);
     if (!book) return;
     reader = { book: book, index: 0, noteId: last.noteId, within: "", opener: reader ? reader.opener : null };
     if (last.noteId) {
@@ -1766,14 +1802,17 @@ function mountVaultShelf(root, data, options) {
     renderReader();
   }
 
-  /** @param {string} id @returns {Book|null} */
-  function findBook(id) {
+  /** @param {string} id @param {string|null} [noteId] @returns {Book|null} */
+  function findBook(id, noteId) {
     for (var i = 0; i < views.length; i++) {
       for (var k = 0; k < views[i].books.length; k++) {
         if (views[i].books[k].id === id) return views[i].books[k];
       }
     }
-    return null;
+    /* github#6 */
+    var plaque = core.plaqueOfId(id);
+    var view = plaque ? viewById(plaque.shelfId) : null;
+    return view ? core.plaqueBookFor(view, plaque.plaque, noteId || null, settings.noteOrder) : null;
   }
 
   /* ================================================================= builder ==
@@ -2377,7 +2416,7 @@ function mountVaultShelf(root, data, options) {
     applyQuery();
     if (builder) previewBuilder();
     if (reader) {
-      var again = findBook(reader.book.id);
+      var again = findBook(reader.book.id, reader.noteId);
       if (again) {
         reader.book = again;
         /* github#5 -- THE PLACE IS A NOTE, NOT A ROW NUMBER. */

@@ -170,6 +170,18 @@ would be a year taken from nowhere, so the builder disables the checkbox there. 
 use the **ISO week-year**, so 2026-W53 sits under 2026 even though four of its days are in
 January 2027 — otherwise one week hangs under two plaques.
 
+**A plaque opens.** Click `2024` under Months and the reader opens on every note of 2024, in
+reading order, with the contents cut by month; click `2010–2019` under Years and it is the
+decade; click `M` under People and it is everyone whose name starts with M. The count is unique
+notes — a note in two of the books under the plate is one note — and the meta line says how
+many books it came across. A plaque-book has an address of its own (`shelfId/-plaque-2024`), so
+a ribbon left in it comes back after a rebuild and it sits on the Reading shelf like any other
+book. A plate drawn on two rows opens the same book from both; on a shelf arranged by hand a
+plate opens exactly what is under it. The plate lights under the pointer, takes focus from the
+keyboard, and has not moved a pixel to do it.
+
+`design/0019`
+
 `design/0003`
 
 ### A spine tells you where its notes came from
