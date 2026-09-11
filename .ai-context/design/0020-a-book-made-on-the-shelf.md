@@ -124,7 +124,12 @@ of the rail is a button too, and a tab stop.
 
 **The sheet** is a name and *what it holds* — the four source kinds and the value list the
 builder's second question already fills — with the real count under it, over the notes the
-shelf is built from. Save makes the book and focuses its spine. A made book **is a spine**: it
+shelf is built from. Save makes the book and focuses its spine. **The name is suggested from
+what it holds** — the folder's leaf, the tag with its hash, the person, *Everything* for the
+whole vault — and follows the source until a person types a name of their own; a name cleared
+back to nothing comes back as the suggestion. The first cut showed *Dailies* as a placeholder
+and saved *Untitled book*: a placeholder is a promise the field does not keep, so the
+suggestion is the value now, not the hint. A made book **is a spine**: it
 lifts, drags along the shelf, moves on Alt+Arrow, wears, hangs ribbons, takes a colour, and
 thins to a ghost under the query like any other.
 

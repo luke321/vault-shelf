@@ -1383,7 +1383,7 @@ function mountVaultShelf(root, data, options) {
    */
   function openMadeBook(shelf, key, before) {
     var def = key && shelf.made && shelf.made[key] ? shelf.made[key] : null;
-    making = { shelf: shelf, key: def ? key : null, before: before,
+    making = { shelf: shelf, key: def ? key : null, before: before, named: !!def,
                draft: def ? core.clone(def) : { name: "", source: { kind: "folder" } } };
     $("mbtitle").textContent = def ? "Edit book" : "New book on " + shelf.name;
     $("mbsave").textContent = def ? "Save changes" : "Make the book";
@@ -1414,7 +1414,9 @@ function mountVaultShelf(root, data, options) {
   function readMadeFields() {
     if (!making) return;
     var d = making.draft;
-    d.name = field("mbname").value.trim();
+    var typed = field("mbname").value.trim();
+    /* design/0020 -- the name is suggested until a person types one. */
+    if (typed && typed !== nameFor(d.source)) making.named = true;
     var kind = /** @type {import("./core/index").SourceKind} */ (field("mbsource").value);
     if (kind !== d.source.kind) {
       d.source = { kind: kind };
@@ -1422,6 +1424,17 @@ function mountVaultShelf(root, data, options) {
     }
     if (kind !== "all") d.source.value = field("mbsourceval").value;
     $("mbsourceval").hidden = kind === "all";
+    d.name = making.named ? typed : nameFor(d.source);
+    if (!making.named && field("mbname").value !== d.name) field("mbname").value = d.name;
+  }
+
+  /** design/0020 -- the name when nobody has said: leaf, tag, person.
+   * @param {import("./core/index").Source} source @returns {string} */
+  function nameFor(source) {
+    if (source.kind === "all") return "Everything";
+    var value = source.value || "";
+    if (!value) return "";
+    return core.labelFor(value, source.kind);
   }
 
   /** design/0020 -- the real count, over the shelf's own notes. */
@@ -1440,7 +1453,7 @@ function mountVaultShelf(root, data, options) {
     readMadeFields();
     var shelf = making.shelf, key = making.key, before = making.before;
     var def = making.draft;
-    if (!def.name) def.name = "Untitled book";
+    if (!def.name) def.name = nameFor(def.source) || "Untitled book";
     if (def.source.kind !== "all" && !def.source.value) { node("mbsourceval").focus(); return; }
     closeMadeBook();
     var made = writeMadeBook(shelf, key, def, before);

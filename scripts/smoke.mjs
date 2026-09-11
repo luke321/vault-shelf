@@ -1501,13 +1501,17 @@ check("a book made on the shelf holds the notes it points at, where it was made"
     var form = { shown: !sheet.hidden, menuShut: menu.hidden,
                  title: document.getElementById("vs-mbtitle").textContent,
                  focused: document.activeElement === name,
-                 deleteHidden: document.getElementById("vs-mbdelete").hidden };
-    name.value = "Dailies";
-    name.dispatchEvent(new Event("input", { bubbles: true }));
+                 deleteHidden: document.getElementById("vs-mbdelete").hidden,
+                 /* the name is suggested from what it holds, and follows it until typed */
+                 suggested: name.value, firstValue: val.value };
     kind.value = "folder";
     kind.dispatchEvent(new Event("change", { bubbles: true }));
     val.value = folder;
     val.dispatchEvent(new Event("change", { bubbles: true }));
+    form.followed = name.value;
+    form.leaf = folder.split("/").pop();
+    name.value = "Dailies";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
     form.count = document.getElementById("vs-mbcount").textContent;
     document.getElementById("vs-mbsave").click();
     form.shut = sheet.hidden;
@@ -1566,16 +1570,20 @@ check("a book made on the shelf holds the notes it points at, where it was made"
     ySpine.closest(".vs-track").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true,
       cancelable: true, clientX: Math.round(yb.left - 1), clientY: Math.round(yb.top + yb.height / 2) }));
     menu.querySelector("button").click();
-    name.value = "Everything";
-    name.dispatchEvent(new Event("input", { bubbles: true }));
+    /* nothing typed: the whole vault suggests "Everything", and a cleared name comes back to it */
     kind.value = "all";
     kind.dispatchEvent(new Event("change", { bubbles: true }));
+    var wholeSuggested = name.value;
+    name.value = "";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+    var wholeCleared = name.value;
     var wholeCount = document.getElementById("vs-mbcount").textContent;
     var valueHidden = val.hidden;
     document.getElementById("vs-mbsave").click();
     var whole = viewOf(fav.id).books.filter(function (b) { return b.key === "-made-everything"; })[0];
     var between = { sequence: __vs.sequence(fav.id), notes: whole ? whole.notes.length : -1,
-                    total: __vs.data().notes.length, count: wholeCount, valueHidden: valueHidden };
+                    total: __vs.data().notes.length, count: wholeCount, valueHidden: valueHidden,
+                    suggested: wholeSuggested, cleared: wholeCleared, label: whole ? whole.label : "" };
 
     /* 8. Alt+Right moves it along the shelf like any book arranged by hand */
     var dSpine = spineOf(made.id);
@@ -1617,7 +1625,10 @@ check("a book made on the shelf holds the notes it points at, where it was made"
   const ok = r.offered.shown && r.offered.text === "New book here…" && r.offered.dyeShut &&
              r.form.shown && r.form.menuShut && r.form.focused && r.form.deleteHidden &&
              r.form.title.indexOf("New book") === 0 && r.form.count === r.book.expected + " notes" &&
+             r.form.suggested === r.form.firstValue.split("/").pop() && r.form.followed === r.form.leaf &&
              r.form.shut &&
+             r.between.suggested === "Everything" && r.between.cleared === "Everything" &&
+             r.between.label === "Everything" &&
              r.book.id === "favourites/-made-dailies" &&
              r.book.key === "-made-dailies" && r.book.label === "Dailies" &&
              r.book.notes === r.book.expected && r.book.notes > 0 && r.book.spine && r.book.focused &&
@@ -1641,7 +1652,8 @@ check("a book made on the shelf holds the notes it points at, where it was made"
   return {
     ok,
     detail: `right-click on the landing offered "${r.offered.text}" under "${r.offered.named}"; the ` +
-            `sheet "${r.form.title}" counted "${r.form.count}" and made ${r.book.id} ("${r.book.label}", ` +
+            `sheet "${r.form.title}" suggested "${r.form.suggested}" for ${r.form.firstValue}, then ` +
+            `"${r.form.followed}" for ${r.folder}, counted "${r.form.count}" and made ${r.book.id} ("${r.book.label}", ` +
             `${r.book.notes} of ${r.book.expected} notes in ${r.folder}), draggable ${r.book.draggable}, ` +
             `a handle ${r.book.hand}, focused ${r.book.focused}, the jump chip says ${r.book.jump}; with ` +
             `${r.yearId} beside it ${r.overlap.sum} places are ${r.overlap.unique} notes and the shelf ` +
@@ -1649,8 +1661,10 @@ check("a book made on the shelf holds the notes it points at, where it was made"
             `${r.filtered.expected} (empty spine ${r.filtered.empty}) and the picks ${r.filtered.picks}; ` +
             `migrate round-trips picks ${r.roundtrip.picks} and made ${r.roundtrip.made}, a hand-edited ` +
             `file comes up [${r.normalised.picks.join(", ")}] defining [${r.normalised.made.join(", ")}]; ` +
-            `a second one right-clicked into the gap gave [${r.between.sequence.join(", ")}] holding ` +
-            `${r.between.notes} of ${r.between.total} ("${r.between.count}"), Alt+Right gave ` +
+            `a second one right-clicked into the gap, left unnamed (suggested "${r.between.suggested}", ` +
+            `cleared back to "${r.between.cleared}", saved as "${r.between.label}"), gave ` +
+            `[${r.between.sequence.join(", ")}] holding ${r.between.notes} of ${r.between.total} ` +
+            `("${r.between.count}"), Alt+Right gave ` +
             `[${r.nudged.join(", ")}]; a ribbon resolves to ${r.place.resolved}, is drawn ${r.place.ribbon}, ` +
             `on the Reading shelf ${r.place.onReadingShelf}, also-shelved-in offers it ${r.place.alsoIn} ` +
             `and not the reference ${r.place.referenceNot}, opening it opened ${r.place.opened}; ` +

@@ -322,7 +322,10 @@ and both empty the shelf again on the way out.
 `"a book made on the shelf holds the notes it points at, where it was made"` right-clicks the
 empty landing and asserts the rail menu (`#vs-railmenu`) offers exactly **"New book here…"**
 under the shelf's name while the dye menu stays shut; that the sheet opens with the name field
-focused and no Delete on it; that the count under the form is the **real** one; and that Save
+focused and no Delete on it; that the name comes up **suggested from what it holds** — the
+leaf of the first folder, then the leaf of the chosen one, *Everything* for the whole vault —
+and that a name cleared to nothing comes back as the suggestion and saves as it (never
+*Untitled book*); that the count under the form is the **real** one; and that Save
 makes a book addressed `favourites/-made-dailies` — key `-made-dailies`, label `Dailies`,
 holding exactly the notes of the vault's biggest folder, on a spine that is draggable, a hand
 handle, focused, and has taken the landing's place, with the jump chip reading **1**. Then the

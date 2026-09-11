@@ -61,6 +61,8 @@ right-click menu names every shelf that would take it.
 **Or make a book here.** Right-click the empty space on Favourites — the dashed landing, the
 gap after the last book — or press *New book* in the shelf's head, and the sheet asks two things: a **name**, and **what it
 holds** (a folder, a tag, a person, or the whole vault), with the real count under the form.
+The name is suggested from what it holds — pick the dailies folder and the book is called
+*Dailies* unless you say otherwise.
 The book appears where you right-clicked, in the manual order, and is a spine like any other:
 it drags along the shelf, takes a colour, wears, and hangs ribbons. It is a **saved query**,
 not a folder: nothing in the vault moves, and *Dailies* pointing at the dailies folder grows
