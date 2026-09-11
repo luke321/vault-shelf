@@ -460,7 +460,8 @@ slot, a slot's reset mark, the ribbon slot and Reset colours; the builder's Name
 source and classifier dropdowns, its order dropdown and Save; a dye swatch — in every look
 `core.LOOKS` knows, shelved included, against the modern look's reading. Since github#2 and
 github#4 (2026-09-11) the palette slot is **36×28**, the builder's dropdown **31.5** high and
-the same in all three, and every dropdown is measured with its box taken back from the host. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
+the same in all three, and every dropdown is measured with its box taken back from the host. **37** are measured where the reader has index tabs and **36** on the demo
+vault, whose first book has none; the check's floor is 34. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
 (a button that sizes to its text may be a different width in a different face).
 
 Measured before: **21 controls off under leather** — the rail 60.5 vs 46.5px and the reader

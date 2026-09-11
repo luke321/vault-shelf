@@ -10,8 +10,8 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | issue | code sites | prose sites |
 |---|---|---|
 | #0 | src/page.js:1700, src/page.js:1875 | — |
-| #2 | src/cyber.css:47, src/cyber.css:248, src/leather.css:54, src/leather.css:124, src/leather.css:313, src/page.css:42, src/page.css:329, scripts/smoke.mjs:1232 | .ai-context/changelog-detail.md:6, .ai-context/invariants.md:461, .ai-context/invariants.md:479, .ai-context/design/0016-the-leather-look.md:151, .ai-context/design/0017-the-cyberpunk-look.md:175 |
-| #4 | src/page.css:1073, src/page.css:1172, src/page.js:237, src/page.js:1907, src/page.js:1967, src/page.js:1993, src/page.js:2056, src/page.js:2250, scripts/smoke.mjs:1489 | .ai-context/changelog-detail.md:7, .ai-context/invariants.md:462, .ai-context/invariants.md:515 |
+| #2 | src/cyber.css:47, src/cyber.css:248, src/leather.css:54, src/leather.css:124, src/leather.css:313, src/page.css:42, src/page.css:329, scripts/smoke.mjs:1232 | .ai-context/changelog-detail.md:6, .ai-context/invariants.md:461, .ai-context/invariants.md:480, .ai-context/design/0016-the-leather-look.md:151, .ai-context/design/0017-the-cyberpunk-look.md:175 |
+| #4 | src/page.css:1073, src/page.css:1172, src/page.js:237, src/page.js:1907, src/page.js:1967, src/page.js:1993, src/page.js:2056, src/page.js:2250, scripts/smoke.mjs:1489 | .ai-context/changelog-detail.md:7, .ai-context/invariants.md:462, .ai-context/invariants.md:516 |
 
 ## Decision and design records cited in code — 26
 
@@ -71,16 +71,16 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | The palette is Vault Graph's, and the theme is the host's (358) | the twelve colour slots are Vault Graph's own (953); the theme follows the host, and the slots are re-read when it changes (988) |
 | Binding colors belong to stable books (371) | — no check named in the section |
 | A look is paint, and nothing else (391) | a look is opt-in, repaints everything and moves nothing (1025); every control is the same size in every look (1132); every dropdown paints itself, whatever the host says a select is (1236) |
-| Whose colour a book wears (499) | a book's colour is the person's, then the shelf's, then the folder's (1348); a shelf can vary its books, and a chosen palette beats the look's (1411); colours and hidden shelves set in Manage persist through a reload (1491); a book with several ribbons in it shows them side by side (1610) |
-| The magic (532) | shelf wear is recorded and drawn, and survives a rebuild (1650); a ribbon hangs from every book that holds a marked note (1766); the shelf parts as you type, and no book leaves the room (1792) |
-| Scrolling stays smooth (551) | scrolling the library stays smooth in every look (1889) |
-| The room (566) | the room has a width, however wide the window is (1947); a narrower window grows rows, and a wide one centres the shelf (1825); the library is the whole surface, with no sidebar (926) |
-| Accessibility and scale (599) | plain list mode keeps every book reachable (2555); every control the keyboard can reach has a name (2572) |
-| Nothing reaches the network (609) | nothing on the page reaches the network (2594) |
-| A spine holds its size (616) | a spine lifts on hover and holds its size (2647) |
-| Hidden means hidden (625) | the reader and the sheets are not painted until they are opened (2010) |
-| The plugin behaves inside a real Obsidian (639) | — no check named in the section |
-| Not covered here (682) | — no check named in the section |
+| Whose colour a book wears (500) | a book's colour is the person's, then the shelf's, then the folder's (1348); a shelf can vary its books, and a chosen palette beats the look's (1411); colours and hidden shelves set in Manage persist through a reload (1491); a book with several ribbons in it shows them side by side (1610) |
+| The magic (533) | shelf wear is recorded and drawn, and survives a rebuild (1650); a ribbon hangs from every book that holds a marked note (1766); the shelf parts as you type, and no book leaves the room (1792) |
+| Scrolling stays smooth (552) | scrolling the library stays smooth in every look (1889) |
+| The room (567) | the room has a width, however wide the window is (1947); a narrower window grows rows, and a wide one centres the shelf (1825); the library is the whole surface, with no sidebar (926) |
+| Accessibility and scale (600) | plain list mode keeps every book reachable (2555); every control the keyboard can reach has a name (2572) |
+| Nothing reaches the network (610) | nothing on the page reaches the network (2594) |
+| A spine holds its size (617) | a spine lifts on hover and holds its size (2647) |
+| Hidden means hidden (626) | the reader and the sheets are not painted until they are opened (2010) |
+| The plugin behaves inside a real Obsidian (640) | — no check named in the section |
+| Not covered here (683) | — no check named in the section |
 
 ## `__vs.*` entry points → callers outside page.js — 21
 
