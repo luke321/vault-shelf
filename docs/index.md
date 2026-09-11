@@ -15,7 +15,7 @@ one note sits in Encyclopedia **A**, the **2026** yearbook, **September 2026**, 
 volume and the **Attention** anthology at the same time. That overlap is the point: each shelf
 is another useful address into one vault.
 
-<img src="https://raw.githubusercontent.com/luke321/vault-shelf/main/assets/demo.webp" width="100%" alt="The library opening on its default shelves, months and weeks grouped under year plaques, a spine hovered for its size and folder mix, a book opened into the reading spread and walked with its index tabs, one note stepped sideways into another shelf, a ribbon left in it and hanging out of every book that holds it, the shelf parting around a search query and closing back up, a book worn by being opened over and over, a new shelf built from two questions, and the theme switched under the whole room">
+<img src="https://raw.githubusercontent.com/luke321/vault-shelf/main/assets/demo.webp" width="100%" alt="A book dragged from the Years shelf onto the empty Favourites shelf and a second dropped into the gap before it, the favourite opened and a ribbon left in it that hangs out of every book holding the note, the shelf parting around a search and closing back up, and the room as it was left, with the notes exactly where they were">
 
 ## Try it live
 

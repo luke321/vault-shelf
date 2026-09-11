@@ -441,6 +441,17 @@ measured on the 10k library, where the check read 0 → 0 until it scrolled the 
 first. That is right for the product (a person parts the shelf they are looking at) and a trap
 for a check, which has to scroll before it measures.
 
+**A date shelf dyes by period, and Encyclopedia keeps its folder dye** (`github#21`,
+`design/0005`). Years by decade, Months and Weeks by year, unless `Shelf.colorBy` says
+otherwise; the slot is the period modulo **12**, so it is the calendar's and not the vault's.
+Measured — demo / sparse / library: Months' **129 / 29 / 121** dated books over **16 / 5 / 11**
+years, **0** years torn between dyes and **0** neighbouring years sharing one; Years' **2 / 1 / 2**
+decades likewise; Encyclopedia **29 / 23 / 27** of **29 / 23 / 27** on the folder's dye. Manage
+offers `folder,year,decade` on a date shelf's row and nothing on Encyclopedia's or People's;
+Months by folder follows the folder on all **129 / 29 / 121**, by decade tears **0**, and saves
+as `"decade"`. Between *vary* and the folder in the ranking: a hand-given colour and a varied
+shelf both still win.
+
 **The twelve are offered.** A slot's swatch used to open the operating system's colour picker,
 which has sixteen million colours and none of this library's twelve. It opens a popover of the
 **12** current slots — 12 distinct — with *Custom…* behind them and, on a changed slot, the way

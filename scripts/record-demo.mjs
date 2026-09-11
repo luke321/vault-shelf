@@ -21,10 +21,16 @@ const W = Number(arg("width", "1440"));
 const H = Number(arg("height", "900"));
 const OUT = resolve(arg("out", join(ROOT, "demo-vault-shelf.mp4")));
 const HERO = arg("hero", "");
-/* design/0007 -- the hero is an EXCERPT, not the whole film. A WebP of all 83 seconds came
- * out at 18.5 MB, which is not a thing to put at the top of a README; twelve seconds of the
- * shelves at 10fps and 900px is about 1/10th of that and says the same thing. */
-const HERO_CLIP = (arg("hero-clip", "5,12") || "5,12").split(",").map(Number);
+/* github#21 -- the hero is an excerpt, named by act; design/0007. */
+const HERO_ACTS = (arg("hero-acts", "open,favourite,ribbon,parting,room"))
+  .toLowerCase().split(",").map((v) => v.trim()).filter(Boolean);
+const HERO_CLIP = arg("hero-clip", "") ? arg("hero-clip", "").split(",").map(Number) : null;
+/* github#21 -- leather unless asked; a fresh library opens in it. */
+const LOOK = arg("look", "leather");
+/* github#21 -- the hero's budget: fps first, then width, then quality. */
+const HERO_FPS = Number(arg("hero-fps", "6"));
+const HERO_W = Number(arg("hero-width", "780"));
+const HERO_Q = Number(arg("hero-q", "38"));
 const KEEP = argv.includes("--keep-frames");
 const QUIET = argv.includes("--quiet");
 
@@ -176,6 +182,12 @@ html, body { background: #0b0c0d; }
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
 }
 #vsrec-cursor.press { transform: scale(0.85); transform-origin: 4px 3px; }
+/* github#21 -- the book in the hand: Chrome draws no drag image. */
+#vsrec-ghost {
+  position: fixed !important; z-index: 98; pointer-events: none; opacity: 0.9;
+  margin: 0 !important; transform: rotate(-3deg); transition: none !important;
+  filter: drop-shadow(0 16px 22px rgba(0,0,0,0.55));
+}
 `;
 
 const CURSOR_SVG = '<svg viewBox="0 0 24 24" width="26" height="26" xmlns="http://www.w3.org/2000/svg">' +
@@ -188,8 +200,8 @@ const CURSOR_SVG = '<svg viewBox="0 0 24 24" width="26" height="26" xmlns="http:
  * else needs to know the frame rate.
  */
 function storyboard(P) {
-  const { go, j, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once,
-          pointer, rightClick, centreOf } = P;
+  const { go, j, caption, scrollTo, settleOn, click, shelfTop, once, pointer, rightClick,
+          centreOf, lift, carry, drop } = P;
   let parted = "note";   // the search the parting act types, taken from the vault itself
 
   /* design/0020 -- the dailies folder if there is one, else the biggest. */
@@ -213,38 +225,332 @@ function storyboard(P) {
     })(); void 0`);
   };
 
+  /* github#21 -- the thickest book in shot, so only the book moves. */
+  const thickest = (shelfId) => j(`(function(){
+    var v = __vs.views().filter(function (v) { return v.shelf.id === ${JSON.stringify(shelfId)}; })[0];
+    if (!v) return null;
+    var books = v.books.filter(function (b) { return b.key.charAt(0) !== "-"; });
+    books.sort(function (a, b) { return b.notes.length - a.notes.length; });
+    return books[0] ? books[0].id : null;
+  })()`);
+  /* github#21 -- a spine on its own shelf; Reading holds it too. */
+  const spineOf = (bookId, shelfId) =>
+    (shelfId ? `[data-shelf="${shelfId}"] ` : "#vs-shelves ") +
+    `.vs-spine[data-book="${bookId.replace(/"/g, '\\"')}"]`;
+  const noteCount = () => j(`__vs.counts().notes`);
+  /* github#21 -- a hand's curve, not a ruler's. */
+  const arc = (a, b, bow, k) => ({
+    x: Math.round((1 - k) * (1 - k) * a.x + 2 * (1 - k) * k * bow.x + k * k * b.x),
+    y: Math.round((1 - k) * (1 - k) * a.y + 2 * (1 - k) * k * bow.y + k * k * b.y),
+  });
+  const glide = async (from, to, k) => {
+    if (from && to) await pointer({ x: Math.round(lerp(from.x, to.x, k)), y: Math.round(lerp(from.y, to.y, k)) });
+  };
+
   return [
     {
       name: "open",
       seconds: 4.5,
-      async at(t) {
+      async at(t, first) {
+        if (first) {
+          await go(`__vs.setQuery(""); document.getElementById("vs-library").scrollTop = 0; void 0`);
+          await pointer(null);
+        }
         await caption(t, 0.15, 0.95,
-          "Your vault, as a library.",
-          "394 notes. Nothing was moved.");
+          "Your vault, as a <b>library</b>.",
+          `${await noteCount()} notes, on every shelf at once. Nothing was moved.`);
+      },
+    },
+    {
+      /* github#21, design/0019 -- a real dragstart, dragover and drop. */
+      name: "favourite",
+      seconds: 13,
+      async at(t, first) {
+        if (first) {
+          await go(`(function(){
+            var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+            if (fav) { fav.picks = []; delete fav.made; }
+            __vs.setQuery("");
+            __vs.setFilters({ folders: [] });
+            document.getElementById("vs-library").scrollTop = 0;
+          })(); void 0`);
+          await pointer(null);
+          P.state.first = await thickest("people");
+          P.state.second = await thickest("encyclopedia");
+          if (!P.state.first || !P.state.second) throw new Error("favourite: no book to carry");
+          P.state.down = await shelfTop("people", -70);
+          P.state.settled = false;
+        }
+        await caption(t, 0.04, 0.95,
+          "<b>Favourites</b>: drag any book onto it.",
+          "A favourite is a reference, never a copy. The book stays on its own shelf, and " +
+          "this one is live.");
+        const fav = await favId();
+        const landing = () => centreOf(`[data-shelf="${fav}"] .vs-shelfrail .vs-track`);
+        /* github#21 -- down to People, and the thickest is lifted. */
+        if (t < 0.12) await scrollTo(lerp(0, P.state.down, easeInOut(t / 0.12)));
+        if (t >= 0.12 && !P.state.settled) { P.state.down = await settleOn("people"); P.state.settled = true; }
+        const a = await centreOf(spineOf(P.state.first, "people"));
+        if (t >= 0.06 && t < 0.18 && a) {
+          const k = easeInOut((t - 0.06) / 0.12);
+          await pointer({ x: Math.round(lerp(a.x + 260, a.x, k)), y: Math.round(lerp(a.y + 160, a.y, k)) });
+        }
+        await once("lift-1", 0.18, t, async () => {
+          const up = await lift(spineOf(P.state.first, "people"));
+          if (!up) throw new Error("favourite: dragstart on the People spine lifted nothing");
+          P.state.lifted = up;
+        });
+        /* github#21 -- the room scrolls up under the carried book. */
+        if (t >= 0.18 && t < 0.34) {
+          const k = easeInOut((t - 0.18) / 0.16);
+          await scrollTo(lerp(P.state.down, 0, k));
+          const from = P.state.lifted;
+          await carry({ x: Math.round(lerp(from.x, from.x - 120, k)), y: Math.round(lerp(from.y, 150, k)) });
+        }
+        if (t >= 0.34 && t < 0.5) {
+          const b = await landing();
+          const from = { x: P.state.lifted.x - 120, y: 150 };
+          const k = easeInOut((t - 0.34) / 0.16);
+          if (b) await carry(arc(from, b, { x: b.x + 220, y: (from.y + b.y) / 2 }, k));
+        }
+        if (t >= 0.5 && t < 0.55) await carry(await landing());
+        await once("drop-1", 0.55, t, async () => {
+          const lit = await j(`document.querySelector('[data-shelf="${fav}"] .vs-shelfrail').getAttribute("data-drop")`);
+          if (lit !== "1") throw new Error("favourite: the landing never lit under the pointer");
+          await drop(await landing());
+          const picks = await j(`__vs.picks()[0].picks.length`);
+          if (picks !== 1) throw new Error("favourite: the drop onto the landing did not take");
+        });
+        /* github#21 -- the second lands in the gap before the first. */
+        const c = await centreOf(spineOf(P.state.second, "encyclopedia"));
+        const firstFav = () => centreOf(spineOf(fav + "/" + P.state.first), -6, 0);
+        if (t >= 0.55 && t < 0.68) await glide(await centreOf(spineOf(fav + "/" + P.state.first)), c, easeInOut((t - 0.55) / 0.13));
+        await once("lift-2", 0.68, t, async () => {
+          const up = await lift(spineOf(P.state.second, "encyclopedia"));
+          if (!up) throw new Error("favourite: dragstart on the Encyclopedia spine lifted nothing");
+        });
+        if (t >= 0.68 && t < 0.87) {
+          const d = await firstFav();
+          if (c && d) {
+            const k = easeInOut(Math.min(1, (t - 0.68) / 0.17));
+            await carry(arc(c, d, { x: d.x + 200, y: (c.y + d.y) / 2 }, k));
+          }
+        }
+        if (t >= 0.87 && t < 0.92) { const d = await firstFav(); if (d) await carry(d); }
+        await once("drop-2", 0.92, t, async () => {
+          const bar = await j(`!!document.querySelector('[data-shelf="${fav}"] .vs-drop[data-side="before"]')`);
+          if (!bar) throw new Error("favourite: no insertion mark stood in the gap before the first favourite");
+          await drop(await firstFav());
+          const seq = await j(`__vs.picks()[0].picks`);
+          if (seq.length !== 2 || seq[0] !== P.state.second) {
+            throw new Error("favourite: the second drop did not land before the first (" + seq.join(", ") + ")");
+          }
+        });
+        if (t > 0.92) {
+          const d = await centreOf(spineOf(fav + "/" + P.state.second));
+          if (d) await pointer({ x: d.x + 30 + Math.round((t - 0.92) * 400), y: d.y + 70 + Math.round((t - 0.92) * 300) });
+        }
+      },
+    },
+    {
+      name: "ribbon",
+      seconds: 13,
+      async at(t, first) {
+        await caption(t, 0.05, 0.94,
+          "Open one, and leave a <b>ribbon</b> in it.",
+          "One note is in five books, so one ribbon hangs out of all five, and a Reading shelf " +
+          "gathers every book that has one. Rename the note or hide a shelf and it re-threads.");
+        /* design/0007 -- every act opens what it needs. */
+        if (first) {
+          if (!P.state.first) P.state.first = await thickest("people");
+          await go(`(function(){
+            if (!document.getElementById("vs-reader").hidden) __vs.closeReader();
+            var fav = __vs.picks()[0];
+            if (fav && fav.picks.indexOf(${JSON.stringify(P.state.first)}) < 0) __vs.pick(${JSON.stringify(P.state.first)});
+            __vs.setQuery("");
+            document.getElementById("vs-library").scrollTop = 0;
+          })(); void 0`);
+          await pointer(null);
+          P.state.other = await thickest("months");
+          P.state.otherShelf = "months";
+        }
+        const fav = await favId();
+        const stub = "#vs-marks .vs-markstub";
+        const mark = async (name) => {
+          const r = await centreOf(stub);
+          await pointer(r, true);
+          await go(`document.querySelector(${JSON.stringify(stub)}).click(); void 0`);
+          await pointer(r, false);
+          const on = await j(`!!document.querySelector('#vs-marks .vs-mark[aria-current="true"]')`);
+          if (!on) throw new Error("ribbon: " + name + " took no ribbon");
+        };
+        const back = async () => {
+          const b = await centreOf("#vs-back");
+          await pointer(b, true);
+          await go(`document.getElementById("vs-back").click(); void 0`);
+          await pointer(null);
+        };
+        const open = async (sel, name) => {
+          const s = await centreOf(sel);
+          await pointer(s, true);
+          const hit = await click(s);
+          const isOpen = await j(`!document.getElementById("vs-reader").hidden`);
+          if (!hit || !isOpen) throw new Error("ribbon: the click on " + name + " opened no book");
+          await pointer(s, false);
+        };
+        /* github#21 -- the favourite first. */
+        const favSpine = spineOf(fav + "/" + P.state.first);
+        if (t >= 0.02 && t < 0.12) {
+          const s = await centreOf(favSpine);
+          if (s) await glide({ x: s.x + 360, y: s.y + 160 }, s, easeInOut((t - 0.02) / 0.1));
+        }
+        await once("open-1", 0.12, t, () => open(favSpine, "the favourite"));
+        if (t >= 0.15 && t < 0.27) await glide(await centreOf(favSpine), await centreOf(stub), easeInOut((t - 0.15) / 0.12));
+        await once("mark-1", 0.27, t, () => mark("the favourite"));
+        if (t >= 0.31 && t < 0.4) await glide(await centreOf(stub), await centreOf("#vs-back"), easeInOut((t - 0.31) / 0.09));
+        await once("back-1", 0.4, t, async () => { await back(); P.state.down = await shelfTop("months", -70); });
+        /* github#21 -- then a book further down the library. */
+        const other = spineOf(P.state.other, "months");
+        if (t >= 0.41 && t < 0.47) await scrollTo(lerp(0, P.state.down, easeInOut((t - 0.41) / 0.06)));
+        await once("settle-2", 0.47, t, async () => { P.state.down = await settleOn("months"); });
+        if (t >= 0.47 && t < 0.52) {
+          const s = await centreOf(other);
+          if (s) await glide({ x: s.x + 220, y: s.y + 110 }, s, easeInOut((t - 0.47) / 0.05));
+        }
+        await once("open-2", 0.52, t, () => open(other, "the second book"));
+        if (t >= 0.55 && t < 0.67) await glide(await centreOf(other), await centreOf(stub), easeInOut((t - 0.55) / 0.12));
+        await once("mark-2", 0.67, t, () => mark("the second book"));
+        if (t >= 0.71 && t < 0.8) await glide(await centreOf(stub), await centreOf("#vs-back"), easeInOut((t - 0.71) / 0.09));
+        await once("back-2", 0.8, t, async () => {
+          await back();
+          const hung = await j(`document.querySelectorAll("#vs-shelves .vs-spine .vs-ribbon").length`);
+          const reading = await j(`document.querySelectorAll('#vs-shelves [data-shelf="-reading"] .vs-spine').length`);
+          if (hung < 4 || reading < 2) throw new Error("ribbon: after two marks, " + hung + " spine(s) show a ribbon and Reading holds " + reading);
+        });
+        if (t >= 0.8) await scrollTo(lerp(P.state.down, 0, easeInOut(Math.min(1, (t - 0.8) / 0.12))));
+      },
+    },
+    {
+      name: "parting",
+      seconds: 10,
+      async at(t, first) {
+        await caption(t, 0.05, 0.92,
+          "Ask it a question, and the shelf <b>parts</b>.",
+          "Nothing is removed. Matches draw forward, the rest thin to ghosts, and clearing " +
+          "the box puts the room back exactly.");
+        if (first) {
+          await go(`__vs.setQuery(""); void 0`);
+          await scrollTo(await shelfTop("encyclopedia", -20));
+          await pointer(null);
+          /* github#21 -- the needle is the vault's most-named person. */
+          parted = await j(`(function(){
+            var count = {};
+            __vs.data().notes.forEach(function (n) {
+              (n.people || []).forEach(function (p) { count[p] = (count[p] || 0) + 1; });
+            });
+            var best = Object.keys(count).sort(function (a, b) { return count[b] - count[a]; })[0];
+            return best ? best.split(/\\s+/)[0] : "note";
+          })()`);
+        }
+        const box = () => centreOf("#vs-q", -40, 0);
+        if (t >= 0.02 && t < 0.12) {
+          const b = await box();
+          if (b) await glide({ x: b.x - 200, y: b.y + 300 }, b, easeInOut((t - 0.02) / 0.1));
+        }
+        await once("focus", 0.12, t, async () => {
+          await pointer(await box(), true);
+          await go(`document.getElementById("vs-q").focus(); void 0`);
+          await pointer(await box(), false);
+        });
+        /* Typed a letter at a time, because the whole point is what happens WHILE you type. */
+        if (t >= 0.14 && t < 0.5) await typeInto("vs-q", parted, t, 0.14, 0.46);
+        if (t >= 0.5 && t < 0.8) {
+          const b = await box();
+          if (b) await glide(b, { x: b.x - 80, y: b.y + 420 }, easeInOut((t - 0.5) / 0.3));
+        }
+        if (t >= 0.8 && t < 0.88) {
+          const b = await box();
+          if (b) await glide({ x: b.x - 80, y: b.y + 420 }, b, easeInOut((t - 0.8) / 0.08));
+        }
+        await once("clear", 0.88, t, async () => {
+          await pointer(await box(), true);
+          await go(`(function(){
+            var f = document.getElementById("vs-q");
+            f.value = ""; f.dispatchEvent(new Event("input", { bubbles: true })); f.blur();
+          })(); void 0`);
+          await pointer(await box(), false);
+        });
+      },
+    },
+    {
+      /* github#21 -- the hero ends where it began. */
+      name: "room",
+      seconds: 4,
+      async at(t, first) {
+        if (first) {
+          await go(`__vs.setQuery(""); document.getElementById("vs-library").scrollTop = 0; void 0`);
+          await pointer(null);
+        }
+        const picks = await j(`(__vs.picks()[0] || { picks: [] }).picks.length`);
+        const ribbons = await j(`document.querySelectorAll("#vs-shelves .vs-spine .vs-ribbon").length`);
+        const marked = await j(`document.querySelectorAll('#vs-shelves [data-shelf="-reading"] .vs-spine').length`);
+        await caption(t, 0.08, 0.9,
+          "The notes never moved.",
+          `${picks} favourite${picks === 1 ? "" : "s"}, ${marked} ribbon${marked === 1 ? "" : "s"} ` +
+          `showing in ${ribbons} books, and ${await noteCount()} notes exactly where they were.`);
       },
     },
     {
       name: "shelves",
       seconds: 9,
-      async at(t) {
+      async at(t, first) {
+        if (first) await go(`__vs.setQuery(""); void 0`);
+        const names = await j(`__vs.views().filter(function (v) { return !v.shelf.hidden && v.shelf.classifier !== "pick"; })
+          .map(function (v) { return v.shelf.name; })`);
+        const word = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight"][names.length] || String(names.length);
         await caption(t, 0.05, 0.9,
-          "<b>Six shelves</b>, and every one of them is the whole vault.",
-          "Encyclopedia · Years · Months · Weeks · People · Tags");
+          `<b>${word} shelves</b>, and every one of them is the whole vault.`,
+          names.join(" &middot; "));
         const from = await shelfTop("encyclopedia");
         const to = await shelfTop("tags");
         await scrollTo(lerp(from, to, easeInOut(t)));
       },
     },
     {
+      /* design/0019 -- a plaque names the run under it, and opens it as one book. */
       name: "plaques",
-      seconds: 7,
-      async at(t) {
-        await caption(t, 0.06, 0.9,
-          "Months and weeks group under <b>year plaques</b>.",
-          "The plaque scrolls with its own books, because it is inside the same rail.");
-        await scrollTo(await shelfTop("months", -70));
-        const rail = await railOf("months");
-        await railTo(rail, lerp(0, 900, easeInOut(t)));
+      seconds: 9,
+      async at(t, first) {
+        await caption(t, 0.06, 0.92,
+          "Months group under <b>year plaques</b>.",
+          "A plaque names the run under it on every row the run reaches &mdash; and opens the " +
+          "whole run as one book.");
+        if (first) {
+          await go(`(function(){ if (!document.getElementById("vs-reader").hidden) __vs.closeReader(); })(); void 0`);
+          await settleOn("months");
+          await pointer(null);
+        }
+        const plaque = '[data-shelf="months"] .vs-plaque';
+        /* github#21 -- the widest plate names the longest run. */
+        const nth = await j(`(function(){
+          var all = document.querySelectorAll(${JSON.stringify(plaque)}), best = 0, w = 0;
+          for (var i = 0; i < all.length; i++) { var b = all[i].getBoundingClientRect().width; if (b > w) { w = b; best = i; } }
+          return best;
+        })()`);
+        if (t >= 0.3 && t < 0.5) {
+          const p = await centreOf(plaque, 0, 0, nth);
+          if (p) await glide({ x: p.x + 300, y: p.y + 240 }, p, easeInOut((t - 0.3) / 0.2));
+        }
+        await once("plaque-open", 0.5, t, async () => {
+          const p = await centreOf(plaque, 0, 0, nth);
+          if (!p) throw new Error("plaques: the Months shelf shows no plaque");
+          await pointer(p, true);
+          await go(`document.querySelectorAll(${JSON.stringify(plaque)})[${nth}].click(); void 0`);
+          const open = await j(`!document.getElementById("vs-reader").hidden`);
+          if (!open) throw new Error("plaques: the plaque opened no book");
+          await pointer(null);
+        });
+        await once("plaque-back", 0.9, t, () => go(`document.getElementById("vs-back").click(); void 0`));
       },
     },
     {
@@ -254,11 +560,13 @@ function storyboard(P) {
         await caption(t, 0.08, 0.9,
           "A spine is a book: its title, its size, where its notes came from.",
           "The band at the head is the folder mix. The number at the foot is the count.");
-        // The plaques act left this rail 900px along. The fourth spine is only at a coordinate
-        // worth aiming at from the start of it.
-        if (first) await railTo(await railOf("months"), 0);
-        const spine = await spineIn("months", 3);
-        if (t > 0.2) await hover(spine);
+        if (first) {
+          await go(`(function(){ if (!document.getElementById("vs-reader").hidden) __vs.closeReader(); })(); void 0`);
+          await settleOn("months");
+          await pointer(null);
+        }
+        const spine = await centreOf(spineOf(await thickest("months"), "months"));
+        if (t > 0.2) await pointer(spine);
       },
     },
     {
@@ -266,8 +574,9 @@ function storyboard(P) {
       seconds: 8,
       async at(t, first) {
         if (first) {
-          await railTo(await railOf("months"), 0);
-          const spine = await spineIn("months", 3);
+          await settleOn("months");
+          const spine = await centreOf(spineOf(await thickest("months"), "months"));
+          await pointer(spine, true);
           const hit = await click(spine);
           const open = await j(`!document.getElementById("vs-reader").hidden`);
           if (!hit || !open) {
@@ -275,19 +584,22 @@ function storyboard(P) {
               "found no spine at " + JSON.stringify(spine)) +
               " -- every act after this one films a shelf and talks about a book");
           }
+          await pointer(null);
         }
         await caption(t, 0.1, 0.88,
-          "Open it and <b>read</b>.",
+          "Open it and <b>read</b>, from its oldest note.",
           "Contents on the left, the note on the right, an index down the edge.");
       },
     },
     {
+      /* design/0015 -- a tab is a position in the contents. */
       name: "index",
       seconds: 6,
       async at(t, first) {
         await caption(t, 0.08, 0.9,
           "The index is the book's own shape.",
-          "Days for a month, months for a year, initial ranges for anything alphabetical.");
+          "Dates for a month or a year, letters for an Encyclopedia volume &mdash; and the " +
+          "book turns to where the tab points.");
         if (first) return;
         const step = Math.min(3, Math.floor(t * 4));
         await go(`(function(){
@@ -301,71 +613,13 @@ function storyboard(P) {
       seconds: 7.5,
       async at(t, first) {
         await caption(t, 0.06, 0.9,
-          "<b>One note, six addresses.</b>",
-          "Step sideways into another shelf without leaving the note.");
+          "<b>One note, every shelf.</b>",
+          "It is in a year, a month, a person's volume and a tag's anthology at once. Step " +
+          "sideways into any of them without leaving the note.");
         await once("sideways", 0.36, t, () => go(`(function(){
           var links = document.querySelectorAll("#vs-alsoin button");
           if (links[1]) links[1].click(); else if (links[0]) links[0].click();
         })(); void 0`));
-      },
-    },
-    {
-      name: "ribbon",
-      seconds: 9,
-      async at(t, first) {
-        await caption(t, 0.05, 0.92,
-          "Leave a <b>ribbon</b> in it.",
-          "One note is in six books, so one ribbon hangs out of all six &mdash; and it " +
-          "re-threads itself if you hide a shelf or rename the note.");
-        /* EVERY ACT OPENS WHAT IT NEEDS. Relying on the previous act to have left the reader
-         * open makes `--act ribbon` shoot a click at a disabled button and film nothing. */
-        if (first) {
-          await go(`(function(){
-            if (document.getElementById("vs-reader").hidden) {
-              var m = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0];
-              __vs.openBook(m.books[0].id, null);
-            }
-          })(); void 0`);
-        }
-        await once("mark", 0.16, t, () => go(`document.getElementById("vs-ribbon").click(); void 0`));
-        await once("back", 0.44, t, () => go(`document.getElementById("vs-back").click(); void 0`));
-        if (t > 0.5) await scrollTo(0);
-      },
-    },
-    {
-      name: "parting",
-      seconds: 10,
-      async at(t, first) {
-        await caption(t, 0.05, 0.92,
-          "Search, and the shelf <b>parts</b>.",
-          "Nothing is removed. Matches draw forward, the rest thin to ghosts, and clearing " +
-          "the box puts the room back exactly.");
-        if (first) {
-          await scrollTo(await shelfTop("encyclopedia", -20));
-          /* THE NEEDLE COMES OUT OF THE VAULT. It used to be the literal "garden", which is a
-           * tag in the demo fixture and in no other vault on earth: filmed anywhere else the
-           * shelf parted around nothing and the act argued for a feature it had just failed to
-           * show. The vault's most-used tag is a word this vault is certainly about. */
-          parted = await j(`(function(){
-            var count = {};
-            __vs.data().notes.forEach(function (n) {
-              (n.tags || []).forEach(function (tag) {
-                var head = String(tag).split("/")[0];
-                if (head.length >= 4) count[head] = (count[head] || 0) + 1;
-              });
-            });
-            var best = Object.keys(count).sort(function (a, b) { return count[b] - count[a]; })[0];
-            return best || "note";
-          })()`);
-        }
-        /* Typed a letter at a time, because the whole point is what happens WHILE you type. */
-        const word = parted;
-        if (t < 0.62) {
-          const n = Math.min(word.length, Math.floor(((t - 0.12) / 0.38) * word.length) + 1);
-          await go(`__vs.setQuery(${JSON.stringify(word)}.slice(0, ${Math.max(0, n)})); void 0`);
-        } else if (t > 0.86) {
-          await go(`__vs.setQuery(""); void 0`);
-        }
       },
     },
     {
@@ -377,11 +631,10 @@ function storyboard(P) {
           "A book you keep opening looks handled: the boards darken, the corners soften, " +
           "and it never sits quite flush again.");
         if (first) {
-          await go(`__vs.setQuery(""); void 0`);
-          await scrollTo(await shelfTop("years", -20));
+          await go(`(function(){ __vs.setQuery(""); if (!document.getElementById("vs-reader").hidden) __vs.closeReader(); })(); void 0`);
+          await settleOn("years", -20);
+          await pointer(null);
         }
-        /* Thirteen opens is wear level 3 of 3 (core.wearLevel). Spread across the act so the
-         * spine is seen changing rather than found already changed. */
         /* Thirteen opens is wear level 3 of 3, and they are spread across the act so the
          * spine is seen changing rather than found already changed. */
         if (t > 0.18 && t < 0.72) {
@@ -644,15 +897,30 @@ function storyboard(P) {
       },
     },
     {
-      name: "theme",
-      seconds: 8,
+      /* github#21 -- leather is one palette; modern follows the theme. */
+      name: "looks",
+      seconds: 10,
       async at(t, first) {
         await caption(t, 0.06, 0.92,
-          "Painted from <b>Vault Graph</b>, and it follows your theme.",
+          "Two <b>looks</b>: leather, and one painted from Vault Graph that follows your theme.",
           "The same twelve colour slots, the same surfaces &mdash; read from the stylesheet, " +
           "so a folder that is blue on the disc is blue on a spine.");
-        if (first) await scrollTo(await shelfTop("months", -70));
-        await once("light", 0.3, t, () => go(`__vs.setTheme("light"); void 0`));
+        if (first) {
+          await go(`(function(){ if (!document.getElementById("vs-reader").hidden) __vs.closeReader(); __vs.setTheme("dark"); })(); void 0`);
+          await settleOn("months");
+          await pointer(null);
+        }
+        if (t >= 0.14 && t < 0.3) {
+          const k = await centreOf("#vs-look");
+          if (k) await glide({ x: k.x - 260, y: k.y + 300 }, k, easeInOut((t - 0.14) / 0.16));
+        }
+        await once("look-modern", 0.3, t, async () => {
+          await pointer(await centreOf("#vs-look"), true);
+          await go(`(function(){ var s = document.getElementById("vs-look"); s.value = ""; s.dispatchEvent(new Event("change", { bubbles: true })); })(); void 0`);
+          await pointer(null);
+        });
+        await once("light", 0.6, t, () => go(`__vs.setTheme("light"); void 0`));
+        await once("look-back", 0.9, t, () => go(`(function(){ __vs.setTheme("dark"); var s = document.getElementById("vs-look"); s.value = ${JSON.stringify(LOOK === "modern" ? "" : LOOK)}; s.dispatchEvent(new Event("change", { bubbles: true })); })(); void 0`));
       },
     },
     {
@@ -660,8 +928,9 @@ function storyboard(P) {
       seconds: 5,
       async at(t, first) {
         if (first) {
-          await go(`__vs.setTheme("dark"); void 0`);
-          await scrollTo(await shelfTop("encyclopedia", -20));
+          await go(`(function(){ __vs.setTheme("dark"); var s = document.getElementById("vs-look"); s.value = ${JSON.stringify(LOOK === "modern" ? "" : LOOK)}; s.dispatchEvent(new Event("change", { bubbles: true })); })(); void 0`);
+          await scrollTo(0);
+          await pointer(null);
         }
         await caption(t, 0.1, 0.8,
           "Vault Shelf",
@@ -730,6 +999,7 @@ chrome.on("exit", (code, sig) => { chromeGone = "exit " + code + (sig ? " " + si
 
 let cdp = null;
 let shot = 0;
+let heroWindow = HERO_CLIP;
 
 try {
   for (let i = 0; i < 60 && !cdp; i++) {
@@ -753,8 +1023,8 @@ try {
    */
   /* `--look modern` names the look whose selector value is the empty string, since an empty
    * flag is no flag; the page opens in leather now, so modern has to be askable for. */
-  const look = arg("look", "") === "modern" ? "" : arg("look", "");
-  if (look || arg("look", "") === "modern") {
+  const look = LOOK === "modern" ? "" : LOOK;
+  {
     const applied = await j(`(function(){
       var sel = document.getElementById("vs-look");
       if (!sel) return "no selector";
@@ -762,8 +1032,8 @@ try {
       sel.dispatchEvent(new Event("change", { bubbles: true }));
       return document.getElementById("vs-app").getAttribute("data-look") || "";
     })()`);
-    if (applied !== look) throw new Error(`--look ${look}: the page came up as "${applied}"`);
-    say("look: " + look);
+    if (applied !== look) throw new Error(`--look ${LOOK}: the page came up as "${applied}"`);
+    say("look: " + LOOK);
   }
 
   await go(`(function(){
@@ -791,6 +1061,17 @@ try {
   const railOf = async (id) => `document.querySelector('[data-shelf="${id}"] .vs-shelfrail')`;
 
   const scrollTo = (px) => go(`document.getElementById("vs-library").scrollTop = ${Math.round(px)}; void 0`);
+  /* github#21 -- scroll, re-measure, scroll: a shelf's height is a guess. */
+  const settleOn = async (id, pad = -70) => {
+    let at = 0;
+    for (let i = 0; i < 4; i++) {
+      const want = await shelfTop(id, pad);
+      if (Math.abs(want - at) < 2) break;
+      at = want;
+      await scrollTo(at);
+    }
+    return at;
+  };
   const railTo = (rail, px) => go(`(function(){ var r = ${rail}; if (r) r.scrollLeft = ${Math.round(px)}; })(); void 0`);
 
   const spineIn = async (id, n) => j(`(function(){
@@ -841,8 +1122,9 @@ try {
         c.dataset.html = ${JSON.stringify(html)};
       }
       c.style.opacity = ${o.toFixed(3)};
+      var app = document.getElementById("vs-app");
       c.classList.toggle("paper",
-        document.getElementById("vs-app").getAttribute("data-skin") === "paper");
+        app.getAttribute("data-theme") === "light" && (app.getAttribute("data-look") || "") === "");
     })(); void 0`);
   };
 
@@ -861,9 +1143,15 @@ try {
   };
 
   /* design/0020 -- the hand in shot: an arrow the recorder draws and moves. */
-  const pointer = async (p, pressed) => {
-    if (!p) { await go(`(function(){ var k = document.getElementById("vsrec-cursor"); if (k) k.style.opacity = 0; })(); void 0`); return; }
-    await hover(p);
+  /* github#21 -- quiet: the arrow moves, the real mouse does not. */
+  const pointer = async (p, pressed, quiet) => {
+    if (!p) {
+      /* github#21 -- hidden means gone: the mouse parks in the caption bar. */
+      await hover({ x: Math.round(W / 2), y: H - 12 });
+      await go(`(function(){ var k = document.getElementById("vsrec-cursor"); if (k) k.style.opacity = 0; })(); void 0`);
+      return;
+    }
+    if (!quiet) await hover(p);
     await go(`(function(){
       var k = document.getElementById("vsrec-cursor");
       if (!k) return;
@@ -895,13 +1183,77 @@ try {
     return { x: Math.round(b.left + b.width / 2 + ${dx}), y: Math.round(b.top + b.height / 2 + ${dy}) };
   })()`);
 
-  const P = { go, j, caption, scrollTo, railTo, hover, click, shelfTop, railOf, spineIn, once,
-              pointer, rightClick, centreOf };
+  /* github#21 -- a drag the camera can see; the events are the page's own. */
+  const lift = async (sel) => {
+    const up = await liftIn(sel);
+    /* github#21 -- the real mouse parks, or a scroll slides a spine under it. */
+    if (up) await hover({ x: Math.round(W / 2), y: H - 12 });
+    return up;
+  };
+  const liftIn = async (sel) => j(`(function(){
+    var s = document.querySelector(${JSON.stringify(sel)});
+    if (!s) return null;
+    var b = s.getBoundingClientRect();
+    var dt = new DataTransfer();
+    s.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+    if (s.getAttribute("data-dragging") !== "1") return null;
+    s.dispatchEvent(new MouseEvent("mouseleave"));
+    window.__vsrecDrag = { dt: dt, from: s };
+    var g = s.cloneNode(true);
+    g.id = "vsrec-ghost";
+    g.removeAttribute("data-dragging"); g.removeAttribute("data-book"); g.removeAttribute("data-hand");
+    g.style.width = b.width + "px"; g.style.height = b.height + "px";
+    g.style.left = b.left + "px"; g.style.top = b.top + "px";
+    document.getElementById("vs-app").appendChild(g);
+    return { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) };
+  })()`);
+  const carry = async (p) => {
+    if (!p) return;
+    await pointer(p, true, true);
+    await go(`(function(){
+      var g = document.getElementById("vsrec-ghost");
+      if (g) { g.style.left = (${p.x} - g.offsetWidth / 2) + "px"; g.style.top = (${p.y} - g.offsetHeight / 2) + "px"; }
+      var d = window.__vsrecDrag;
+      var el = document.elementFromPoint(${p.x}, ${p.y});
+      if (d && el) el.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true,
+        dataTransfer: d.dt, clientX: ${p.x}, clientY: ${p.y} }));
+    })(); void 0`);
+  };
+  const drop = async (p) => {
+    if (!p) return;
+    await go(`(function(){
+      var d = window.__vsrecDrag;
+      var el = document.elementFromPoint(${p.x}, ${p.y});
+      if (d && el) el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true,
+        dataTransfer: d.dt, clientX: ${p.x}, clientY: ${p.y} }));
+      if (d) d.from.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: d.dt }));
+      var g = document.getElementById("vsrec-ghost");
+      if (g) g.parentNode.removeChild(g);
+      window.__vsrecDrag = null;
+    })(); void 0`);
+    await pointer(p, false, true);
+  };
+
+  const P = { go, j, caption, scrollTo, settleOn, railTo, hover, click, shelfTop, railOf, spineIn, once,
+              pointer, rightClick, centreOf, lift, carry, drop, state: {} };
   const acts = storyboard(P).filter((a) => !ONLY.length || ONLY.some((q) => a.name.toLowerCase().includes(q)));
   if (!acts.length) throw new Error("--act " + ONLY.join(",") + " matched no act");
 
   const total = acts.reduce((n, a) => n + Math.round(a.seconds * FPS), 0);
   say(`${acts.length} act(s), ${total} frames at ${FPS}fps = ${(total / FPS).toFixed(1)}s, ${W}x${H}`);
+  if (HERO && !HERO_CLIP) {
+    /* github#21 -- the window follows the acts as they fall in this take. */
+    let at = 0, from = -1, to = -1;
+    for (const a of acts) {
+      const n = Math.round(a.seconds * FPS) / FPS;
+      if (HERO_ACTS.includes(a.name.toLowerCase())) { if (from < 0) from = at; to = at + n; }
+      at += n;
+    }
+    if (from < 0) throw new Error("--hero: none of " + HERO_ACTS.join(",") + " is in this take");
+    heroWindow = [from, to - from];
+    say(`hero: ${HERO_ACTS.filter((h) => acts.some((a) => a.name === h)).join(", ")} = ` +
+        `${from.toFixed(1)}s to ${to.toFixed(1)}s (${(to - from).toFixed(1)}s)`);
+  }
 
   const diagnose = (e, where) => {
     const lines = [
@@ -921,8 +1273,14 @@ try {
     const n = Math.round(act.seconds * FPS);
     for (let f = 0; f < n; f++) {
       const t = n === 1 ? 1 : f / (n - 1);
+      /* github#21 -- an act's own error stops the take; design/0007. */
       try {
         await act.at(t, f === 0);
+      } catch (e) {
+        if (chromeGone || /socket|closed|target/i.test(e.message)) throw diagnose(e, act.name);
+        throw new Error(`${act.name}: frame ${f} of ${n} (t=${t.toFixed(2)}): ${e.message}`);
+      }
+      try {
         const res = await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 90 });
         writeFileSync(join(frames, "f-" + String(shot).padStart(5, "0") + ".jpg"),
                       Buffer.from(res.data, "base64"));
@@ -974,9 +1332,9 @@ if (HERO) {
   const hero = resolve(HERO);
   mkdirSync(dirname(hero), { recursive: true });
   run(["-y", "-loglevel", "error",
-       "-ss", String(HERO_CLIP[0]), "-t", String(HERO_CLIP[1]), "-i", OUT,
-       "-vf", "fps=10,scale=900:-2:flags=lanczos",
-       "-c:v", "libwebp", "-lossless", "0", "-q:v", "48", "-compression_level", "6",
+       "-ss", String(heroWindow[0]), "-t", String(heroWindow[1]), "-i", OUT,
+       "-vf", `fps=${HERO_FPS},scale=${HERO_W}:-2:flags=lanczos`,
+       "-c:v", "libwebp", "-lossless", "0", "-q:v", String(HERO_Q), "-compression_level", "6",
        "-loop", "0", "-an", hero]);
   say("wrote " + hero + " (" + (statSync(hero).size / 1024).toFixed(0) + " KB)");
 }

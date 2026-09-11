@@ -14,7 +14,7 @@ suite. An entry here says what changed; that file says what it was before and af
 
 ---
 
-## 0.1.0 — "Six addresses" — unreleased
+## 0.1.0 — "Beginning" — 2026-09-11
 
 **Your vault as a library.** Shelves of books built from titles, dates, people, tags, folders
 or any note property, read as a two-page spread — and the notes never move. Shelves and books
@@ -39,7 +39,9 @@ person, a folder) and what makes a book — with a preview that runs the real bu
 the real note set, so the counts it shows are the counts you get. **Manage shelves** reorders,
 hides and restores; hiding never deletes, and hiding everything leaves a way back. The Colours
 block is a table of painted swatches, one ribbon colour per book colour, with per-slot and
-whole-palette resets.
+whole-palette resets. **A date shelf dyes by period**: Years by decade, Months and Weeks by
+year, so a run of years reads as a run rather than as one colour, and Manage offers *Colour by
+folder / year / decade* on those rows; Encyclopedia, People and Tags keep their folder's dye.
 
 ### The bookcase
 
@@ -128,6 +130,12 @@ all: `node src/build-shelf.mjs --vault <vault> --out vault-shelf.html`. It is wh
 invariant suite drives. `docs/` is a Pages site with the feature list and a live demo built
 from a generated fixture; it goes live when the repository does.
 
+**The film** (`assets/demo.webp`, `node scripts/record-demo.mjs`) is shot in leather, in a
+mirror of a real vault with every word invented, and opens on the three things the product
+is: a book dragged onto Favourites, a ribbon left in it, and a search that parts the shelf.
+The recorder drives a real drag and drop, stops the take when an act throws, and cuts the
+hero by act rather than by second.
+
 ### For the record
 
 - The plugin reads Obsidian's metadata cache, never the filesystem; the only file it ever
@@ -135,8 +143,8 @@ from a generated fixture; it goes live when the repository does.
 - Nothing shipped makes a network request. Not one, and a gate refuses a push that adds one.
 - Settings migrate by schema (10 at this release): an older file comes up with decade and
   letter plaques on, the file-stamp fallback on, Weeks hidden, and a look the selector offers.
-- **The tooling.** 87 invariant checks per vault shape, over three generated shapes — a demo
-  vault that reads like somebody's, a sparse and lopsided one, and a 10,000-note library — 261
+- **The tooling.** 88 invariant checks per vault shape, over three generated shapes — a demo
+  vault that reads like somebody's, a sparse and lopsided one, and a 10,000-note library — 264
   in a run, driven in a real Chrome over CDP; a golden per shape for the packing; a
   data-escape gate whose vault's metadata is markup; a teardown check over twenty
   mount/unmount cycles; a refresh check that changes the vault under an open book; a comment

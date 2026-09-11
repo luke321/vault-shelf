@@ -1801,3 +1801,32 @@ the ink, after the last spine or on a row of its own that `rowsOf` reserves — 
 sheet with the book going to the end. Measured on Years by hand — demo / sparse / library: the
 book holds **112 / 620 / 694**, the plus is **1** and after it; automatic Years has **0** and
 refuses `makeBook`. 80 checks.
+
+**The film, re-shot for 0.1.0** (github#21). *"re record all clips in leather, make the hero
+thematically interesting, start with favourite shelf drag and drop, then ribbons, then
+search."* The storyboard gained `favourite`, `room` and `looks`, lost `theme`, and moved
+`ribbon` and `parting` up behind the drag; every act was walked against the product and the
+eight it misrepresented are listed in `design/0007`. Leather is the recorder's default; the
+hero is cut by act (`--hero-acts`), not by second.
+
+Measured, one take in a 548-note mirror: **18 acts, 149.0 s, 3,576 frames at 24fps, captured
+in 178 s**, 3 min 33 s wall including the mirror, the build and the encode; the mp4 is 9.5 MB.
+The hero is `open, favourite, ribbon, parting, room` = **0.0–38.5 s**; at the old 10fps/900px
+it was 4.75 MB, at 8fps/800px/q40 it is **2.92 MB**, which is the default now. The drag act
+asserts on the page: the landing's `data-drop` is `"1"` under the pointer, a
+`.vs-drop[data-side="before"]` stands before the first favourite, and the picks read
+`[encyclopedia/0-9, years/2026]` after the second drop. The first take of that act ran green
+with the pointer frozen for 264 frames because the act's error was swallowed by the frame
+retry; an act error stops the take now and names the act, frame and `t`. The mirror guard
+fired once, on `09:00` (`design/0013`, round 5), and the film waited until it passed.
+
+**A date shelf dyes by period** (github#21). *"make the encyclopedia have the same colors, but
+change colors for other books by decade, or by year for example."* `Shelf.colorBy` is
+`folder | year | decade`, unset meaning Years by decade and Months and Weeks by year; the slot is
+the period modulo 12; it ranks between *vary* and the folder. Manage shows it as a select on
+the date shelves' rows only. Measured — demo / sparse / library: Months **129 / 29 / 121**
+dated books over **16 / 5 / 11** years, **0** torn, **0** neighbours shared; Years **2 / 1 / 2**
+decades, **0 / 0**; Encyclopedia **29 / 23 / 27** of the same on the folder's dye; Manage offers
+`folder,year,decade` on Months (came up `year`), by folder **129 / 29 / 121** follow the folder,
+by decade **0** torn, saved `"decade"`; no select on Encyclopedia or People. One check, 88 in
+the suite. No schema bump: the field is optional and an older file comes up on the defaults.

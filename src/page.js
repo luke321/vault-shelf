@@ -1617,6 +1617,9 @@ function mountVaultShelf(root, data, options) {
     var given = settings.bookColors[source.id];
     if (typeof given === "number" && SLOTS[given]) return SLOTS[given];
     if (shelf.varyColors || home.varyColors) return SLOTS[hashSlot(source.id)];
+    /* github#21, design/0005 -- a date shelf dyes by period. */
+    var period = core.dyePeriod(home, source.key);
+    if (period !== null) return SLOTS[period % SLOTS.length];
     if (book.bands.length && book.bands[0].slot) return String(book.bands[0].slot);
     return SLOTS[0];
   }
@@ -2982,10 +2985,34 @@ function mountVaultShelf(root, data, options) {
         refresh();
       });
 
+      /* github#21 -- on a date shelf, what a dye follows: folder, year or decade. */
+      /** @type {HTMLSelectElement|null} */
+      var by = null;
+      if (core.datedClassifier(shelf.classifier)) {
+        by = /** @type {HTMLSelectElement} */ (DOC.createElement("select"));
+        by.className = "vs-colourby";
+        by.setAttribute("aria-label", "Colour " + shelf.name + " by");
+        by.title = "What a book's colour follows on this shelf";
+        [["folder", "Colour by folder"], ["year", "Colour by year"], ["decade", "Colour by decade"]]
+          .forEach(function (o) {
+            var opt = DOC.createElement("option");
+            opt.value = o[0];
+            opt.textContent = o[1];
+            by.appendChild(opt);
+          });
+        by.value = core.colorRule(shelf);
+        on(by, "change", function () {
+          shelf.colorBy = /** @type {import("./core/index").ColorRule} */ (by.value);
+          persist();
+          refresh();
+        });
+      }
+
       row.appendChild(up);
       row.appendChild(down);
       row.appendChild(shown);
       row.appendChild(vary);
+      if (by) row.appendChild(by);
       row.appendChild(edit);
       row.appendChild(del);
       box.appendChild(row);

@@ -3284,6 +3284,70 @@ check("a book's colour is the person's, then the shelf's, then the folder's", as
   };
 });
 
+check("a date shelf dyes its books by period, and Encyclopedia keeps its folder dye", async (p) => {
+  const r = await p.j(`(function(){
+    var tint = function (id) {
+      var el = document.querySelector('[data-book="' + id.replace(/"/g, '\\"') + '"]');
+      return el ? el.style.getPropertyValue("--spine-tint").trim() : "";
+    };
+    var view = function (id) { return __vs.views().filter(function (v) { return v.shelf.id === id; })[0]; };
+    var dated = function (id) { return view(id).books.filter(function (b) { return /^\\d{4}/.test(b.key); }); };
+    var folderDye = function (b) { return b.bands.length && b.bands[0].slot ? String(b.bands[0].slot) : __vs.slots()[0]; };
+    /* how many periods carry more than one dye, and how many neighbouring periods share one */
+    var split = function (books, period) {
+      var by = {};
+      books.forEach(function (b) { var k = period(b.key); (by[k] = by[k] || {})[tint(b.id)] = 1; });
+      var keys = Object.keys(by).sort();
+      var torn = keys.filter(function (k) { return Object.keys(by[k]).length !== 1; }).length;
+      var shared = 0;
+      for (var i = 1; i < keys.length; i++) {
+        if (Object.keys(by[keys[i]])[0] === Object.keys(by[keys[i - 1]])[0]) shared++;
+      }
+      return { periods: keys.length, torn: torn, shared: shared };
+    };
+    var year = function (k) { return k.slice(0, 4); };
+    var decade = function (k) { return k.slice(0, 3); };
+    var months = split(dated("months"), year);
+    var years = split(dated("years"), decade);
+    var enc = view("encyclopedia").books;
+    var encByFolder = enc.filter(function (b) { return tint(b.id) === folderDye(b); }).length;
+
+    /* Months to folder, then to decade, through the select in Manage. */
+    document.getElementById("vs-manageopen").click();
+    var rows = [].slice.call(document.querySelectorAll("#vs-managelist .vs-managerow"));
+    var rowOf = function (name) { return rows.filter(function (r) { return r.textContent.indexOf(name) === 0; })[0]; };
+    var by = rowOf("Months").querySelector("select.vs-colourby");
+    var offered = by ? [].slice.call(by.options).map(function (o) { return o.value; }).join(",") : "(none)";
+    var came = by ? by.value : "";
+    var set = function (v) { by.value = v; by.dispatchEvent(new Event("change", { bubbles: true })); };
+    set("folder");
+    var monthsFolder = dated("months").filter(function (b) { return tint(b.id) === folderDye(b); }).length;
+    set("decade");
+    var monthsDecade = split(dated("months"), decade);
+    var saved = __vs.settings().shelves.filter(function (s) { return s.id === "months"; })[0].colorBy;
+    set("year");
+    var encSelect = !!rowOf("Encyclopedia").querySelector("select.vs-colourby");
+    var peopleSelect = !!rowOf("People").querySelector("select.vs-colourby");
+    document.getElementById("vs-mclose").click();
+    return { months: months, years: years, monthsN: dated("months").length, enc: enc.length, encByFolder: encByFolder,
+             offered: offered, came: came, monthsFolder: monthsFolder, monthsDecade: monthsDecade, saved: saved,
+             encSelect: encSelect, peopleSelect: peopleSelect };
+  })()`);
+  const ok = r.months.torn === 0 && r.months.shared === 0 && r.years.torn === 0 && r.years.shared === 0 &&
+             r.encByFolder === r.enc && r.offered === "folder,year,decade" && r.came === "year" &&
+             r.monthsFolder === r.monthsN && r.monthsDecade.torn === 0 && r.saved === "decade" &&
+             !r.encSelect && !r.peopleSelect;
+  return {
+    ok,
+    detail: `Months: ${r.monthsN} dated books over ${r.months.periods} years, ${r.months.torn} year(s) torn ` +
+            `between dyes and ${r.months.shared} neighbouring years sharing one; Years: ${r.years.periods} ` +
+            `decade(s), ${r.years.torn} torn, ${r.years.shared} shared; Encyclopedia ${r.encByFolder}/${r.enc} ` +
+            `books wear their folder's dye; Manage offers "${r.offered}" on Months (came up "${r.came}"), ` +
+            `by folder ${r.monthsFolder}/${r.monthsN} follow the folder, by decade ${r.monthsDecade.torn} ` +
+            `torn, saved as "${r.saved}"; Encyclopedia has the select: ${r.encSelect}, People: ${r.peopleSelect}`
+  };
+});
+
 check("a shelf can vary its books, and a chosen palette beats the look's", async (p) => {
   const r = await p.j(`(function(){
     var tint = function (id) {
