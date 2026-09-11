@@ -31,8 +31,10 @@ layout goldens were rewritten (`node scripts/update-layout-snapshots.mjs`): ever
 leather is **1px** shorter — `h: 22 → 21` in the golden's integer boxes — and each following row
 sits 1px higher (the demo vault's fourth Months row: **753 → 750**; the 10k vault's fifth:
 **937 → 933**). Nothing else in the goldens moved. Tracking widens a text-sized button by a few
-pixels in every look alike — *Manage* 60 → 63px — which the same-size check allows for a button
-that sizes to its text.
+pixels in every look alike — *Manage* **60.5 → 62.5px** under leather — which the same-size
+check allows for a button that sizes to its text; *Newest first* still fits its pinned 92px
+(scroll width 90, no overflow). The check was run against the branch point's stylesheets before
+it was trusted: **FAIL on all three shapes** with the old CSS, exit 1; **ok** with the new.
 
 Comments trimmed to pointers to hold `check-comments` at its baseline. 76 checks per shape.
 
