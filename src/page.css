@@ -1077,7 +1077,45 @@
  * native picker still opens behind it, since it is the ROW that has to read, not the picker.
  * The picker input itself is off-screen, not `display: none`: a hidden input can still be
  * clicked open, one with no box cannot. */
-.vault-shelf .vs-palette { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+/* github#4 -- A DYE AND ITS RIBBON ARE ONE ROW. Two tables of six rather than one of
+ * twelve: the sheet is 620px wide, and a single column of twelve rows puts the buttons at
+ * the foot of it below the fold. They stack to one column when the sheet is narrow. */
+.vault-shelf .vs-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+  gap: 4px 26px;
+  margin: 8px 0 12px;
+}
+.vault-shelf .vs-dyerows { border-collapse: collapse; width: 100%; }
+/* 5px, not 2: the reset badge sits off the top-right corner of a swatch, and at 2px it
+ * reached into the row above. */
+.vault-shelf .vs-dyerows th,
+.vault-shelf .vs-dyerows td { padding: 5px 0; text-align: left; vertical-align: middle; }
+/* design/0016 -- A LOOK MAY NOT RESIZE A CONTROL, and a swatch in a table cell is the case
+ * where that is easy to lose: .vs-slot is inline-flex, so it sits on the cell's BASELINE and
+ * the row grows by whatever the face's descender is. Leather is Georgia and the table came
+ * out 309px against modern's 291. Block-level in the cell, and the line-heights pinned, so
+ * the row is the swatch and nothing else. */
+.vault-shelf .vs-dyerows td .vs-slot { display: flex; }
+.vault-shelf .vs-dyerows th { line-height: 1.4; }
+.vault-shelf .vs-dyerows thead th {
+  line-height: 1.2;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  padding-bottom: 4px;
+}
+/* The slot number is the row label, so the swatch does not carry one. */
+.vault-shelf .vs-dyerows tbody th {
+  width: 22px;
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+.vault-shelf .vs-dyerows td { width: 50%; }
 .vault-shelf .vs-slot { position: relative; display: inline-flex; }
 .vault-shelf .vs-slot input[type="color"] {
   position: absolute;
@@ -1094,17 +1132,6 @@
 /* The reset is one button at the end of the row, not a bar across it: three classes deep to
  * outrank the wide row rule that stretches every other sheet button. */
 .vault-shelf .vs-mini.vs-colourrow button { flex: 0 0 auto; }
-.vault-shelf .vs-slot .vs-swatch .vs-n {
-  position: absolute;
-  right: 3px;
-  bottom: 1px;
-  font-size: 9.5px;
-  line-height: 1;
-  font-weight: 600;
-  letter-spacing: 0;
-  color: var(--swatch-ink, #fff);
-  opacity: 0.85;
-}
 /* The mark on a changed slot IS its reset: one small × in the corner says "not the look's
  * own" and puts it back. A right-click was the other choice, and it is what a spine has;
  * a swatch has a corner to put a badge in and a spine does not, and a badge is found by
@@ -1178,6 +1205,15 @@
   border-color: color-mix(in srgb, var(--swatch) 70%, var(--text-1));
 }
 .vault-shelf .vs-slot .vs-swatch[data-changed="1"] { border-color: var(--text-1); }
+/* github#4 -- THE RIBBON COLUMN SHOWS RIBBONS. Same notch the spine hangs (design/0008), so
+ * the table says which thread comes out of which board without a word of legend. */
+.vault-shelf .vs-slot .vs-swatch.vs-ribbonswatch {
+  width: 22px;
+  height: 30px;
+  border-width: 1px;
+  border-radius: 2px 2px 0 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+}
 
 /* A switch: the state of a thing, drawn as a knob in a track, and the label reads as a fact. */
 .vault-shelf .vs-toggle {

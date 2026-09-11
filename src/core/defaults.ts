@@ -89,7 +89,7 @@ export function recipes(): Recipe[] {
  * decisions/0001
  */
 
-export const SETTINGS_SCHEMA = 9;
+export const SETTINGS_SCHEMA = 10;
 
 export interface Persisted {
   schema: number;
@@ -143,8 +143,15 @@ export interface Persisted {
    * not a look's, so it survives switching looks.
    */
   palette: string[];
-  /** design/0008 -- the ribbon's colour, or "" for the look's own. */
-  ribbon: string;
+  /**
+   * design/0008 -- A RIBBON PER BOOK COLOUR: twelve entries, one for each palette slot, each
+   * a hex colour or "" for the complement of that slot's dye. Twelve, because a ribbon hangs
+   * off a book and a book is dyed one of twelve -- one ribbon colour for the whole library
+   * was the one colour guaranteed to disappear against some of them. Sparse on purpose,
+   * unlike `palette`: each entry's default is derived from its own dye, so one chosen ribbon
+   * does not have to freeze the other eleven.
+   */
+  ribbons: string[];
   /**
    * design/0005 -- a colour a person gave one book by hand: the address of the book to the
    * slot (0-11) it wears. Beats the shelf's rule and the folder's dye. Keyed by address, so
@@ -211,7 +218,7 @@ export function emptySettings(): Persisted {
     noteOrder: "oldest",
     look: "leather",
     palette: [],
-    ribbon: "",
+    ribbons: ribbonsOf(null, null),
     bookColors: {},
   };
 }
@@ -258,7 +265,11 @@ export function migrate(raw: unknown): Persisted {
      * preference they can keep. */
     look: isOffered(data.look) ? (from >= 6 || data.look ? data.look : "leather") : base.look,
     palette: paletteOf(data.palette),
-    ribbon: isHex(data.ribbon) ? String(data.ribbon) : "",
+    /* Schema 10 gave every slot its own ribbon. A file written under an earlier one carries a
+     * single `ribbon` that every book in the library wore, so it becomes all twelve -- the
+     * colour was a choice, and dropping it to reintroduce it as a default would be reading
+     * the person's mind rather than their file. */
+    ribbons: ribbonsOf(data.ribbons, (data as { ribbon?: unknown }).ribbon),
     bookColors: bookColorsOf(data.bookColors),
   };
 }
@@ -327,7 +338,7 @@ function arrangedBy(shelf: Shelf): Shelf {
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
-function isHex(value: unknown): boolean {
+function isHex(value: unknown): value is string {
   return typeof value === "string" && HEX.test(value);
 }
 
@@ -335,6 +346,19 @@ function isHex(value: unknown): boolean {
 function paletteOf(raw: unknown): string[] {
   if (!Array.isArray(raw) || raw.length !== 12) return [];
   return raw.every(isHex) ? raw.map((c) => String(c).toLowerCase()) : [];
+}
+
+/**
+ * Twelve entries, each a hex colour or "". Anything else in a slot is "", which means the
+ * complement of that slot's dye and is computed where the dye is known.
+ */
+function ribbonsOf(raw: unknown, legacy: unknown): string[] {
+  const one = isHex(legacy) ? String(legacy).toLowerCase() : "";
+  const from = Array.isArray(raw) && raw.length === 12 ? raw : null;
+  return Array.from({ length: 12 }, (_unused, i) => {
+    if (from) return isHex(from[i]) ? String(from[i]).toLowerCase() : "";
+    return one;
+  });
 }
 
 function bookColorsOf(raw: unknown): Record<string, number> {

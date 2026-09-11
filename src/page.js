@@ -234,12 +234,12 @@ function mountVaultShelf(root, data, options) {
    * rather than one set tinted twice.
    */
   /**
-   * github#4 -- THE LOOK'S OWN twelve and ribbon, as hex, read with the person's choice lifted
-   * off. Manage compares a slot against these to say whether it has been changed, and a
-   * per-slot reset writes one of them back.
-   * @type {{ slots: string[], ribbon: string }}
+   * github#4 -- THE LOOK'S OWN twelve, as hex, read with the person's choice lifted off, and
+   * the twelve ribbons that fall out of them. Manage compares a slot against these to say
+   * whether it has been changed, and a per-slot reset writes one of them back.
+   * @type {{ slots: string[], ribbons: string[] }}
    */
-  var OWN = { slots: [], ribbon: "" };
+  var OWN = { slots: [], ribbons: [] };
 
   function readTheme() {
     SLOT_KEYS.forEach(function (k) { root.style.removeProperty(k); });
@@ -248,7 +248,7 @@ function mountVaultShelf(root, data, options) {
     OWN.slots = SLOT_KEYS.map(function (k) {
       return toHex((bare.getPropertyValue(k) || "").trim() || "#6f6e67");
     });
-    OWN.ribbon = toHex((bare.getPropertyValue("--ribbon") || "").trim() || "#6f6e67");
+    OWN.ribbons = OWN.slots.map(complementOf);
 
     /* design/0005 -- A PERSON'S PALETTE OVER THE LOOK'S. Twelve chosen colours are written
      * inline on the root so the cascade below resolves to them in every look; none chosen
@@ -260,9 +260,6 @@ function mountVaultShelf(root, data, options) {
       if (chosen) root.style.setProperty(k, settings.palette[i]);
       else root.style.removeProperty(k);
     });
-    if (settings.ribbon) root.style.setProperty("--ribbon", settings.ribbon);
-    else root.style.removeProperty("--ribbon");
-
     var cs = WIN.getComputedStyle(root);
     SLOTS = SLOT_KEYS.map(function (k) {
       return (cs.getPropertyValue(k) || "").trim() || "#6f6e67";
@@ -645,7 +642,12 @@ function mountVaultShelf(root, data, options) {
     if (!book.notes.length) b.setAttribute("data-empty", "1");
     b.style.setProperty("--spine-w", thicknessOf(book.notes.length) + "px");
 
-    b.style.setProperty("--spine-tint", dyeOf(book, shelf));
+    var dye = dyeOf(book, shelf);
+    b.style.setProperty("--spine-tint", dye);
+    /* design/0008 -- the ribbon is the book's, not the library's: it is set here from the dye
+     * this spine is wearing, so a green book and a red one hang different threads. */
+    b.style.setProperty("--ribbon", ribbonFor(dye));
+    b.style.setProperty("--ribbon-ink", inkOn(toHex(ribbonFor(dye))));
     b.appendChild(el("span", "vs-title", book.label));
     b.appendChild(el("span", "vs-n", String(book.notes.length)));
 
@@ -915,6 +917,69 @@ function mountVaultShelf(root, data, options) {
     node("peek").hidden = true;
   }
 
+  /**
+   * design/0008 -- THE RIBBON A DYE WEARS. The person's, if they chose one for this slot;
+   * otherwise the dye's complement, computed here rather than stored, so it follows the look
+   * and the host theme the way the twelve themselves do.
+   * @param {string} dye @returns {string}
+   */
+  function ribbonFor(dye) {
+    var i = SLOTS.indexOf(dye);
+    if (i >= 0 && settings.ribbons[i]) return settings.ribbons[i];
+    return i >= 0 && OWN.ribbons[i] ? OWN.ribbons[i] : complementOf(dye);
+  }
+
+  /**
+   * The opposite hue, pulled away from the dye in saturation and lightness until it reads as
+   * silk against it. A straight 180-degree rotation is not enough on its own: the complement
+   * of a dark leather oxblood is a dark leather green, and two dark colours at the same
+   * lightness are one shape. So the hue turns, the saturation comes up, and the lightness
+   * moves away from the binding's -- lighter on a dark dye, darker on a light one.
+   * @param {string} colour @returns {string}
+   */
+  function complementOf(colour) {
+    var hex = toHex(colour);
+    var r = parseInt(hex.slice(1, 3), 16) / 255;
+    var g = parseInt(hex.slice(3, 5), 16) / 255;
+    var b = parseInt(hex.slice(5, 7), 16) / 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var l = (max + min) / 2;
+    var d = max - min;
+    var sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+    var h = 0;
+    if (d !== 0) {
+      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+      else if (max === g) h = ((b - r) / d + 2) / 6;
+      else h = ((r - g) / d + 4) / 6;
+    }
+    h = (h + 0.5) % 1;
+    /* A grey has no opposite hue, so its ribbon is the one warm thread a binder would use on
+     * a plain cloth board rather than a fourth shade of the same grey. */
+    if (sat < 0.08) { h = 0.02; sat = 0.62; }
+    else sat = Math.min(0.82, Math.max(0.5, sat * 1.25));
+    /* WHICHEVER WAY HAS MORE ROOM, and the bounds are where a thread still reads against a
+     * room as well as against the board it hangs off: cyber's ground is near-black and
+     * modern's is near-white, so a ribbon may go neither very dark nor very pale. Simply
+     * subtracting from a MID-lightness dye lands inside the clamp and returns a thread the
+     * same weight as its board -- measured at 8 of 12 separated before this, 12 after. */
+    var up = Math.min(0.78, l + 0.3), down = Math.max(0.32, l - 0.3);
+    l = up - l >= l - down ? up : down;
+    return hslHex(h, sat, l);
+  }
+
+  /** @param {number} h @param {number} s @param {number} l @returns {string} */
+  function hslHex(h, s, l) {
+    var c = (1 - Math.abs(2 * l - 1)) * s;
+    var x = c * (1 - Math.abs(((h * 6) % 2) - 1));
+    var m = l - c / 2;
+    var k = Math.floor(h * 6) % 6;
+    var rgb = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][k];
+    var two = function (/** @type {number} */ v) {
+      return ("0" + Math.round((v + m) * 255).toString(16)).slice(-2);
+    };
+    return "#" + two(rgb[0]) + two(rgb[1]) + two(rgb[2]);
+  }
+
   /** FNV-1a over the address, folded into a slot. @param {string} id @returns {number} */
   function hashSlot(id) {
     var hash = 2166136261;
@@ -1108,8 +1173,14 @@ function mountVaultShelf(root, data, options) {
    * @returns {void}
    */
   function renderMarks() {
-    var box = $("marks");
+    var box = node("marks");
     clear(box);
+    /* Every ribbon in this row is in the same book, so they are all the same thread -- the
+     * one the closed spine hangs, which is how you recognise the book you just opened. */
+    var shelf = shelfById(reader.book.shelfId);
+    var dye = shelf ? dyeOf(reader.book, shelf) : SLOTS[0];
+    box.style.setProperty("--ribbon", ribbonFor(dye));
+    box.style.setProperty("--ribbon-ink", inkOn(toHex(ribbonFor(dye))));
     var here = reader.book.notes
       .map(function (note, i) { return { note: note, at: i }; })
       .filter(function (row) { return isBookmarked(row.note.id); });
@@ -1881,7 +1952,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   function renderManage() {
-    renderPalette();
+    renderColours();
     var box = $("managelist");
     clear(box);
     var ordered = settings.shelves.slice().sort(function (a, b) { return a.position - b.position; });
@@ -1961,32 +2032,76 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0005 -- THE TWELVE, EDITABLE. Twelve slots showing what the cascade currently
-   * resolves -- the look's own until a person changes one, at which point all twelve become
-   * theirs, because a palette with one chosen colour and eleven that change with the look is
-   * not a palette anybody chose. github#4 -- drawn as painted, numbered swatches rather than
-   * bare colour inputs, each marked when it is no longer the look's own, with the ribbon
-   * beside them and one reset for the lot.
+   * design/0005 -- THE TWELVE, EDITABLE, EACH WITH THE RIBBON IT HANGS. A dye and its ribbon
+   * are one decision, so they are one row: twelve rows, the dye on the left and the thread
+   * that has to be visible against it on the right. Both show what the cascade currently
+   * resolves -- the look's own dye, and that dye's complement -- until a person changes one,
+   * and each is marked and reset on its own.
+   *
+   * github#4 -- the twelve used to be a wrapped strip of bare colour inputs with one ribbon
+   * for the whole library underneath, which is the one arrangement that cannot say which
+   * ribbon goes with which book.
    */
-  function renderPalette() {
+  function renderColours() {
     var box = $("mpalette");
     clear(box);
     var chosen = settings.palette.length === 12;
-    SLOTS.forEach(function (colour, i) {
-      var changed = chosen && toHex(colour) !== OWN.slots[i];
-      box.appendChild(slotControl(colour, "Colour " + (i + 1), i + 1, changed,
-        function (hex) { pickSlot(i, hex); },
-        function () { resetSlot(i); }));
+    /* Six and six rather than one column of twelve: the sheet is 620px wide and 620 tall is a
+     * sheet you scroll to reach the buttons on. */
+    [[0, 6], [6, 12]].forEach(function (range) {
+      var table = el("table", "vs-dyerows");
+      var head = DOC.createElement("thead");
+      var hrow = DOC.createElement("tr");
+      ["", "Book", "Ribbon"].forEach(function (name) {
+        var th = DOC.createElement("th");
+        th.scope = "col";
+        th.textContent = name;
+        hrow.appendChild(th);
+      });
+      head.appendChild(hrow);
+      table.appendChild(head);
+      var body = DOC.createElement("tbody");
+      for (var i = range[0]; i < range[1]; i++) {
+        body.appendChild(colourRow(i, chosen));
+      }
+      table.appendChild(body);
+      box.appendChild(table);
     });
-    var ribbonBox = $("mribbon");
-    clear(ribbonBox);
-    var ribbon = settings.ribbon || OWN.ribbon;
-    ribbonBox.appendChild(slotControl(ribbon, "Ribbon", "", !!settings.ribbon,
-      function (hex) { setRibbon(hex); },
-      function () { setRibbon(""); }));
     /* Disabled when there is nothing to put back, so the button says whether anything here
      * is the person's. */
-    /** @type {HTMLButtonElement} */ (node("mpalettereset")).disabled = !chosen && !settings.ribbon;
+    /** @type {HTMLButtonElement} */ (node("mpalettereset")).disabled = !chosen && !anyRibbon();
+  }
+
+  /** @param {number} i @param {boolean} chosen @returns {HTMLElement} */
+  function colourRow(i, chosen) {
+    var row = DOC.createElement("tr");
+    var n = DOC.createElement("th");
+    n.scope = "row";
+    n.textContent = String(i + 1);
+    row.appendChild(n);
+
+    var dye = DOC.createElement("td");
+    dye.appendChild(slotControl(SLOTS[i], "Colour " + (i + 1), "",
+      chosen && toHex(SLOTS[i]) !== OWN.slots[i],
+      function (hex) { pickSlot(i, hex); },
+      function () { resetSlot(i); }));
+    row.appendChild(dye);
+
+    var ribbon = DOC.createElement("td");
+    var thread = slotControl(ribbonFor(SLOTS[i]), "Ribbon on colour " + (i + 1), "",
+      !!settings.ribbons[i],
+      function (hex) { setRibbon(i, hex); },
+      function () { setRibbon(i, ""); });
+    var face = thread.querySelector(".vs-swatch");
+    if (face) face.classList.add("vs-ribbonswatch");
+    ribbon.appendChild(thread);
+    row.appendChild(ribbon);
+    return row;
+  }
+
+  /** @returns {boolean} */
+  function anyRibbon() {
+    return settings.ribbons.some(function (r) { return !!r; });
   }
 
   /**
@@ -2074,16 +2189,19 @@ function mountVaultShelf(root, data, options) {
     persist();
     readTheme();
     refresh();
-    renderPalette();
+    renderColours();
   }
 
-  /** @param {string} hex -- empty for the look's own */
-  function setRibbon(hex) {
-    settings.ribbon = hex === OWN.ribbon ? "" : hex;
+  /**
+   * One slot's ribbon. Empty, or the complement it already was, is stored as empty -- so a
+   * ribbon that was never really chosen keeps following its dye through a look switch.
+   * @param {number} i @param {string} hex
+   */
+  function setRibbon(i, hex) {
+    settings.ribbons[i] = hex && hex !== OWN.ribbons[i] ? hex : "";
     persist();
-    readTheme();
     refresh();
-    renderPalette();
+    renderColours();
   }
 
   /**
@@ -2250,11 +2368,11 @@ function mountVaultShelf(root, data, options) {
   /* github#4 -- palette and ribbon together; a slot's own mark puts one slot back. */
   on($("mpalettereset"), "click", function () {
     settings.palette = [];
-    settings.ribbon = "";
+    settings.ribbons = settings.ribbons.map(function () { return ""; });
     persist();
     readTheme();
     refresh();
-    renderPalette();
+    renderColours();
   });
   /* The dye menu closes the way a menu does: a click anywhere else, or Escape. */
   on(DOC, "mousedown", function (e) {

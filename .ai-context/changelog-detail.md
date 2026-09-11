@@ -1,5 +1,43 @@
 # Changelog detail
 
+## 2026-09-11 — A ribbon per book colour, and the colours block became a table
+
+> "make it ribbons so you can choose a color per book color, so basically a table, use
+> complimentary colors by default"
+
+**One ribbon could not serve twelve bindings.** `settings.ribbon` was a single colour for the
+whole library; it is now `settings.ribbons`, twelve entries, one per palette slot
+(**schema 9 → 10**). A file at 9 carries a colour every book wore, so it migrates to all
+twelve: **12 of 12** on the check, with the old field gone. A file with none comes up 12 empty,
+a sparse twelve keeps what it names, and a junk array comes back 12 long with 0 set.
+
+**The Manage block is a table**: twelve rows, the dye on the left and the thread that hangs off
+it on the right, six rows per column so the sheet's buttons stay above the fold. The ribbon
+column is drawn with the spine's own notch, so the table needs no legend. Each swatch keeps its
+own mark and its own reset.
+
+**The default ribbon is the dye's complement, computed not stored**, so it follows the look and
+the theme the way the twelve do. The lightness rule was measured rather than argued: a fixed
+subtraction left **8 of 12** separated from their dyes on the demo vault, because a
+mid-lightness dye lands inside the clamp and comes back the same weight as its board. Moving
+whichever way has more room inside `[0.32, 0.78]` gives **12 of 12**, and the bounds are set by
+the *rooms* — cyber's ground is near-black and modern's near-white, so a thread may go neither
+very dark nor very pale. A ribbon set on slot 7 reaches the spine wearing that dye and no other:
+measured `#ca9a5f` before and `#aa3355` after, with 1 of 12 stored.
+
+**`--ribbon` moved off the root.** It is written per spine from that book's dye and on the
+reader's mark row from the open book's, so every ribbon in one book is one thread.
+
+**The same-size check caught the new furniture immediately.** `.vs-slot` is `inline-flex`, so a
+swatch in a table cell sits on the baseline and the row grows by the face's descender: under
+leather the table was **309px against modern's 291**. Block-level in the cell and pinned
+line-heights bring it back to **0 off**, and the table (**274** wide) and the ribbon swatch
+(**22×30**) are in the measured list now — 38 controls, 37 on the demo vault.
+
+Crossed two files this worktree's brief had fenced off, both flagged for the orchestrator:
+`src/core/defaults.ts` for the schema, and `renderSpine`/`renderMarks` in `src/page.js` for
+the paint. The suite is **68 → 69** checks.
+
 ## 2026-09-11 — Dropdowns paint themselves, and the Manage sheet reads as one thing
 
 > "dropdowns in manage do not show the correct background color, looks like dark theme"

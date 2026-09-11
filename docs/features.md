@@ -185,12 +185,19 @@ right-clicking the spine: twelve swatches and *Automatic*, kept by the book's ad
 rebuild keeps it. **The shelf**, if it *varies* its books — a colour of its own per book,
 hashed from the address so it never changes as notes arrive; per shelf, on its row in Manage,
 Encyclopedia included. **The folder**, otherwise. And the twelve themselves are yours to edit in
-Manage, along with the ribbon's colour: twelve painted, numbered swatches and one for the
-ribbon, each opening a picker, each marked with a small × once it is no longer the look's own
-— the mark is also that slot's reset — and one **Reset colours** for the lot, quiet when
-nothing is yours. A chosen palette is written over every look; twelve that are all the look's
-own again are saved as none, so the file follows the look rather than pinning one look's
-colours under the next.
+Manage, as a table of twelve rows: the dye on the left, and on the right **the ribbon that book
+hangs**. Both are painted swatches that open a picker, both are marked with a small × once they
+are no longer the look's own — the mark is also that one's reset — and one **Reset colours**
+puts the whole table back, quiet when nothing is yours. A chosen palette is written over every
+look; twelve that are all the look's own again are saved as none, so the file follows the look
+rather than pinning one look's colours under the next.
+
+**A ribbon you have not chosen is its dye's complement.** One ribbon colour for the whole
+library was the one colour certain to vanish against some of the twelve bindings, so a ribbon
+is now per book colour and its default is computed from the dye: the opposite hue, more
+saturated, and moved far enough in lightness that the thread is never the same weight as the
+board it hangs off. It is computed rather than stored, so it follows the look and your Obsidian
+theme the way the twelve do — and any one of them is yours to override.
 
 `design/0002`, `design/0005`
 

@@ -459,9 +459,17 @@ button; a Manage row and its button, the Shown and Vary switches' knobs, Done, a
 slot, a slot's reset mark, the ribbon slot and Reset colours; the builder's Name box, its
 source and classifier dropdowns, its order dropdown and Save; a dye swatch — in every look
 `core.LOOKS` knows, shelved included, against the modern look's reading. Since github#2 and
-github#4 (2026-09-11) the palette slot is **36×28**, the builder's dropdown **31.5** high and
-the same in all three, and every dropdown is measured with its box taken back from the host. **37** are measured where the reader has index tabs and **36** on the demo
-vault, whose first book has none; the check's floor is 34. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
+github#4 (2026-09-11) the palette slot is **36×28**, a ribbon swatch **22×30**, the colours
+table itself **274** wide, the builder's dropdown **31.5** high and the same in all three, and
+every dropdown is measured with its box taken back from the host. **38** are measured where the
+reader has index tabs and **37** on the demo vault, whose first book has none; the check's floor
+is 34.
+
+The table is in that list because it caught one: `.vs-slot` is `inline-flex`, so a swatch in a
+table cell sits on the cell's **baseline** and the row grows by whatever the face's descender
+is. Under leather, which is Georgia, the colours table came out **309px against modern's 291**.
+A swatch in a cell is block-level now and the table's line-heights are pinned in `page.css`,
+which is the same rule as everywhere else: a look paints a control and does not size it. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
 (a button that sizes to its text may be a different width in a different face).
 
 Measured before: **21 controls off under leather** — the rail 60.5 vs 46.5px and the reader
@@ -497,6 +505,19 @@ paper `rgb(250, 246, 238)` on `rgb(48, 46, 39)`, leather rail `rgb(32, 33, 30)` 
 twelve, and the leather rail selector wearing `--surface-2` (`rgb(50, 51, 45)`) rather than
 the rail's field.
 
+### A ribbon is per book colour
+
+`design/0008`. There are **twelve ribbons, one per palette slot** (`settings.ribbons`), and a
+ribbon nobody has chosen is its dye's **complement**, computed from the cascade rather than
+stored so it follows the look and the host theme. `--ribbon` is written per spine and per
+open book, never once on the root.
+
+`"one ribbon from an older schema becomes a ribbon on every colour"` asserts schema **10**,
+that a file at 9 with one `ribbon` comes up with that colour on **all twelve** and no `ribbon`
+field left, that a file with none comes up **12** empty, that a sparse twelve keeps the entries
+it names and leaves the rest following their dyes, and that a junk array comes back 12 long
+with 0 set.
+
 ## Whose colour a book wears
 
 `"a book's colour is the person's, then the shelf's, then the folder's"` reads `--spine-tint`
@@ -516,12 +537,17 @@ after *Reset colours*.
 `"colours and hidden shelves set in Manage persist through a reload"` (2026-09-11, github#4,
 "all settings persistent naturally") runs each thing the sheet can set through `persist()`
 and back through `core.migrate`, which is the reload path in both hosts. It asserts the block
-opens with **12 painted, numbered slots, 0 marked and the reset disabled**; picking slot 3
+opens as **12 rows, 12 dyes painted their slot's colour, 12 ribbons, numbered 1-12, 0 marked
+and the reset disabled**; that every unchosen ribbon is its dye's complement — **12 of 12** a
+third of the hue wheel away or a fifth of the lightness apart, and **12 of 12** visibly
+lighter or darker than their dye, which is the assertion that caught a rule returning a thread
+the same weight as its board on mid-lightness dyes; picking slot 3
 saves **12 hex** with slot 3 `#3355aa`, marks exactly that slot, enables the reset and
-repaints the cascade; the ribbon saves as `#aa3355` and reaches `--ribbon`; that slot's own
+repaints the cascade; a ribbon on slot 7 saves `#aa3355` **alone of the twelve** and is on the
+spine wearing that dye, which was a different colour before; that slot's own
 × saves **0** (all twelve are the look's own again, so nothing is pinned) and leaves the
 ribbon; two slots picked and one put back saves **12** with the reset one equal to the look's
-own; *Reset colours* saves **0** and `""`, disables itself and clears every mark; and the
+own; *Reset colours* saves **0** palette and **0** ribbons, disables itself and clears every mark; and the
 Tags row's **Shown** switch, off, saves `hidden: true`, takes the visible count down by
 **one** while the shelf is still built (**16** books on the demo), leaves **0** Hide/Show
 buttons on the sheet, and on again saves `hidden: false` with the count restored.

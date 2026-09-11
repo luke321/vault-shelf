@@ -127,3 +127,49 @@ does, one hand's width closer to the page.
 Three, at most. Every note in a book can be marked, and a row of forty is a different feature:
 a table of contents, which is already on the left-hand page.
 
+
+## A ribbon per book colour (2026-09-11)
+
+> "make it ribbons so you can choose a color per book color, so basically a table, use
+> complimentary colors by default"
+
+The ribbon was **one colour for the whole library** — `settings.ribbon`, a hex or empty for the
+look's own. Across twelve bindings that is the one arrangement guaranteed to fail somewhere: a
+single thread has to sit on oxblood, forest, slate and near-black calf at once, and whichever
+colour it is, it disappears against one of them.
+
+So there are **twelve ribbons, one per palette slot** (`settings.ribbons`, schema 10), and the
+Manage sheet pairs them: twelve rows, the dye on the left and the thread on the right, because
+a dye and the thread that has to be seen against it are one decision. The ribbon column is
+drawn with the same notch the spine hangs (`page.css`, `.vs-ribbonswatch`), so the table says
+which thread comes out of which board with no legend.
+
+**The default is the dye's complement, computed and not stored.** `complementOf()` turns the
+hue 180°, raises the saturation, and then moves the lightness *whichever way has more room*
+inside `[0.32, 0.78]`. All three steps earn their place:
+
+- the hue turn alone is not enough — the complement of a dark leather oxblood is a dark leather
+  green, and two colours at the same lightness are one shape;
+- subtracting a fixed amount is not enough either: a **mid-lightness** dye lands inside the
+  clamp and comes back the same weight as its board. Measured on the demo vault, 8 of 12
+  separated before the "more room" rule and **12 of 12** after;
+- the bounds are about the **room**, not the book. Cyber's ground is near-black and modern's is
+  near-white, so a thread may go neither very dark nor very pale: it has to read against the
+  room as well as against the binding.
+- a **grey has no opposite hue**, so its ribbon is the one warm thread a binder would use on a
+  plain cloth board rather than a fourth shade of the same grey.
+
+Because it is computed, an unchosen ribbon follows the look and the host theme the way the
+twelve do. `settings.ribbons` is therefore **sparse on purpose**, unlike `palette`: each entry's
+default comes from its own dye, so one chosen ribbon does not have to freeze the other eleven.
+Setting a ribbon to the complement it already was stores empty, so a thread nobody really chose
+keeps following its dye.
+
+**Where it is painted.** `--ribbon` and `--ribbon-ink` used to be written once on the root.
+They are now written on **each spine** from that book's dye, and on the reader's mark row from
+the open book's — every ribbon in one book is one thread, which is how you recognise the book
+you just opened. The looks still declare `--ribbon` as the fallback.
+
+Migration: a file at schema 9 carries one `ribbon` that every book wore. That was a choice, so
+it becomes **all twelve**; dropping it to reintroduce it as a default would be reading the
+person's mind rather than their file.

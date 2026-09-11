@@ -390,6 +390,38 @@ check("a plaque sits under the books it names, in the same scroller", async (p) 
                    `floor; same scroller: ${r.sameRail}; width differs by ${r.widthDiff}px` };
 });
 
+/* github#4 -- schema 10 gave every slot its own ribbon. A file from 9 carries one that every
+ * book in the library wore, and that was a choice, so it becomes all twelve. */
+check("one ribbon from an older schema becomes a ribbon on every colour", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var was = core.migrate({ schema: 9, ribbon: "#b0122b" });
+    var none = core.migrate({ schema: 9 });
+    var kept = core.migrate({ schema: 10, ribbons: ["#111111", "", "#333333", "", "", "", "", "", "", "", "", ""] });
+    var junk = core.migrate({ schema: 10, ribbons: ["nope", 7, null] });
+    return {
+      schema: core.SETTINGS_SCHEMA,
+      spread: was.ribbons.filter(function (c) { return c === "#b0122b"; }).length,
+      hadRibbon: "ribbon" in was,
+      none: none.ribbons.filter(function (c) { return c; }).length,
+      noneLength: none.ribbons.length,
+      keptFirst: kept.ribbons[0], keptThird: kept.ribbons[2],
+      keptEmpty: kept.ribbons.filter(function (c) { return !c; }).length,
+      junkLength: junk.ribbons.length, junkSet: junk.ribbons.filter(function (c) { return c; }).length
+    };
+  })()`);
+  const ok = r.schema === 10 && r.spread === 12 && !r.hadRibbon && r.none === 0 && r.noneLength === 12 &&
+             r.keptFirst === "#111111" && r.keptThird === "#333333" && r.keptEmpty === 10 &&
+             r.junkLength === 12 && r.junkSet === 0;
+  return {
+    ok,
+    detail: `schema ${r.schema}; one ribbon from 9 becomes ${r.spread} of 12, and the old field is ` +
+            `${r.hadRibbon ? "STILL THERE" : "gone"}; a file with none comes up ${r.noneLength} empty; ` +
+            `a sparse twelve keeps ${r.keptFirst} and ${r.keptThird} with ${r.keptEmpty} following their dyes; ` +
+            `a junk array comes back ${r.junkLength} long with ${r.junkSet} set`
+  };
+});
+
 check("a settings file from an older schema comes up with the newer defaults", async (p) => {
   const r = await p.j(`(function(){
     var core = window.VaultShelfCore;
@@ -451,7 +483,7 @@ check("a settings file from an older schema comes up with the newer defaults", a
   /* People carries plaques from schema 6 too -- the alphabet is a unit above the book like a
    * decade is (design/0003) -- so the shelf that proves a migration does not touch everything
    * is Months, which asked for plaques before any of this and still has them. */
-  const ok = r.schema === 9 && r.years === true && r.months === true && r.people === true &&
+  const ok = r.schema === 10 && r.years === true && r.months === true && r.people === true &&
              r.wear === 3 && r.fields === "date" && r.keptOff === false &&
              r.stamp === true && r.keptStampOff === false && r.order === "oldest" &&
              r.weeksHidden === true && r.keptShown === true && r.lettered === true &&
@@ -1158,7 +1190,8 @@ check("every control is the same size in every look", async (p) => {
       ["#vs-managelist .vs-toggle[data-fact=shown] .vs-knob", true],
       ["#vs-managelist .vs-toggle[data-fact=vary] .vs-knob", true], ["#vs-mclose", false],
       ["#vs-mpalette .vs-swatch", true], ["#vs-mpalette .vs-slotreset", true],
-      ["#vs-mribbon .vs-swatch", true], ["#vs-mpalettereset", false]
+      ["#vs-mpalette .vs-ribbonswatch", true], ["#vs-mpalette .vs-dyerows", true],
+      ["#vs-mpalettereset", false]
     ];
     var building = [
       ["#vs-bname", true], ["#vs-bsource", true], ["#vs-bclassifier", true],
@@ -1181,7 +1214,7 @@ check("every control is the same size in every look", async (p) => {
       __vs.closeReader();
       document.getElementById("vs-manageopen").click();
       /* One slot changed, so the slot's own reset mark is on the sheet to be measured. */
-      var slot = q('#vs-mpalette .vs-slot input[type="color"]');
+      var slot = q('#vs-mpalette .vs-dyerows input[type="color"]');
       slot.value = "#3355aa";
       slot.dispatchEvent(new Event("change", { bubbles: true }));
       managing.forEach(function (c) { row[c[0]] = { fixed: c[1], box: box(c[0]) }; });
@@ -1451,7 +1484,7 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
 
     /* A chosen palette: change one input and all twelve become the person's. */
     var slotsBefore = __vs.slots().join(",");
-    var input = document.querySelectorAll('#vs-mpalette .vs-slot input[type="color"]')[0];
+    var input = document.querySelectorAll('#vs-mpalette .vs-dyerows tbody tr td:nth-child(2) input[type="color"]')[0];
     input.value = "#123456";
     input.dispatchEvent(new Event("change", { bubbles: true }));
     var slotsAfter = __vs.slots();
@@ -1500,7 +1533,17 @@ check("colours and hidden shelves set in Manage persist through a reload", async
       input.value = value;
       input.dispatchEvent(new Event("change", { bubbles: true }));
     };
-    var nth = function (i) { return '#vs-mpalette .vs-slot:nth-child(' + i + ') input[type="color"]'; };
+    /* Row i of the twelve, whichever of the two tables of six it is standing in. */
+    var cell = function (i, col) {
+      var rows = [].slice.call(document.querySelectorAll("#vs-mpalette .vs-dyerows tbody tr"));
+      return rows[i - 1].querySelector("td:nth-child(" + col + ') input[type="color"]');
+    };
+    var nth = function (i) { return cell(i, 2); };
+    var thread = function (i) { return cell(i, 3); };
+    var shown = function (input) { return input.parentNode.querySelector(".vs-swatch"); };
+    var paintedOn = function (input) {
+      return getComputedStyle(shown(input)).backgroundColor;
+    };
     var rootStyle = function (name) {
       return getComputedStyle(document.querySelector(".vault-shelf")).getPropertyValue(name).trim();
     };
@@ -1512,48 +1555,80 @@ check("colours and hidden shelves set in Manage persist through a reload", async
     var slots = __vs.slots();
     var probe = document.createElement("span");
     document.body.appendChild(probe);
-    var swatches = [].slice.call(document.querySelectorAll("#vs-mpalette .vs-swatch"));
+    var swatches = [].slice.call(document.querySelectorAll('#vs-mpalette td:nth-child(2) .vs-swatch'));
     out.swatches = swatches.length;
     out.painted = swatches.filter(function (sw, i) {
       probe.style.color = slots[i];
       return getComputedStyle(sw).backgroundColor === getComputedStyle(probe).color;
     }).length;
     document.body.removeChild(probe);
-    out.numbers = swatches.map(function (sw) { return sw.querySelector(".vs-n").textContent; }).join(",");
-    out.marksAtStart = marks("#vs-mpalette") + marks("#vs-mribbon");
+    out.numbers = [].slice.call(document.querySelectorAll("#vs-mpalette .vs-dyerows tbody th"))
+      .map(function (th) { return th.textContent; }).join(",");
+    out.rows = document.querySelectorAll("#vs-mpalette .vs-dyerows tbody tr").length;
+    out.threads = document.querySelectorAll("#vs-mpalette .vs-ribbonswatch").length;
+    /* A ribbon nobody chose is its dye's complement: a different hue, and far enough in
+     * lightness that the thread is not the board. */
+    out.complements = [].slice.call(document.querySelectorAll("#vs-mpalette .vs-dyerows tbody tr"))
+      .map(function (tr) {
+        var cells = tr.querySelectorAll('input[type="color"]');
+        return { dye: cells[0].value, thread: cells[1].value };
+      });
+    out.marksAtStart = marks("#vs-mpalette");
     out.resetDisabledAtStart = reset.disabled;
 
     /* One slot picked: twelve hex saved, one mark, the reset live, the cascade repainted. */
-    pick(nth(3), "#3355aa");
+    nth(3).value = "#3355aa";
+    nth(3).dispatchEvent(new Event("change", { bubbles: true }));
     var s1 = reload();
     out.afterPick = { saved: s1.palette.length, allHex: s1.palette.every(function (c) { return HEX.test(c); }),
                       slot3: s1.palette[2], marks: marks("#vs-mpalette"),
-                      marked: (document.querySelector('#vs-mpalette .vs-swatch[data-changed="1"] .vs-n') || {}).textContent,
+                      marked: (function () {
+                        var sw = document.querySelector('#vs-mpalette .vs-swatch[data-changed="1"]');
+                        var tr = sw ? sw.closest("tr") : null;
+                        return tr ? tr.querySelector("th").textContent : "(none)";
+                      })(),
                       resetEnabled: !reset.disabled, cascade: __vs.slots()[2] };
 
     /* The ribbon the same way. */
-    pick('#vs-mribbon input[type="color"]', "#aa3355");
+    /* A ribbon, on one slot, and the spine that wears that dye has to pick it up. */
+    var spineOf = function (hex) {
+      return [].slice.call(document.querySelectorAll("#vs-shelves .vs-spine")).filter(function (sp) {
+        return sp.style.getPropertyValue("--spine-tint").trim() === hex;
+      })[0] || null;
+    };
+    var slot7 = __vs.slots()[6];
+    var wearer = spineOf(slot7);
+    var beforeThread = wearer ? wearer.style.getPropertyValue("--ribbon").trim() : "";
+    thread(7).value = "#aa3355";
+    thread(7).dispatchEvent(new Event("change", { bubbles: true }));
     var s2 = reload();
-    out.ribbon = { saved: s2.ribbon, marks: marks("#vs-mribbon"), cascade: rootStyle("--ribbon") };
+    wearer = spineOf(slot7);
+    out.ribbon = { saved: s2.ribbons[6], others: s2.ribbons.filter(function (r) { return r; }).length,
+                   marks: marks("#vs-mpalette"), before: beforeThread,
+                   onSpine: wearer ? wearer.style.getPropertyValue("--ribbon").trim() : "(no spine)" };
 
     /* That one slot back: all twelve are the look's own again, so nothing is saved -- the
      * file follows the look rather than pinning this look's colours under the next. */
-    document.querySelector("#vs-mpalette .vs-slotreset").click();
+    /* The dye's own mark, not the ribbon's: the first reset in the table belongs to slot 3. */
+    nth(3).parentNode.querySelector(".vs-slotreset").click();
     var s3 = reload();
-    out.afterSlotReset = { saved: s3.palette.length, marks: marks("#vs-mpalette"), ribbonKept: s3.ribbon };
+    out.afterSlotReset = { saved: s3.palette.length, marks: marks("#vs-mpalette"),
+                           ribbonKept: s3.ribbons[6] };
 
     /* Two slots picked and one put back keeps the other eleven as the person's. */
-    pick(nth(1), "#112233");
-    pick(nth(5), "#445566");
-    document.querySelector("#vs-mpalette .vs-slotreset").click();
+    nth(1).value = "#112233";
+    nth(1).dispatchEvent(new Event("change", { bubbles: true }));
+    nth(5).value = "#445566";
+    nth(5).dispatchEvent(new Event("change", { bubbles: true }));
+    nth(1).parentNode.querySelector(".vs-slotreset").click();
     var s4 = reload();
     out.oneOfTwo = { saved: s4.palette.length, slot1: s4.palette[0], slot5: s4.palette[4], marks: marks("#vs-mpalette") };
 
     /* Reset colours: palette and ribbon together, and the button goes quiet. */
     reset.click();
     var s5 = reload();
-    out.afterReset = { palette: s5.palette.length, ribbon: s5.ribbon, disabled: reset.disabled,
-                       marks: marks("#vs-mpalette") + marks("#vs-mribbon"), own1: __vs.slots()[0] };
+    out.afterReset = { palette: s5.palette.length, ribbons: s5.ribbons.filter(function (r) { return r; }).length,
+                       disabled: reset.disabled, marks: marks("#vs-mpalette"), own1: __vs.slots()[0] };
 
     /* Shown, as a switch on the row, saved as hidden and still built while hidden. */
     var shelf = __vs.settings().shelves.filter(function (s) { return s.id === "tags"; })[0];
@@ -1579,28 +1654,49 @@ check("colours and hidden shelves set in Manage persist through a reload", async
     return out;
   })()`);
   const a = r.afterPick, h = r.hide;
+  /* Hue apart and lightness apart, on every one of the twelve: a complement that lands on the
+   * dye's own lightness is a thread you cannot see against the board it hangs off. */
+  const hsl = (hex) => {
+    const [R, G, B] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const max = Math.max(R, G, B), min = Math.min(R, G, B), l = (max + min) / 2, d = max - min;
+    let hue = 0;
+    if (d) hue = max === R ? ((G - B) / d + (G < B ? 6 : 0)) / 6 : max === G ? ((B - R) / d + 2) / 6 : ((R - G) / d + 4) / 6;
+    return { h: hue, l };
+  };
+  const apart = r.complements.map(({ dye, thread }) => {
+    const A = hsl(dye), B = hsl(thread);
+    const dh = Math.abs(A.h - B.h);
+    return { hue: Math.min(dh, 1 - dh), light: Math.abs(A.l - B.l) };
+  });
+  const opposed = apart.filter((x) => x.hue > 0.33 || x.light > 0.2).length;
+  const visible = apart.filter((x) => x.light > 0.18).length;
   const ok = r.swatches === 12 && r.painted === 12 && r.numbers === "1,2,3,4,5,6,7,8,9,10,11,12" &&
+             r.rows === 12 && r.threads === 12 && opposed === 12 && visible === 12 &&
              r.marksAtStart === 0 && r.resetDisabledAtStart === true &&
              a.saved === 12 && a.allHex && a.slot3 === "#3355aa" && a.marks === 1 && a.marked === "3" &&
              a.resetEnabled && a.cascade === "#3355aa" &&
-             r.ribbon.saved === "#aa3355" && r.ribbon.marks === 1 && r.ribbon.cascade === "#aa3355" &&
-             r.afterSlotReset.saved === 0 && r.afterSlotReset.marks === 0 && r.afterSlotReset.ribbonKept === "#aa3355" &&
-             r.oneOfTwo.saved === 12 && r.oneOfTwo.slot5 === "#445566" && r.oneOfTwo.marks === 1 &&
+             r.ribbon.saved === "#aa3355" && r.ribbon.others === 1 && r.ribbon.marks === 2 &&
+             r.ribbon.onSpine === "#aa3355" && r.ribbon.before !== "#aa3355" &&
+             r.afterSlotReset.saved === 0 && r.afterSlotReset.marks === 1 && r.afterSlotReset.ribbonKept === "#aa3355" &&
+             r.oneOfTwo.saved === 12 && r.oneOfTwo.slot5 === "#445566" &&
              r.oneOfTwo.slot1 === r.afterReset.own1 &&
-             r.afterReset.palette === 0 && r.afterReset.ribbon === "" && r.afterReset.disabled === true &&
+             r.afterReset.palette === 0 && r.afterReset.ribbons === 0 && r.afterReset.disabled === true &&
              r.afterReset.marks === 0 &&
              h.shownAtStart === true && h.saved === true && h.shownAfter === false &&
              h.visibleDuring === h.visibleBefore - 1 && h.stillBuilt > 0 && h.textButtons === 0 &&
              h.back === false && h.visibleAfter === h.visibleBefore;
   return {
     ok,
-    detail: `${r.swatches} slots, ${r.painted} painted, numbered ${r.numbers === "1,2,3,4,5,6,7,8,9,10,11,12" ? "1-12" : r.numbers}, ` +
+    detail: `${r.rows} rows, ${r.swatches} dyes painted ${r.painted}, ${r.threads} ribbons, numbered ` +
+            `${r.numbers === "1,2,3,4,5,6,7,8,9,10,11,12" ? "1-12" : r.numbers}; ${opposed}/12 complements a ` +
+            `hue or a third of the lightness away, ${visible}/12 visibly lighter or darker than their dye; ` +
             `${r.marksAtStart} marked and the reset ${r.resetDisabledAtStart ? "quiet" : "LIVE"} to start; ` +
             `slot 3 -> ${a.slot3}: ${a.saved} saved, ${a.marks} mark on slot ${a.marked}, cascade ${a.cascade}; ` +
-            `ribbon ${r.ribbon.saved} (${r.ribbon.marks} mark, cascade ${r.ribbon.cascade}); slot 3 back: ` +
-            `${r.afterSlotReset.saved} saved, ribbon still ${r.afterSlotReset.ribbonKept}; two picked, one back: ` +
+            `ribbon 7 ${r.ribbon.saved} alone (${r.ribbon.others} of 12), was ${r.ribbon.before} on its spine and ` +
+            `is ${r.ribbon.onSpine}; slot 3's dye back: ${r.afterSlotReset.saved} saved, ribbon still ` +
+            `${r.afterSlotReset.ribbonKept}; two picked, one back: ` +
             `${r.oneOfTwo.saved} saved, slot 1 ${r.oneOfTwo.slot1 === r.afterReset.own1 ? "the look's own" : r.oneOfTwo.slot1}, ` +
-            `slot 5 ${r.oneOfTwo.slot5}; Reset colours: ${r.afterReset.palette} saved, ribbon "${r.afterReset.ribbon}", ` +
+            `slot 5 ${r.oneOfTwo.slot5}; Reset colours: ${r.afterReset.palette} palette and ${r.afterReset.ribbons} ribbons saved, ` +
             `button ${r.afterReset.disabled ? "quiet" : "LIVE"}; Shown off: hidden ${h.saved}, ` +
             `${h.visibleBefore} -> ${h.visibleDuring} -> ${h.visibleAfter} visible, ${h.stillBuilt} books still built, ` +
             `${h.textButtons} Hide/Show buttons left`
@@ -3004,8 +3100,8 @@ async function capture(page, out) {
         input.value = value;
         input.dispatchEvent(new Event("change", { bubbles: true }));
       };
-      pick('#vs-mpalette .vs-slot:nth-child(3) input[type="color"]', "#3355aa");
-      pick('#vs-mribbon input[type="color"]', "#2a9d5c");
+      pick('#vs-mpalette .vs-dyerows tbody tr:nth-child(3) td:nth-child(2) input[type="color"]', "#3355aa");
+      pick('#vs-mpalette .vs-dyerows tbody tr:nth-child(2) td:nth-child(3) input[type="color"]', "#2a9d5c");
     })(); void 0`);
   }
   await sleep(250);
