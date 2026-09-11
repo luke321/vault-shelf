@@ -7,21 +7,29 @@ that fails.
 
 Run one: `node scripts/smoke.mjs --only "<substring>"`. Run all of them: the pre-push hook does.
 
-Measured 2026-09-11 on the three fixture vaults: demo 424 notes / 17 folders / 17 people /
-43 tags / 18 undated, sparse 756 notes / 6 folders, library 10,000 notes / 15 folders. The
-demo vault draws **238 spines** across the five visible default shelves and holds **465
-addresses** in all. `github#7` rebuilt the demo fixture to read like somebody's vault rather
-than like a generator; the numbers below moved with it, and `changelog-detail.md` says which.
+Measured 2026-09-11 on **the** fixture vault — `decisions/0012` replaced three with one, so
+a number here no longer comes in threes: **4,938 notes / 17 folders / 25 people / 43 tags /
+523 undated**. It draws **227 spines** across the five visible default shelves and holds
+**687 addresses** in all. `github#17` made it eleven years and five thousand notes; the
+numbers below moved with it, and `changelog-detail.md` gives each one its old value, its new
+value and a reason.
 
-The demo vault's own shape: fifteen years to 2026-09-11, recent-heavy (**5 notes in 2011,
-121 in 2026**); a PARA-ish tree of ten numbered folders with four nested ones, a `Templates`
-folder and three notes at the root; **16 named people on a long tail** — one in 44 notes,
-seven in three or fewer — plus a seventeenth who is only ever linked; **43 tags**, three
-levels deep, two non-Latin, three over thirty characters and eighteen on a single note.
-Measured 2026-09-09 on the three fixture vaults: demo 394 notes / 11 folders / 8 people /
-15 tags / 18 undated, sparse 756 notes / 6 folders, library 10,000 notes / 15 folders. The
-demo vault draws **182 spines** across the six shelves that hold books; the seventh,
-Favourites, ships empty (`design/0019`).
+The vault's own shape: **eleven years to 2026-09-11, ending today by default**, recent-heavy
+(**54 notes in 2015, 1,795 in 2026**, and **2,213 in the rolling twelve months** against 146
+before); **2019 is empty on purpose** — the year nobody wrote, so a chronological shelf has a
+gap to survive; a PARA-ish tree of ten numbered folders with four nested ones, a `Templates`
+folder and three notes at the root, the largest holding **1,204 of 4,938** notes; **24 named
+people on a long tail** — one in 613 notes, eleven in three or fewer — plus a twenty-fifth who
+is only ever linked; **43 tags**, three levels deep, two non-Latin, three over thirty
+characters and eighteen on a single note; **459 ISO weeks hold a note and none of the last 52
+is empty**.
+
+What it absorbed from the two fixtures it replaced (`decisions/0012`): a fifth of the notes
+that are not about a day are undated, titles open with digits, punctuation and four scripts,
+a handful of notes name five people and six tags at once, and two headers are impossible
+dates. What it gave up, deliberately: the sparse fixture's **82 % dominant folder** (the
+largest is now 24 %) and the **10,000-note scale** — nothing measures the product at that size
+any more.
 
 ---
 
@@ -48,10 +56,11 @@ one note. `"a shelf's note count is unique notes"` walks every shelf, collects n
 every book into a set, and asserts the set's size equals the shelf's own `noteCount`.
 
 It also reports how many shelves have `sum > unique` — that is, how many genuinely place a
-note in more than one book. Measured on the demo vault: **2 of 6** do, People at 495/424 and
-Tags at 683/424. On the sparse vault that also covers notes naming five people and six tags at
-once, which is eleven books for one note. A run where **no** shelf overlaps means the fixture
-stopped exercising the law and the check has gone quiet without failing.
+note in more than one book. Measured: **2 of 7** do, People at **5,963/4,938** and Tags at
+**8,090/4,938**. The notes that name five people and six tags at once — eleven books for one
+note — are declared in the vault rather than in a second fixture (`decisions/0012`). A run
+where **no** shelf overlaps means the fixture stopped exercising the law and the check has
+gone quiet without failing.
 
 ## Every note has at least one address
 
@@ -67,7 +76,7 @@ disappearing quietly.
 book's notes run **oldest first**, that the top-bar button reads `Oldest first` with
 `aria-pressed="false"`, that clicking it reorders the same book newest-first and the label
 becomes `Newest first`, and that an Encyclopedia volume stays **alphabetical under both**.
-Measured on the demo vault: `2022-10` holds 7 notes, opening on the earliest of them.
+Measured: `2022-10` holds 24 notes, opening on the earliest of them.
 
 The button says what it is rather than what pressing it would do; `design/0015` says why, and
 why the Encyclopedia is exempt.
@@ -90,10 +99,11 @@ fallback is worthless: all 545 files of the author's own vault stamped inside `2
 
 `"an undated note lands in Undated"` counts notes with `date === null` and asserts the Years
 shelf's `-undated` book holds exactly that many, and that it sorts **last**. Measured on the
-demo vault: **18 undated notes, 18 in the book**, which sorts last. `decisions/0003` is
+the vault: **523 undated notes, 523 in the book**, which sorts last. `decisions/0003` is
 why there is an Undated book at all rather than a file-stamp fallback.
 
-The sparse fixture puts about a fifth of its notes there on purpose. A run where the count is
+The vault puts a fifth of the notes that are not about a day there on purpose
+(`decisions/0012` folded that in from the sparse fixture). A run where the count is
 zero on that vault means the fixture or the date resolution changed.
 
 **This is the check that caught the `DEL` byte.** It reported "18 undated notes, 0 in the
@@ -113,8 +123,8 @@ date rule that is wrong in most hand-written implementations.
 
 `"the Encyclopedia opens with a 0-9 volume"` asserts **zero** books whose key is a single
 digit. A vault whose titles start with dates would otherwise open with ten one-note books
-before it reached A. Measured on the demo vault: 0 single-digit books, and the `0-9` volume
-holds **168 of 424** notes, because its daily, meeting and 1-on-1 notes are titled with an
+before it reached A. Measured: 0 single-digit books, and the `0-9` volume
+holds **2,097 of 4,938** notes, because its daily, meeting and 1-on-1 notes are titled with an
 ISO date.
 
 ## Plaques are date-only and asked for
@@ -126,16 +136,17 @@ taken from nowhere.
 
 `"a plaque sits under the books it names, in the same scroller"` is the geometric half: the
 plaque hangs **below the shelf floor**, not on top of the books — its top clears the board by
-at least the board's own thickness — and one row contains both. Measured on the demo vault:
-the plaque hangs **12px** below its books, clearing the **3px** floor, and matches their width
-to **0px**. The floor is drawn as a background line on the track rather than as its bottom
+at least the board's own thickness — and one row contains both. Measured:
+the plaque hangs **19px** below its books, clearing the **5px** floor, and matches their width
+to **0px**. (12px over 3px until 2026-09-11, when re-reading the check's own output against
+this file found the two had drifted apart; the geometry had not moved, the note about it had.) The floor is drawn as a background line on the track rather than as its bottom
 border, which is what leaves room underneath for a plate to hang; `design/0003` is why being
 in the same element is structural rather than positional.
 
 `"years group under decade plaques, and a run that wraps is named on both rows"` asserts that
 every dated year book carries a plaque whose range is a real decade — starts on a multiple of
 ten, spans exactly ten years, and contains that year — that **Undated carries none**, and that
-no plate anywhere in the library is drawn over an empty run. Measured on the demo vault: **16
+no plate anywhere in the library is drawn over an empty run. Measured: **11
 dated year books under `2010-2019` and `2020-2029`, 52 plates across every shelf, 0 of them
 orphaned**.
 
@@ -165,9 +176,8 @@ on `shelfId/-plaque-<label>` with exactly the unique count of rows, the title ba
 `<shelf> · <label>`, the meta line opening `<unique> notes across <n> books`, and that Escape
 closes it; then finds a plate drawn on two rows anywhere in the library, clicks both, and
 asserts the same book id; and that the address list, book count and spine count are what they
-were. Measured: demo `Tags · A` **145 unique across 7 books that sum to 158**, 16 tabs,
-`-plaque-2016` on two rows; sparse `Tags · A` **199 of 263 across 4**, 4 tabs, `2026` twice;
-10k library `Tags · A` **4,501 of 5,519 across 5**, 11 tabs, `2018` twice. `design/0019`.
+were. Measured: `Tags · A` **1,776 unique across 7 books that sum to 2,022**, 12 tabs,
+`-plaque-2018` drawn on two rows opening the same book. `design/0019`.
 
 `"a ribbon left in a plaque-book re-resolves after a rebuild, and the Reading shelf holds it"`
 opens the biggest plaque-run on the first plaqued shelf **by address** through
@@ -175,27 +185,26 @@ opens the biggest plaque-run on the first plaqued shelf **by address** through
 that `core.resolveReading` returns a book with that id; rebuilds (`setFilters({})`) and asserts
 the reader is on the same book and the same note and the Reading shelf shows the plaque-book as
 a spine whose count is its unique notes and which hangs one ribbon; takes the ribbon out and
-asserts the spine is gone. Measured: demo `years/-plaque-2010-2019` **105 notes**; sparse
-`years/-plaque-2020-2029` **605**; 10k library `years/-plaque-2020-2029` **6,431**.
+asserts the spine is gone. Measured: `years/-plaque-2020-2029` **3,927 notes**.
 
 `"on a manual shelf a plate opens what is under it, not the whole letter"` turns Tags manual,
 moves the first book of the first letter with two or more books to the very end — past
 Untagged — so that letter is drawn on two plates, clicks each and asserts the last opens
 exactly that one book's notes and the first the rest of the letter's unique notes, under the
-same address; then puts the shelf back. Measured: demo `acoustics` **1 vs 145**; sparse
-`archive` **63 vs 160**; 10k library `archive` **1,097 vs 3,778**. `design/0018`, `design/0019`.
+same address; then puts the shelf back. Measured: `acoustics` **1 vs 1,776**.
+`design/0018`, `design/0019`.
 
 The plate became a button without moving: *a plaque sits under the books it names* still reads
-**19px** below the books over a 3px floor with **0px** width difference; *every control is the
+**19px** below the books over a 5px floor with **0px** width difference; *every control is the
 same size in every look* measures **38** controls in three looks with 0 off; and the layout
-golden for all three fixtures is unchanged.
+golden is unchanged by it.
 
 ## A book is as thick as it is full
 
 `"a spine's thickness is its note count"` reads `--spine-w` off every spine on the Years shelf
 and asserts that widths rise with note counts, that the fullest book is as wide as any book on
-the shelf, and that every width falls between **22px and 58px**. Measured on the demo vault:
-**26px for a 1-note book, 53px for the 227-note one**; on the 10k library vault **45px at 309
+the shelf, and that every width falls between **22px and 58px**. Measured:
+**40px for a 54-note book, 57px for the 1,795-note one**; before `github#17` **45px at 309
 notes and 50px at 1020**. It is a tie, not an identity: two counts a few notes apart round to
 the same pixel. The scale is logarithmic and it is taken against the largest book in the whole
 **library**, never in the shelf, so the same thickness means the same size everywhere on the
@@ -209,10 +218,11 @@ Both bounds and the scale are constants in `src/page.js` (`SPINE_MIN`, `SPINE_MA
 `"an impossible date is not a date, and never a fifteenth month"` asserts three things at once:
 every resolved date passes `core.isIsoDay`, no month book has a key outside `01`-`12`, and any
 note whose `date` header is not a real day is either **Undated** or dated from its filename —
-never from the broken header. Measured on the sparse vault: **2 impossible headers, 1 fell
+never from the broken header. Measured: **4 impossible headers, 1 fell
 through to the filename, 1 Undated, 0 landed anywhere else**.
 
-The demo and library fixtures have no such note, and the check still runs there: it says so in
+Both notes are declared in the vault rather than left to chance, because this is the case that
+separates "declared, never inferred" from "parsed loosely". The check reports what it found in
 its own words, and the two structural halves still hold.
 
 **This check exists because the exporter and the plugin disagreed about the same note.**
@@ -231,8 +241,8 @@ element for element. `decisions/0002` is the reasoning; this is the assertion.
 
 `"a filter changes membership without moving a shelf"` applies the biggest folder as a filter
 and asserts three things: the filtered note count went down, the shelf **order** is unchanged,
-and clearing returns to exactly the starting count. Measured on the demo vault: 424 -> **100**
-under `04 - Daily Notes`, back to 424.
+and clearing returns to exactly the starting count. Measured: 4,938 -> **1,204** under
+`04 - Daily Notes`, back to 4,938.
 
 A filter that reorders shelves would break the one thing the product promises about
 orientation: a shelf lives at a stable address in the room.
@@ -245,25 +255,22 @@ puts the shelf back the way it found it, because the checks in a shard share one
 `"a shelf arranged by hand keeps every address and starts where it stood"` switches People to
 `manual` and asserts the sequence and the whole library's address list are unchanged, that
 every spine on that shelf became draggable and none on the automatic Tags shelf did, and that
-nothing has been written to `order` yet. Measured — demo / sparse / library:
-**18 / 8 / 11 books**, **465 / 194 / 709 addresses** unchanged, **18/18, 8/8, 11/11** spines
-**10 / 8 / 11 books**, **447 / 194 / 709 addresses** unchanged (re-measured 2026-09-11; the
-demo fixture ages weekly, so its book count drifts and the other two are pinned), **10/10, 8/8, 11/11** spines
-draggable, **0** elsewhere.
+nothing has been written to `order` yet. Measured: **26 books**, **687 addresses** unchanged,
+**26/26** spines draggable, **0** elsewhere.
 
 `"Alt+Right moves a book one place, and it survives a rebuild and a reload"` focuses the first
 spine, sends `Alt+ArrowRight`, and asserts the first two books swapped, the rest did not move,
 the whole sequence was saved as keys, a rebuild reads back the same sequence, `core.migrate`
 over the settings blob returns the same `order`, and focus followed the book. Measured:
-`Bo Lindqvist, Celestine Marchand, …` → `Celestine Marchand, Bo Lindqvist, …`, **18 / 8 / 11
-keys** saved, focus on `people/Bo Lindqvist`.
+`Bo Lindqvist, Celestine Marchand, …` → `Celestine Marchand, Bo Lindqvist, …`, **26 keys**
+saved, focus on `people/Bo Lindqvist`.
 
 `"a drag and drop moves a book the same way a key does, across rows"` picks the shelf with the
 most books, scrolls it into view, and dispatches a real `dragstart` / `dragover` / `drop` with
 a `DataTransfer`, dropping the first spine on the right half of the last one. It asserts the
 book landed at the end, the mark was drawn on the right side and is **3px** wide, the carried
 spine was flagged as lifted, the payload was the address, and no mark was left behind.
-Measured on Months: **130 books over 4 rows** (demo), **30 over 2** (sparse), **122 over 5**
+Measured on Months: **110 books over 4 rows**, the first dragged onto the last across rows
 (library) — a different row in all three, so the cross-row case is the one being measured.
 
 `"the reading order in the top bar leaves an arranged shelf alone"` gives the Years shelf a
@@ -302,7 +309,7 @@ says 10 is left alone (`years -> people -> tags`, no pick shelf added); a file w
 has taken the id comes up `favourites-2 -> favourites`. A hand-edited pick shelf is normalised:
 `direction` manual, `order` dropped, `plaques` off, and of
 `["years/2024", 7, "years/2024", "nope", "", "people/Ada Lovelace"]` exactly the two real
-addresses survive. Identical on all three shapes, because it is settings arithmetic.
+addresses survive. It is settings arithmetic, so the vault cannot change the answer.
 
 `"a drop onto Favourites adds the book where it landed, and a rebuild keeps it"` dispatches
 real `dragstart` / `dragover` / `drop` events with a `DataTransfer`. The empty rail says
@@ -312,9 +319,9 @@ over it; a Years book dropped on it arrives holding **the source book's own note
 `design/0018` and lands second; dragging that one onto the first's left half reverses the two
 and leaves **0** marks behind. A rebuild, a folder filter and `core.migrate` over the settings
 blob all read back the same picks, and the favourites' addresses are unchanged across the
-filter. Measured — demo / sparse / library: the dropped year held **2 / 70 / 303 notes**, the
-filter cut the shelf to **4 of 40**, **96 of 115** and **68 of 843** notes without touching the
-picks, the jump chip said **2** on all three, and **17/17**, **6/6** and **12/12** Years spines
+filter. Measured: the dropped year held **54 notes**, the
+filter cut the shelf to **2 books / 48 of 134** notes without touching the
+picks, the jump chip said **2**, and **12/12** Years spines
 were draggable while **0** of them became `data-hand` handles — lifting is not arranging.
 
 `"a favourite comes off by the menu, and a dead pick is dropped on save and not before"`
@@ -323,8 +330,8 @@ Favourites"**, then right-clicks the source spine and asserts the same menu offe
 Favourites"**. It then hides the People shelf — **2 of 2** favourites still resolve, because
 hiding keeps a shelf's books — and then deletes that shelf from the settings: **1 of 2**
 resolves while the picks are still both, and only the next save writes the survivors. Measured
-on the demo: `[people/Halvor Estrin, years/2011]` drawn as one book, still two picks in the
-file, and `[years/2011, months/2011-09]` after a save. Restoring the shelf brings the book back.
+`[people/Halvor Estrin, years/2015]` drawn as one book, still two picks in the
+file, and `[years/2015, months/2015-09]` after a save. Restoring the shelf brings the book back.
 
 `"a favourite dragged off the shelf comes off, and a cancelled drag does not"` drives the
 gesture in four parts and is the check that guards the one unrecoverable act in this feature.
@@ -347,12 +354,12 @@ that made it a pick shelf and the only way back out — and shows the hint in pl
 Then it holds **two** pick shelves at once, `Favourites` and `Reading list`, with **1 and 2**
 books over **2** rails: the same year book sits on both and has **2 addresses**, one per shelf,
 and taking it off the first leaves **0** there and **2** on the second. The right-click menu on
-an ordinary spine offers exactly `Add to Favourites | Add to Reading list`. Identical on all
-three shapes, because it is the builder and the settings rather than the vault.
+an ordinary spine offers exactly `Add to Favourites | Add to Reading list`. It is the builder
+and the settings rather than the vault, so the vault cannot change the answer.
 
 `"a note in two favourites is one note on the shelf"` favourites a year and one of its months,
-so every note of the month is in both books. Measured — demo / sparse / library: **3 places /
-2 unique**, **86 / 70**, **338 / 303**; the shelf claims the unique count and its header says
+so every note of the month is in both books. Measured: **60 places / 54 unique**
+(`years/2015` and `months/2015-09`); the shelf claims the unique count and its header says
 so. It is the same law as *a shelf's note count is unique notes*, one level further out, and
 `checkMembership` walks the pick shelf like any other.
 
@@ -386,9 +393,9 @@ right-clicked into the gap before the year lands **between** (`[-made-dailies,
 -made-everything, years/…]`) holding the whole vault, with the value list hidden for "the whole
 vault"; Alt+Right moves it one place; and a ribbon left in it **resolves to it**, is drawn on
 its spine, puts it on the Reading shelf, *also shelved in* offers it and **not** the reference
-beside it, and opening it opens it. Measured — demo / sparse / library: **112 / 620 / 694** notes
-in `04 - Daily Notes` / `Notes` / `Archive`; with the year beside it **120 / 690 / 997** places
-are **119 / 629 / 973** unique notes and the header says so; the whole-vault book holds
+beside it, and opening it opens it. Measured: **1,204** notes
+in `04 - Daily Notes`; with the year beside it **1,258** places
+are **1,228** unique notes and the header says so; the whole-vault book holds
 **396 / 758 / 10000**.
 
 `"a made book is edited, emptied and deleted from its own menu, and the vault does not move"`
@@ -437,16 +444,17 @@ target out from under the pointer (`design/0018`).
 
 The shelf half of that has a condition worth knowing: a `.vs-shelf` off screen has
 `content-visibility: auto`, so its rendering is skipped and **the transition never runs** —
-measured on the 10k library, where the check read 0 → 0 until it scrolled the shelf into view
+measured before `decisions/0012` on the 10,000-note fixture, where the check read 0 → 0 until
+it scrolled the shelf into view
 first. That is right for the product (a person parts the shelf they are looking at) and a trap
 for a check, which has to scroll before it measures.
 
 **A date shelf dyes by period, and Encyclopedia keeps its folder dye** (`github#21`,
 `design/0005`). Years by decade, Months and Weeks by year, unless `Shelf.colorBy` says
 otherwise; the slot is the period modulo **12**, so it is the calendar's and not the vault's.
-Measured — demo / sparse / library: Months' **129 / 29 / 121** dated books over **16 / 5 / 11**
-years, **0** years torn between dyes and **0** neighbouring years sharing one; Years' **2 / 1 / 2**
-decades likewise; Encyclopedia **29 / 23 / 27** of **29 / 23 / 27** on the folder's dye. Manage
+Measured: Months' **109** dated books over **11**
+years, **0** years torn between dyes and **0** neighbouring years sharing one; Years' **2**
+decades likewise; Encyclopedia **35** of **35** on the folder's dye. Manage
 offers `folder,year,decade` on a date shelf's row and nothing on Encyclopedia's or People's;
 Months by folder follows the folder on all **129 / 29 / 121**, by decade tears **0**, and saves
 as `"decade"`. Between *vary* and the folder in the ranking: a hand-given colour and a varied
@@ -462,18 +470,18 @@ editing (not on a new one), reads *Delete*, then *Really delete?*, leaves the sh
 until the second press, and closes the sheet when it goes.
 
 **The thread is tonal, and the look paints it.** Every unchosen ribbon keeps its board's hue
-(**22/22** on the demo) and sits more than a fifth of the lightness away from it (**22/22**).
+(**12/12**) and sits more than a fifth of the lightness away from it (**12/12**).
 The check reads the ribbon element's **painted** colour rather than the custom property, and
 asserts it equals the thread the book asked for — because the first version read the property,
 passed, and missed a look painting `#ad5447` over every ribbon in the library. Demo: **6**
-distinct threads where there was **1**. The count is not asserted: the sparse vault honestly
+distinct threads where there was **1**. The count is not asserted: a vault honestly
 shows one, since nearly every book there draws from the same folder and wears the same dye.
 
 **The glass heads the index.** A magnifying-glass tab stands above the index entries in the
 reader's right-hand strip, the same height as a year tab. Pressing it takes the left page from
 **400px** back to **0** and leaves the cursor in the find box; Ctrl/Cmd+F does the same. It is
 not an index entry — it names an act rather than a position — so every check that counts index
-tabs excludes it. Every unchosen ribbon keeps its board's hue (**21/21** on the demo) and
+tabs excludes it. Every unchosen ribbon keeps its board's hue (**11/11**) and
 sits more than a fifth of the lightness away from it (**21/21**), which is what makes it visible
 without making it a different colour.
 
@@ -517,7 +525,7 @@ An empty room with no way out is the worst reachable state in this product.
 
 `"a click off the book puts it down, and a click on it does not"` measures the desk beside the
 open book, which is what a click has to land on to close it. The spread is inset from the measure
-now — it was filling it — so the desk went from **42px** to **90px** on the demo vault. The book
+now — it was filling it — so the desk went from **42px** to **90px**. The book
 is the same book; there is simply somewhere to put it down.
 
 ## The reader
@@ -526,7 +534,7 @@ is the same book; there is simply somewhere to put it down.
 Months book holding a note that links to a person's note but not the person's note itself,
 clicks the link, and asserts the reader is now on that note **in another Months book**; opens a
 book that holds both and asserts the click **stays in that book**; and asserts a note the
-library does not hold is left to the host (`openNote` returns null). Measured on the demo
+library does not hold is left to the host (`openNote` returns null). Measured on the
 vault: **38** linking notes; both cases hold. Vaults with no linked person report so and pass.
 
 `"a tag book's cover carries no hash, and every other place it is named keeps it"` walks every
@@ -536,24 +544,22 @@ every peek's first line is that label; that no spine stands upright unless its c
 characters or fewer; then opens the deepest hierarchical tag book and asserts the
 title bar reads `Tags · #<key>`, the heading `#<key>`, and every `Tags:` chip in *also shelved
 in* carries the hash; and that the address list is element for element what it was. Measured
-on the demo vault: **16 spines, 0 hashed, 15/15 labels still hashed, 16/16 peeks lead with the
+on the vault: **16 spines, 0 hashed, 15/15 labels still hashed, 16/16 peeks lead with the
 label, 1 upright of 2 short covers** (`学び` stands; `map` does not fit a 22px spine and stays
-on its side), opened `garden/seeds`. Sparse: 10 spines,
-9/9, none short, `archive/cold`. 10k library: 14 spines, 13/13, `attention/focus`, and the two
-`Tags:` chips on its first note both hashed. `github#12`, `design/0002`.
+on its side), opened `garden/seeds`. `github#12`, `design/0002`.
 
 `"a hovered spine shows one peek, big enough to read, and short labels stand upright"` asserts
 **0** spines carry a `title` or `aria-label` (two overlays otherwise), hovers the spine with
 the longest label and asserts one `#vs-peek` shows at **14px** with the name unclipped
 (`"Sanne de Vries"` in a **264px** card; `"Jun 2021"` in 340px), clear of the spine, and gone
 on leave; and that every Encyclopedia label of three characters or fewer is `horizontal-tb`
-(**23/23**, 20/20) while no longer label is; and, since `github#12`, that **0** upright titles
-in view are clipped (21, 23 and 27 measured on the three shapes), naming any short cover that
-had to stay sideways because it did not fit its spine (`map` on the demo vault).
+(**36/36**) while no longer label is; and, since `github#12`, that **0** of **37** upright
+titles in view are clipped, naming any short cover that had to stay sideways because it did
+not fit its spine (`map`).
 
 `"the date index is layered: years over months over days, each only where it separates"`
 opens a multi-year tag book and asserts one level-0 tab per year (**`#archive`: 4 years, 4
-tabs, 26 month tabs stepped in, 30 in all**; on the 10k vault `#attention` spans 15 years, 15
+tabs, 26 month tabs stepped in, 30 in all**; `#area/health/running` spans **11 years, 11
 tabs, 9 months, 24 in all), a month book and asserts only day tabs (`02 04 08 11 12 13 …`), and
 a book of three notes or fewer and asserts **0** tabs. `design/0015`.
 
@@ -578,31 +584,30 @@ and asserts the reader opened on the book that spine addressed, with a non-empty
 
 `"the index tabs cut the book the way the book is ordered"` opens the largest Encyclopedia
 volume and asserts its contents are in **title** order, that every tab label begins with the
-volume's own letter, that the labels rise, and that there are as many as the titles admit —
-up to four. Then it opens the largest person's book and asserts its tabs are **dates**,
-because its contents are in date order. Measured: on the mirror of a real vault, `A` holds 56
-notes behind `A Aft`; on the 10k library, `U` holds 404 behind `Ub Uc Uf Ug Ui Ul Um Up …`;
-on the demo fixture `M` holds 23 behind `Ma Me Mi Mo`, of the 17 prefixes its titles admit.
+volume's own letter, that the labels rise, and that there are as many as the titles admit.
+Then it opens the largest person's book and asserts its tabs are **dates**, because its
+contents are in date order. Measured: `S` holds **243 notes behind 14 tabs** (`Sa Sc Se Sh Si
+Sk Sl Sm …`) of the **32** its titles admit, and Mira Vance's **613** notes are tabbed by
+year.
 That volume used to be `G`, 25 notes behind **one** tab, because all 25 were titled
 "Greenhouse Rebuild — …" — the check was reading a fixture with nothing to cut rather than a
 cut that had gone wrong, which is why `github#7` gave the titles real first words.
 `design/0015`.
 
 `"the reader's index tabs stay countable on the biggest book"` finds the largest book in the
-vault and asserts its tab count is between 1 and 26. Measured on the demo vault: the biggest
-book is `people/-unfiled` at **250 notes behind 16 tabs**. On the library fixture the biggest
-Encyclopedia volume runs to hundreds of notes and the tabs collapse to twelve ranges;
-`design/0004` says why a tab you cannot hit is not navigation.
+vault and asserts its tab count is between 1 and 26. Measured: the biggest
+book is `people/-unfiled` at **2,481 notes behind 11 tabs**, and the `0-9` Encyclopedia volume
+holds **2,097** — the case the 10,000-note fixture used to be for, now carried by the one
+vault (`decisions/0012`). `design/0004` says why a tab you cannot hit is not navigation.
 
 `"the contents scroll to the current row after a tab, Previous and a ribbon"` opens the biggest
 book in the vault, clicks the **last** index tab and asserts the marked row's box is inside the
 left page's visible box, that the page's `scrollTop` moved (printed before and after), and that
 exactly one row carries `aria-current` — the one at the index the tab named. Then Previous from
 there, and then a ribbon left in the first page and followed from the far end, each measured
-the same way. Measured on the demo vault: `people/-unfiled`, **199 notes behind 16 tabs**, tab
-`2026` → row 147, scrollTop **0 → 3398**; Previous → row 146 with the list unmoved (3398); the
-ribbon → row 0, scrollTop **3398 → 120**. Sparse: 501 notes, **0 → 9431**, back to 120. 10k
-library: 6,937 notes, **0 → 164800**, back to 120. The reveal is the smallest move that brings
+the same way. Measured: `people/-unfiled`, **2,481 notes behind 12 tabs**, tab
+`2026` → row 1,649, scrollTop **0 → 41,776**; Previous → row 1,648 with the list unmoved
+(41,776); the ribbon → row 0, scrollTop **41,776 → 87**. The reveal is the smallest move that brings
 the row in, one row's height inside the edge, by the page's own `scrollTop` and never
 `scrollIntoView()`; instant under `prefers-reduced-motion`; and only when the note changed, so
 a re-render for the find-within box never moves a list somebody has scrolled by hand.
@@ -649,7 +654,7 @@ started.
 
 `"parent tag inclusion is a setting, and it changes the answer"` builds the same tag-sourced
 shelf twice, with `includeSubtags` on and off, and asserts the first collects at least as many
-notes as the second. Measured on the demo vault: `#garden` collects **110** notes with its
+notes as the second. Measured: `#garden` collects **1,417** notes with its
 `garden/seeds` and `garden/soil` children and **62** without -- a difference of 48.
 
 `"people come from the property alone, never from prose"` asserts that a name the fixtures
@@ -687,8 +692,8 @@ membership. A theme/look switch may repaint the palette; incoming notes may not 
 
 `node scripts/smoke.mjs --only "book colors"` drives the checkbox and reloads its saved
 setting, changes the dominant folder by adding notes, and reverses folder ranks. Measured
-in light, dark and leather: **465 / 194 / 709** existing book colors unchanged on demo,
-sparse and 10k fixtures; encyclopedia volumes use **one** color in every case. Turning
+in light, dark and leather: **687** existing book colors unchanged;
+encyclopedia volumes use **one** color in every case. Turning
 variation on/off preserves all addresses and counts.
 
 ## A look is paint, and nothing else
@@ -723,7 +728,7 @@ fourth look is covered the day it is added, and it asserts:
   look's hex reports a different colour and passes. `design/0017` records what that caught;
 - switching back to the default restores the ground, the dye and the slots exactly.
 
-Measured: **465 addresses on the demo vault, 194 on the sparse, 709 on the 10k library —
+Measured: **687 addresses on the vault —
 identical under all three looks in all three.** A book is the same **55x132** in every look,
 in a room of the same 1180px.
 
@@ -766,7 +771,7 @@ source and classifier dropdowns, its order dropdown and Save; a dye swatch — i
 github#4 (2026-09-11) the palette slot is **36×28**, a ribbon swatch **22×30**, the colours
 table itself **92** wide, the builder's dropdown **31.5** high and the same in all three, and
 every dropdown is measured with its box taken back from the host. **38** are measured where the
-reader has index tabs and **37** on the demo vault, whose first book has none; the check's floor
+reader has index tabs and **37** on the vault, whose first book has none; the check's floor
 is 34.
 
 The table is in that list because it caught three, all of them a look or a container quietly
@@ -793,7 +798,7 @@ face), the search box 35.5 vs 29.5 and the find box 37.5 vs 31.5 (the rework's 1
 reaching `font: inherit`, plus a 32px floor), index tabs 28.8 vs 27.3, contents rows 28.1 vs
 25.6, the Manage sheet 566 vs 574 wide (26px of padding), the spread 27px shorter — and **one
 under cyber**, the spread 12px shorter (a 26px margin for its ring). After: **0 off** in all
-three shapes. The fix is one rule: `page.css` owns a control's geometry — `line-height: 1.5`
+every shape it was tried on. The fix is one rule: `page.css` owns a control's geometry — `line-height: 1.5`
 on buttons and boxes, `font-size: 13px` on boxes — and a look sets colour, border, shadow and
 face only. Modern's own numbers did not move: button **27.3px**, search box **232×29.5**,
 tab **27.3**, ribbon **30**, swatch **25.5** wide.
@@ -835,7 +840,7 @@ field is the token's; and under leather that everything on the paper sheet and t
 page is light with dark ink and everything in the rail is dark with light ink. The two boxes
 the host could resize are measured before and after the rule goes in.
 
-Measured: **12 dropdowns and 6 boxes under 3 looks, 0 wrong** on all three shapes; leather
+Measured: **12 dropdowns and 6 boxes under 3 looks, 0 wrong**; leather
 paper `rgb(250, 246, 238)` on `rgb(48, 46, 39)`, leather rail `rgb(32, 33, 30)` on
 `rgb(204, 197, 181)`; `#vs-look` **28 → 28** and the builder's source dropdown
 **31.5 → 31.5** with the host's rule in. Before, on the page built from the previous commit:
@@ -887,7 +892,7 @@ spine wearing that dye, which was a different colour before; that slot's own
 ribbon; two slots picked and one put back saves **12** with the reset one equal to the look's
 own; *Reset colours* saves **0** palette and **0** ribbons, disables itself and clears every mark; and the
 Tags row's **Shown** switch, off, saves `hidden: true`, takes the visible count down by
-**one** while the shelf is still built (**16** books on the demo), leaves **0** Hide/Show
+**one** while the shelf is still built (**44** books), leaves **0** Hide/Show
 buttons on the sheet, and on again saves `hidden: false` with the count restored.
 
 `"a book with several ribbons in it shows them side by side"` marks four notes of one book
@@ -910,8 +915,9 @@ Reading shelf collected them. One note is in six books; that is the product.
 `"the shelf parts as you type, and no book leaves the room"` asserts the spine count is
 **identical before, during and after** a query, that some books drew forward and some thinned
 to ghosts, and that the room came back exactly. It takes its search term from the vault it is
-running against: hard-coding one passed on the demo vault and, on the sparse one, asserted
-that a query finding nothing still drew something forward.
+running against: hard-coding one passed on one fixture and, on another, asserted
+that a query finding nothing still drew something forward. Measured: **227** spines before,
+during and after, **193** drawn forward and **34** thinned to ghosts, none removed.
 
 ## Scrolling stays smooth
 
@@ -934,14 +940,14 @@ first paint of a shelf as it enters, which is once per shelf rather than once pe
 asserts the library, the rail, a row and the reading spread all fit inside `--measure`
 (**1180px**), that the library and the spread are centred within 20px — the tolerance is a
 scrollbar, not slack — and that **no row overflows by so much as a pixel**. Measured: shelves
-**1180 (683/698)**, row **1180**, spread **1180 (690/690)**, **worst overflow 0px** across
-9 rows on the demo vault, 10 on the sparse and 27 on the library.
+**1180 (683/698)**, row **1180**, spread **1084 (738/738)**, **worst overflow 0px** across
+**11 rows**, Months taking 4.
 
 `"a narrower window grows rows, and a wide one centres the shelf"` drives the viewport to
 2560px, to 760px and back. At 2560 a row stops at the **measure** and the gutters match; at
 760 it is the window (**705px**, inside a 760px viewport). The library's row count goes
-**9 → 16 → 9** on the demo vault, **10 → 14 → 10** on the sparse and **27 → 42 → 27** on the
-library, with **0px of overflow** at every width and the same row count on the way back.
+**11 → 17 → 11**, with **0px of overflow** at every width and the same row count on the way
+back.
 
 The repack is a `resize` listener coalesced through a **60ms timer** — not an animation
 frame. It was a frame first, and this check caught what that costs: the handler ran and the
@@ -968,8 +974,8 @@ and that a spine's title is laid out horizontally there.
 
 `"every control the keyboard can reach has a name"` walks every `button`, `input` and
 `select` under the root and asserts each has an accessible name from `aria-label`, its own
-text, a `<label for>`, a wrapping `<label>`, a `title` or a placeholder. Measured on the demo
-vault: **647 controls, all named**.
+text, a `<label for>`, a wrapping `<label>`, a `title` or a placeholder. Measured:
+**1,539 controls, all named**.
 
 ## Nothing reaches the network
 
@@ -982,7 +988,7 @@ static half is `scripts/check-network.mjs`, which is unskippable in the pre-push
 
 `"a spine lifts on hover and holds its size"` measures a spine's box at rest and focused and
 asserts both dimensions are unchanged — the lift is a `transform`, so a hovered spine cannot
-reflow its neighbours. Measured on the library fixture: **47×132 either way**. The width is
+reflow its neighbours. Measured: **57×132 either way**. The width is
 whatever that book's note count earns it (`design/0011`); what is invariant is that it does
 not change when the spine is touched. Also in the serial lane, for the same reason as the
 plaque check.
@@ -1039,7 +1045,7 @@ pending, so it cannot pass by not testing anything. After every destroy: **0** n
 inside the root, **0** `.vault-shelf` nodes in the document, `window.__vs` **undefined**, and
 **0** live timers.
 
-Measured on the demo vault, 20 cycles, 198 spines drawn every time:
+Measured before `github#17`, 20 cycles, 198 spines drawn every time:
 
 | | load | cycle 1 | cycle 20 |
 |---|---|---|---|
@@ -1079,11 +1085,11 @@ Taking the note away again puts every number back. **0** console errors througho
 It caught a second real bug the first time it ran. `refresh()` restored the reader by **row
 number**: `reader.index` was clamped to the rebuilt book's length and the note at that index
 was drawn. Add a note to the book you are reading and the note that sorts into your position
-takes your place — measured, on the Years 2011 book of the demo vault: 2 notes became 3, and
+takes your place — measured, on the Years 2011 book of the fixture as it then stood: 2 notes became 3, and
 the spread moved from the note being read to `Refresh Probe`. The place is a note now
 (`reader.noteId`), and the row number is only the fallback for a note the rebuild removed.
 
-Measured on the demo vault: **396 → 397 notes**, the open book **2 → 3**, its shelf's count
+Measured before `github#17`: **396 → 397 notes**, the open book **2 → 3**, its shelf's count
 **396 → 397**, its contents **2 → 3 entries** with exactly **1** naming the new note, and the
 reader still on the note it was on. Taking the note away again: **396**, **2**, **2**, same
 note. **0** console errors across the whole sequence.
@@ -1101,20 +1107,22 @@ that is off screen and a skipped shelf measures nothing at all.
 Exact for rows, books, counts and names; **2px** of tolerance on a box, which is where text
 metrics live (a plaque's drawn width) while the packing above it is arithmetic
 (`plaqueWidth()`, `thicknessOf()`). `node scripts/update-layout-snapshots.mjs` rewrites the
-three goldens and `--check` diffs them without the suite. What is in them:
+golden and `--check` diffs it without the suite. What is in it:
 
-Seeded 2026-09-11 at 1180×900, where the room measures **1125px** in all three:
+Seeded 2026-09-11 at 1180×900, where the room measures **1125px**:
 
-| shelf | demo | sparse | library |
+| shelf | rows | books | plaques |
 |---|---|---|---|
-| Encyclopedia | 1 row, 20 books, 0 plaques | 1 row, 23 books | 2 rows, 27 books |
-| Years | 1 row, 17 books, 2 plaques | 1 row, 6 books, 1 plaque | 1 row, 12 books, 2 plaques |
-| Months | 4 rows, 135 books, 19 plaques | 2 rows, 30 books, 6 plaques | 5 rows, 122 books, 14 plaques |
-| People | 1 row, 10 books, 9 plaques | 1 row, 8 books, 7 plaques | 1 row, 11 books, 10 plaques |
-| Tags | 1 row, 16 books, 10 plaques | 1 row, 10 books, 5 plaques | 1 row, 14 books, 7 plaques |
-| **total** | **8 rows, 198 spines, 40 plaques** | **6 rows, 77 spines, 19 plaques** | **10 rows, 186 spines, 33 plaques** |
+| Favourites | 1 | 0 | 0 |
+| Encyclopedia | 2 | 35 | 0 |
+| Years | 1 | 12 | 2 |
+| Months | 4 | 110 | 14 |
+| People | 1 | 26 | 18 |
+| Tags | 2 | 44 | 18 |
+| **total** | **11** | **227 spines** | **52** |
 
-Five shelves, not six: Weeks is hidden by default from schema 4 on. A decade run that wraps is
+Six shelves, not seven: Weeks is hidden by default from schema 4 on, and Favourites ships
+empty. A decade run that wraps is
 named on both its rows, which is why Months carries more plaques than it has years — the
 golden holds every one of them by text and by box, so a plate that drifts off its run is a
 diff. The Encyclopedia has no plaques at all: a letter volume names itself.
@@ -1136,10 +1144,10 @@ a vault it has not been told to trust** — a fresh vault asks *Trust author and
 plugins?* behind a Settings window, and until that is confirmed the plugin does not load at
 all, which looks exactly like a broken plugin.
 
-These were taken by hand inside Obsidian on **2026-09-09**, against the demo fixture as it
-stood before `github#7` rebuilt it (394 notes, 8 people, 13 tags). Nothing here is driven by
-`smoke.mjs`, so the counts have not been re-measured against the 424-note fixture; the shapes,
-the timings and the `undefined` are the claims, and the three counts move with the fixture.
+These were taken by hand inside Obsidian on **2026-09-09**, against the fixture as it stood
+before `github#7` rebuilt it (394 notes, 8 people, 13 tags). Nothing here is driven by
+`smoke.mjs`, so the counts have not been re-measured against the 4,938-note vault; the shapes,
+the timings and the `undefined` are the claims, and the counts move with the fixture.
 
 | Check | Measured |
 |---|---|
@@ -1216,7 +1224,7 @@ What it asserts: a clean tree records a stamp; the same tree hits again from a *
 and from a **`--no-ff` merge commit**, which is the whole point, since the merge that reaches
 `main` is a new commit carrying `develop`'s tree; a changed tree misses; an earlier tree still
 hits when asked for by revision; a **dirty** tree refuses to record; a run that lost a fixture
-to a failed generator refuses to record; a stamp naming only two of the three fixtures misses;
+to a failed generator refuses to record; a stamp naming no fixture run misses;
 a **regenerated** fixture misses and hits again when the store is put back; an **unpinned**
 fixture older than `FIXTURE_MAX_AGE_DAYS` (7) misses, because the next run would regenerate it
 and measure something else; a **pinned** fixture never ages; and the CLI **answers rather than
@@ -1241,18 +1249,20 @@ through a real `mklink /J` the same day, before the case existed, the CLI alread
 exit 0 and the pass line for `develop`'s tree. The hole was closed in code by github#5; what
 was missing was the proof.
 
-**A run that lost a fixture names it.** A generator that fails is dropped by `gen()` and the
-suite goes on with two shapes; `record()` refuses to stamp such a run and `lookup()` refuses a
-stamp naming fewer than three. Since github#27 the runner says which one: `not stamping this
-run: a run without sparse-vault (the generator failed) is not the full suite` — measured by
-breaking the sparse generator for one run: 87/87 on the two shapes that ran, exit 0, no stamp.
+**A run that lost its fixture names it.** A generator that fails is dropped by `gen()`;
+`record()` refuses to stamp such a run and `lookup()` refuses a stamp that names no run. Since
+github#27 the runner says which one: `not stamping this run: a run without vault (the
+generator failed) is not the full suite`. Before `decisions/0012` this was measured by
+breaking the sparse generator for one run — 87/87 on the two shapes that still ran, exit 0, no
+stamp; with one fixture there is no partial run left to have, which is why the selftest now
+drives `record({ fixtures: [] })` instead.
 
-Measured warm on the reference machine, 2026-09-11: a full run is **39.0 s** for **198 checks**
-(66 × 3 shapes) — 7.7 s of builds (the 10k fixture alone 6.5 s), ~6 s of check time across 12
-parallel shards on 4 Chromes, **22 s** in the serial lane of 13 layout-reading checks per shape
-— against **43 s** cold with all three fixtures regenerated, and **7.5 s** for the static gates
-ahead of it. So a stamped push to `develop` costs 7.5 s and an unstamped one 46.5 s, both
-measured by driving the hook with the ref lines git hands it.
+Measured on this machine, 2026-09-11, warm: a full run is **28 s** for **88 checks** on the one
+vault — against **75 s** for 264 checks over the three shapes it replaced (`github#17`,
+`decisions/0012`). Twelve times the notes and the suite is 2.7× faster, because the cost was
+three builds and three browser warm-ups rather than the size of any one vault. A cold run,
+regenerating the fixture, is **66 s**; the static gates ahead of it are **7.5 s**, so a stamped
+push to `develop` costs 7.5 s and an unstamped one about 36 s.
 
 ## Every release guard fires, and none of them writes a tag
 
@@ -1304,5 +1314,6 @@ between them by hand**.
 - **What a theme other than the default does to it.** The suite checks Obsidian's light and
   dark; a community theme can restyle anything it likes, and the `vs-` class prefix is what
   stands between it and this page.
-- **Performance at scale.** The library fixture proves 10,000 notes *render*; nothing yet
+- **Performance at scale.** Nothing measures the product at 10,000 notes since
+  `decisions/0012` retired that fixture; the one vault is 4,938. Nothing yet
   measures how long they take to, or what a virtualised rail would save.

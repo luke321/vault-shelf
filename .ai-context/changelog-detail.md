@@ -1,5 +1,139 @@
 # Changelog detail
 
+## 2026-09-11 — Four generated vaults became one, and it got twelve times thicker (github#31, github#17)
+
+> "only one vault for checks and demo recordings" · "we need way more notes in the demo
+> fixture, at least make rolling last year much denser. also is the fixture deterministic?
+> only dates move like in vault graph?" · and, settling it: *"lets say 5k notes spread over 11
+> years always starting from today going backwards"*.
+
+`decisions/0012` is the record. Both ends were measured before anything was decided, because
+the question is how far apart a fixture and a real vault actually are:
+
+| | the demo fixture | a real vault, through its mirror |
+|---|---|---|
+| notes | 424 | 544 |
+| in the rolling twelve months | **146 (34 %)** | **472 (87 %)** |
+| busiest month | 45 | 174 |
+| people | 17 | 125, of which 86 in three notes or fewer |
+| tags | 43 | 141, of which 64 on one note |
+| folders | 17 | 54 |
+| empty weeks in the last 52 | 12 | 16 |
+
+The fixture was not *even* — it already had an aged curve and long tails of people and tags.
+It was **thin**. A month with three notes in it is not a shelf anybody recognises, and it is
+the year every date shelf opens on.
+
+### The vault
+
+| | before | after | why |
+|---|---|---|---|
+| fixtures | demo 424, sparse 756, library 10,000 | **one, 4,938** | `decisions/0012`. No check was ever sparse-only — the suite ran the same 88 checks against each shape — so folding three into one drops coverage of those checks on those shapes, not a check |
+| span | 15 years | **11 years**, ending today | asked for |
+| notes in the rolling twelve months | **146** | **2,213** | github#17. 15× |
+| notes per month, that year | 0, 3, 3, 4, 5, 5, 6, 10, 11, 16, 19, 23, 45 | **102 … 308, none below 100** | a declared recent regime instead of the tail of the aged curve; the tail is what was clumpy |
+| empty months in the last 36 | 1 | **0** | asserted by the generator, not hoped for |
+| empty weeks in the last 52 | **12** | **0** | the Weeks shelf is worth un-hiding now |
+| ISO weeks holding a note | 226 | **459** | daily notes became a rhythm rather than a count |
+| by year | 2011:5 … 2025:80, 2026:121 | 2015:54 … 2025:799, **2026:1,795** | recent-heavy, steeper |
+| an empty year | none | **2019** | a 760-day hole in offset space, wide enough that a whole calendar year falls inside it at any `--end`. It is what the sparse fixture's two clusters five years apart were for |
+| undated | 18 | **523** | a fifth of the notes that are not about a day, folded in from sparse |
+| people | 17 | **25**, one in 613 notes and 11 in three or fewer | the tail had to become a COUNT — see below |
+| largest folder | 100 of 424 (24 %) | 1,204 of 4,938 (**24 %**) | sparse's **82 %** dominant folder is **gone**, and is named as a loss in `decisions/0012` |
+| the 10,000-note scale | the library fixture | **gone** | nothing measures the product at that size any more. Named as a loss |
+| title deck | 135 phrases, 11 suffixes, 14 meeting names, 40 sentences | **362 / 26 / 30 / 100** | at 5,000 notes a 135-phrase deck is every title a dozen times with "(12)" after it |
+
+### What the suite measured, before and after
+
+| | before (3 shapes) | after (1 vault) |
+|---|---|---|
+| full run | **88/88 × 3, 75 s** | **88/88, 28 s** |
+| cold, regenerating | 43 s | 66 s |
+| spines drawn | 238 (demo) | **227** |
+| addresses | 465 / 194 / 709 | **687** |
+| books on Months | 130 / 30 / 122 | **110** over 4 rows |
+| books on Years | 17 / 6 / 12 | **12** over 1 row |
+| shelves placing a note in more than one book | 2 of 6 (People 495/424, Tags 683/424) | 2 of 7 (**People 5,963/4,938, Tags 8,090/4,938**) |
+| the `0-9` volume | 168 of 424 | **2,097 of 4,938** |
+| biggest book | `people/-unfiled`, 250 behind 16 tabs (demo) | **2,481 behind 11 tabs** |
+| thinnest / thickest spine | 26px at 1 note, 53px at 227 | **40px at 54, 57px at 1,795** |
+| fixture store | 6 directories, **31 MB** | 1 directory, **14 MB** |
+| `docs/demo/index.html` | 664 KB, 424 notes | **1,573 KB** (228 KB gzipped), **1,242 notes** at `--notes 1200` |
+
+**Twelve times the notes and the suite is 2.7× faster.** The cost was never the size of a
+vault: it was three builds, three browser warm-ups and three serial lanes.
+
+### A tail is a count, not a share
+
+`bagFor` deals people proportionally to the slots that exist, so when the vault grew 12× every
+share grew with it and **the person who was in one note was in thirteen**. The long tail the
+People shelf exists to be lopsided about flattened out completely, and the generator's own
+summary printed `0 people are in three or fewer` **without anything going red**. The eleven
+tail people now carry absolute counts, dealt to their own slots before the shares are cut, so
+the tail is the same tail at 900 notes or 5,000 — and the guard below fails if it ever
+flattens again.
+
+### The generator proves its own declaration
+
+`design/0013`'s pattern, and every one of these was a real failure before it was a check: no
+empty month in the last 36, no empty week in the last 52, a whole calendar year inside the
+hole, the sentinels present, the people tail intact, and the written total within 8 % of
+`--notes`. Proven non-vacuous: **exit 1 on `--notes 900`** (one empty month) and **exit 0 on
+the declared vault**. A cut below about a thousand notes refuses rather than quietly stopping
+being the declared vault, which is the size floor stated out loud — and is why the docs demo
+is 1,200 and not 600.
+
+### The determinism check was weaker than the law it named
+
+The law: nothing consults the calendar except `--end`, and `--end` moves which dates the notes
+get and **nothing else**. The check compared **per-folder note counts** at two end dates —
+which passes unchanged if a title, a tag, a person or a whole body changed, as long as the
+notes stayed in the same folders.
+
+| | before | after |
+|---|---|---|
+| what it compared | per-folder note counts at two `--end`s | the same seed at the same `--end` is **byte-identical**; then, with every ISO date masked, the two end dates are the **same vault** whole and sorted; then, token by token, each date **kept its offset from `--end` or kept its literal** |
+| measured | 3 generators clean | **4,938 notes in 17 folders; 7,057 dates moved with `--end`, exactly 1 is declared fixed** (the `2024-01-15` title) |
+| proof it fails | none | **`--selftest`, 5/5** |
+| run time | 6 s | 16 s (the selftest, 1 m 44 s, is not in the gate) |
+
+**The "or kept its literal" clause needed a fence, and the first draft did not have one.** A
+date that is the same in both runs is what a *declared* fixed date looks like — and it is
+exactly what `new Date()` looks like, because two runs a second apart read the same clock. The
+first draft of the check **missed a date drawn from the clock** for that reason, caught only
+by staging the break and watching it pass. An anchored date within 400 days of *today* is now
+a failure: both end dates are years away on purpose.
+
+`--selftest` breaks the law four ways in a **copy** of the generator — never the tracked file,
+which this gate reads on every push — and each staged break is verified to still build, so
+catching it proves something. A tag from the calendar year, a title from the generation day, a
+body sentence from `--end`, a date from the clock: **all four caught**, and all four are things
+the old check passed without a murmur.
+
+### A check whose cost was proportional to the fixture
+
+`"previous and next walk the book and stop at its ends"` walks a book one click at a time and
+picked **the first** book with three notes — which is `encyclopedia/0-9`, holding every daily,
+meeting and 1-1 note because they are all titled with a date. 168 notes at 424; **2,097** now.
+Measured at **37 ms a click**, that is a **78-second** walk against a 10-second budget: it timed
+out and took three checks down with it. It now picks the **smallest** book with three notes.
+Nothing it asserts changed. The `0-9` volume being ~40 % of the vault is not new — it was 40 %
+of the old one too.
+
+### Found in passing, not caused here
+
+`invariants.md` said a plaque hangs **12px** below its books clearing a **3px** floor. The
+check has printed **19px over 5px** for as long as the before-run log goes back; the geometry
+had not moved, the note about it had. Corrected.
+
+### The film
+
+`record-demo.mjs` preferred `.mirror-source` and fell back to the fixture. The default is
+flipped: it shoots the vault the suite measures, and `--mirror-of <path>` is the opt-in. A
+record that left the default pointing elsewhere would describe a policy rather than bind one,
+and drift is what `github#31` was filed about — a film that opened on a shelf the narration
+never mentioned. `make-mirror-vault.mjs` is untouched, guard included.
+
 ## 2026-09-11 — The gate holes were closed; the proof was not (github#27)
 
 > "Bring the release practice level with Vault Graph's, and cut 0.1.0."
