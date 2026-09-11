@@ -4,7 +4,7 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 2644 lines, 19 sections, 113 functions
+## `src/page.js` — 2642 lines, 19 sections, 113 functions
 
 ### Sections
 
@@ -23,12 +23,12 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1062–1099 | the shelf parts as you type |
 | 1100–1729 | reader |
 | 1730–1937 | builder |
-| 1938–2240 | manage |
-| 2241–2262 | filters |
-| 2263–2343 | refresh |
-| 2344–2458 | the wiring |
-| 2459–2604 | debug api — stripped from the plugin build |
-| 2605–2644 | the wiring (continued) |
+| 1938–2238 | manage |
+| 2239–2260 | filters |
+| 2261–2341 | refresh |
+| 2342–2456 | the wiring |
+| 2457–2602 | debug api — stripped from the plugin build |
+| 2603–2642 | the wiring (continued) |
 
 ### Functions
 
@@ -127,26 +127,26 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1949 | `newShelfFromManage` |
 | 1954 | `renderManage` |
 | 2045 | `renderColours` |
-| 2076 | `colourRow` |
-| 2103 | `anyRibbon` |
-| 2118 | `slotControl` |
-| 2154 | `inkOn` |
-| 2156 | · `lin` |
-| 2165 | `pickSlot` |
-| 2173 | `resetSlot` |
-| 2186 | `setPalette` |
-| 2200 | `setRibbon` |
-| 2213 | `toHex` |
-| 2222 | · `hex` |
-| 2227 | `reorder` |
-| 2243 | `renderActiveFilters` |
-| 2256 | `clearFilters` |
-| 2276 | `paintOrder` |
-| 2294 | `fillLooks` |
-| 2306 | `toggleOrder` |
-| 2315 | `applyLook` |
-| 2324 | `refresh` |
-| 2407 | `offBook` |
+| 2074 | `colourRow` |
+| 2101 | `anyRibbon` |
+| 2116 | `slotControl` |
+| 2152 | `inkOn` |
+| 2154 | · `lin` |
+| 2163 | `pickSlot` |
+| 2171 | `resetSlot` |
+| 2184 | `setPalette` |
+| 2198 | `setRibbon` |
+| 2211 | `toHex` |
+| 2220 | · `hex` |
+| 2225 | `reorder` |
+| 2241 | `renderActiveFilters` |
+| 2254 | `clearFilters` |
+| 2274 | `paintOrder` |
+| 2292 | `fillLooks` |
+| 2304 | `toggleOrder` |
+| 2313 | `applyLook` |
+| 2322 | `refresh` |
+| 2405 | `offBook` |
 
 ## `scripts/smoke.mjs` — 3312 lines, 6 sections, 49 functions, 69 checks
 

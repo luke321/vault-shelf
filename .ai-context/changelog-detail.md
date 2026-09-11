@@ -12,7 +12,8 @@ twelve: **12 of 12** on the check, with the old field gone. A file with none com
 a sparse twelve keeps what it names, and a junk array comes back 12 long with 0 set.
 
 **The Manage block is a table**: twelve rows, the dye on the left and the thread that hangs off
-it on the right, six rows per column so the sheet's buttons stay above the fold. The ribbon
+it on the right, **four columns of three** in a Manage sheet widened to 760px, so the whole
+block and the buttons under it are on screen at once. The ribbon
 column is drawn with the spine's own notch, so the table needs no legend. Each swatch keeps its
 own mark and its own reset.
 
@@ -30,8 +31,12 @@ reader's mark row from the open book's, so every ribbon in one book is one threa
 
 **The same-size check caught the new furniture immediately.** `.vs-slot` is `inline-flex`, so a
 swatch in a table cell sits on the baseline and the row grows by the face's descender: under
-leather the table was **309px against modern's 291**. Block-level in the cell and pinned
-line-heights bring it back to **0 off**, and the table (**274** wide) and the ribbon swatch
+leather the table was **309px against modern's 291**. Two more followed from the four-column
+layout: a column **heading** is text, so the column was **109.9px under leather against
+107.3** (the headings are gone), and under `table-layout: fixed` a cell 10px too narrow took
+the 10px off the swatch rather than overflowing, **36 wide became 26** (columns pinned, swatch
+`flex: 0 0 auto`). Block-level cells, pinned line-heights and pinned columns bring it back to
+**0 off**, and the table (**92** wide) and the ribbon swatch
 (**22×30**) are in the measured list now — 38 controls, 37 on the demo vault.
 
 Crossed two files this worktree's brief had fenced off, both flagged for the orchestrator:

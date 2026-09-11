@@ -1026,6 +1026,12 @@
   background: color-mix(in srgb, var(--surface-0) 82%, transparent);
 }
 
+/* github#4 -- THE MANAGE SHEET IS WIDER THAN THE BUILDER, and only it. Twelve dyes and
+ * their twelve threads are a table, and a table wants columns: at 620px it stood six rows
+ * deep in two columns, at 860 it is three rows in four. The builder is a form, which reads
+ * worse wide, so the width is on this sheet rather than on .vs-sheetbody. */
+.vault-shelf #vs-manage .vs-sheetbody { max-width: 760px; }
+
 .vault-shelf .vs-sheetbody {
   width: 100%;
   max-width: 620px;
@@ -1082,11 +1088,15 @@
  * the foot of it below the fold. They stack to one column when the sheet is narrow. */
 .vault-shelf .vs-palette {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
-  gap: 4px 26px;
+  grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+  justify-items: start;
+  gap: 4px 20px;
   margin: 8px 0 12px;
 }
-.vault-shelf .vs-dyerows { border-collapse: collapse; width: 100%; }
+/* The table hugs its swatches and the GRID holds the slack. A table at 100% stretches its
+ * last cell, and the reset badge hangs off that cell's top-right corner -- which put a
+ * stray mark halfway across the sheet, nowhere near the swatch it belonged to. */
+.vault-shelf .vs-dyerows { border-collapse: collapse; table-layout: fixed; width: 92px; }
 /* 5px, not 2: the reset badge sits off the top-right corner of a swatch, and at 2px it
  * reached into the row above. */
 .vault-shelf .vs-dyerows th,
@@ -1098,24 +1108,20 @@
  * the row is the swatch and nothing else. */
 .vault-shelf .vs-dyerows td .vs-slot { display: flex; }
 .vault-shelf .vs-dyerows th { line-height: 1.4; }
-.vault-shelf .vs-dyerows thead th {
-  line-height: 1.2;
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-3);
-  padding-bottom: 4px;
-}
 /* The slot number is the row label, so the swatch does not carry one. */
 .vault-shelf .vs-dyerows tbody th {
-  width: 22px;
+  width: 24px;
   font-size: 11px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   color: var(--text-3);
 }
-.vault-shelf .vs-dyerows td { width: 50%; }
+/* Pinned, because table-layout: fixed shares the leftover width between the cells and a
+ * swatch is a FLEX ITEM: a cell 10px too narrow did not overflow, it quietly took 10px off
+ * the swatch -- 36px wide became 26 and the same-size check read it as a look-independent
+ * change nobody asked for. 24 + 44 + 24 = 92. */
+.vault-shelf .vs-dyerows td { width: 44px; padding-right: 8px; }
+.vault-shelf .vs-dyerows td:last-child { width: 24px; padding-right: 0; }
 .vault-shelf .vs-slot { position: relative; display: inline-flex; }
 .vault-shelf .vs-slot input[type="color"] {
   position: absolute;
@@ -1200,6 +1206,8 @@
  * carries its number; the same size in every look, because this sheet sizes it. */
 .vault-shelf .vs-slot .vs-swatch {
   position: relative;
+  /* Never shrink to fit a container: a swatch is a measured control (design/0016). */
+  flex: 0 0 auto;
   width: 36px;
   height: 28px;
   border-color: color-mix(in srgb, var(--swatch) 70%, var(--text-1));

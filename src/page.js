@@ -2046,20 +2046,18 @@ function mountVaultShelf(root, data, options) {
     var box = $("mpalette");
     clear(box);
     var chosen = settings.palette.length === 12;
-    /* Six and six rather than one column of twelve: the sheet is 620px wide and 620 tall is a
-     * sheet you scroll to reach the buttons on. */
-    [[0, 6], [6, 12]].forEach(function (range) {
+    /* FOUR COLUMNS OF THREE, not one of twelve: twelve rows is a sheet you scroll to reach
+     * the buttons on. Four tables rather than one with four column-groups, because a grid
+     * can only make as many columns as it has children -- two tables could only ever stand
+     * two abreast however wide the sheet got. They fall back to two columns and then one as
+     * the sheet narrows. */
+    [[0, 3], [3, 6], [6, 9], [9, 12]].forEach(function (range) {
+      /* NO COLUMN HEADINGS. Four of them across a sheet is "BOOK RIBBON" written four times
+       * over twelve swatches that already say which is which -- and a heading is TEXT, so
+       * the column was as wide as the face rendered it and the table came out 109.9px under
+       * leather against 107.3 in the others, which is the one thing a look may not do. The
+       * hint above the block names the two columns once. */
       var table = el("table", "vs-dyerows");
-      var head = DOC.createElement("thead");
-      var hrow = DOC.createElement("tr");
-      ["", "Book", "Ribbon"].forEach(function (name) {
-        var th = DOC.createElement("th");
-        th.scope = "col";
-        th.textContent = name;
-        hrow.appendChild(th);
-      });
-      head.appendChild(hrow);
-      table.appendChild(head);
       var body = DOC.createElement("tbody");
       for (var i = range[0]; i < range[1]; i++) {
         body.appendChild(colourRow(i, chosen));

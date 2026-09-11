@@ -460,16 +460,27 @@ slot, a slot's reset mark, the ribbon slot and Reset colours; the builder's Name
 source and classifier dropdowns, its order dropdown and Save; a dye swatch — in every look
 `core.LOOKS` knows, shelved included, against the modern look's reading. Since github#2 and
 github#4 (2026-09-11) the palette slot is **36×28**, a ribbon swatch **22×30**, the colours
-table itself **274** wide, the builder's dropdown **31.5** high and the same in all three, and
+table itself **92** wide, the builder's dropdown **31.5** high and the same in all three, and
 every dropdown is measured with its box taken back from the host. **38** are measured where the
 reader has index tabs and **37** on the demo vault, whose first book has none; the check's floor
 is 34.
 
-The table is in that list because it caught one: `.vs-slot` is `inline-flex`, so a swatch in a
-table cell sits on the cell's **baseline** and the row grows by whatever the face's descender
-is. Under leather, which is Georgia, the colours table came out **309px against modern's 291**.
-A swatch in a cell is block-level now and the table's line-heights are pinned in `page.css`,
-which is the same rule as everywhere else: a look paints a control and does not size it. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
+The table is in that list because it caught three, all of them a look or a container quietly
+resizing a control:
+
+1. `.vs-slot` is `inline-flex`, so a swatch in a table cell sits on the cell's **baseline** and
+   the row grows by the face's descender. Under leather, which is Georgia, the table came out
+   **309px against modern's 291**. A swatch in a cell is block-level now.
+2. A **column heading is text**, so the column was as wide as the face drew it: **109.9px under
+   leather against 107.3**. The headings are gone -- four of them across a sheet is "BOOK
+   RIBBON" written four times over swatches that say which is which -- and the hint above the
+   block names the two columns once.
+3. `table-layout: fixed` shares the leftover width between cells, and a swatch is a **flex
+   item**: a cell 10px too narrow did not overflow, it took 10px off the swatch, **36 wide
+   became 26**. The columns are pinned at 24 + 44 + 24 and the swatch is `flex: 0 0 auto`.
+
+Which is the same rule as everywhere else, from three directions: a look paints a control and
+does not size it, and neither does the box it is standing in. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
 (a button that sizes to its text may be a different width in a different face).
 
 Measured before: **21 controls off under leather** — the rail 60.5 vs 46.5px and the reader

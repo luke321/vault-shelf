@@ -140,7 +140,10 @@ colour it is, it disappears against one of them.
 
 So there are **twelve ribbons, one per palette slot** (`settings.ribbons`, schema 10), and the
 Manage sheet pairs them: twelve rows, the dye on the left and the thread on the right, because
-a dye and the thread that has to be seen against it are one decision. The ribbon column is
+a dye and the thread that has to be seen against it are one decision. They stand **four columns
+of three** in a sheet widened to 760px -- four tables rather than one, since a grid can only
+make as many columns as it has children -- and fall back to two columns and then one as the
+sheet narrows. Only the Manage sheet is widened; the builder is a form, which reads worse wide. The ribbon column is
 drawn with the same notch the spine hangs (`page.css`, `.vs-ribbonswatch`), so the table says
 which thread comes out of which board with no legend.
 
