@@ -204,7 +204,7 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 3373 | `refresh` |
 | 3495 | `offBook` |
 
-## `scripts/smoke.mjs` — 5473 lines, 6 sections, 89 functions, 88 checks
+## `scripts/smoke.mjs` — 5468 lines, 6 sections, 89 functions, 88 checks
 
 ### Sections
 
@@ -212,10 +212,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 |---|---|
 | 127–142 | chrome |
 | 143–222 | the checks |
-| 223–4849 | the invariants |
-| 4850–4998 | which vault, and why |
-| 4999–5353 | one run |
-| 5354–5473 | main |
+| 223–4844 | the invariants |
+| 4845–4993 | which vault, and why |
+| 4994–5348 | one run |
+| 5349–5468 | main |
 
 ### Functions
 
@@ -299,17 +299,17 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 4094 | · `tabsOf` |
 | 4102 | · `pick` |
 | 4106 | · `years` |
-| 4285 | · `books` |
-| 4288 | · `holds` |
-| 4388 | · `press` |
-| 4875 | `resolveVaults` |
-| 4985 | `buildFor` |
-| 5001 | `runOne` |
-| 5197 | `tagged` |
-| 5203 | `capture` |
-| 5223 | · · `pick` |
-| 5312 | `killBrowser` |
-| 5356 | `main` |
+| 4280 | · `books` |
+| 4283 | · `holds` |
+| 4383 | · `press` |
+| 4870 | `resolveVaults` |
+| 4980 | `buildFor` |
+| 4996 | `runOne` |
+| 5192 | `tagged` |
+| 5198 | `capture` |
+| 5218 | · · `pick` |
+| 5307 | `killBrowser` |
+| 5351 | `main` |
 
 ### Checks
 
@@ -383,23 +383,23 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 4147 | the reader's index tabs stay countable on the biggest book |
 | 4162 | the contents scroll to the current row after a tab, Previous and a ribbon |
 | 4242 | previous and next walk the book and stop at its ends |
-| 4276 | a wikilink in a book goes to that note in this book, this shelf, or the nearest |
-| 4336 | also shelved in moves to another book and keeps the note |
-| 4367 | previous collection walks back, and Alt+Left does the same |
-| 4386 | a click off the book puts it down, and a click on it does not |
-| 4430 | escape closes the reader and leaves the shelf where it was |
-| 4449 | the reading shelf survives its own shelf being hidden |
-| 4485 | a saved reading place re-resolves after its own book is gone |
-| 4500 | the builder previews the shelf it would actually save |
-| 4519 | a saved shelf gets a stable id and joins the library |
-| 4540 | parent tag inclusion is a setting, and it changes the answer |
-| 4560 | a person is read from every people property, and out of a wikilink |
-| 4594 | a link to a person's note names that person, once, by the note's name |
-| 4627 | people come from the property alone, never from prose |
-| 4648 | plain list mode keeps every book reachable |
-| 4665 | every control the keyboard can reach has a name |
-| 4687 | nothing on the page reaches the network |
-| 4697 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
-| 4754 | a tag book's cover carries no hash, and every other place it is named keeps it |
-| 4804 | a spine lifts on hover and holds its size |
-| 4819 | the shelves are packed the way the golden snapshot says |
+| 4271 | a wikilink in a book goes to that note in this book, this shelf, or the nearest |
+| 4331 | also shelved in moves to another book and keeps the note |
+| 4362 | previous collection walks back, and Alt+Left does the same |
+| 4381 | a click off the book puts it down, and a click on it does not |
+| 4425 | escape closes the reader and leaves the shelf where it was |
+| 4444 | the reading shelf survives its own shelf being hidden |
+| 4480 | a saved reading place re-resolves after its own book is gone |
+| 4495 | the builder previews the shelf it would actually save |
+| 4514 | a saved shelf gets a stable id and joins the library |
+| 4535 | parent tag inclusion is a setting, and it changes the answer |
+| 4555 | a person is read from every people property, and out of a wikilink |
+| 4589 | a link to a person's note names that person, once, by the note's name |
+| 4622 | people come from the property alone, never from prose |
+| 4643 | plain list mode keeps every book reachable |
+| 4660 | every control the keyboard can reach has a name |
+| 4682 | nothing on the page reaches the network |
+| 4692 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
+| 4749 | a tag book's cover carries no hash, and every other place it is named keeps it |
+| 4799 | a spine lifts on hover and holds its size |
+| 4814 | the shelves are packed the way the golden snapshot says |

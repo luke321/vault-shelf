@@ -15,8 +15,8 @@ numbers below moved with it, and `changelog-detail.md` gives each one its old va
 value and a reason.
 
 The vault's own shape: **eleven years to 2026-09-11, ending today by default**, recent-heavy
-(**54 notes in 2015, 1,795 in 2026**, and **2,213 in the rolling twelve months** against 146
-before); **2019 is empty on purpose** — the year nobody wrote, so a chronological shelf has a
+(**54 notes in 2015, 1,697 in 2026**, and **2,213 in the rolling twelve months** against 146
+before, none of its months below **123**); **2019 is empty on purpose** — the year nobody wrote, so a chronological shelf has a
 gap to survive; a PARA-ish tree of ten numbered folders with four nested ones, a `Templates`
 folder and three notes at the root, the largest holding **1,204 of 4,938** notes; **24 named
 people on a long tail** — one in 613 notes, eleven in three or fewer — plus a twenty-fifth who
@@ -204,7 +204,7 @@ golden is unchanged by it.
 `"a spine's thickness is its note count"` reads `--spine-w` off every spine on the Years shelf
 and asserts that widths rise with note counts, that the fullest book is as wide as any book on
 the shelf, and that every width falls between **22px and 58px**. Measured:
-**40px for a 54-note book, 57px for the 1,795-note one**; before `github#17` **45px at 309
+**40px for a 54-note book, 56px for the 1,697-note one**; before `github#17` **45px at 309
 notes and 50px at 1020**. It is a tie, not an identity: two counts a few notes apart round to
 the same pixel. The scale is logarithmic and it is taken against the largest book in the whole
 **library**, never in the shelf, so the same thickness means the same size everywhere on the
@@ -606,8 +606,8 @@ left page's visible box, that the page's `scrollTop` moved (printed before and a
 exactly one row carries `aria-current` — the one at the index the tab named. Then Previous from
 there, and then a ribbon left in the first page and followed from the far end, each measured
 the same way. Measured: `people/-unfiled`, **2,481 notes behind 12 tabs**, tab
-`2026` → row 1,649, scrollTop **0 → 41,776**; Previous → row 1,648 with the list unmoved
-(41,776); the ribbon → row 0, scrollTop **41,776 → 87**. The reveal is the smallest move that brings
+`2026` → row 1,703, scrollTop **0 → 43,156**; Previous → row 1,702 with the list unmoved
+(43,156); the ribbon → row 0, scrollTop **43,156 → 87**. The reveal is the smallest move that brings
 the row in, one row's height inside the edge, by the page's own `scrollTop` and never
 `scrollIntoView()`; instant under `prefers-reduced-motion`; and only when the note changed, so
 a re-render for the find-within box never moves a list somebody has scrolled by hand.

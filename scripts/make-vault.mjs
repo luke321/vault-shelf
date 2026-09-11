@@ -728,11 +728,13 @@ const agedOffset = () => {
 
 /* github#17 -- the recent year dealt day by day, because the curve's tail was clumpy. `nth`
  * walks the folder's run across the year, jittered so it is not a cron job. */
+const WORKDAYS = Math.floor(RECENT * 5 / 7);
 const recentOffset = (nth, of) => {
-  const spread = Math.max(1, Math.floor((RECENT * 5 / 7) / Math.max(1, of)));
-  const at = Math.floor(nth * spread) + Math.floor(rand() * spread);
-  /* Count only the days somebody works on, so the rhythm survives however many notes a
-   * folder asked for. */
+  /* The stride is a FRACTION of a working day, not a whole one. Flooring it to an integer
+   * made a folder of 160 notes stride 1 and finish inside the first 160 working days -- seven
+   * months, not twelve -- so the older half of the rolling year saw nothing from it. */
+  const spread = WORKDAYS / Math.max(1, of);
+  const at = Math.min(WORKDAYS - 1, Math.floor(nth * spread + rand() * spread));
   let left = at;
   for (let offset = 0; offset < RECENT; offset++) {
     if (restDay(offset)) continue;

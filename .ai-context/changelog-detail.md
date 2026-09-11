@@ -31,11 +31,11 @@ the year every date shelf opens on.
 | fixtures | demo 424, sparse 756, library 10,000 | **one, 4,938** | `decisions/0012`. No check was ever sparse-only — the suite ran the same 88 checks against each shape — so folding three into one drops coverage of those checks on those shapes, not a check |
 | span | 15 years | **11 years**, ending today | asked for |
 | notes in the rolling twelve months | **146** | **2,213** | github#17. 15× |
-| notes per month, that year | 0, 3, 3, 4, 5, 5, 6, 10, 11, 16, 19, 23, 45 | **102 … 308, none below 100** | a declared recent regime instead of the tail of the aged curve; the tail is what was clumpy |
+| notes per month, that year | 0, 3, 3, 4, 5, 5, 6, 10, 11, 16, 19, 23, 45 | **123 … 301, none below 123** | a declared recent regime instead of the tail of the aged curve; the tail is what was clumpy |
 | empty months in the last 36 | 1 | **0** | asserted by the generator, not hoped for |
 | empty weeks in the last 52 | **12** | **0** | the Weeks shelf is worth un-hiding now |
 | ISO weeks holding a note | 226 | **459** | daily notes became a rhythm rather than a count |
-| by year | 2011:5 … 2025:80, 2026:121 | 2015:54 … 2025:799, **2026:1,795** | recent-heavy, steeper |
+| by year | 2011:5 … 2025:80, 2026:121 | 2015:54 … 2025:896, **2026:1,697** | recent-heavy, steeper |
 | an empty year | none | **2019** | a 760-day hole in offset space, wide enough that a whole calendar year falls inside it at any `--end`. It is what the sparse fixture's two clusters five years apart were for |
 | undated | 18 | **523** | a fifth of the notes that are not about a day, folded in from sparse |
 | people | 17 | **25**, one in 613 notes and 11 in three or fewer | the tail had to become a COUNT — see below |
@@ -56,7 +56,7 @@ the year every date shelf opens on.
 | shelves placing a note in more than one book | 2 of 6 (People 495/424, Tags 683/424) | 2 of 7 (**People 5,963/4,938, Tags 8,090/4,938**) |
 | the `0-9` volume | 168 of 424 | **2,097 of 4,938** |
 | biggest book | `people/-unfiled`, 250 behind 16 tabs (demo) | **2,481 behind 11 tabs** |
-| thinnest / thickest spine | 26px at 1 note, 53px at 227 | **40px at 54, 57px at 1,795** |
+| thinnest / thickest spine | 26px at 1 note, 53px at 227 | **40px at 54, 56px at 1,697** |
 | fixture store | 6 directories, **31 MB** | 1 directory, **14 MB** |
 | `docs/demo/index.html` | 664 KB, 424 notes | **1,573 KB** (228 KB gzipped), **1,242 notes** at `--notes 1200` |
 
@@ -109,6 +109,22 @@ which this gate reads on every push — and each staged break is verified to sti
 catching it proves something. A tag from the calendar year, a title from the generation day, a
 body sentence from `--end`, a date from the clock: **all four caught**, and all four are things
 the old check passed without a murmur.
+
+### A stride that was floored to a whole day
+
+Caught in the correctness review pass, not by a check. `recentOffset` walks a folder's recent
+notes across the working days of the rolling year, and its stride was
+`floor(workdays / count)` — so a folder asking for 160 notes strode **1** and finished inside
+the first 160 working days. Seven months, not twelve: the older half of the rolling year saw
+nothing from that folder, and the check that says "no empty month" passed anyway because the
+daily-note rhythm covered them. A fractional stride fixed it, and the year got flatter without
+getting less recent-heavy:
+
+| | floored stride | fractional |
+|---|---|---|
+| notes per month, rolling year | 115, 102, 151, 137, 158, 162, 179, 173, 179, 224, 275, **308** | 149, 123, 167, 137, 147, 149, 164, 160, 168, 210, 261, **301** |
+| the leanest month | **102** | **123** |
+| 2025 / 2026 | 799 / 1,795 | 896 / 1,697 |
 
 ### A check whose cost was proportional to the fixture
 
