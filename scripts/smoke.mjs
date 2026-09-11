@@ -2895,18 +2895,21 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
 
     /* github#44 -- 4. focus previews and an arrow moves, so not mouse-only */
     slotSwatch(0).click();
-    /* NOT the swatch the popover opened on: the focus it takes on opening offers nothing by
-     * design, so asking that one to paint is asking for the one thing this must not do */
-    var opened = -1;
-    for (var k = 0; k < 12; k++) if (offered(k) === document.activeElement) opened = k;
-    out.openedOn = opened >= 0;
-    var key = (opened + 5) % 12;
-    offered(key).focus();
-    var keyed = room();
-    out.focused = keyed !== before;
-    offered(key).dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
-    out.arrowMoved = document.activeElement === offered((key + 1) % 12);
-    out.arrowPainted = room() !== keyed && room() !== before;
+    /* the menu holds its own focus, so nothing is offered until the hand moves */
+    out.menuHolds = document.activeElement === menu;
+    var arrow = function () {
+      menu.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    };
+    arrow();
+    var landed = -1;
+    for (var k = 0; k < 12; k++) if (offered(k) === document.activeElement) landed = k;
+    out.arrowLanded = landed >= 0;
+    arrow();
+    out.arrowMoved = document.activeElement === offered((landed + 1) % 12);
+    out.arrowPainted = room() !== before;
+    /* and a swatch focused straight on, the way Tab reaches it */
+    offered((landed + 5) % 12).focus();
+    out.focused = room() !== before;
     escape();
     out.keyboardPutBack = room() === before;
 
@@ -2939,8 +2942,8 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
   })()`);
   const want = ["laidOut", "opened", "openedQuiet", "painted", "stillPacked", "stillShelved",
                 "followed", "escaped", "escapedClean", "packedBack", "paintedForLeave",
-                "leftAlone", "stillOpen", "paintedAgain", "clickedOff", "openedOn", "focused",
-                "arrowMoved",
+                "leftAlone", "stillOpen", "paintedAgain", "clickedOff", "menuHolds",
+                "arrowLanded", "focused", "arrowMoved",
                 "arrowPainted", "keyboardPutBack", "threadOnly", "threadPutBack", "committed",
                 "previewedOverCommitted", "backToCommitted", "reset", "shut", "finalShelved"];
   const bad = want.filter((k) => r[k] !== true);

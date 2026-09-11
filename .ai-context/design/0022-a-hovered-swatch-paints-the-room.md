@@ -107,11 +107,19 @@ on the demo vault, before and after). The grid's column
 count is read back from the computed style rather than written twice: `page.css` owns the
 geometry (`design/0016`).
 
-**The focus the popover takes on opening offers nothing.** The popover opens on the swatch whose
-colour the slot is already wearing, and the first focus event on that swatch is swallowed — a
-room that changes the instant the popover opens would say a choice had been made before one was.
-Chrome delivers that focus after the handlers are wired, so the guard is a flag rather than an
-ordering.
+**A menu of the twelve opens holding its own focus**, and that is what makes "opening offers
+nothing" structural rather than timed. The first shape of this focused the swatch whose colour
+the slot was already wearing and swallowed that one focus event with a flag. It worked, and it
+was a race: Chrome delivers that opening focus *after* the handlers are wired, and if it lands
+after the hand has already moved on it yanks focus back and undoes the preview. The suite caught
+it as a check that failed about one run in four on the 10k shape and never in isolation.
+
+So no swatch takes the opening focus at all. The menu itself does (`tabIndex = -1`), the twelve
+keep their `aria-pressed`, and **the first arrow steps onto the colour the unit is already
+wearing** — so the keyboard's first move shows what is committed rather than something else. Tab
+reaches each swatch and previews it on the way, as before. The arrow handler moved from the row
+to the menu for the same reason: with focus on the container, a keydown on the row would never
+hear it.
 
 ## Custom
 

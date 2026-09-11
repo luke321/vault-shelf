@@ -1500,9 +1500,8 @@ function mountVaultShelf(root, data, options) {
     var books = booksOn(shelf);
     var offers = dyeRow(menu, books, function (slot) { setBookColors(books, slot); });
     placeMenu(menu, x, y);
-    var first = menu.querySelector("button");
-    if (first instanceof HTMLElement) first.focus();
-    offerPreviews(offers, first);
+    line.focus();
+    offerPreviews(offers);
   }
 
   /** github#44 -- the books standing on one shelf, as the library has them now */
@@ -1854,6 +1853,8 @@ function mountVaultShelf(root, data, options) {
    */
   function dyeRow(menu, books, pick) {
     var given = handSlot(books);
+    /** @type {HTMLElement|null} */
+    var worn = null;
     /** @type {{ btn: HTMLElement, show: () => void }[]} */
     var offers = [];
     var row = el("div", "vs-swatches");
@@ -1863,7 +1864,7 @@ function mountVaultShelf(root, data, options) {
       sw.style.setProperty("--swatch", colour);
       sw.title = "Colour " + (i + 1);
       sw.setAttribute("aria-label", sw.title);
-      if (given === i) sw.setAttribute("aria-pressed", "true");
+      if (given === i) { sw.setAttribute("aria-pressed", "true"); worn = worn || sw; }
       on(sw, "click", function () { pick(i); });
       offers.push({ btn: sw, show: function () { previewColors(books, i); } });
       row.appendChild(sw);
@@ -1876,7 +1877,9 @@ function mountVaultShelf(root, data, options) {
     offers.push({ btn: auto, show: function () { previewColors(books, null); } });
     menu.appendChild(auto);
     /* github#44, design/0022 -- arrows walk the twelve here the way they do in the sheet */
-    on(row, "keydown", function (e) { walkSwatches(/** @type {KeyboardEvent} */ (e), row); });
+    on(menu, "keydown", function (e) {
+      walkSwatches(/** @type {KeyboardEvent} */ (e), row, worn);
+    });
     return offers;
   }
 
@@ -1895,9 +1898,8 @@ function mountVaultShelf(root, data, options) {
     var offers = dyeRow(menu, books, function (slot) { setBookColors(books, slot); });
     if (books.length !== 1) {
       placeMenu(menu, x, y);
-      var one = menu.querySelector("button");
-      if (one instanceof HTMLElement) one.focus();
-      offerPreviews(offers, one);
+      holdFocus(menu);
+      offerPreviews(offers);
       return;
     }
 
@@ -1938,9 +1940,8 @@ function mountVaultShelf(root, data, options) {
     }
 
     placeMenu(menu, x, y);
-    var first = menu.querySelector("button");
-    if (first instanceof HTMLElement) first.focus();
-    offerPreviews(offers, first);
+    holdFocus(menu);
+    offerPreviews(offers);
   }
 
   /**
@@ -3416,46 +3417,57 @@ function mountVaultShelf(root, data, options) {
     var top = Math.min(at.bottom - host.top + 6, host.height - h - 8);
     menu.style.left = Math.max(8, left) + "px";
     menu.style.top = Math.max(8, top) + "px";
-    /* github#44, design/0022 -- open on the colour it is wearing, so nothing has to change */
-    var first = pressed || menu.querySelector("button");
-    if (first instanceof HTMLElement) first.focus();
-
-    offerPreviews(offers, first);
+    /* github#44, design/0022 -- the menu holds the focus, so opening offers nothing */
+    holdFocus(menu);
+    offerPreviews(offers);
     /* github#44, design/0022 -- the OS picker is not ours, so Custom offers nothing */
     on(other, "mouseenter", endPreview);
     on(other, "focus", endPreview);
     /* github#44, design/0022 -- arrows walk the twelve, so the preview is not mouse-only */
-    on(row, "keydown", function (e) { walkSwatches(/** @type {KeyboardEvent} */ (e), row); });
-  }
-
-  /**
-   * github#44, design/0022 -- wired after the menu takes focus, so opening offers none
-   * @param {{ btn: HTMLElement, show: () => void }[]} offers
-   * @param {Element|null} first @returns {void}
-   */
-  function offerPreviews(offers, first) {
-    var landed = false;
-    offers.forEach(function (o) {
-      on(o.btn, "mouseenter", o.show);
-      on(o.btn, "focus", function () {
-        var settling = !landed && o.btn === first;
-        landed = true;
-        if (!settling) o.show();
-      });
+    on(menu, "keydown", function (e) {
+      walkSwatches(/** @type {KeyboardEvent} */ (e), row, pressed);
     });
   }
 
   /**
-   * github#44, design/0022 -- page.css owns the grid, so the width is read back
-   * @param {KeyboardEvent} e @param {HTMLElement} row @returns {void}
+   * github#44, design/0022 -- what the hand is on is what the room wears
+   * @param {{ btn: HTMLElement, show: () => void }[]} offers @returns {void}
    */
-  function walkSwatches(e, row) {
+  function offerPreviews(offers) {
+    offers.forEach(function (o) {
+      on(o.btn, "mouseenter", o.show);
+      on(o.btn, "focus", o.show);
+    });
+  }
+
+  /**
+   * github#44, design/0022 -- a menu of the twelve opens holding its own focus
+   * @param {HTMLElement} menu @returns {void}
+   */
+  function holdFocus(menu) {
+    menu.tabIndex = -1;
+    menu.focus();
+  }
+
+  /**
+   * github#44, design/0022 -- page.css owns the grid, so the width is read back
+   * @param {KeyboardEvent} e @param {HTMLElement} row @param {HTMLElement|null} worn
+   * @returns {void}
+   */
+  function walkSwatches(e, row, worn) {
     var keys = ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Home", "End"];
     if (keys.indexOf(e.key) < 0) return;
     var buttons = row.querySelectorAll("button");
     var at = -1;
     for (var k = 0; k < buttons.length; k++) if (buttons[k] === DOC.activeElement) at = k;
-    if (at < 0) return;
+    /* github#44 -- the first arrow steps onto the colour it is already wearing */
+    if (at < 0) {
+      var start = worn || buttons[0];
+      if (!(start instanceof HTMLElement)) return;
+      e.preventDefault();
+      start.focus();
+      return;
+    }
     var wide = WIN.getComputedStyle(row).gridTemplateColumns.split(/\s+/).length || 1;
     var step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1
              : e.key === "ArrowDown" ? wide : e.key === "ArrowUp" ? -wide : 0;

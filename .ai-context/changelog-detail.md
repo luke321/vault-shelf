@@ -40,6 +40,15 @@ that should have opened *New book here…* landed on swatch 1 instead. The twelv
 line — right-clicking a gap is a gesture about a position, so the act tied to that position leads
 — and one of the two checks now asks for `.vs-railline` by name.
 
+**The opening focus was a race, and the flag that guarded it was not enough.** The first shape
+focused the swatch whose colour the slot already wore and swallowed that one focus event; Chrome
+delivers it *after* the handlers are wired, so a late one yanked focus back and undid a preview.
+Measured as a check that failed about **one run in four** on the 10k shape and never in
+isolation. A menu of the twelve now holds its own focus (`tabIndex = -1`) and no swatch takes the
+opening focus at all; **the first arrow steps onto the colour the unit is already wearing**, and
+the arrow handler moved from the row to the menu, because with focus on the container a keydown
+on the row would never hear it.
+
 **Both new checks clear the palette, the ribbons and the hand-given colours before measuring.**
 They read boxes, so they sit in the serial lane, and the checks that run before them there leave
 all three behind; what these measure is a difference, and a leftover palette made a preview land

@@ -520,9 +520,13 @@ of the twelve and previews as it goes; the twelve stay individually tabbable, so
 named controls the accessibility check reads on the demo vault do not move. The grid's column count is read back
 from the computed style, because `page.css` owns the geometry (`design/0016`).
 
-**The popover opens on the colour the slot is wearing, and offers nothing until the hand moves.**
-The first focus event on that swatch is swallowed: a room that changed the instant the popover
-opened would say a choice had been made before one was.
+**A menu of the twelve opens holding its own focus, and offers nothing until the hand moves.**
+No swatch takes the opening focus, so "opening offers nothing" is structural rather than timed --
+the first shape of this swallowed one focus event with a flag and was a race, since Chrome
+delivers that focus after the handlers are wired and a late one yanks focus back and undoes a
+preview (a check that failed **one run in four** on the 10k shape, and never in isolation). **The
+first arrow steps onto the colour the unit is already wearing**, so the keyboard's first move
+shows what is committed.
 
 What a preview costs, and what it replaces — `readTheme()` split so a hover re-reads the twelve
 without re-deriving the look's own:
