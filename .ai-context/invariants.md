@@ -258,12 +258,27 @@ book that holds both and asserts the click **stays in that book**; and asserts a
 library does not hold is left to the host (`openNote` returns null). Measured on the demo
 vault: **38** linking notes; both cases hold. Vaults with no linked person report so and pass.
 
+`"a tag book's cover carries no hash, and every other place it is named keeps it"` walks every
+spine on the visible tag shelf and asserts **0** covers open with `#`, **0** differ from the
+book's key (`Untagged` for `-unfiled`), that every tagged book's label still is `#` + key and
+every peek's first line is that label; that no spine stands upright unless its cover is three
+characters or fewer; then opens the deepest hierarchical tag book and asserts the
+title bar reads `Tags · #<key>`, the heading `#<key>`, and every `Tags:` chip in *also shelved
+in* carries the hash; and that the address list is element for element what it was. Measured
+on the demo vault: **16 spines, 0 hashed, 15/15 labels still hashed, 16/16 peeks lead with the
+label, 1 upright of 2 short covers** (`学び` stands; `map` does not fit a 22px spine and stays
+on its side), opened `garden/seeds`. Sparse: 10 spines,
+9/9, none short, `archive/cold`. 10k library: 14 spines, 13/13, `attention/focus`, and the two
+`Tags:` chips on its first note both hashed. `github#12`, `design/0002`.
+
 `"a hovered spine shows one peek, big enough to read, and short labels stand upright"` asserts
 **0** spines carry a `title` or `aria-label` (two overlays otherwise), hovers the spine with
 the longest label and asserts one `#vs-peek` shows at **14px** with the name unclipped
 (`"Sanne de Vries"` in a **264px** card; `"Jun 2021"` in 340px), clear of the spine, and gone
 on leave; and that every Encyclopedia label of three characters or fewer is `horizontal-tb`
-(**23/23**, 20/20) while no longer label is.
+(**23/23**, 20/20) while no longer label is; and, since `github#12`, that **0** upright titles
+in view are clipped (21, 23 and 27 measured on the three shapes), naming any short cover that
+had to stay sideways because it did not fit its spine (`map` on the demo vault).
 
 `"the date index is layered: years over months over days, each only where it separates"`
 opens a multi-year tag book and asserts one level-0 tab per year (**`#archive`: 4 years, 4

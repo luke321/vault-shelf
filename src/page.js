@@ -345,6 +345,7 @@ function mountVaultShelf(root, data, options) {
   function drawLibrary() {
     var box = $("shelves");
     clear(box);
+    uprightFit = {};
     var anyVisible = false;
 
     var marked = readingBooks();
@@ -634,6 +635,28 @@ function mountVaultShelf(root, data, options) {
     return track;
   }
 
+  /** @type {Record<string, boolean>} */
+  var uprightFit = {};
+
+  /* github#12, design/0002 -- three characters stand upright only when they fit the spine. */
+  /** @param {string} cover @param {number} width @returns {boolean} */
+  function fitsUpright(cover, width) {
+    var key = cover + "|" + width;
+    if (key in uprightFit) return uprightFit[key];
+    var probe = el("div", "vs-probe");
+    var spine = el("button", "vs-spine");
+    spine.setAttribute("data-upright", "1");
+    spine.style.setProperty("--spine-w", width + "px");
+    var title = el("span", "vs-title", cover);
+    spine.appendChild(title);
+    probe.appendChild(spine);
+    root.appendChild(probe);
+    var fits = title.scrollWidth <= title.clientWidth;
+    root.removeChild(probe);
+    uprightFit[key] = fits;
+    return fits;
+  }
+
   /** @param {Book} book @param {Shelf} shelf @param {boolean} hand @returns {HTMLElement} */
   function renderSpine(book, shelf, hand) {
     var b = el("button", "vs-spine");
@@ -648,7 +671,8 @@ function mountVaultShelf(root, data, options) {
      * this spine is wearing, so a green book and a red one hang different threads. */
     b.style.setProperty("--ribbon", ribbonFor(dye));
     b.style.setProperty("--ribbon-ink", inkOn(toHex(ribbonFor(dye))));
-    b.appendChild(el("span", "vs-title", book.label));
+    /* github#12 */
+    b.appendChild(el("span", "vs-title", book.cover));
     b.appendChild(el("span", "vs-n", String(book.notes.length)));
 
     /* design/0008 -- the three things that make a shelf look used rather than printed. */
@@ -696,7 +720,9 @@ function mountVaultShelf(root, data, options) {
     on(b, "mouseleave", hidePeek);
     on(b, "blur", hidePeek);
     /* A one-letter label reads better upright than turned on its side: A, K, 0-9, Ü. */
-    if (book.label.length <= 3) b.setAttribute("data-upright", "1");
+    if (book.cover.length <= 3 && fitsUpright(book.cover, thicknessOf(book.notes.length))) {
+      b.setAttribute("data-upright", "1");
+    }
 
     on(b, "click", function () { openBook(book, null); });
     if (hand && shelf.direction === "manual") handleOf(b, book, shelf);

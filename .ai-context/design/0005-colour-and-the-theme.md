@@ -178,8 +178,9 @@ element of the page now, one `#vs-peek` moved to whichever spine is under the po
 focus, 13px type up to 340px wide so a name wraps rather than clips, placed above the spine so
 it never covers the book it describes.
 
-**A label of three characters or fewer stands upright.** An Encyclopedia's A is read as A,
-not tilted; so is `0-9`, and so is Ü.
+**A label of three characters or fewer stands upright, when it fits.** An Encyclopedia's A is
+read as A, not tilted; so is `0-9`, and so is Ü. Since `github#12` the fit is measured rather
+than assumed (`design/0002`): `map` on a 22px spine would be `m…`, so it stays on its side.
 
 ## The colours block in Manage (2026-09-11)
 

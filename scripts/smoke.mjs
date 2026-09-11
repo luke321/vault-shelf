@@ -167,6 +167,8 @@ const SHOT_OPEN = arg("shot-open", "");
 /* github#11 */
 const SHOT_BOOK = arg("shot-book", "");
 const SHOT_TAB = arg("shot-tab", "");
+/* github#12 */
+const SHOT_SHELF = arg("shot-shelf", "");
 const GRID = argv.includes("--no-grid") ? false
           : argv.includes("--grid") ? true
           : JOBS > 1;
@@ -2879,21 +2881,85 @@ check("a hovered spine shows one peek, big enough to read, and short labels stan
     var uprightEnc = enc.filter(function (b) { return b.getAttribute("data-upright") === "1"; });
     var mode = uprightEnc.length ? getComputedStyle(uprightEnc[0].querySelector(".vs-title")).writingMode : "";
     var wide = spines.filter(function (b) { return b.querySelector(".vs-title").textContent.length > 3 && b.getAttribute("data-upright") === "1"; }).length;
+    /* github#12 */
+    var clipped = 0, measured = 0, sideways = [];
+    spines.forEach(function (b) {
+      var t = b.querySelector(".vs-title");
+      var up = b.getAttribute("data-upright") === "1";
+      if (!up && t.textContent.length <= 3) sideways.push(t.textContent);
+      if (!up || !t.clientWidth) return;
+      measured++;
+      if (t.scrollWidth > t.clientWidth) clipped++;
+    });
     return { titled: titled, label: (longest.getAttribute("data-peek") || "").split(" -- ")[0],
+             clippedUp: clipped, measuredUp: measured, sideways: sideways,
              shown: shown, width: Math.round(box.width), fontPx: fontPx, clipped: clipped,
              above: above, hidden: hidden, enc: enc.length, uprightEnc: uprightEnc.length,
              mode: mode, wide: wide, nameLines: Math.round(nameBox.height / (fontPx * 1.4)) };
   })()`);
   const ok = r.titled === 0 && r.shown && r.fontPx >= 13 && !r.clipped && r.above && r.hidden &&
-             r.uprightEnc === r.enc && r.mode === "horizontal-tb" && r.wide === 0;
+             r.uprightEnc === r.enc && r.mode === "horizontal-tb" && r.wide === 0 && r.clippedUp === 0;
   return {
     ok,
     detail: `${r.titled} spines carry a title or aria-label (two overlays otherwise); hovering ` +
             `"${r.label}" shows one ${r.width}px peek at ${r.fontPx}px, the name in full ` +
             `(${!r.clipped}, ${r.nameLines} line(s)), clear of the spine (${r.above}), gone on ` +
             `leave (${r.hidden}); ${r.uprightEnc}/${r.enc} Encyclopedia labels stand upright ` +
-            `(${r.mode}) and no label over three characters does (${r.wide === 0})`
+            `(${r.mode}) and no label over three characters does (${r.wide === 0}); ` +
+            `${r.clippedUp} of ${r.measuredUp} upright titles in view are clipped` +
+            (r.sideways.length ? `; short covers too wide for their spine stay sideways: ${r.sideways.join(" ")}` : "")
   };
+});
+
+/* github#12, design/0002 */
+check("a tag book's cover carries no hash, and every other place it is named keeps it", async (p) => {
+  const r = await p.j(`(function(){
+    var view = __vs.views().filter(function (v) { return v.shelf.classifier === "tag" && !v.shelf.hidden; })[0];
+    if (!view) return { found: false };
+    var before = __vs.addresses().join("|");
+    var tagged = view.books.filter(function (b) { return b.key !== "-unfiled"; });
+    var byId = {};
+    view.books.forEach(function (b) { byId[b.id] = b; });
+    var spines = [].slice.call(document.querySelectorAll('#vs-shelves [data-shelf="' + view.shelf.id + '"] .vs-spine'));
+    var hashed = 0, mismatched = 0, upright = 0, short = 0, labelHash = 0, peekHash = 0;
+    var covers = [];
+    spines.forEach(function (s) {
+      var book = byId[s.getAttribute("data-book")];
+      var cover = s.querySelector(".vs-title").textContent;
+      covers.push(cover);
+      if (cover.charAt(0) === "#") hashed++;
+      var want = book.key === "-unfiled" ? "Untagged" : book.key;
+      if (cover !== want) mismatched++;
+      if (book.key !== "-unfiled" && book.label === "#" + book.key) labelHash++;
+      if ((s.getAttribute("data-peek") || "").split(" -- ")[0] === book.label) peekHash++;
+      if (cover.length <= 3) short++;
+      if (s.getAttribute("data-upright") === "1") upright++;
+    });
+    var deepest = tagged.slice().sort(function (a, b) { return b.key.split("/").length - a.key.split("/").length || b.notes.length - a.notes.length; })[0];
+    __vs.openBook(deepest.id, null);
+    var title = document.getElementById("vs-readertitle").textContent;
+    var heading = document.getElementById("vs-bookname").textContent;
+    var chips = [].slice.call(document.querySelectorAll(".vs-alsoin button")).map(function (b) { return b.textContent; });
+    var tagChips = chips.filter(function (c) { return c.indexOf(view.shelf.name + ": ") === 0; });
+    __vs.closeReader();
+    var after = __vs.addresses().join("|");
+    return { found: true, shelf: view.shelf.id, spines: spines.length, tagged: tagged.length,
+             hashed: hashed, mismatched: mismatched, labelHash: labelHash, peekHash: peekHash,
+             short: short, upright: upright, shortCovers: covers.filter(function (c) { return c.length <= 3; }),
+             opened: deepest.key, title: title, heading: heading,
+             titleOk: title === view.shelf.name + " \u00b7 #" + deepest.key, headingOk: heading === "#" + deepest.key,
+             tagChips: tagChips.length, chipHash: tagChips.filter(function (c) { return c.indexOf(": #") > 0; }).length,
+             stable: before === after, count: view.noteCount };
+  })()`);
+  if (!r.found) return { ok: false, detail: "no visible tag shelf in this vault" };
+  const ok = r.hashed === 0 && r.mismatched === 0 && r.labelHash === r.tagged && r.peekHash === r.spines &&
+             r.upright <= r.short && r.titleOk && r.headingOk && r.chipHash === r.tagChips && r.stable;
+  return { ok,
+           detail: `${r.shelf}: ${r.spines} spines, ${r.hashed} covers open with #, ${r.mismatched} differ from the key ` +
+                   `(${r.labelHash}/${r.tagged} labels still carry it, ${r.peekHash}/${r.spines} peeks lead with the label); ` +
+                   `${r.upright} upright of ${r.short} covers of three characters or fewer [${r.shortCovers.join(" ")}]; ` +
+                   `open "${r.opened}": title bar "${r.title}" (${r.titleOk}), heading "${r.heading}" (${r.headingOk}), ` +
+                   `${r.chipHash}/${r.tagChips} tag chips hashed; addresses unchanged (${r.stable}), ${r.count} notes` };
 });
 
 check("a spine lifts on hover and holds its size", async (p) => {
@@ -3312,6 +3378,14 @@ async function capture(page, out) {
     console.log("wrote " + file);
   };
   await page.eval('__vs.closeReader(); document.getElementById("vs-library").scrollTop = 0; void 0');
+  if (SHOT_SHELF) {
+    await page.eval(`(function(){
+      var lib = document.getElementById("vs-library");
+      var head = document.querySelector('#vs-shelves [data-shelf="' + ${JSON.stringify(SHOT_SHELF)} + '"]');
+      if (!head) return;
+      lib.scrollTop = head.getBoundingClientRect().top - lib.getBoundingClientRect().top + lib.scrollTop - 12;
+    })(); void 0`);
+  }
   if (SHOT_OPEN) {
     await page.eval(`(function(){
       var sheet = ${JSON.stringify(SHOT_OPEN)};

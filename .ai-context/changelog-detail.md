@@ -1,5 +1,32 @@
 # Changelog detail
 
+## 2026-09-11 — The hash comes off a tag book's cover
+
+> github#12: "remove the tag symbol from book covers reads badly".
+
+`core.labelFor` named a tag book `#garden` and the spine drew that label sideways at 10.5px:
+a punctuation mark set vertically, the one glyph on the shelf that read as noise. `Book.cover`
+is a second form — `coverFor(key, kind)`, the bare key for a tag book and `labelFor` for
+everything else — and the spine's title and its upright rule read it. Nothing else does: the
+peek, the dye menu heading, the reader's title bar, the book heading and the *also shelved in*
+chips all keep the label, and `design/0002` says why: horizontally the hash is how a tag is
+written and what keeps `area/health/sleep` from reading as a folder path.
+
+A label is not an address. `key` is untouched, so no book moved, no count changed, no address
+differs; the check compares `__vs.addresses()` before and after element for element. Measured
+on the demo vault: **16** spines on the Tags shelf, **0** covers open with `#`, **15/15**
+tagged books' labels still `#`-prefixed, **16/16** peeks lead with the label; `Tags ·
+#garden/seeds` in the title bar and `#garden/seeds` in the heading. Sparse: 10 spines, 9/9;
+10k library: 14 spines, 13/13, and both `Tags:` chips under its first note hashed.
+
+**And the upright rule learned to measure.** Three characters or fewer stood upright, and
+`map` — three without its hash — stood up on a three-note spine 22px wide, where a screenshot
+showed `m…`. Every check was green; only the picture saw it. `fitsUpright()` now measures the
+cover on a probe spine of the real width under the root, in the look's own face, and a short
+cover that does not fit stays on its side. Demo vault: `学び` stands, `map` does not; **20/20,
+23/23, 27/27** Encyclopedia volumes still stand, and **0 of 21, 23, 27** upright titles in view
+are clipped — a number the peek check did not have before. 72 checks per shape.
+
 ## 2026-09-11 — The contents follow the jump
 
 > github#11: "when I click an index tab on the right, the index on the left should also move a

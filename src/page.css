@@ -1303,6 +1303,16 @@
   max-height: none;
 }
 
+/* github#12 -- the probe a cover is measured on before it is allowed to stand upright. */
+.vault-shelf .vs-probe {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.vault-shelf .vs-probe .vs-spine { --spine-h: 100px; }
+
 /* A label of a letter or three stands upright: an Encyclopedia's A is read as A, not tilted. */
 .vault-shelf .vs-spine[data-upright="1"] .vs-title {
   writing-mode: horizontal-tb;
