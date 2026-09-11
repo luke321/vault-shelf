@@ -1,5 +1,8 @@
 import { attach, json } from "./cdp.mjs";
 import { leftmostScreen, leftWindowPos } from "./screen.mjs";
+// github#5, decisions/0010
+import { FIXTURE_MAX_AGE_DAYS, FIXTURE_NAMES, describeFixture,
+         record as recordPass } from "./suite-stamp.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync,
          renameSync, mkdirSync, statSync } from "node:fs";
@@ -2507,7 +2510,6 @@ function resolveVaults() {
   if (arg("url", "")) return [{ path: "", label: "the page passed with --url" }];
 
   const out = [];
-  const FIXTURE_MAX_AGE_DAYS = 7;
   const GENERATORS = ["make-demo-vault.mjs", "make-sparse-vault.mjs", "make-library-vault.mjs"];
   const FIXTURE_FORMAT = 1;
 
@@ -2601,7 +2603,9 @@ function resolveVaults() {
       console.log(`  note: ${name}/ exists in this checkout and is IGNORED -- the suite uses ` +
                   `the shared store (${dir}); pass --vault to use a specific vault on purpose`);
     }
-    out.push({ path: dir, label });
+    // github#5, decisions/0010
+    const desc = describeFixture(dir);
+    out.push({ path: dir, label, fixture: desc ? { name, ...desc } : null });
   };
 
   gen("make-demo-vault.mjs", [], "demo-vault", "the demo vault (every classifier populated)");
@@ -3017,6 +3021,21 @@ async function main() {
       const f = failures.get(v.label) || 0, t = ran.get(v.label) || 0;
       console.log(`  ${f ? "FAIL" : " ok "}  ${t - f}/${t}  ${v.label}`);
     }
+  }
+  // github#5, decisions/0010
+  const partial = ONLY.length ? "--only" : argAll("vault").length ? "--vault"
+                : arg("url", "") ? "--url" : LOOK ? "--look"
+                : vaults.some((v) => !v.fixture) ? "an unstamped fixture"
+                : FIXTURE_NAMES.some((n) => !vaults.some((v) => v.fixture.name === n))
+                  ? "a fixture that could not be generated" : "";
+  if (!worst && !partial) {
+    let checks = 0;
+    for (const t of ran.values()) checks += t;
+    const r = recordPass({ fixtures: vaults.map((v) => v.fixture), checks });
+    console.log(r.wrote ? `stamped tree ${r.tree.slice(0, 7)} as passed: ${r.wrote}`
+                        : `not stamping this run: ${r.why}`);
+  } else if (!worst) {
+    console.log(`not stamping this run: ${partial} is not the full suite`);
   }
   if (worst) {
     console.log("");

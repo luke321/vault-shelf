@@ -61,9 +61,15 @@ root=$(git rev-parse --show-toplevel)
 # else eventually merges into, so that is where a regression has to be caught.
 policy_fail=""
 gated_push=""
+gated_shas=""
 while read -r _local_ref local_sha remote_ref _remote_sha; do
   case "$remote_ref" in
-    refs/heads/develop|refs/heads/main) gated_push=1 ;;
+    refs/heads/develop|refs/heads/main)
+      gated_push=1
+      # The commits the stamp check at the bottom asks about (github#5, decisions/0010). A
+      # deletion pushes the all-zero sha, which names no tree, so it is left out.
+      case "$local_sha" in *[!0]*) gated_shas="$gated_shas $local_sha" ;; esac
+      ;;
   esac
 
   [ "$remote_ref" = "refs/heads/main" ] || continue
@@ -293,8 +299,62 @@ if [ -n "$SKIP_SMOKE" ]; then
   exit 0
 fi
 
+# A TREE IS GATED ONCE (github#5, decisions/0010). A green full run of smoke.mjs stamps the
+# tree it measured -- scripts/suite-stamp.mjs, keyed by the git TREE hash and the three
+# fixtures it ran against, written into the shared git common dir so every worktree sees one
+# set of stamps. main only ever receives develop, so the merge commit that reaches main
+# carries exactly the tree develop's push already gated, and re-driving Chrome over identical
+# content is cost, not a second opinion. So: if every commit being pushed has a stamp, the
+# suite is skipped and the stamp is NAMED. A commit whose tree nobody has measured -- a merge
+# that brought new content, a fixture regenerated since -- runs it as before. Nothing here
+# trusts a commit hash, a branch name or a clock.
+#
+# THE PASS LINE IS REQUIRED, not merely exit 0: the sister repo found suite-stamp exiting 0
+# while printing nothing when it was invoked through a directory junction, and `if ! node ...`
+# read that silence as "stamped", so the suite never ran on a push from any Orca worktree.
+stamped=1
+for sha in $gated_shas; do
+  out=$(node "$root/scripts/suite-stamp.mjs" check "$sha" </dev/null) || stamped=""
+  echo "  $out"
+  case "$out" in *"passed the invariant suite"*) ;; *) stamped="" ;; esac
+done
+if [ -n "$stamped" ]; then
+  echo "pre-push: every tree being pushed already passed the invariant suite -- skipping it"
+  exit 0
+fi
+
+# ONE SUITE AT A TIME ON THIS MACHINE. Two runs fight for CDP ports and a screen, and each
+# blames the code (scripts/lock.mjs, design/0006). The lock is taken here, around the suite
+# only, and released on every way out -- a lock held by a dead hook makes every other worktree
+# wait out its stale window. A lock that cannot be had blocks the push rather than running on
+# top of the holder; the holder is named, so the wait is a known one.
+lock_owner="pre-push $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+release_lock() { node "$root/scripts/lock.mjs" release suite --owner "$lock_owner" </dev/null >/dev/null 2>&1; }
+trap 'release_lock; exit 1' INT TERM HUP
+if ! node "$root/scripts/lock.mjs" acquire suite --owner "$lock_owner" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: could not take the suite lock -- push blocked.
+
+Another invariant suite is running on this machine and the wait ran out. See who holds it
+with:  node scripts/lock.mjs status   and push again when it is free.
+EOF
+  exit 1
+fi
+
 echo "pre-push: running the invariant suite over three vault shapes (SKIP_SMOKE=1 to skip)..."
-if node "$root/scripts/smoke.mjs" </dev/null; then
+# The suite is a child so a signal to this hook can take it down too: releasing the lock while
+# the run it guarded keeps driving Chrome would hand the next run a contended screen.
+# --no-lock: this hook is already holding the lock (github#8). smoke.mjs takes the suite
+# lock itself, so without this the run would wait for a lock its own parent holds.
+node "$root/scripts/smoke.mjs" --no-lock </dev/null &
+suite_pid=$!
+trap 'kill "$suite_pid" 2>/dev/null; release_lock; exit 1' INT TERM HUP
+wait "$suite_pid"
+suite_rc=$?
+release_lock
+trap - INT TERM HUP
+if [ "$suite_rc" -eq 0 ]; then
   exit 0
 fi
 
