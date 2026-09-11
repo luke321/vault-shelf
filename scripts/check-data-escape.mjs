@@ -221,15 +221,15 @@ async function main() {
                       data.notes.map((n) => JSON.stringify(n.title)).join(", ") + ")");
       } else {
         const want = [
-          ["tags", hostile.tags.indexOf(PAYLOAD.tag) >= 0],
-          ["people", hostile.people.indexOf(PAYLOAD.person) >= 0],
-          ["props.status", hostile.props.status === PAYLOAD.prop.replace(/^"/, "")],
-          ["body separator", hostile.body.indexOf(PAYLOAD.sep) >= 0],
-          ["body", hostile.body.indexOf(PAYLOAD.body) >= 0],
-          ["folder", hostile.folder === PAYLOAD.folder],
+          ["tags", hostile.tags.indexOf(PAYLOAD.tag) >= 0, hostile.tags],
+          ["people", hostile.people.indexOf(PAYLOAD.person) >= 0, hostile.people],
+          ["props.status", hostile.props.status === PAYLOAD.prop.replace(/^"/, ""), hostile.props],
+          ["the body's separators", hostile.body.indexOf(PAYLOAD.sep) >= 0, hostile.body],
+          ["the body's markup", hostile.body.indexOf(PAYLOAD.body) >= 0, hostile.body],
+          ["folder", hostile.folder === PAYLOAD.folder, hostile.folder],
         ];
-        for (const [field, ok] of want) {
-          if (!ok) problems.push(`${field} did not round-trip: ${JSON.stringify(hostile[field.split(".")[0]])}`);
+        for (const [field, ok, got] of want) {
+          if (!ok) problems.push(`${field} did not round-trip: ${JSON.stringify(got)}`);
         }
       }
       for (const s of scripts) {
