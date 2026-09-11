@@ -133,9 +133,9 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | No two suite runs, no two windows on one screen, and no fixture pulled out from under one (1559) | — no check named in the section |
 | A tree is gated once, and a partial run never claims to be a full one (1642) | — no check named in the section |
 | Two Chromes, and one shape to run them on (1689) | — no check named in the section |
-| Every release guard fires, and none of them writes a tag (1746) | — no check named in the section |
-| A native drag is the one gesture the harness cannot drive (1761) | — no check named in the section |
-| Not covered here (1785) | — no check named in the section |
+| Every release guard fires, and none of them writes a tag (1772) | — no check named in the section |
+| A native drag is the one gesture the harness cannot drive (1787) | — no check named in the section |
+| Not covered here (1811) | — no check named in the section |
 
 ## `__vs.*` entry points → callers outside page.js — 31
 
