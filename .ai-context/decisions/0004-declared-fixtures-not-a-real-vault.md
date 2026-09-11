@@ -1,6 +1,13 @@
 # 0004 — Declared fixtures, generated on demand, never a real vault
 
-**Date** 2026-09-09 · **Status** accepted
+**Date** 2026-09-09 · **Status** accepted, **amended** by `decisions/0014` (2026-09-11)
+
+> **Amendment.** Everything below stands except the *count*. `decisions/0014` replaced the three
+> declared vaults with **one** — `scripts/make-vault.mjs`, 5,000 notes over eleven years — which is
+> also what the film is shot in. The reasoning here is unchanged and is why a fixture is declared,
+> generated on demand, keyed by generator digest and independent of the calendar except `--end`;
+> read `0014` for what the one vault had to absorb to replace three, and for the two properties
+> that were given up.
 
 ## Context
 

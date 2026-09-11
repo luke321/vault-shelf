@@ -4,7 +4,7 @@
 import { attach } from "./cdp.mjs";
 import { currentFixture } from "./fixture-store.mjs";
 import { spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -81,34 +81,19 @@ function fixtureStore() {
   return join(dirname(abs), ".fixtures");
 }
 
-/* design/0013 -- WHERE THE FILM IS SHOT.
- *
- * A fixture vault is built to exercise the classifiers, and it shows: even people, smooth tag
- * counts, folders called `alpha`. The uneven shelf is the whole point of the product and a
- * fixture is the one vault that is not uneven, so the film is shot in a MIRROR of a real
- * vault -- same tree, same dates, same distributions, no real words.
- *
- * The source path is read from `.mirror-source` (gitignored, written once) or the environment,
- * never from a commit: `check-pii` refuses a vault path in a tracked file, and it is right to.
- */
+/* decisions/0014 -- the film is shot in the vault the checks run on; design/0013's mirror is
+ * `--mirror-of <path>` now, on purpose, because a default nobody typed is the one that
+ * drifts. Never read from a commit: check-pii refuses a vault path in a tracked file. */
 function mirrorSource() {
   const explicit = arg("mirror-of", "");
-  if (explicit) return resolve(explicit);
-  const f = join(ROOT, ".mirror-source");
-  if (existsSync(f)) {
-    const line = readFileSync(f, "utf8").split(/\r?\n/).map((l) => l.replace(/#.*$/, "").trim())
-      .find(Boolean);
-    if (line) return resolve(line);
-  }
-  const env = process.env.VAULT_SHELF_VAULT || process.env.OBSIDIAN_VAULT || "";
-  return env ? resolve(env) : "";
+  return explicit ? resolve(explicit) : "";
 }
 
 function sourceVault() {
   const explicit = arg("vault", "");
   if (explicit) return resolve(explicit);
 
-  const source = argv.includes("--no-mirror") ? "" : mirrorSource();
+  const source = mirrorSource();
   if (source) {
     if (!existsSync(source)) throw new Error("mirror source does not exist: " + source);
     const out = join(ROOT, "mirror-vault");
@@ -126,14 +111,12 @@ function sourceVault() {
   }
 
   const store = fixtureStore();
-  const hit = existsSync(store)
-    ? (basename(currentFixture(ROOT, "demo-vault")) || undefined)
-    : null;
+  const hit = existsSync(store) ? (basename(currentFixture(ROOT, "vault")) || undefined) : null;
   if (!hit) {
-    throw new Error("no demo-vault-* fixture in " + store +
+    throw new Error("no vault-* fixture in " + store +
       ' -- run `node scripts/smoke.mjs --only "no console errors"` once to generate the store');
   }
-  say("no mirror source (.mirror-source / VAULT_SHELF_VAULT): shooting in a fixture vault");
+  say("shooting in the fixture the suite measures: " + hit);
   return join(store, hit);
 }
 

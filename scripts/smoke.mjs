@@ -157,16 +157,13 @@ function findChrome() {
 /* -------------------------------------------------------------- the checks */
 
 const all = [];
-/* github#39, decisions/0013 -- a check names the shapes it needs; all three by default */
-const DEMO_ONLY = ["demo-vault"];
+// github#39, decisions/0013, decisions/0014 -- the guard is why the parameter stays
 const check = (name, fn, opts) => {
-  const on = !opts || !opts.on || opts.on === "all" ? FIXTURE_NAMES.slice()
-           : opts.on === "demo" ? DEMO_ONLY.slice()
-           : [].concat(opts.on);
+  const on = !opts || !opts.on || opts.on === "all" ? FIXTURE_NAMES.slice() : [].concat(opts.on);
   const stray = on.filter((n) => !FIXTURE_NAMES.includes(n));
   if (stray.length) {
     throw new Error(`check "${name}" asks for fixture(s) ${stray.join(", ")}, which do not ` +
-                    `exist; the three are ${FIXTURE_NAMES.join(", ")}`);
+                    `exist; the fixtures are ${FIXTURE_NAMES.join(", ")}`);
   }
   all.push({ name, fn, on });
 };
@@ -275,7 +272,7 @@ check("the seven default shelves are there, in order, Favourites first", async (
   const want = ["favourites", "encyclopedia", "years", "months", "weeks", "people", "tags"];
   const ok = JSON.stringify(ids) === JSON.stringify(want);
   return { ok, detail: ok ? want.join(" -> ") : `got ${ids.join(" -> ")}` };
-}, { on: "demo" });
+});
 
 check("a shelf's note count is unique notes, never the sum of its books", async (p) => {
   const report = await p.j("__vs.checkMembership()");
@@ -442,7 +439,7 @@ check("a note with no date of its own takes the earliest stamp the file has", as
             `(${r.declared}), then the title (${r.fromTitle}), then the stamp ` +
             `(${r.fallback}); with the fallback off it is Undated (${r.off})`
   };
-}, { on: "demo" });
+});
 
 check("an ISO week keeps its week-year across a January boundary", async (p) => {
   const r = await p.j(`(function(){
@@ -458,7 +455,7 @@ check("an ISO week keeps its week-year across a January boundary", async (p) => 
              r.jan4_2027 === "2027-W01" && r.range.from === "2026-12-28" && r.range.to === "2027-01-03";
   return { ok, detail: `2027-01-01 -> ${r.jan1_2027}, 2027-01-04 -> ${r.jan4_2027}, ` +
                        `2026-W53 spans ${r.range.from}..${r.range.to}` };
-}, { on: "demo" });
+});
 
 check("the Encyclopedia opens with a 0-9 volume, not ten one-note books", async (p) => {
   const r = await p.j(`(function(){
@@ -486,7 +483,7 @@ check("year plaques only appear on date classifiers, and only when asked for", a
   return { ok: wrong.length === 0,
            detail: wrong.length ? wrong.map(([k, v]) => `${k}: wants ${v.wants}, has ${v.has}`).join("; ")
                                 : Object.entries(r).map(([k, v]) => `${k} ${v.has}`).join(", ") };
-}, { on: "demo" });
+});
 
 check("a plaque sits under the books it names, in the same scroller", async (p) => {
   const r = await p.j(`(function(){
@@ -511,7 +508,7 @@ check("a plaque sits under the books it names, in the same scroller", async (p) 
   return { ok: r.below >= r.board && r.sameRail,
            detail: `plaque hangs ${r.below}px below its books, clearing the ${r.board}px ` +
                    `floor; same scroller: ${r.sameRail}; width differs by ${r.widthDiff}px` };
-}, { on: "demo" });
+});
 
 /* github#6, design/0019 */
 check("a plaque opens the run it names as one book of unique notes, and both plates of a wrapped run open the same one", async (p) => {
@@ -680,7 +677,7 @@ check("on a manual shelf a plate opens what is under it, not the whole letter", 
            detail: `"${r.moved}" moved to the end of a manual Tags shelf splits letter ${r.plaque} into ${r.plates} plates; ` +
                    `the last opens ${r.firstRows} notes (the one book under it holds ${r.movedNotes}), the first opens ` +
                    `${r.restRows} (the rest of the letter, ${r.restUnique} unique); same address for both (${r.sameId}: ${r.firstId})` };
-}, { on: "demo" });
+});
 
 /* github#4 -- schema 10 gave every slot its own ribbon. A file from 9 carries one that every
  * book in the library wore, and that was a choice, so it becomes all twelve. */
@@ -712,7 +709,7 @@ check("one ribbon from an older schema becomes a ribbon on every colour", async 
             `a sparse twelve keeps ${r.keptFirst} and ${r.keptThird} with ${r.keptEmpty} following their dyes; ` +
             `a junk array comes back ${r.junkLength} long with ${r.junkSet} set`
   };
-}, { on: "demo" });
+});
 
 check("a settings file from an older schema comes up with the newer defaults", async (p) => {
   const r = await p.j(`(function(){
@@ -798,7 +795,7 @@ check("a settings file from an older schema comes up with the newer defaults", a
             `alphabet on its plaques (${r.lettered}); a file naming the shelved cyberpunk ` +
             `look comes up in ${r.shelvedLook}, one naming modern keeps it ("${r.keptLook}")`
   };
-}, { on: "demo" });
+});
 
 check("years group under decade plaques, and a run that wraps is named on both rows",
       async (p) => {
@@ -1004,7 +1001,7 @@ check("a shelf arranged by hand keeps every address and starts where it stood", 
             `${r.elsewhere} on the automatic Tags shelf did; nothing was written to order yet: ` +
             `${r.untouched}`
   };
-}, { on: "demo" });
+});
 
 check("Alt+Right moves a book one place, and it survives a rebuild and a reload", async (p) => {
   const r = await p.j(`(function(){
@@ -1045,7 +1042,7 @@ check("Alt+Right moves a book one place, and it survives a rebuild and a reload"
             `sequence (${r.rebuilt}) and so did migrate() over the settings (${r.reread}); ` +
             `focus followed the book to ${r.focused}`
   };
-}, { on: "demo" });
+});
 
 check("a drag and drop moves a book the same way a key does, across rows", async (p) => {
   const picked = await p.j(`(function(){
@@ -1109,7 +1106,7 @@ check("a drag and drop moves a book the same way a key does, across rows", async
             `wide and left it at the end (${r.wanted}); the shelf now opens ${r.head.join(", ")}; ` +
             `the payload was the address ${r.carried}; ${r.marksLeft} marks left behind`
   };
-}, { on: "demo" });
+});
 
 check("the reading order in the top bar leaves an arranged shelf alone", async (p) => {
   const r = await p.j(`(function(){
@@ -1144,7 +1141,7 @@ check("the reading order in the top bar leaves an arranged shelf alone", async (
             `-> "${r.then}" and back left the sequence untouched (${r.held}), while the ` +
             `automatic Months shelf of ${r.months} books did turn round (${r.autoTurned})`
   };
-}, { on: "demo" });
+});
 
 check("a book nobody has arranged stands at the end of the shelf", async (p) => {
   const r = await p.j(`(function(){
@@ -1172,7 +1169,7 @@ check("a book nobody has arranged stands at the end of the shelf", async (p) => 
             `"${r.newcomer}" stands last (${r.last === r.newcomer}), the named ones keep their ` +
             `order (${r.rest}), and all ${r.addresses} addresses are still there (${r.kept})`
   };
-}, { on: "demo" });
+});
 
 check("a filter narrows an arranged shelf without shuffling it", async (p) => {
   /* THE SMALLEST FOLDER, not the first one: the first is usually the one holding most of the
@@ -1209,7 +1206,7 @@ check("a filter narrows an arranged shelf without shuffling it", async (p) => {
             `${r.narrow} under "${folder}" and every one of them is still in the arranged order ` +
             `(${r.ordered}); clearing the filter puts all ${r.full} back in it (${r.back})`
   };
-}, { on: "demo" });
+});
 
 /* design/0019 -- the four that hold the Favourites shelf up. Each one empties the picks again
  * on its way out, because the checks in a shard share one page. */
@@ -1278,7 +1275,7 @@ check("Favourites comes first and empty, fresh and by migration from schema 9", 
             `with no order (${r.hand.order}), no plaques (${!r.hand.plaques}) and the picks ` +
             `"${r.hand.picks}"`
   };
-}, { on: "demo" });
+});
 
 check("a drop onto Favourites adds the book where it landed, and a rebuild keeps it", async (p) => {
   await p.eval(`(function(){
@@ -1407,7 +1404,36 @@ check("a drop onto Favourites adds the book where it landed, and a rebuild keeps
             `${r.draggableElsewhere}/${r.yearsSpines} Years spines lift and ${r.handElsewhere} ` +
             `are handles; emptied to ${r.emptied} and the hint is back (${r.hintBack})`
   };
-}, { on: "demo" });
+});
+
+// github#35, design/0019
+check("a fresh library seeds its favourites from its own shelves", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var views = __vs.views();
+    var picks = core.seedPicks(views);
+    var live = {};
+    views.forEach(function (v) { v.books.forEach(function (b) { live[b.id] = b; }); });
+    var books = picks.map(function (id) { return live[id]; });
+    var shelves = {};
+    picks.forEach(function (id) { shelves[id.slice(0, id.indexOf("/"))] = 1; });
+    return {
+      picks: picks,
+      dead: picks.filter(function (id) { return !live[id]; }).length,
+      empty: books.filter(function (b) { return b && !b.notes.length; }).length,
+      placeholder: picks.filter(function (id) { return id.indexOf("/-") >= 0; }).length,
+      shelves: Object.keys(shelves).length,
+      labels: books.map(function (b) { return b ? b.label + " (" + b.notes.length + ")" : "(gone)"; })
+    };
+  })()`);
+  return {
+    ok: r.picks.length >= 3 && r.dead === 0 && r.empty === 0 && r.placeholder === 0 &&
+        r.shelves === r.picks.length,
+    detail: `seeded ${r.picks.length} favourite(s) off ${r.shelves} different shelves, ` +
+            `${r.dead} of them dead and ${r.empty} empty, ${r.placeholder} an -undated or ` +
+            `-unfiled book: ${r.labels.join(", ")}`
+  };
+});
 
 check("a favourite comes off by the menu, and a dead pick is dropped on save and not before",
       async (p) => {
@@ -1486,7 +1512,7 @@ check("a favourite comes off by the menu, and a dead pick is dropped on save and
             `[${r.picksWhileGone.join(", ")}] until a save, after which they are ` +
             `[${r.afterSave.join(", ")}]; People back: ${r.restored} books; emptied to ${r.left}`
   };
-}, { on: "demo" });
+});
 
 check("a favourite dragged off the shelf comes off, and a cancelled drag does not", async (p) => {
   await p.eval(`(function(){
@@ -1599,7 +1625,7 @@ check("a favourite dragged off the shelf comes off, and a cancelled drag does no
             `an ordinary shelf dragged across the library changed nothing ` +
             `([${r.afterPlain.join(", ")}])`
   };
-}, { on: "demo" });
+});
 
 check("a second favourites shelf is built from the builder and holds its own books", async (p) => {
   const r = await p.j(`(function(){
@@ -1700,7 +1726,7 @@ check("a second favourites shelf is built from the builder and holds its own boo
             `shelf. Taking it off the first left ${r.afterOff.first} there and ${r.afterOff.mine} ` +
             `on the second. The menu offered: ${r.lines.join(" | ")}. Back to ${r.after} shelf`
   };
-}, { on: "demo" });
+});
 
 check("a note in two favourites is one note on the shelf", async (p) => {
   const r = await p.j(`(function(){
@@ -1950,7 +1976,7 @@ check("a book made on the shelf holds the notes it points at, where it was made"
             `left ${r.left} books and ${r.madeLeft} definitions` +
             (ok ? "" : `; flags: ${JSON.stringify({ offered: r.offered, form: r.form, book: r.book })}`)
   };
-}, { on: "demo" });
+});
 
 /* design/0020 -- edited, emptied, deleted; the vault untouched. */
 check("a made book is edited, emptied and deleted from its own menu, and the vault does not move",
@@ -2106,7 +2132,7 @@ check("a made book is edited, emptied and deleted from its own menu, and the vau
             `its sheet: spine ${r.bySheet.spine}, landing back ${r.bySheet.landing}; the vault's ` +
             `${r.notes} notes are byte-identical: ${r.vaultSame}`
   };
-}, { on: "demo" });
+});
 
 /* design/0020 -- on a shelf arranged by hand, and the plus that ends it. */
 check("a book is made on any shelf arranged by hand, and a plus stands where the books end",
@@ -2244,7 +2270,7 @@ check("a book is made on any shelf arranged by hand, and a plus stands where the
             `round-trips made ${r.roundtrip.made} and order ${r.roundtrip.order}; back to automatic it sorts last ` +
             `${r.auto.last} (after Undated ${r.auto.afterUndated}) with ${r.auto.plus} plus; ${r.left} left`
   };
-}, { on: "demo" });
+});
 
 check("a shelf is deleted on the second press, made at the end the button is at, and carried by its floor",
       async (p) => {
@@ -2369,7 +2395,7 @@ check("a shelf is deleted on the second press, made at the end the button is at,
             `second press; arming another row works too (${r.otherArmed === "1"}), and ${r.wearKeys} ` +
             `wear keys of the deleted shelf survive. Back to ${r.back.length} shelves`
   };
-}, { on: "demo" });
+});
 
 check("the room parts where a thing will land, the twelve are offered, and a shelf goes from its own sheet",
       async (p) => {
@@ -2661,7 +2687,7 @@ check("the room parts where a thing will land, the twelve are offered, and a she
             `and took the left page from ${rest.find.scrolledAway}px back to ` +
             `${rest.find.scrolledBack}px with the cursor in the find box (${rest.find.focused})`
   };
-}, { on: "demo" });
+});
 
 check("a hidden shelf keeps its definition and its books", async (p) => {
   const r = await p.j(`(function(){
@@ -2679,7 +2705,7 @@ check("a hidden shelf keeps its definition and its books", async (p) => {
              r.after.visible === r.before.visible;
   return { ok, detail: `${r.before.visible} visible -> ${r.during.visible} hidden -> ` +
                        `${r.after.visible} restored; the hidden shelf still held ${r.stillBuilt} books` };
-}, { on: "demo" });
+});
 
 check("hiding every shelf offers a way back rather than an empty room", async (p) => {
   const r = await p.j(`(function(){
@@ -2697,7 +2723,7 @@ check("hiding every shelf offers a way back rather than an empty room", async (p
   return { ok: r.card && r.button && r.spines === 0 && r.restored > 0,
            detail: `recovery card: ${r.card}, its button: ${r.button}, ${r.spines} spines while ` +
                    `hidden, ${r.restored} after restoring` };
-}, { on: "demo" });
+});
 
 /* A check that reads the `hidden` ATTRIBUTE is not a check that anything is hidden. The
  * reader and both sheets are laid out by a class, which outranks the user agent's
@@ -2726,7 +2752,7 @@ check("the library is the whole surface, with no sidebar", async (p) => {
            detail: `${r.sidebars} sidebars, ${r.jump} shelves in the jump rail, ` +
                    `${r.newshelf} New shelf buttons bracketing the scroll (in order: ` +
                    `${r.topFirst}), ${r.spines} spines` };
-}, { on: "demo" });
+});
 
 /* design/0005 -- the twelve slots are Vault Graph's. This reads what the cascade actually
  * resolved rather than what a comment claims, because a comment claiming parity is exactly
@@ -2765,7 +2791,7 @@ check("the twelve colour slots are Vault Graph's own", async (p) => {
              : same(r.light, LIGHT) && same(r.dark, DARK)
                ? `the twelve match, but a spine is tinted "${r.painted}", which is not one of them`
                : `light ${r.light.slice(0, 3).join(",")} dark ${r.dark.slice(0, 3).join(",")}` };
-}, { on: "demo" });
+});
 
 check("the theme follows the host, and the slots are re-read when it changes", async (p) => {
   const r = await p.j(`(function(){
@@ -2791,7 +2817,7 @@ check("the theme follows the host, and the slots are re-read when it changes", a
   return { ok: r.lightBg !== r.darkBg && r.slotsChanged && r.same,
            detail: `ground ${r.lightBg} vs ${r.darkBg}; the slots were re-read ` +
                    `(${r.slotsChanged}); the library is identical in both (${r.same})` };
-}, { on: "demo" });
+});
 
 /* design/0005 -- colours belong to stable book addresses, never changing note counts. */
 const bookCount = (joined) => (joined ? joined.split("|").length : 0);
@@ -2904,7 +2930,7 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
                    `${base.state.height.toFixed(0)}) in a room of the same width ` +
                    `(${sameRoom}: ${base.state.room.toFixed(0)}px); back to the first look ` +
                    `unchanged (${restored})` };
-}, { on: "demo" });
+});
 
 /* design/0016 -- A LOOK MAY NOT RESIZE A CONTROL EITHER. Every button, box, tab, ribbon,
  * swatch and switch is measured in every look core knows, against the modern look's reading:
@@ -3010,7 +3036,7 @@ check("every control is the same size in every look", async (p) => {
             `dropdown ${base["#vs-bsource"].box ? base["#vs-bsource"].box.h : "-"} high); ${off.length} off by more than a pixel` +
             (off.length ? `: ${off.join("; ")}` : "")
   };
-}, { on: "demo" });
+});
 
 /* github#14, github#16, design/0021 -- A LOOK MOVES NOTHING ON THE PAGE.
  * design/0021 -- every element, in four states, not 38 named ones
@@ -3104,7 +3130,7 @@ check("a look moves nothing on the page", async (p) => {
             `${resized.length} resized, ${absent.length} present in one look and not another` +
             say("moved", moved) + say("resized", resized) + say("missing", absent)
   };
-}, { on: "demo" });
+});
 
 /* github#9, design/0019 -- ONE MATERIAL FOR THE FURNITURE, read as computed style */
 check("the furniture is one material", async (p) => {
@@ -3230,7 +3256,7 @@ check("the furniture is one material", async (p) => {
             `hovered and focused; lowest contrast ${lowest.ratio.toFixed(2)}:1 at ${lowest.where}; ` +
             `tracking plaque/button in em: ${tr}; ${off.length} off` + (off.length ? `: ${off.join("; ")}` : ""),
   };
-}, { on: "demo" });
+});
 
 /* github#2 -- the report came from inside Obsidian, whose app.css styles every `select`, and
  * the suite runs the standalone where none of that exists. So the host's rule is put into the
@@ -3345,7 +3371,7 @@ check("every dropdown paints itself, whatever the host says a select is", async 
             `the builder's ${r.before.source} -> ${r.after.source}; ${wrong.length} wrong` +
             (wrong.length ? `: ${wrong.slice(0, 6).join("; ")}` : "")
   };
-}, { on: "demo" });
+});
 
 /* design/0008 -- MAGIC 1. A book you open often looks handled. */
 check("a book's colour is the person's, then the shelf's, then the folder's", async (p) => {
@@ -3409,9 +3435,9 @@ check("a book's colour is the person's, then the shelf's, then the folder's", as
             `${r.pick + 1} dyes it ${r.byHand} and a rebuild keeps it (${r.afterRebuild === r.want}); ` +
             `the menu closed itself (${r.closed})`
   };
-}, { on: "demo" });
+});
 
-check("a date shelf dyes its books by period, and Encyclopedia keeps its folder dye", async (p) => {
+check("a date shelf dyes by period, an index wears one dye, and identities vary", async (p) => {
   const r = await p.j(`(function(){
     var tint = function (id) {
       var el = document.querySelector('[data-book="' + id.replace(/"/g, '\\"') + '"]');
@@ -3438,6 +3464,15 @@ check("a date shelf dyes its books by period, and Encyclopedia keeps its folder 
     var years = split(dated("years"), decade);
     var enc = view("encyclopedia").books;
     var encByFolder = enc.filter(function (b) { return tint(b.id) === folderDye(b); }).length;
+    /* github#33 -- an index wears one dye; identities wear many. */
+    var distinct = function (books) {
+      var seen = {};
+      books.forEach(function (b) { seen[tint(b.id)] = 1; });
+      return Object.keys(seen).length;
+    };
+    var encDyes = distinct(enc);
+    var peopleDyes = distinct(view("people").books);
+    var tagDyes = distinct(view("tags").books);
 
     /* Months to folder, then to decade, through the select in Manage. */
     document.getElementById("vs-manageopen").click();
@@ -3457,19 +3492,22 @@ check("a date shelf dyes its books by period, and Encyclopedia keeps its folder 
     var peopleSelect = !!rowOf("People").querySelector("select.vs-colourby");
     document.getElementById("vs-mclose").click();
     return { months: months, years: years, monthsN: dated("months").length, enc: enc.length, encByFolder: encByFolder,
+             encDyes: encDyes, peopleDyes: peopleDyes, tagDyes: tagDyes,
              offered: offered, came: came, monthsFolder: monthsFolder, monthsDecade: monthsDecade, saved: saved,
              encSelect: encSelect, peopleSelect: peopleSelect };
   })()`);
   const ok = r.months.torn === 0 && r.months.shared === 0 && r.years.torn === 0 && r.years.shared === 0 &&
-             r.encByFolder === r.enc && r.offered === "folder,year,decade" && r.came === "year" &&
+             r.encDyes === 1 && r.peopleDyes > 3 && r.tagDyes > 3 &&
+             r.offered === "folder,year,decade" && r.came === "year" &&
              r.monthsFolder === r.monthsN && r.monthsDecade.torn === 0 && r.saved === "decade" &&
              !r.encSelect && !r.peopleSelect;
   return {
     ok,
     detail: `Months: ${r.monthsN} dated books over ${r.months.periods} years, ${r.months.torn} year(s) torn ` +
             `between dyes and ${r.months.shared} neighbouring years sharing one; Years: ${r.years.periods} ` +
-            `decade(s), ${r.years.torn} torn, ${r.years.shared} shared; Encyclopedia ${r.encByFolder}/${r.enc} ` +
-            `books wear their folder's dye; Manage offers "${r.offered}" on Months (came up "${r.came}"), ` +
+            `decade(s), ${r.years.torn} torn, ${r.years.shared} shared; Encyclopedia's ${r.enc} volumes ` +
+            `wear ${r.encDyes} dye (${r.encByFolder} of them their folder's), People ${r.peopleDyes} and ` +
+            `Tags ${r.tagDyes}; Manage offers "${r.offered}" on Months (came up "${r.came}"), ` +
             `by folder ${r.monthsFolder}/${r.monthsN} follow the folder, by decade ${r.monthsDecade.torn} ` +
             `torn, saved as "${r.saved}"; Encyclopedia has the select: ${r.encSelect}, People: ${r.peopleSelect}`
   };
@@ -3485,17 +3523,21 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
       return __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
     };
     var ids = people().books.slice(0, 8).map(function (b) { return b.id; });
-    /* The SET of dyes, not how many: a vault with eight source folders gives eight People
-     * books eight colours by folder already, and varying them changes which colours, not
-     * how many. */
-    var byFolderDyes = ids.map(tint).join(",");
-    var byFolder = new Set(ids.map(tint)).size;
+    var startDyes = ids.map(tint).join(",");
 
     /* Vary this shelf, through the button in Manage. */
     document.getElementById("vs-manageopen").click();
     var rows = [].slice.call(document.querySelectorAll("#vs-managelist .vs-managerow"));
     var row = rows.filter(function (r) { return r.textContent.indexOf("People") === 0; })[0];
     var vary = row.querySelector('.vs-toggle[data-fact="vary"] input[role="switch"]');
+    /* github#33 -- People varies by DEFAULT now, so reach the off state first. */
+    var variedByDefault = vary.checked;
+    if (variedByDefault) vary.click();
+    /* The SET of dyes, not how many: a vault with eight source folders gives eight People
+     * books eight colours by folder already, and varying them changes which colours, not
+     * how many. */
+    var byFolderDyes = ids.map(tint).join(",");
+    var byFolder = new Set(ids.map(tint)).size;
     vary.click();
     var variedDyes = ids.map(tint).join(",");
     var varied = new Set(ids.map(tint)).size;
@@ -3512,7 +3554,7 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
     __vs.setFilters({ folders: [] });
     var pressed = [].slice.call(document.querySelectorAll('#vs-managelist .vs-toggle[data-fact="vary"] input[role="switch"]'))
       .filter(function (b) { return b.checked; }).length;
-    vary.click();
+    if (!variedByDefault) vary.click();
     var backDyes = ids.map(tint).join(",");
     var back = new Set(ids.map(tint)).size;
 
@@ -3535,23 +3577,25 @@ check("a shelf can vary its books, and a chosen palette beats the look's", async
     var reset = __vs.slots()[0];
     document.getElementById("vs-mclose").click();
     return { byFolder: byFolder, varied: varied, pressed: pressed, back: back,
-             changed: variedDyes !== byFolderDyes, restored: backDyes === byFolderDyes,
-             recoloured: recoloured,
+             changed: variedDyes !== byFolderDyes, restored: backDyes === startDyes,
+             variedByDefault: variedByDefault, recoloured: recoloured,
              slotsBefore: slotsBefore, slot1: slotsAfter[0], first: first,
              underOther: underOther, reset: reset, other: other || "modern" };
   })()`);
-  const ok = r.changed && r.pressed === 1 && r.restored && r.recoloured === 0 &&
+  const ok = r.changed && r.pressed === 2 && r.restored && r.recoloured === 0 &&
+             r.variedByDefault &&
              r.slot1 === "#123456" && r.underOther === "#123456" && r.reset !== "#123456";
   return {
     ok,
     detail: `8 People books wear ${r.byFolder} colour(s) by folder and ${r.varied} varied -- ` +
-            `a different set (${r.changed}), one shelf pressed (${r.pressed === 1}), ` +
-            `${r.recoloured} recoloured by a narrowing rebuild, the folder dyes back after ` +
+            `a different set (${r.changed}); People and Tags vary by default ` +
+            `(${r.variedByDefault}), ${r.pressed} shelves pressed, ` +
+            `${r.recoloured} recoloured by a narrowing rebuild, back to the default after ` +
             `(${r.restored}); choosing ` +
             `#123456 for slot 1 makes it ${r.slot1}, still ${r.underOther} under the ` +
             `${r.other} look, and ${r.reset} after "Reset colours"`
   };
-}, { on: "demo" });
+});
 
 /* github#4 -- "all settings persistent naturally". Each thing the sheet can set goes through
  * persist() and comes back through core.migrate, which is the reload path in both hosts. */
@@ -3735,7 +3779,7 @@ check("colours and hidden shelves set in Manage persist through a reload", async
             `${h.visibleBefore} -> ${h.visibleDuring} -> ${h.visibleAfter} visible, ${h.stillBuilt} books still built, ` +
             `${h.textButtons} Hide/Show buttons left`
   };
-}, { on: "demo" });
+});
 
 check("a book with several ribbons in it shows them side by side", async (p) => {
   const r = await p.j(`(function(){
@@ -3775,7 +3819,7 @@ check("a book with several ribbons in it shows them side by side", async (p) => 
             `${r.lefts.join("/")} after three are left (${spread}), still ${r.four} drawn ` +
             `with four in (the rest are a count on the peek), ${r.after} after all come out`
   };
-}, { on: "demo" });
+});
 
 check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
   const r = await p.j(`(function(){
@@ -3805,7 +3849,7 @@ check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
   return { ok: r.before === 0 && r.worn >= 1 && r.drawn === "3" && r.afterRebuild === "3",
            detail: `${r.book} opened 13 times reads wear level ${r.drawn} (of 3) and still ` +
                    `${r.afterRebuild} after a rebuild; ${r.wornSpines} worn spines on screen` };
-}, { on: "demo" });
+});
 
 /* design/0008 -- MAGIC 2. A ribbon hangs out of the book, visible from the shelf. */
 check("an open book shows the ribbons in it, three at most", async (p) => {
@@ -3899,7 +3943,7 @@ check("an open book shows the ribbons in it, three at most", async (p) => {
             `turning the page keeps that true -- to a marked one ${r.turned.marked} stub, ` +
             `to a free one ${r.turned.free} (${turns})`
   };
-}, { on: "demo" });
+});
 
 check("a ribbon hangs from every book that holds a marked note", async (p) => {
   const r = await p.j(`(function(){
@@ -3924,7 +3968,7 @@ check("a ribbon hangs from every book that holds a marked note", async (p) => {
   return { ok: r.before === 0 && r.ribbonSpines >= 1 && r.reading >= 1,
            detail: `marking one note put ribbons on ${r.ribbons} book(s) and drew ` +
                    `${r.ribbonSpines} of them; the Reading shelf collected ${r.reading}` };
-}, { on: "demo" });
+});
 
 /* design/0008 -- MAGIC 3. The query marks; it never narrows. */
 check("the shelf parts as you type, and no book leaves the room", async (p) => {
@@ -4080,7 +4124,7 @@ check("scrolling the library stays smooth in every look", async (p) => {
               `${r.looks[n].worst.toFixed(0)}`).join(", ") +
             ` (budget: p95 under ${BUDGET}ms${over.length ? "; over in " + over.join(", ") : ""})`
   };
-}, { on: ["demo-vault", "library-vault"] });
+});
 
 check("the room has a width, however wide the window is", async (p) => {
   await p.send("Emulation.setDeviceMetricsOverride",
@@ -4160,7 +4204,7 @@ check("the reader and the sheets are not painted until they are opened", async (
            detail: painted.length
              ? painted.map((x) => `${x.id} is still painted (hidden=${x.attr}, display=${x.display})`).join("; ")
              : r.map((x) => `${x.id} display:${x.display}`).join(", ") };
-}, { on: "demo" });
+});
 
 check("a wide table scrolls inside the page and never widens the book", async (p) => {
   const r = await p.j(`(function(){
@@ -4204,7 +4248,7 @@ check("a wide table scrolls inside the page and never widens the book", async (p
             `measure, the page does not scroll sideways (${r.pageScrolls}px), and the article ` +
             `${r.proseScrolls > 0 ? "scrolls " + r.proseScrolls + "px within itself" : "fits"}`
   };
-}, { on: "demo" });
+});
 
 check("clicking a spine opens a book on the note it names", async (p) => {
   await p.eval("__vs.closeReader()");
@@ -4223,7 +4267,7 @@ check("clicking a spine opens a book on the note it names", async (p) => {
   if (!r.found) return { ok: false, detail: "no spine on the Years shelf to click" };
   return { ok: r.open && r.got === r.wanted && r.contents > 0,
            detail: `opened ${r.got} (wanted ${r.wanted}), ${r.contents} entries in its contents` };
-}, { on: "demo" });
+});
 
 check("the date index is layered: years over months over days, each only where it separates",
       async (p) => {
@@ -4377,13 +4421,17 @@ check("the contents scroll to the current row after a tab, Previous and a ribbon
                    `marked ${tab.marked} row(s) at ${tab.markedAt}, inside ${tab.inside}; ` +
                    `Previous -> row ${prev.index}, scrollTop ${prev.scrollTop}, inside ${prev.inside}; ` +
                    `ribbon from scrollTop ${ribbon.far} -> row ${back.index}, scrollTop ${back.scrollTop}, inside ${back.inside}` };
-}, { on: "demo" });
+});
 
 check("previous and next walk the book and stop at its ends", async (p) => {
   const r = await p.j(`(function(){
+    /* github#17 -- the SMALLEST book with three notes, not the first: this walks a click at a
+     * time, and the first is encyclopedia/0-9 at 2,097 notes, a measured 78-second walk. */
     var book = null;
     __vs.views().forEach(function (v) {
-      v.books.forEach(function (b) { if (!book && b.notes.length >= 3) book = b; });
+      v.books.forEach(function (b) {
+        if (b.notes.length >= 3 && (!book || b.notes.length < book.notes.length)) book = b;
+      });
     });
     if (!book) return { found: false };
     __vs.openBook(book.id, null);
@@ -4405,7 +4453,7 @@ check("previous and next walk the book and stop at its ends", async (p) => {
                r.last === r.size - 1 && r.nextDisabled,
            detail: `opened at ${r.first} (previous disabled: ${r.prevDisabled}), next -> ${r.second}, ` +
                    `ran to ${r.last} of ${r.size - 1} and stopped (next disabled: ${r.nextDisabled})` };
-}, { on: "demo" });
+});
 
 check("a wikilink in a book goes to that note in this book, this shelf, or the nearest", async (p) => {
   const r = await p.j(`(function(){
@@ -4465,7 +4513,7 @@ check("a wikilink in a book goes to that note in this book, this shelf, or the n
                     : "no single book holds both, so the same-book case has no fixture here; ") +
             `a note the library does not hold is left to the host (${r.missing === null})`
   };
-}, { on: "demo" });
+});
 
 check("also shelved in moves to another book and keeps the note", async (p) => {
   const r = await p.j(`(function(){
@@ -4498,7 +4546,7 @@ check("also shelved in moves to another book and keeps the note", async (p) => {
   return { ok: r.links > 0 && r.to !== r.from && r.note === r.wanted,
            detail: `${r.links} other shelves offered; ${r.from} -> ${r.to}, still on the same note: ` +
                    `${r.note === r.wanted}` };
-}, { on: "demo" });
+});
 
 check("previous collection walks back, and Alt+Left does the same", async (p) => {
   const r = await p.j(`(function(){
@@ -4520,7 +4568,7 @@ check("previous collection walks back, and Alt+Left does the same", async (p) =>
   return { ok: r.afterButton === r.first && r.afterKey === r.first,
            detail: `${r.first} -> ${r.second}; the button came back to ${r.afterButton}, ` +
                    `Alt+Left to ${r.afterKey}` };
-}, { on: "demo" });
+});
 
 check("a click off the book puts it down, and a click on it does not", async (p) => {
   const r = await p.j(`(function(){
@@ -4564,7 +4612,7 @@ check("a click off the book puts it down, and a click on it does not", async (p)
             `${r.gutter}px to its left (${r.deskIsReader ? "off the book" : "NOT off the book"}) ` +
             `puts it down (${r.closed}); a selection dragged off the cover does not (${r.survivedDrag})`
   };
-}, { on: "demo" });
+});
 
 check("escape closes the reader and leaves the shelf where it was", async (p) => {
   const r = await p.j(`(function(){
@@ -4583,7 +4631,7 @@ check("escape closes the reader and leaves the shelf where it was", async (p) =>
   return { ok: r.open && r.closed && r.before === r.after && r.refocused,
            detail: `opened, closed on Escape; shelf scroll ${r.before} -> ${r.after}, ` +
                    `focus back on the spine: ${r.refocused}` };
-}, { on: "demo" });
+});
 
 check("the reading shelf survives its own shelf being hidden", async (p) => {
   const r = await p.j(`(function(){
@@ -4619,7 +4667,7 @@ check("the reading shelf survives its own shelf being hidden", async (p) => {
            detail: `a ribbon in ${r.noteId} put ${r.before} book(s) on the Reading shelf; with ` +
                    `the Tags shelf hidden it still shows ${r.after}, re-threaded through ` +
                    `${r.where} other visible shelves` };
-}, { on: "demo" });
+});
 
 check("a saved reading place re-resolves after its own book is gone", async (p) => {
   const r = await p.j(`(function(){
@@ -4653,7 +4701,7 @@ check("the builder previews the shelf it would actually save", async (p) => {
   return { ok: previewed === r.real && r.spines > 0 && r.cancelled,
            detail: `preview said "${r.text}" against a real People shelf of ${r.real} books; ` +
                    `${r.spines} spines drawn; cancel left ${r.shelves} shelves` };
-}, { on: "demo" });
+});
 
 check("a saved shelf gets a stable id and joins the library", async (p) => {
   const r = await p.j(`(function(){
@@ -4674,7 +4722,7 @@ check("a saved shelf gets a stable id and joins the library", async (p) => {
   return { ok: r.books > 0 && r.drawn === r.books && r.after === r.before,
            detail: `a property shelf on "status" built ${r.books} books over ${r.notes} notes ` +
                    `and drew ${r.drawn} spines; addresses like ${r.addresses.join(", ")}` };
-}, { on: "demo" });
+});
 
 check("parent tag inclusion is a setting, and it changes the answer", async (p) => {
   const r = await p.j(`(function(){
@@ -4690,7 +4738,7 @@ check("parent tag inclusion is a setting, and it changes the answer", async (p) 
   return { ok: r.withKids >= r.without,
            detail: `#garden collects ${r.withKids} notes with its children, ${r.without} without ` +
                    `-- a difference of ${r.withKids - r.without}` };
-}, { on: "demo" });
+});
 
 /* The fixtures name PROSE_ONLY in note bodies and never in a people property. If it ever
  * reaches a note's people list, or earns a book of its own, something started reading prose. */
@@ -4728,7 +4776,7 @@ check("a person is read from every people property, and out of a wikilink", asyn
             `"${r.placeholder}"; the default properties are ${r.fields}; a file that named ` +
             `"guests" comes up with ${r.kept}, and one that names its own keeps ${r.chosen}`
   };
-}, { on: "demo" });
+});
 
 check("a link to a person's note names that person, once, by the note's name", async (p) => {
   const r = await p.j(`(function(){
@@ -4761,7 +4809,7 @@ check("a link to a person's note names that person, once, by the note's name", a
             `(${r.byAlias} notes, book: ${r.aliasBook}), the person's own note does not name ` +
             `itself (${r.self === false}), and the book holds ${r.book}`
   };
-}, { on: "demo" });
+});
 
 check("people come from the property alone, never from prose", async (p) => {
   const r = await p.j(`(function(){
@@ -4799,7 +4847,7 @@ check("plain list mode keeps every book reachable", async (p) => {
   return { ok: r.before === r.after && r.writingMode.indexOf("horizontal") === 0,
            detail: `${r.after} of ${r.before} books still present; a row is ${r.width}x${r.height} ` +
                    `with ${r.writingMode} text` };
-}, { on: "demo" });
+});
 
 check("every control the keyboard can reach has a name", async (p) => {
   const r = await p.j(`(function(){
@@ -4821,7 +4869,7 @@ check("every control the keyboard can reach has a name", async (p) => {
   return { ok: r.nameless.length === 0,
            detail: r.nameless.length ? `${r.nameless.length} unnamed: ${r.nameless.slice(0, 5).join(", ")}`
                                      : `${r.total} controls, all named` };
-}, { on: "demo" });
+});
 
 check("nothing on the page reaches the network", async (p) => {
   const r = await p.j(`(function(){
@@ -4875,8 +4923,10 @@ check("a hovered spine shows one peek, big enough to read, and short labels stan
              above: above, hidden: hidden, enc: enc.length, uprightEnc: uprightEnc.length,
              mode: mode, wide: wide, nameLines: Math.round(nameBox.height / (fontPx * 1.4)) };
   })()`);
+  // github#34, github#36
   const ok = r.titled === 0 && r.shown && r.fontPx >= 13 && !r.clipped && r.above && r.hidden &&
-             r.uprightEnc === r.enc && r.mode === "horizontal-tb" && r.wide === 0 && r.clippedUp === 0;
+             r.uprightEnc + r.sideways.length >= r.enc && r.sideways.length <= 4 &&
+             r.mode === "horizontal-tb" && r.wide === 0 && r.clippedUp === 0;
   return {
     ok,
     detail: `${r.titled} spines carry a title or aria-label (two overlays otherwise); hovering ` +
@@ -4952,7 +5002,7 @@ check("a spine lifts on hover and holds its size", async (p) => {
   })()`);
   return { ok: r.w === r.w2 && r.h === r.h2,
            detail: `${r.w}x${r.h} at rest, ${r.w2}x${r.h2} focused, lifted ${r.lift}px` };
-}, { on: "demo" });
+});
 
 /* github#5 -- the packing as a diff, against a golden per fixture */
 check("the shelves are packed the way the golden snapshot says", async (p, ctx) => {
@@ -4961,8 +5011,18 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
   const file = join(ROOT, "scripts", "layout-snapshots", `${name}.json`);
   if (!name || !existsSync(file)) {
     return { ok: true, detail: `no golden for ${name || "this vault"} -- ` +
-                               `node scripts/update-layout-snapshots.mjs writes the three fixtures` };
+                               `node scripts/update-layout-snapshots.mjs writes it` };
   }
+  // github#35
+  const emptied = await p.j(`(function(){
+    var s = __vs.settings();
+    var shelf = s.shelves.filter(function (x) { return x.classifier === "pick"; })[0];
+    if (!shelf || !shelf.picks || !shelf.picks.length) return 0;
+    var n = shelf.picks.length;
+    shelf.picks = [];
+    __vs.setFilters({});
+    return n;
+  })()`);
   await p.send("Emulation.setDeviceMetricsOverride",
                { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
   await p.j(`window.dispatchEvent(new Event("resize"))`);
@@ -4987,6 +5047,7 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
   const rows = now.shelves.reduce((n, s) => n + s.rows, 0);
   const spines = now.shelves.reduce((n, s) => n + s.books, 0);
   const plaques = now.shelves.reduce((n, s) => n + s.plaques.length, 0);
+  void emptied;
   return {
     ok: problems.length === 0,
     detail: problems.length
@@ -4998,30 +5059,23 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
   };
 });
 
-/* ---------------------------------------------------- which vaults, and why
+/* ------------------------------------------------------ which vault, and why
  *
- * THREE SHAPES, BY DEFAULT, and none of them needs a vault of yours.
+ * ONE SHAPE, and it does not need a vault of yours. decisions/0014 replaced three fixtures
+ * with one that carries what all three carried: 5,000 notes over eleven years ending today,
+ * every classifier populated, a recent year that is genuinely active, a declared empty year
+ * for a chronological shelf to survive, a fifth of the non-daily notes undated, titles
+ * opening with digits, punctuation and four scripts, notes naming five people and six tags
+ * at once, and two impossible dates. Eleven years is ~574 ISO weeks, which is the long rail
+ * the 10k library fixture used to be for.
  *
- *   demo vault     ~700 notes across ten declared folders, two years of dates, every
- *                  classifier populated: eight people, thirteen tags including a three-level
- *                  hierarchy and two non-Latin ones, a status property, and a handful of
- *                  deliberately undated notes. The shape the plugin is meant for.
- *   sparse vault   ~756 notes where ONE FOLDER HOLDS 82%, a FIFTH ARE UNDATED, the dates sit
- *                  in two clusters five years apart with a hole between them, titles open
- *                  with digits, punctuation and four scripts, and a few notes name five
- *                  people and six tags at once -- eleven books for one note. Every edge the
- *                  demo vault rounds off.
- *   library vault  10,000 notes over ten years: ~520 week books on one rail, and an
- *                  Encyclopedia volume large enough that the reader's index has to fall back
- *                  to ranges.
- *
- * ALL THREE LIVE IN ONE SHARED STORE, beside the main repo, and invalidate themselves.
- * A fixture lives at <main repo>/.fixtures/<name>-<digest8>, where the digest is sha256 over
- * the CONTENTS of all three generator scripts plus this fixture's args -- content, not mtime,
- * because a branch switch rewrites mtimes without changing a byte. Every worktree resolves
- * the same store through git's common dir, so the gate sees one fixture set no matter where
- * the push runs. Editing a generator changes the digest and the next run regenerates; nothing
- * needs to remember to delete anything.
+ * IT LIVES IN A SHARED STORE, beside the main repo, and invalidates itself. A fixture lives
+ * at <main repo>/.fixtures/<name>-<digest8>, where the digest is sha256 over the CONTENTS of
+ * the generator plus this fixture's args -- content, not mtime, because a branch switch
+ * rewrites mtimes without changing a byte. Every worktree resolves the same store through
+ * git's common dir, so the gate sees one fixture no matter where the push runs. Editing the
+ * generator changes the digest and the next run regenerates; nothing needs to remember to
+ * delete anything.
  *
  * A fixture also AGES BY DESIGN: --end defaults to today so the activity calendar's live year
  * stays exercised, which means the newest note recedes from the real clock from the moment it
@@ -5036,7 +5090,7 @@ function resolveVaults() {
   if (arg("url", "")) return [{ path: "", label: "the page passed with --url" }];
 
   const out = [];
-  const GENERATORS = ["make-demo-vault.mjs", "make-sparse-vault.mjs", "make-library-vault.mjs"];
+  const GENERATORS = ["make-vault.mjs"];
   const FIXTURE_FORMAT = 1;
 
   const storeRoot = (() => {
@@ -5134,10 +5188,7 @@ function resolveVaults() {
     out.push({ path: dir, label, fixture: desc ? { name, ...desc } : null });
   };
 
-  gen("make-demo-vault.mjs", [], "demo-vault", "the demo vault (every classifier populated)");
-  gen("make-sparse-vault.mjs", [], "sparse-vault", "the sparse vault (undated, lopsided, multiscript)");
-  gen("make-library-vault.mjs", ["--notes", "10000", "--years", "10"], "library-vault",
-      "the 10k library vault (10 years)");
+  gen("make-vault.mjs", [], "vault", "the vault (5,000 notes over eleven years)");
 
   if (!out.length) throw new Error("no vault to check, and none could be generated");
   return out;

@@ -86,6 +86,9 @@ var MARKS_SHOWN = 3;
 var SPINE_GAP = 3;
 var SPINE_MIN = 22;
 var SPINE_MAX = 58;
+// github#34
+var INDEX_SLOTS = 35;
+var INDEX_MIN = 13;
 
 var ID = "vs-";
 
@@ -209,6 +212,9 @@ function mountVaultShelf(root, data, options) {
   var query = "";
   /** @type {ShelfView[]} */
   var views = [];
+  /* github#33, design/0005 -- a varied shelf's slots, dealt unfiltered. */
+  /** @type {Record<string, number>} */
+  var dyeDeal = {};
   /** @type {Record<string, Book>} */
   var bookIndex = {};
   /** The biggest book in the library, which every thickness is scaled against. */
@@ -287,6 +293,13 @@ function mountVaultShelf(root, data, options) {
         if (book.notes.length > thickest) thickest = book.notes.length;
       });
     });
+    if (visible.length === notes.length) {
+      dyeDeal = {};
+      views.forEach(function (view) {
+        if (!core.variesColors(view.shelf)) return;
+        view.books.forEach(function (book, i) { dyeDeal[book.id] = i; });
+      });
+    }
     core.markMatches(views, query);
   }
 
@@ -444,7 +457,7 @@ function mountVaultShelf(root, data, options) {
     /* design/0020 -- a hand-arranged shelf ends in a plus. */
     var makes = view.shelf.direction === "manual";
     var rail = el("div", "vs-shelfrail");
-    var rows = rowsOf(view.books, makes ? SPINE_MIN + SPINE_GAP : 0);
+    var rows = rowsOf(view.books, makes ? SPINE_MIN + SPINE_GAP : 0, view.shelf);
     rows.forEach(function (row, i) {
       var last = i === rows.length - 1;
       rail.appendChild(renderTrack(row, view.shelf, true, makes && last ? plusOf(view.shelf) : null));
@@ -525,10 +538,11 @@ function mountVaultShelf(root, data, options) {
    * under the part of its run that landed on THIS shelf. Every width is already known --
    * `thicknessOf` is arithmetic on the note count -- so the packing needs no layout pass.
    *
-   * @param {Book[]} books @returns {Book[][]}
+   * @param {Book[]} books @param {number} [tail] @param {Shelf} [shelf] @returns {Book[][]}
    */
-  function rowsOf(books, tail) {
+  function rowsOf(books, tail, shelf) {
     var avail = room();
+    squeezeIndex(shelf, books, avail - (tail || 0));
     /** @type {Book[][]} */
     var rows = [];
     /** @type {Book[]} */
@@ -555,7 +569,7 @@ function mountVaultShelf(root, data, options) {
     }
 
     books.forEach(function (book) {
-      var w = thicknessOf(book.notes.length) + SPINE_GAP;
+      var w = widthOf(book, shelf) + SPINE_GAP;
       var mine = book.plaque;
       if (!plaque || mine !== label) {
         closeRun();
@@ -1061,7 +1075,7 @@ function mountVaultShelf(root, data, options) {
     b.type = "button";
     b.setAttribute("data-book", book.id);
     if (!book.notes.length) b.setAttribute("data-empty", "1");
-    b.style.setProperty("--spine-w", thicknessOf(book.notes.length) + "px");
+    b.style.setProperty("--spine-w", widthOf(book, shelf) + "px");
 
     var dye = dyeOf(book, shelf);
     b.style.setProperty("--spine-tint", dye);
@@ -1123,7 +1137,7 @@ function mountVaultShelf(root, data, options) {
     on(b, "mouseleave", hidePeek);
     on(b, "blur", hidePeek);
     /* A one-letter label reads better upright than turned on its side: A, K, 0-9, Ü. */
-    if (book.cover.length <= 3 && fitsUpright(book.cover, thicknessOf(book.notes.length))) {
+    if (book.cover.length <= 3 && fitsUpright(book.cover, widthOf(book, shelf))) {
       b.setAttribute("data-upright", "1");
     }
 
@@ -1590,6 +1604,39 @@ function mountVaultShelf(root, data, options) {
     refresh();
   }
 
+  /** @type {Record<string, number>} */
+  var indexScale = {};
+
+  /** @param {Shelf} [shelf] @returns {boolean} */
+  function isIndex(shelf) {
+    return !!shelf && shelf.classifier === "initial";
+  }
+
+  // github#34, design/0011
+  /** @param {Book} book @param {Shelf} [shelf] @returns {number} */
+  function widthOf(book, shelf) {
+    var w = thicknessOf(book.notes.length);
+    if (!isIndex(shelf)) return w;
+    var k = indexScale[shelf.id];
+    if (typeof k !== "number" || k >= 1) return w;
+    return Math.max(INDEX_MIN, Math.round(w * k));
+  }
+
+  // github#34
+  /** @param {Shelf} [shelf] @param {Book[]} books @param {number} avail */
+  function squeezeIndex(shelf, books, avail) {
+    if (!isIndex(shelf)) return;
+    var slots = books.slice(0, INDEX_SLOTS);
+    var k = 1;
+    for (var step = 0; step < 40; step++) {
+      indexScale[shelf.id] = k;
+      var used = 0;
+      for (var i = 0; i < slots.length; i++) used += widthOf(slots[i], shelf) + SPINE_GAP;
+      if (used <= avail) return;
+      k *= 0.95;
+    }
+  }
+
   /**
    * design/0011 -- scaled against the whole LIBRARY, not against the shelf, so a book that is
    * thick on the Months shelf is the same thickness in the Encyclopedia. A shelf whose books
@@ -1606,14 +1653,11 @@ function mountVaultShelf(root, data, options) {
    * design/0005 -- WHICH OF THE TWELVE A BOOK WEARS, in order of who said so:
    *
    *   1. the person, by right-clicking the spine (`bookColors`, keyed by address);
-   *   2. the shelf, if it varies its books -- a slot hashed from the address, so it stays put
-   *      as notes arrive and a shelf of people reads as people rather than as folders;
-   *   3. the note's dominant source folder, which is what a dye MEANS by default: a book from
-   *      the meetings folder and a book from the journal are different colours because they
-   *      are different kinds of book.
+   *   2. the shelf, if it varies its books -- a dealt slot (github#33);
+   *   3. the period, on a date shelf, or ONE dye on an index (github#33);
+   *   4. the note's dominant source folder, the default meaning of a dye.
    *
-   * The leather rework had made every book slot 0 unless a shelf varied, which is why a whole
-   * library came out one colour; that was a regression of design/0005 and this is its repair.
+   * The leather rework made every book slot 0; this repairs that.
    * @param {Book} book @param {Shelf} shelf @returns {string}
    */
   function dyeOf(book, shelf) {
@@ -1623,10 +1667,16 @@ function mountVaultShelf(root, data, options) {
     var home = source === book ? shelf : shelfById(source.shelfId) || shelf;
     var given = settings.bookColors[source.id];
     if (typeof given === "number" && SLOTS[given]) return SLOTS[given];
-    if (shelf.varyColors || home.varyColors) return SLOTS[hashSlot(source.id)];
+    if (core.variesColors(shelf) || core.variesColors(home)) {
+      /* A book the deal never saw -- a made book, say -- still gets a slot. */
+      var dealt = typeof dyeDeal[source.id] === "number" ? dyeDeal[source.id] : hashSlot(source.id);
+      return SLOTS[dealt % SLOTS.length];
+    }
     /* github#21, design/0005 -- a date shelf dyes by period. */
     var period = core.dyePeriod(home, source.key);
     if (period !== null) return SLOTS[period % SLOTS.length];
+    /* github#33 -- an index wears one dye, the look's own. */
+    if (core.colorRule(home) === "one") return SLOTS[0];
     if (book.bands.length && book.bands[0].slot) return String(book.bands[0].slot);
     return SLOTS[0];
   }
@@ -1923,10 +1973,11 @@ function mountVaultShelf(root, data, options) {
     }
     reader = { book: book, index: index, noteId: book.notes.length ? book.notes[index].id : null,
                within: "", opener: /** @type {HTMLElement|null} */ (DOC.activeElement) };
-    /* design/0008 -- the book is handled now, and the shelf will show it. */
-    settings.wear[book.id] = (settings.wear[book.id] || 0) + 1;
+    // design/0008, design/0019, github#35
+    var worn = sourceOf(book).id;
+    settings.wear[worn] = (settings.wear[worn] || 0) + 1;
     persist();
-    markWear(book.id);
+    markWear(worn);
     $("reader").hidden = false;
     renderReader();
     node("reader").focus();
@@ -2671,7 +2722,7 @@ function mountVaultShelf(root, data, options) {
     field("bplaques").checked = !!d.plaques;
     field("bplaques").disabled = !PLAQUABLE[d.classifier];
     field("bsubtags").checked = d.includeSubtags !== false;
-    field("bvary").checked = !!d.varyColors;
+    field("bvary").checked = core.variesColors(d);
     field("bsubtags").disabled = d.classifier !== "tag" && d.source.kind !== "tag";
     /* design/0019 -- A PICK SHELF HAS NO PREDICATE AND NO RULE, so the first question and the
      * order come off the form -- but "what makes a book" STAYS, because it is the control that
@@ -2980,7 +3031,9 @@ function mountVaultShelf(root, data, options) {
       var sw = /** @type {HTMLInputElement} */ (DOC.createElement("input"));
       sw.type = "checkbox";
       sw.setAttribute("role", "switch");
-      sw.checked = !!shelf.varyColors;
+      /* github#33 -- the RESOLVED value, not the raw flag: People and Tags vary unless
+       * told not to, and a switch that read the flag showed off while the shelf varied. */
+      sw.checked = core.variesColors(shelf);
       sw.setAttribute("aria-label", "Vary colours on " + shelf.name);
       vary.title = "Each book on this shelf in a colour of its own, rather than its folder's";
       vary.appendChild(sw);
@@ -3377,6 +3430,16 @@ function mountVaultShelf(root, data, options) {
     readTheme();
   }
 
+  // github#35, design/0019
+  function seedFavourites() {
+    if (opts.settings) return;
+    var shelf = settings.shelves.filter(isPick)[0];
+    if (!shelf || (shelf.picks && shelf.picks.length)) return;
+    rebuild();
+    var picks = core.seedPicks(views);
+    if (picks.length) shelf.picks = picks;
+  }
+
   function refresh() {
     applyLook();
     rebuild();
@@ -3556,6 +3619,7 @@ function mountVaultShelf(root, data, options) {
     if (e.key === "ArrowRight") { goTo(reader.index + 1); e.preventDefault(); }
   });
 
+  seedFavourites();
   readTheme();
   refresh();
 

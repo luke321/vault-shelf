@@ -195,14 +195,24 @@ of measuring it.** Build the page, drive it, read the numbers.
   tag**), the release body's shape, and the `verification-<version>.md` every release owes.
 - Measure before and after; the numbers go into `.ai-context/changelog-detail.md`, which is
   the regression suite. A changed constant means `invariants.md` changes in the same commit.
-- Fixtures: three generated vaults (`scripts/make-*-vault.mjs`) in the shared store; never a
-  real vault, never a built `vault-shelf.html`, in anything that reaches the repo.
-- **Films are shot in a mirror, not in a fixture.** `scripts/make-mirror-vault.mjs` rebuilds a
-  real vault's shape — tree, dates, people and tag distributions — with invented words, and
-  `record-demo.mjs` builds one automatically from the path in `.mirror-source` (gitignored).
-  A fixture is even where a real vault is lopsided, and lopsided is the product. The generator
-  refuses to finish if any real string reaches the output; that check has no skip flag either.
-  `design/0013`.
+- **One vault, and it is generated.** `scripts/make-vault.mjs` in the shared store — 5,000
+  notes over eleven years ending today, every classifier populated, a recent year that is
+  genuinely active, a 760-day hole so one calendar year comes out empty, a fifth of the
+  non-daily notes undated, and a handful in eleven books at once. It replaced three fixtures
+  (`decisions/0014`), which is why nothing here says "the demo vault" any more. Never a real
+  vault, never a built `vault-shelf.html`, in anything that reaches the repo.
+- **The generator proves its own declaration.** It refuses to finish if a month in the last
+  three years is empty, if a week in the last year is empty, if no whole calendar year fell in
+  the hole, if a sentinel is missing or if the people tail flattened — the mirror's pattern,
+  and every one of them was a real failure first. `--notes` cuts a smaller vault of the same
+  shape and the guard still applies, which is what makes a cut below ~1,000 refuse rather than
+  quietly stop being the declared vault.
+- **Films are shot in that vault too, and a mirror is the opt-in.** `record-demo.mjs` shoots
+  the fixture the suite measures; `--mirror-of <path>` still builds a mirror of a real vault —
+  same tree, dates and distributions, invented words — and `make-mirror-vault.mjs` still
+  refuses to finish if any real string reaches the output, with no skip flag. It is a
+  diagnostic you point at your own vault now, not a step in the pipeline. `design/0013`,
+  amended by `decisions/0014`.
 - **A tree is gated once.** A green full suite run stamps the git tree it measured
   (`scripts/suite-stamp.mjs`, `decisions/0010`); the pre-push hook and `release.ps1` skip the
   suite for a tree that already carries a stamp, and print the stamp they trust. `node
@@ -235,7 +245,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP): 89 checks, **146 runs over three vault shapes in two Chromes** — each check says which shapes it needs (`decisions/0013`) |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP): **90 checks over the one vault shape** (`decisions/0014`), two lanes, three browsers |
 | `scripts/release.ps1` | the local half of a release: the guards, the gates, the tag, the tag push. `-SelfTest` drives every refusal in a throwaway clone; `.ai-context/releasing.md` is the authority on the flow |
 | `scripts/suite-stamp.mjs` | which trees have passed the suite (`decisions/0010`), read by the pre-push hook and `release.ps1`. `--selftest` proves the hit and miss cases |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
