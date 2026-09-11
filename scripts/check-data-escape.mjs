@@ -255,6 +255,14 @@ async function main() {
   }
 }
 
-if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
+// github#5 -- run as a gate, or import buildHostileVault from anywhere
+const RUN_DIRECTLY = (() => {
+  try {
+    return !!process.argv[1] &&
+           realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch { return false; }
+})();
+
+if (RUN_DIRECTLY) {
   main().catch((e) => { console.error("check-data-escape: " + (e.stack || e.message)); process.exit(1); });
 }
