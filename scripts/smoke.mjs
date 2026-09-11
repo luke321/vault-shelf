@@ -4939,6 +4939,159 @@ check("a hovered spine shows one peek, big enough to read, and short labels stan
   };
 });
 
+/* github#47, design/0021 -- one face decides it, and it walks core.LOOKS. */
+check("a short cover is stood upright by one face, not the look's", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var root = document.getElementById("vs-app");
+    var looks = core.LOOKS.map(function (l) { return l.value; });
+    var was = root.getAttribute("data-look") || "";
+
+    var faceOnto = function (el, cs) {
+      el.style.fontFamily = cs.fontFamily;
+      el.style.fontSize = cs.fontSize;
+      el.style.fontWeight = cs.fontWeight;
+      el.style.fontStyle = cs.fontStyle;
+      el.style.fontStretch = cs.fontStretch;
+      el.style.fontVariant = cs.fontVariant;
+      el.style.lineHeight = cs.lineHeight;
+      el.style.letterSpacing = cs.letterSpacing;
+      el.style.wordSpacing = cs.wordSpacing;
+      el.style.textTransform = cs.textTransform;
+      el.style.fontFeatureSettings = cs.fontFeatureSettings;
+      el.style.fontVariationSettings = cs.fontVariationSettings;
+    };
+    var faceOf = function (cs) {
+      return cs.fontFamily + " | " + cs.fontSize + " | " + cs.fontWeight + " | " +
+             cs.fontStyle + " | " + cs.letterSpacing + " | " + cs.wordSpacing + " | " +
+             cs.textTransform + " | " + cs.fontFeatureSettings;
+    };
+
+    /* every short cover the page actually asks about, at the width it asks about it */
+    var seen = {}, order = [];
+    [].slice.call(document.querySelectorAll("#vs-shelves .vs-spine")).forEach(function (s) {
+      var t = s.querySelector(".vs-title");
+      if (!t || t.textContent.length > 3) return;
+      var k = t.textContent + "|" + Math.round(s.getBoundingClientRect().width);
+      if (!(k in seen)) { seen[k] = t.textContent; order.push(k); }
+    });
+
+    var read = function () {
+      var rows = {};
+      /* the decision, as the page made it */
+      [].slice.call(document.querySelectorAll("#vs-shelves .vs-spine")).forEach(function (s) {
+        var t = s.querySelector(".vs-title");
+        if (!t || t.textContent.length > 3) return;
+        var k = t.textContent + "|" + Math.round(s.getBoundingClientRect().width);
+        if (rows[k]) return;
+        var cs = getComputedStyle(t);
+        /* the string's own width in the face this look draws, with no box to clamp it */
+        var free = document.createElement("span");
+        free.style.cssText = "position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre";
+        faceOnto(free, cs);
+        free.textContent = t.textContent;
+        root.appendChild(free);
+        var drawn = free.getBoundingClientRect().width;
+        root.removeChild(free);
+        var scs = getComputedStyle(s);
+        rows[k] = {
+          up: s.getAttribute("data-upright") === "1",
+          clipped: t.scrollWidth > t.clientWidth + 1,
+          drawn: Math.round(drawn * 100) / 100,
+          room: Math.round((s.clientWidth - parseFloat(scs.paddingLeft) -
+                            parseFloat(scs.paddingRight)) * 100) / 100
+        };
+      });
+      return rows;
+    };
+
+    /* the deciding face, measured the way fitsUpright measures it */
+    var deciding = {};
+    order.forEach(function (k) {
+      var probe = document.createElement("div");
+      probe.className = "vs-probe";
+      var spine = document.createElement("button");
+      spine.className = "vs-spine";
+      spine.setAttribute("data-upright", "1");
+      var title = document.createElement("span");
+      title.className = "vs-title";
+      title.textContent = seen[k];
+      spine.appendChild(title);
+      probe.appendChild(spine);
+      root.appendChild(probe);
+      var cs = getComputedStyle(title);
+      var free = document.createElement("span");
+      free.style.cssText = "position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre";
+      faceOnto(free, cs);
+      free.textContent = seen[k];
+      root.appendChild(free);
+      deciding[k] = Math.round(free.getBoundingClientRect().width * 100) / 100;
+      root.removeChild(free);
+      root.removeChild(probe);
+    });
+
+    var out = {}, faces = {};
+    looks.forEach(function (look) {
+      __vs.setLook(look);
+      out[look || "modern"] = read();
+      /* re-read the probe's own type under this look: it must not have moved */
+      var probe = document.createElement("div");
+      probe.className = "vs-probe";
+      var spine = document.createElement("button");
+      spine.className = "vs-spine";
+      spine.setAttribute("data-upright", "1");
+      var title = document.createElement("span");
+      title.className = "vs-title";
+      title.textContent = "A";
+      spine.appendChild(title);
+      probe.appendChild(spine);
+      root.appendChild(probe);
+      var cs = getComputedStyle(title);
+      faces[look || "modern"] = faceOf(cs);
+      root.removeChild(probe);
+    });
+    __vs.setLook(was);
+    return { looks: out, order: order, faces: faces, deciding: deciding };
+  })()`);
+
+  const names = Object.keys(r.looks);
+  const split = [], clipped = [], missing = [];
+  let upright = 0, worst = { over: -Infinity, where: "" }, tightest = { room: Infinity, where: "" };
+  for (const k of r.order) {
+    const rows = names.map((n) => r.looks[n][k]);
+    if (rows.some((x) => !x)) { missing.push(k); continue; }
+    const up = rows.map((x) => x.up);
+    if (new Set(up).size > 1) {
+      split.push(`${k} ${names.map((n, i) => `${n}:${up[i] ? "upright" : "sideways"}`).join(" ")}`);
+    }
+    if (up[0]) upright++;
+    for (let i = 0; i < names.length; i++) {
+      if (!rows[i].up) continue;
+      if (rows[i].clipped) clipped.push(`${names[i]} ${k}: ${rows[i].drawn} in ${rows[i].room}`);
+      /* github#47 -- the widest face's spread over the deciding one. */
+      const over = rows[i].drawn - r.deciding[k];
+      if (over > worst.over) worst = { over: Math.round(over * 100) / 100, where: `${names[i]} ${k}` };
+      const room = rows[i].room - rows[i].drawn;
+      if (room < tightest.room) tightest = { room: Math.round(room * 100) / 100, where: `${names[i]} ${k}` };
+    }
+  }
+  /* github#47 -- the probe's type must read the same in every look. */
+  const px = (v) => (Number.isFinite(v) ? `${v}px` : "no upright cover to measure");
+  const faces = [...new Set(Object.values(r.faces))];
+  const say = (label, list) => (list.length ? `; ${list.length} ${label}: ${list.slice(0, 4).join("; ")}` : "");
+  return {
+    ok: !split.length && !clipped.length && !missing.length && faces.length === 1 &&
+        r.order.length > 20 && upright > 0,
+    detail: `${r.order.length} short covers over ${names.length} looks: ${split.length} oriented ` +
+            `one way in one look and another in the next, ${clipped.length} clipped by a ` +
+            `decision another face made; the probe reads ${faces.length} face ` +
+            `(${faces[0]}); ${upright} stand upright, the widest face draws one ` +
+            `${px(worst.over)} wider than the face that decided it (${worst.where}) and the ` +
+            `tightest upright cover has ${px(tightest.room)} to spare (${tightest.where})` +
+            say("split", split) + say("clipped", clipped) + say("unmeasured", missing)
+  };
+});
+
 /* github#12, design/0002 */
 check("a tag book's cover carries no hash, and every other place it is named keeps it", async (p) => {
   const r = await p.j(`(function(){

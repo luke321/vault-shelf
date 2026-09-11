@@ -889,6 +889,51 @@ the demo shape: **818 moved and 307 resized** under leather, **679 and 282** und
 
 The floor is 600 elements: below that the walk has not found the page.
 
+### A short cover is stood upright by one face, not the look's
+
+`github#47`, `design/0021`. The clause above says the line box is `page.css`'s and the glyphs on
+it are the look's. **Whether a cover has a line box at all was the look's too**, and that is a
+box, not a glyph: `fitsUpright()` builds a probe spine, appends it to the element carrying
+`data-look`, and asks whether the title overflows. The probe inherited the current look's face,
+so the same cover at the same width could be `horizontal-tb` in one look and `vertical-rl` in the
+next — the one thing `design/0021` rule 2 forbids outright, because turning the box round swaps
+which axis is fixed.
+
+`.vs-probe` pins the probe's type now — family, size, weight, line box, tracking, word spacing,
+case and both feature-setting properties — at **0-5-0**, because a look's own
+`.vs-spine .vs-title` rule is 0-4-0 and its sheet is concatenated after `page.css`. The stack is
+written out rather than read from `var(--ui)`: `--ui` is a look's to redefine and leather does.
+The cache key stays `cover + "|" + width` and is now *correct* rather than accidentally safe —
+the look was never in it, and there is no longer anything for it to miss.
+
+`"a short cover is stood upright by one face, not the look's"` reads every short cover on the one
+vault, at the width the page asks about it, in every look `core.LOOKS` knows. It asserts three
+things and reports two margins:
+
+- **the probe reads one face**, printed in full. Three is the defect, and this line fails on it
+  whether or not a cover has flipped yet;
+- **no cover is oriented one way in one look and another in the next**;
+- **nothing a look draws is clipped** by the decision another face made for it;
+- how much wider than the deciding face the widest look actually draws the same cover, and how
+  much room the tightest upright cover has left. Neither is asserted — they are the margin
+  nobody had measured, and `github#45` found it by moving a padding into it.
+
+Measured on the one vault: **37 short covers over 3 looks — 1 face, 0 split, 0 clipped**, 33
+upright, the widest face **1.45px** over the deciding one (leather `E` at a 31px spine) and
+**0.97px** left on the tightest (leather `Ü` at 19px). Measured before, on the same tree: **3
+faces**, 0 split — latent — and **2.93px** of spread. With `github#45`'s 4px inset applied to
+that same before-tree: **3 split** (`Å`, `Ü`, `מ`, all at a 19px spine), **0.08px** on the
+tightest, and `a look moves nothing on the page` at **20 resized** — `9 -> 76 wide`, a title that
+changed orientation. With the pinned face and that same inset: **1 face, 0 split, 0 clipped, 0
+resized.**
+
+**No margin, and that is the position.** A constant would be calibrated to the three faces
+shipped today and would cost uprights at the narrowest spine, where 4px of inset leaves nine
+pixels and the three faces draw a capital letter **8.4 to 9.7px** wide. The residual — a future
+face drawing wider than the deciding one on a cover the decision allowed upright — is *asserted*
+instead, so it fails the day it happens rather than being absorbed silently by a number nobody
+re-derives.
+
 ### Every control is the same size in every look
 
 `"every control is the same size in every look"` (2026-09-11, "make sure all components

@@ -1,5 +1,51 @@
 # Changelog detail
 
+## 2026-09-11 — Uprightness is geometry, so one face decides it (github#47)
+
+> "the same cover at the same spine width can fit in one look and not in another, and the answer
+> is not a colour or a texture: it is the difference between a title laid out `horizontal-tb` and
+> one rotated `vertical-rl`."
+
+`fitsUpright()` appended its probe to the element carrying `data-look`, so the probe wore
+whichever face the page was painted in. `page.css`'s `.vs-probe` block pins the probe title's
+whole type at 0-5-0 — a look's own title rule is 0-4-0 and its sheet is concatenated after
+`page.css`, so anything less would be settled by file order. The stack is written out instead of
+`var(--ui)`, which leather redefines.
+
+| on the one vault | before | before + `github#45` | after | after + `github#45` |
+|---|---|---|---|---|
+| faces the probe reads | **3** | **3** | **1** | **1** |
+| covers oriented one way in one look, another in the next | 0 | **3** | 0 | **0** |
+| upright titles clipped in any look | 0 | 0 | 0 | 0 |
+| `a look moves nothing`: moved / resized / present-in-one | 0/0/0 | **0/20/0** | 0/0/0 | **0/0/0** |
+| short covers standing upright | 33 | 32 | 33 | 30 |
+| widest face over the deciding one | 2.93px | 2.06px | **1.45px** | **1.45px** |
+| room left on the tightest upright cover | 0.97px | **0.08px** | 0.97px | 0.27px |
+| Encyclopedia labels upright, in leather | 32/35 | 31/35 | 32/35 | 29/35 |
+| `check-comments` baseline | 1500 | — | 1500 | — |
+| `smoke.mjs` | 90 checks | — | **91 checks** | — |
+
+**Nothing visible moves on today's tree** — 32/35 and 33 upright before and after, the same four
+covers sideways (`Œ`, `学`, `読`, `map`). What changes is that the answer stops depending on which
+look asked, which is what `github#45` was waiting on: with its 4px inset applied to this branch,
+`a look moves nothing on the page` goes **20 resized → 0**.
+
+The three that flipped are `Å`, `Ü` and `מ` at a **19px** spine, where `github#45`'s inset leaves
+nine pixels of line box and the three faces draw a capital letter **8.4 / 8.9 / 9.3px** wide. The
+looks had been agreeing by **0.08px** and nothing measured it.
+
+No margin was added. A constant would be calibrated to the three faces shipped today and would
+lay down covers that fit; the residual is asserted instead, by the new check —
+`"a short cover is stood upright by one face, not the look's"` — which fails on the probe reading
+more than one face (it does so on the before-tree, where nothing has flipped yet), on any cover
+split across looks, and on any look's glyphs being clipped by another face's decision. It prints
+the two margins nobody had: the widest face's spread over the deciding one, and the room left on
+the tightest upright cover.
+
+`design/0021` carries the reasoning and the rejected alternatives. `github#45` still owes the
+`sideways` tolerance in `"a hovered spine shows one peek…"`, **4 → 7**; it is past 4 under
+`github#45` either way — 5 with the old per-look probe — so it is that ticket's number to move.
+
 ## 2026-09-11 — The lock names a job; what the two plugins share is a screen (github#37, github#25)
 
 > "only two places acquire a lock at all, nothing anywhere acquires `record`, and five

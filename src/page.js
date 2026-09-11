@@ -772,10 +772,12 @@ function mountVaultShelf(root, data, options) {
     return null;
   }
 
+  /* github#47, design/0021 -- the look is not in the key; the face is pinned. */
   /** @type {Record<string, boolean>} */
   var uprightFit = {};
 
   /* github#12, design/0002 -- three characters stand upright only when they fit the spine. */
+  /* github#47, design/0021 -- the probe takes the room's box and none of its paint. */
   /** @param {string} cover @param {number} width @returns {boolean} */
   function fitsUpright(cover, width) {
     var key = cover + "|" + width;
