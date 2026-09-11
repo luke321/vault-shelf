@@ -275,17 +275,17 @@ function mountVaultShelf(root, data, options) {
    */
   function rebuild() {
     var visible = core.applyFilters(notes, filters);
-    var ordered = settings.shelves.slice().sort(function (a, b) { return a.position - b.position; });
     bookIndex = {};
     thickest = 1;
-    views = ordered.map(function (shelf) {
-      var view = core.buildShelf(shelf, visible, settings.noteOrder);
+    /* design/0019 -- built as a library rather than shelf by shelf, so a pick shelf at
+     * position 0 is resolved against the shelves that come after it. */
+    views = core.buildLibrary(settings.shelves, visible, settings.noteOrder);
+    views.forEach(function (view) {
       view.books.forEach(function (book) {
         book.bands.forEach(function (band) { band.slot = slotOf[band.folder] || "#6f6e67"; });
         bookIndex[book.id] = book;
         if (book.notes.length > thickest) thickest = book.notes.length;
       });
-      return view;
     });
     core.markMatches(views, query);
   }
@@ -429,8 +429,52 @@ function mountVaultShelf(root, data, options) {
     rowsOf(view.books).forEach(function (row) {
       rail.appendChild(renderTrack(row, view.shelf, true));
     });
+    if (isPick(view.shelf)) landingOf(rail, view);
     wrap.appendChild(rail);
     return wrap;
+  }
+
+  /**
+   * design/0019 -- THE WHOLE RAIL TAKES A DROP, not only the spines on it: an empty shelf has
+   * no spine to aim at, and a drop past the last book means "at the end". A spine that is
+   * under the pointer answers first and this stays out of its way. The empty shelf says what
+   * it is for, in words, in the row where the books will stand -- a blank board reads as a
+   * broken shelf, and a hidden one as no shelf at all.
+   * @param {HTMLElement} rail @param {ShelfView} view
+   */
+  function landingOf(rail, view) {
+    rail.setAttribute("data-pick", "1");
+    if (!view.books.length && rail.firstChild) {
+      rail.firstChild.appendChild(el("div", "vs-dropzone", "Drag a book here"));
+    }
+    /** @param {Event} e @returns {boolean} */
+    var overSpine = function (e) {
+      return e.target instanceof Element && !!e.target.closest(".vs-spine");
+    };
+    on(rail, "dragover", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      if (!dragging || overSpine(de)) return;
+      de.preventDefault();
+      if (de.dataTransfer) de.dataTransfer.dropEffect = "move";
+      var spines = rail.querySelectorAll(".vs-spine");
+      var last = spines.length ? /** @type {HTMLElement} */ (spines[spines.length - 1]) : null;
+      if (last) markDrop(last, "after"); else markLanding(rail);
+      var carried = carriedSpine();
+      if (carried) carried.removeAttribute("data-leaving");
+    });
+    on(rail, "dragleave", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      if (!(de.relatedTarget instanceof Node) || !rail.contains(de.relatedTarget)) clearDrop();
+    });
+    on(rail, "drop", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      if (!dragging || overSpine(de)) return;
+      de.preventDefault();
+      var sourceId = carriedInto(view.shelf);
+      dragging = null;
+      clearDrop();
+      arrangeBook(view.shelf, sourceId, null, core.bookId(view.shelf.id, sourceId));
+    });
   }
 
   /**
@@ -651,8 +695,13 @@ function mountVaultShelf(root, data, options) {
     b.appendChild(el("span", "vs-title", book.label));
     b.appendChild(el("span", "vs-n", String(book.notes.length)));
 
+    /* design/0019 -- A FAVOURITE IS ITS SOURCE BOOK: same wear, same ribbons, same colour, and
+     * a click opens the source, so a reading place is one thing. Only the address is its own. */
+    var source = sourceOf(book);
+    if (source !== book) b.setAttribute("data-source", source.id);
+
     /* design/0008 -- the three things that make a shelf look used rather than printed. */
-    var opens = settings.wear[book.id] || 0;
+    var opens = settings.wear[source.id] || 0;
     var level = core.wearLevel(opens);
     if (level) b.setAttribute("data-wear", String(level));
     /* AS MANY RIBBONS AS IT HOLDS, up to three, side by side out of the bottom of the spine --
@@ -698,8 +747,11 @@ function mountVaultShelf(root, data, options) {
     /* A one-letter label reads better upright than turned on its side: A, K, 0-9, Ü. */
     if (book.label.length <= 3) b.setAttribute("data-upright", "1");
 
-    on(b, "click", function () { openBook(book, null); });
-    if (hand && shelf.direction === "manual") handleOf(b, book, shelf);
+    on(b, "click", function () { openBook(source, null); });
+    if (hand) {
+      liftable(b, book, shelf);
+      if (shelf.direction === "manual") handleOf(b, book, shelf);
+    }
     return b;
   }
 
@@ -710,21 +762,33 @@ function mountVaultShelf(root, data, options) {
    * book would land -- and a keyboard path that does the same move without a pointer.
    */
 
-  /** @type {{ shelfId: string, key: string }|null} */
+  /** @type {{ shelfId: string, key: string, id: string }|null} */
   var dragging = null;
   /** @type {HTMLElement|null} */
   var dropMark = null;
+  /** design/0019 -- the empty rail a drop is being offered to, if any. @type {HTMLElement|null} */
+  var dropRail = null;
 
-  /** @param {HTMLElement} b @param {Book} book @param {Shelf} shelf */
-  function handleOf(b, book, shelf) {
+  /**
+   * design/0019 -- EVERY SPINE ON EVERY SHELF CAN BE PICKED UP, because every one of them can
+   * be dropped on Favourites. Whether it can be put down again on its own shelf is the manual
+   * shelf's question and stays in `handleOf`.
+   * @param {HTMLElement} b @param {Book} book @param {Shelf} shelf
+   */
+  function liftable(b, book, shelf) {
     b.draggable = true;
-    b.setAttribute("data-hand", "1");
-    b.setAttribute("data-peek", b.getAttribute("data-peek") +
-      "\n\nDrag to move it along the shelf; Alt+Left and Alt+Right do the " +
-      "same from the keyboard.");
+    var favourites = pickShelf();
+    if (favourites && !favourites.hidden && !isPick(shelf)) {
+      b.setAttribute("data-peek", b.getAttribute("data-peek") +
+        "\n\nDrag it onto " + favourites.name + ".");
+    }
+    if (isPick(shelf)) {
+      b.setAttribute("data-peek", b.getAttribute("data-peek") +
+        "\n\nDrag it off the shelf to take it off " + shelf.name + ".");
+    }
     on(b, "dragstart", function (e) {
       var de = /** @type {DragEvent} */ (e);
-      dragging = { shelfId: shelf.id, key: book.key };
+      dragging = { shelfId: shelf.id, key: book.key, id: book.id };
       if (de.dataTransfer) {
         de.dataTransfer.effectAllowed = "move";
         /* The payload is the address, not the label: the same thing a drop between two hosts
@@ -738,24 +802,78 @@ function mountVaultShelf(root, data, options) {
       dragging = null;
       clearDrop();
       b.removeAttribute("data-dragging");
+      b.removeAttribute("data-leaving");
     });
+  }
+
+  /**
+   * design/0019 -- DRAGGING A FAVOURITE OFF THE SHELF TAKES IT OFF, which is the gesture a
+   * person tries first and the one the menu was standing in for. "Off" is a DROP anywhere in
+   * the library that is not the pick shelf's own section -- onto another shelf, onto the floor
+   * between them -- and it is a real drop rather than `dragend`, so that ESCAPE AND A DROP
+   * OUTSIDE THE WINDOW BOTH CANCEL: both end a drag without a drop, and a cancelled drag must
+   * put the book back rather than throw it away. The books' own shelves refuse the drop
+   * (`takes` in handleOf), so nothing lands anywhere; only the pick shelf loses it.
+   * @param {DragEvent} e @returns {Shelf|null}
+   */
+  function leaving(e) {
+    if (!dragging) return null;
+    var shelf = shelfById(dragging.shelfId);
+    if (!shelf || !isPick(shelf)) return null;
+    if (!(e.target instanceof Element)) return shelf;
+    var own = '[data-shelf="' + cssEscape(shelf.id) + '"]';
+    return e.target.closest(own) ? null : shelf;
+  }
+
+  /** The spine being carried, so it can say it is on its way off. @returns {HTMLElement|null} */
+  function carriedSpine() {
+    return dragging
+      ? /** @type {HTMLElement|null} */ (root.querySelector("#" + ID + "shelves .vs-spine[data-dragging]"))
+      : null;
+  }
+
+  /**
+   * design/0019 -- WHAT A DROP ONTO A PICK SHELF CARRIES: the source address. A spine lifted
+   * off any other shelf carries its own address; one lifted off the pick shelf itself carries
+   * its key, which IS the source address, so a move and an add are the same write.
+   * @param {Shelf} shelf @returns {string}
+   */
+  function carriedInto(shelf) {
+    if (!dragging) return "";
+    return dragging.shelfId === shelf.id ? dragging.key : dragging.id;
+  }
+
+  /** @param {HTMLElement} b @param {Book} book @param {Shelf} shelf */
+  function handleOf(b, book, shelf) {
+    b.setAttribute("data-hand", "1");
+    b.setAttribute("data-peek", b.getAttribute("data-peek") +
+      "\n\nDrag to move it along the shelf; Alt+Left and Alt+Right do the " +
+      "same from the keyboard.");
+    /* design/0019 -- a pick shelf takes a spine from ANY shelf; every other manual shelf takes
+     * only its own. */
+    var takes = function () {
+      if (!dragging) return false;
+      if (dragging.shelfId === shelf.id) return dragging.key !== book.key;
+      return isPick(shelf) && dragging.id !== book.key;
+    };
     on(b, "dragover", function (e) {
-      if (!dragging || dragging.shelfId !== shelf.id || dragging.key === book.key) return;
+      if (!takes()) return;
       var de = /** @type {DragEvent} */ (e);
       de.preventDefault();
       if (de.dataTransfer) de.dataTransfer.dropEffect = "move";
       markDrop(b, sideOf(b, de.clientX));
+      var carried = carriedSpine();
+      if (carried) carried.removeAttribute("data-leaving");
     });
     on(b, "dragleave", function () { if (dropMark === b) clearDrop(); });
     on(b, "drop", function (e) {
       var de = /** @type {DragEvent} */ (e);
       de.preventDefault();
-      if (!dragging || dragging.shelfId !== shelf.id) return;
-      var moved = dragging.key;
+      if (!takes()) return;
+      var moved = carriedInto(shelf);
       var side = sideOf(b, de.clientX);
       dragging = null;
       clearDrop();
-      if (moved === book.key) return;
       arrangeBook(shelf, moved, neighbour(shelf, book.key, side, moved),
                   core.bookId(shelf.id, moved));
     });
@@ -785,6 +903,41 @@ function mountVaultShelf(root, data, options) {
       if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
     }
     dropMark = null;
+    if (dropRail) dropRail.removeAttribute("data-drop");
+    dropRail = null;
+  }
+
+  /** design/0019 -- the library outside the pick shelf is where a favourite is dropped to take
+   * it off; it says so on the spine being carried rather than on the room. @param {HTMLElement} box */
+  function takeOffZone(box) {
+    on(box, "dragover", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      var shelf = leaving(de);
+      if (!shelf) return;
+      de.preventDefault();
+      if (de.dataTransfer) de.dataTransfer.dropEffect = "move";
+      clearDrop();
+      var spine = carriedSpine();
+      if (spine) spine.setAttribute("data-leaving", "1");
+    });
+    on(box, "drop", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      var shelf = leaving(de);
+      if (!shelf) return;
+      de.preventDefault();
+      var key = dragging ? dragging.key : "";
+      dragging = null;
+      clearDrop();
+      if (key) takeOff(shelf, key);
+    });
+  }
+
+  /** design/0019 -- an empty rail has no gap to draw a bar in, so the whole landing lights. @param {HTMLElement} rail */
+  function markLanding(rail) {
+    if (dropRail === rail) return;
+    clearDrop();
+    dropRail = rail;
+    rail.setAttribute("data-drop", "1");
   }
 
   /**
@@ -813,9 +966,15 @@ function mountVaultShelf(root, data, options) {
    * @param {Shelf} shelf @param {string} key @param {string|null} before @param {string} [refocus]
    */
   function arrangeBook(shelf, key, before, refocus) {
-    var live = core.buildShelf(shelf, notes, settings.noteOrder).books
-      .map(function (bk) { return bk.key; });
-    shelf.order = core.moveBefore(live, key, before);
+    if (isPick(shelf)) {
+      /* design/0019 -- the same argument, one list along: the picks are saved against what
+       * the UNFILTERED library resolves, so a dead pick goes here and nowhere else. */
+      shelf.picks = core.pickBefore(shelf.picks, liveSources(), key, before);
+    } else {
+      var live = core.buildShelf(shelf, notes, settings.noteOrder).books
+        .map(function (bk) { return bk.key; });
+      shelf.order = core.moveBefore(live, key, before);
+    }
     persist();
     refresh();
     if (!refocus) return;
@@ -845,6 +1004,41 @@ function mountVaultShelf(root, data, options) {
     return true;
   }
 
+  /* ---- favourites --------------------------------------------------------------
+   * design/0019 -- a pick shelf is a shelf of references: its books are other shelves' books,
+   * resolved on every build, and the only thing it owns is which and in what order.
+   */
+
+  /** @param {Shelf} shelf @returns {boolean} */
+  function isPick(shelf) { return shelf.classifier === "pick"; }
+
+  /** The first pick shelf, which is Favourites unless a file says otherwise. @returns {Shelf|null} */
+  function pickShelf() {
+    for (var i = 0; i < settings.shelves.length; i++) {
+      if (isPick(settings.shelves[i])) return settings.shelves[i];
+    }
+    return null;
+  }
+
+  /** The book a favourite stands for; any other book is its own source. @param {Book} book @returns {Book} */
+  function sourceOf(book) {
+    var shelf = shelfById(book.shelfId);
+    if (!shelf || !isPick(shelf)) return book;
+    return bookIndex[book.key] || book;
+  }
+
+  /** Every address the UNFILTERED library resolves: what a save of the picks is made against. @returns {Set<string>} */
+  function liveSources() {
+    return core.pickable(core.buildLibrary(settings.shelves, notes, settings.noteOrder));
+  }
+
+  /** @param {Shelf} shelf @param {string} sourceId */
+  function takeOff(shelf, sourceId) {
+    shelf.picks = core.unpick(shelf.picks, liveSources(), sourceId);
+    persist();
+    refresh();
+  }
+
   /**
    * design/0011 -- scaled against the whole LIBRARY, not against the shelf, so a book that is
    * thick on the Months shelf is the same thickness in the Encyclopedia. A shelf whose books
@@ -872,9 +1066,13 @@ function mountVaultShelf(root, data, options) {
    * @param {Book} book @param {Shelf} shelf @returns {string}
    */
   function dyeOf(book, shelf) {
-    var given = settings.bookColors[book.id];
+    /* design/0019 -- a favourite wears its source's colour, hand-given or varied, so the same
+     * book is the same colour on both shelves. */
+    var source = sourceOf(book);
+    var home = source === book ? shelf : shelfById(source.shelfId) || shelf;
+    var given = settings.bookColors[source.id];
     if (typeof given === "number" && SLOTS[given]) return SLOTS[given];
-    if (shelf.varyColors) return SLOTS[hashSlot(book.id)];
+    if (shelf.varyColors || home.varyColors) return SLOTS[hashSlot(source.id)];
     if (book.bands.length && book.bands[0].slot) return String(book.bands[0].slot);
     return SLOTS[0];
   }
@@ -1002,7 +1200,9 @@ function mountVaultShelf(root, data, options) {
     dyeing = book;
     var menu = node("dye");
     clear(menu);
-    var given = settings.bookColors[book.id];
+    /* design/0019 -- a colour given to a favourite is given to the book it stands for. */
+    var source = sourceOf(book);
+    var given = settings.bookColors[source.id];
     menu.appendChild(el("div", "vs-dyename", book.label));
     var row = el("div", "vs-swatches");
     SLOTS.forEach(function (colour, i) {
@@ -1012,15 +1212,32 @@ function mountVaultShelf(root, data, options) {
       sw.title = "Colour " + (i + 1);
       sw.setAttribute("aria-label", sw.title);
       if (given === i) sw.setAttribute("aria-pressed", "true");
-      on(sw, "click", function () { setBookColor(book, i); });
+      on(sw, "click", function () { setBookColor(source, i); });
       row.appendChild(sw);
     });
     menu.appendChild(row);
     var auto = /** @type {HTMLButtonElement} */ (el("button", "vs-dyeauto", "Automatic"));
     auto.type = "button";
     if (given === undefined) auto.setAttribute("aria-pressed", "true");
-    on(auto, "click", function () { setBookColor(book, null); });
+    on(auto, "click", function () { setBookColor(source, null); });
     menu.appendChild(auto);
+
+    /* design/0019 -- THE SAME MENU, ONE MORE LINE. On a favourite it takes the book off; on any
+     * other spine it puts the book on, which is the path that needs no pointer. */
+    var home = shelfById(book.shelfId);
+    var favourites = pickShelf();
+    if (home && favourites && !favourites.hidden) {
+      var onIt = isPick(home);
+      var pickBtn = /** @type {HTMLButtonElement} */ (el("button", "vs-dyepick",
+        (onIt ? "Take off " : "Add to ") + favourites.name));
+      pickBtn.type = "button";
+      on(pickBtn, "click", function () {
+        closeDye();
+        if (onIt) takeOff(home, book.key);
+        else arrangeBook(favourites, book.id, null);
+      });
+      menu.appendChild(pickBtn);
+    }
 
     menu.hidden = false;
     /* Placed where the pointer is, and pulled back inside the room if that would hang it off
@@ -1124,7 +1341,8 @@ function mountVaultShelf(root, data, options) {
   /** @param {string} bookId */
   function markWear(bookId) {
     var level = core.wearLevel(settings.wear[bookId] || 0);
-    var spines = root.querySelectorAll('#' + ID + 'shelves [data-book="' + cssEscape(bookId) + '"]');
+    var spines = root.querySelectorAll('#' + ID + 'shelves [data-book="' + cssEscape(bookId) + '"], ' +
+                                       '#' + ID + 'shelves [data-source="' + cssEscape(bookId) + '"]');
     for (var i = 0; i < spines.length; i++) {
       if (level) spines[i].setAttribute("data-wear", String(level));
       else spines[i].removeAttribute("data-wear");
@@ -1641,7 +1859,7 @@ function mountVaultShelf(root, data, options) {
     var from = shelfById(here.shelfId);
     var fromAt = from ? from.position : 0;
     views.forEach(function (v) {
-      if (v.shelf.hidden) return;
+      if (v.shelf.hidden || isPick(v.shelf)) return;
       v.books.forEach(function (b) {
         if (!b.notes.some(function (n) { return n.id === noteId; })) return;
         var distance = v.shelf.id === here.shelfId ? -1 : Math.abs(v.shelf.position - fromAt);
@@ -1792,24 +2010,34 @@ function mountVaultShelf(root, data, options) {
     field("bsubtags").checked = d.includeSubtags !== false;
     field("bvary").checked = !!d.varyColors;
     field("bsubtags").disabled = d.classifier !== "tag" && d.source.kind !== "tag";
+    /* design/0019 -- A PICK SHELF HAS NO SOURCE, NO CLASSIFIER AND NO RULE TO EDIT: what it
+     * holds is what was dropped on it. The two questions and the order are taken off the form
+     * rather than greyed, and so are the recipes, which would answer them. */
+    var pick = isPick(d);
+    /** @type {(HTMLElement|null)[]} */
+    var ruled = [field("bsource").closest("fieldset"), field("bclassifier").closest("fieldset"),
+                 order.closest("label"), $("recipes").closest(".vs-field")];
+    ruled.forEach(function (part) { if (part) part.hidden = pick; });
   }
 
   function readBuilderFields() {
     var d = builder.draft;
     d.name = field("bname").value.trim() || "Untitled shelf";
-    d.source = { kind: /** @type {import("./core/index").SourceKind} */ (field("bsource").value) };
-    if (d.source.kind !== "all") {
-      fillSourceValues();
-      d.source.value = field("bsourceval").value;
+    if (!isPick(d)) {
+      d.source = { kind: /** @type {import("./core/index").SourceKind} */ (field("bsource").value) };
+      if (d.source.kind !== "all") {
+        fillSourceValues();
+        d.source.value = field("bsourceval").value;
+      }
+      d.classifier = /** @type {import("./core/index").ClassifierKind} */ (field("bclassifier").value);
+      if (d.classifier === "property") {
+        fillProperties();
+        d.property = field("bproperty").value;
+      }
+      var picked = field("bdirection").value;
+      d.direction = picked === "manual" ? "manual"
+                  : picked === "chronological" ? "chronological" : "alphabetical";
     }
-    d.classifier = /** @type {import("./core/index").ClassifierKind} */ (field("bclassifier").value);
-    if (d.classifier === "property") {
-      fillProperties();
-      d.property = field("bproperty").value;
-    }
-    var picked = field("bdirection").value;
-    d.direction = picked === "manual" ? "manual"
-                : picked === "chronological" ? "chronological" : "alphabetical";
     d.plaques = !!PLAQUABLE[d.classifier] && field("bplaques").checked;
     d.includeSubtags = field("bsubtags").checked;
     d.varyColors = field("bvary").checked;
@@ -1877,7 +2105,7 @@ function mountVaultShelf(root, data, options) {
     if (!builder) return;
     var draft = core.clone(builder.draft);
     draft.id = draft.id || "preview";
-    var view = core.buildShelf(draft, core.applyFilters(notes, filters), settings.noteOrder);
+    var view = core.buildShelf(draft, core.applyFilters(notes, filters), settings.noteOrder, views);
     view.books.forEach(function (book) {
       book.bands.forEach(function (band) { band.slot = slotOf[band.folder] || "#6f6c66"; });
     });
@@ -1919,7 +2147,7 @@ function mountVaultShelf(root, data, options) {
    * @param {Shelf} draft @param {Shelf|null} previous
    */
   function seedOrder(draft, previous) {
-    if (draft.direction !== "manual") return;
+    if (draft.direction !== "manual" || isPick(draft)) return;
     if (draft.order && draft.order.length) return;
     var was = core.clone(draft);
     was.direction = previous && previous.direction !== "manual"
@@ -2342,6 +2570,7 @@ function mountVaultShelf(root, data, options) {
   /* ============================================================ the wiring == */
 
   watchRoom();
+  takeOffZone($("shelves"));
   paintOrder();
   on($("order"), "click", toggleOrder);
   fillLooks();
@@ -2574,6 +2803,29 @@ function mountVaultShelf(root, data, options) {
     sequence: function (shelfId) {
       var view = views.filter(function (v) { return v.shelf.id === shelfId; })[0];
       return view ? view.books.map(function (b) { return b.key; }) : [];
+    },
+    /**
+     * design/0019 -- a drop onto the pick shelf and a take-off, without a pointer: the same
+     * two writes the rail, the spines and the menu make.
+     * @param {string} sourceId @param {string|null} [before]
+     */
+    pick: function (sourceId, before) {
+      var shelf = pickShelf();
+      if (!shelf) return false;
+      arrangeBook(shelf, sourceId, before === undefined ? null : before);
+      return true;
+    },
+    /** design/0019 -- is this spine on its way off the shelf? @param {string} bookId */
+    leaving: function (bookId) {
+      var spine = root.querySelector("#" + ID + 'shelves [data-book="' + cssEscape(bookId) + '"]');
+      return !!spine && spine.getAttribute("data-leaving") === "1";
+    },
+    /** @param {string} sourceId */
+    unpick: function (sourceId) {
+      var shelf = pickShelf();
+      if (!shelf) return false;
+      takeOff(shelf, sourceId);
+      return true;
     },
     /** Every book's address, so a check can assert they are stable across a rebuild. */
     addresses: function () {

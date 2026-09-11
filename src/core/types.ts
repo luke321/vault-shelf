@@ -36,7 +36,9 @@ export interface Library {
  */
 
 export type ClassifierKind =
-  | "initial" | "year" | "month" | "week" | "person" | "tag" | "folder" | "property";
+  | "initial" | "year" | "month" | "week" | "person" | "tag" | "folder" | "property"
+  /** design/0019 -- a shelf of references to other shelves' books, in the order they were dropped. */
+  | "pick";
 
 export type SourceKind = "all" | "tag" | "person" | "folder";
 
@@ -63,6 +65,13 @@ export interface Shelf {
    * when the sequence is next saved; a key the vault has that is not here goes to the end.
    */
   order?: string[];
+  /**
+   * design/0019 -- what a PICK shelf holds: the ADDRESSES of other shelves' books, in the order
+   * they were dropped. Membership and sequence are one list here -- a favourite exists because
+   * it was placed -- so a pick shelf never carries `order`. An address the library no longer
+   * resolves is skipped on read and dropped when the list is next saved, like a manual key.
+   */
+  picks?: string[];
   hidden: boolean;
   position: number;
   /** design/0003 */

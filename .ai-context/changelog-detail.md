@@ -1,5 +1,68 @@
 # Changelog detail
 
+## 2026-09-11 — A Favourites shelf you drag books onto
+
+> "drag and drop shelf should be at the top as favourites"
+
+`design/0018` gave any shelf a manual order, but a manual shelf still only holds the books its
+own classifier makes. The library now opens on a **Favourites** shelf at position 0 that starts
+empty and holds whichever books were dragged onto it, from any shelf, in the order they were
+dropped. `design/0019` records the model; `decisions/0002` is what it rests on.
+
+**A favourite is a reference, stored as the source book's address.** `ClassifierKind` gains
+`"pick"`; a pick shelf carries `picks: string[]` and classifies nothing. `core.buildLibrary`
+builds the ordinary shelves first and the pick shelves against them, so a shelf at position 0
+resolves against shelves that come after it, hidden ones included. The favourite's key is the
+whole source address, so its own address has two slashes (`favourites/years/2024`) — nothing in
+the page splits an address on more than the first one, and the drop check now carries the case.
+Label, notes, bands and plaque (`null`) are the source's, live.
+
+**`picks` is the only list.** A pick shelf is `manual` always and never carries `order`:
+membership and sequence are one question here. One write serves add, move and remove
+(`core.pickBefore` / `core.unpick`), made against what the **unfiltered** library resolves — so
+a dead pick is dropped on save and never on read, which is the argument `design/0018` makes
+about a manual key under a filter.
+
+**Schema 9 → 10.** A file without a pick shelf gets one at position 0 and every other shelf
+moves down one place in the order it already had; a file already at 10 is left alone, and one
+whose own shelf took the id gets `favourites-2`. A hand-edited pick shelf comes up normalised:
+of `["years/2024", 7, "years/2024", "nope", "", "people/Ada Lovelace"]` the two real addresses
+survive, `order` is dropped and `plaques` goes off.
+
+**Dragging one off takes it off.** Carry a favourite off the rail, drop it anywhere else in the
+library, and the shelf loses it; the shelf you dropped it on does not gain it, because
+`takes` only lets a foreign spine land on a pick shelf. It is bound to a **drop** rather than to
+`dragend` so that Escape and a drop outside the window both cancel — a book thrown away by a
+change of mind is the one unrecoverable act here. The spine left on the rail goes to a dashed
+outline while the drop would remove it. The menu line stays as the pointer-free path.
+
+**The interaction.** Every spine in the library is now `draggable` — **17/17**, **6/6** and
+**12/12** Years spines on the three shapes — while **0** of them became `data-hand` handles:
+lifting is not arranging, and an automatic shelf still takes no drop. The Favourites rail is a
+drop target along its whole length; the empty one draws a dashed landing **132px** tall saying
+*Drag a book here* and takes the accent while a book is over it; once there is a book on the
+shelf the **3px** mark from `design/0018` says where the next one goes. The `#vs-dye` menu gains
+one line — *Take off Favourites* on a favourite, *Add to Favourites* on any other spine.
+
+**What was measured.** A Years book dropped on the empty rail arrived with the source's
+**2 / 70 / 303 notes** (demo / sparse / library); a People book dropped past it landed second;
+dragging it onto the first's left half reversed the two and left **0** marks behind. A rebuild,
+a folder filter (**4 of 40**, **96 of 115**, **68 of 843** notes) and `core.migrate` over the
+blob all read back the same picks, with the favourites' addresses unchanged. A year and one of
+its months on the shelf give **3 places / 2 unique**, **86 / 70** and **338 / 303** notes, and
+the shelf claims the unique count. Hiding the source shelf keeps **2 of 2** resolving; deleting
+it leaves **1 of 2** drawn with both picks still in the file until the next save.
+
+**The reader was told nothing.** Opening a favourite opens the source book, so `resolveReading`,
+`alsoShelvedIn` and the wikilink search skip pick shelves: a favourite is a way to reach a book,
+not a second place the note lives. The spine still carries everything that is about the source —
+its wear, its ribbons, its hand-given colour.
+
+Addresses did not move, because the shelf ships empty: **447 / 194 / 709** on demo / sparse /
+library, the same list element for element across a rebuild. `__vs.counts().shelves` is **6 ->
+7**. The suite is
+**66 → 71** checks (five new, and *the six default shelves* is now *the seven*), green on all
+three shapes.
 ## 2026-09-11 — A ribbon per book colour, and the colours block became a table
 
 > "make it ribbons so you can choose a color per book color, so basically a table, use

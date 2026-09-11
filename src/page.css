@@ -626,6 +626,47 @@
 .vault-shelf .vs-drop[data-side="before"] { left: -3px; }
 .vault-shelf .vs-drop[data-side="after"] { right: -3px; }
 
+/* ---- BEGIN: favourites -------------------------------------------------------
+ * design/0019 -- the one shelf that starts empty says what it is for, in the row where the
+ * books will stand: a dashed landing the height of a spine, so an empty Favourites reads as
+ * a shelf with room on it rather than a broken one. While a book is in the air over it the
+ * landing takes the accent, the way the drop mark does between two books; once there is a
+ * book on the shelf the mark from design/0018 says where the next one goes and this is gone.
+ * The menu line ("Take off Favourites" / "Add to Favourites") sits under "Automatic" and is
+ * sized by the same rule every button is.
+ */
+.vault-shelf .vs-dropzone {
+  flex: 1 1 auto;
+  height: var(--spine-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  border: 1px dashed var(--border-strong);
+  border-radius: 3px;
+  pointer-events: none;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+.vault-shelf .vs-shelfrail[data-drop="1"] .vs-dropzone {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--surface-1);
+}
+.vault-shelf .vs-dyepick { width: 100%; margin-top: 6px; justify-content: center; }
+
+/* design/0019 -- A BOOK ON ITS WAY OFF THE SHELF says so where the book is, not where the
+ * pointer is: the spine left behind on the rail goes to an outline while the drop would take
+ * it off, so the gesture reads as "this one is leaving" rather than "something is happening
+ * somewhere". Dashed, because the same dashes are what an empty landing is drawn with. */
+.vault-shelf .vs-spine[data-leaving="1"] {
+  opacity: 0.28;
+  border-style: dashed;
+  border-color: var(--border-strong);
+}
+/* ---- END: favourites ---- */
+
 /* ---- magic 1: shelf wear -------------------------------------------------
  * design/0008 -- a book you open often looks handled. Four steps, and every one of them is
  * a thing that happens to a real book: the boards darken where a hand holds them, the head

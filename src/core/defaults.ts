@@ -1,6 +1,6 @@
 import type { Shelf } from "./types";
 
-/* ---- the six default shelves ---------------------------------------------
+/* ---- the seven default shelves -------------------------------------------
  * design/0002
  *
  * The same note is meant to appear on several of these at once. That overlap is the product,
@@ -9,18 +9,26 @@ import type { Shelf } from "./types";
 export function defaultShelves(): Shelf[] {
   return [
     {
+      /* design/0019 -- FIRST, AND EMPTY. A shelf that holds whichever books a person drags
+       * onto it from the others, in the order they were dropped; its `source` is a formality
+       * the type asks for, since a pick shelf classifies nothing. */
+      id: "favourites", name: "Favourites", source: { kind: "all" },
+      classifier: "pick", direction: "manual", hidden: false, position: 0,
+      plaques: false, picks: [],
+    },
+    {
       id: "encyclopedia", name: "Encyclopedia", source: { kind: "all" },
-      classifier: "initial", direction: "alphabetical", hidden: false, position: 0,
+      classifier: "initial", direction: "alphabetical", hidden: false, position: 1,
       plaques: false,
     },
     {
       id: "years", name: "Years", source: { kind: "all" },
-      classifier: "year", direction: "chronological", hidden: false, position: 1,
+      classifier: "year", direction: "chronological", hidden: false, position: 2,
       plaques: true,
     },
     {
       id: "months", name: "Months", source: { kind: "all" },
-      classifier: "month", direction: "chronological", hidden: false, position: 2,
+      classifier: "month", direction: "chronological", hidden: false, position: 3,
       plaques: true,
     },
     {
@@ -29,17 +37,17 @@ export function defaultShelves(): Shelf[] {
        * thing in the library and the one nobody opened. It keeps its definition and one
        * click in Manage brings it back; hiding never deletes (decisions/0002). */
       id: "weeks", name: "Weeks", source: { kind: "all" },
-      classifier: "week", direction: "chronological", hidden: true, position: 3,
+      classifier: "week", direction: "chronological", hidden: true, position: 4,
       plaques: true,
     },
     {
       id: "people", name: "People", source: { kind: "all" },
-      classifier: "person", direction: "alphabetical", hidden: false, position: 4,
+      classifier: "person", direction: "alphabetical", hidden: false, position: 5,
       plaques: true,
     },
     {
       id: "tags", name: "Tags", source: { kind: "all" },
-      classifier: "tag", direction: "alphabetical", hidden: false, position: 5,
+      classifier: "tag", direction: "alphabetical", hidden: false, position: 6,
       plaques: true, includeSubtags: true,
     },
   ];
@@ -238,10 +246,9 @@ export function migrate(raw: unknown): Persisted {
   return {
     schema: SETTINGS_SCHEMA,
     shelves: shelves.length
-      ? shelves.map((s, i) => ({
-          ...arrangedBy(variesOn(alphabetOn(weeksAway(decadesOn(s, from), from), from), data)),
-          position: i,
-        }))
+      ? withFavourites(shelves.map((s) =>
+          pickedBy(arrangedBy(variesOn(alphabetOn(weeksAway(decadesOn(s, from), from), from), data)))),
+          from)
       : base.shelves,
     reading: Array.isArray(data.reading) ? data.reading.filter(isMark) : [],
     wear: wearOf(data.wear),
@@ -335,6 +342,48 @@ function arrangedBy(shelf: Shelf): Shelf {
     return rest;
   }
   return { ...shelf, direction, order };
+}
+
+/**
+ * design/0019 -- A PICK SHELF IS MANUAL AND HAS NO ORDER. Its sequence is `picks`, so an
+ * `order` a hand-edited file gives it is dropped rather than left to disagree; a pick that is
+ * not an address (something with a slash in it) is not a pick; duplicates collapse. A shelf
+ * that is not a pick shelf loses any `picks` the same way. `plaques` is off because there is
+ * no unit above a book somebody dropped.
+ */
+function pickedBy(shelf: Shelf): Shelf {
+  if (shelf.classifier !== "pick") {
+    if (shelf.picks === undefined) return shelf;
+    const rest: Shelf = { ...shelf };
+    delete rest.picks;
+    return rest;
+  }
+  const listed = Array.isArray(shelf.picks)
+    ? shelf.picks.filter((p): p is string => typeof p === "string" && p.indexOf("/") > 0)
+    : [];
+  const seen = new Set<string>();
+  const picks = listed.filter((p) => (seen.has(p) ? false : (seen.add(p), true)));
+  const out: Shelf = { ...shelf, direction: "manual", plaques: false, picks };
+  delete out.order;
+  return out;
+}
+
+/**
+ * design/0019 -- SCHEMA 10 PUT A FAVOURITES SHELF FIRST. A file written under an earlier one
+ * has no pick shelf because there was no such thing, which was never a decision -- the same
+ * argument `decadesOn` makes about plaques -- so one is put at position 0 and every other
+ * shelf moves down one place in the order it was in. A file already at 10 means what it says,
+ * and one that already has a pick shelf anywhere keeps it there. The id is `favourites`
+ * unless a shelf a person made already took it (`slug("Favourites")` is the same word).
+ */
+function withFavourites(shelves: Shelf[], from: number): Shelf[] {
+  const placed = shelves.map((s, i) => ({ ...s, position: i }));
+  if (from >= 10 || placed.some((s) => s.classifier === "pick")) return placed;
+  const taken = new Set(placed.map((s) => s.id));
+  let id = "favourites";
+  for (let n = 2; taken.has(id); n++) id = "favourites-" + n;
+  const favourites: Shelf = { ...defaultShelves()[0], id };
+  return [favourites].concat(placed).map((s, i) => ({ ...s, position: i }));
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;

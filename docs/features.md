@@ -12,7 +12,7 @@ can do to a real 394-note vault in the page itself.
 
 | | |
 |---|---|
-| **The library** | [Six shelves, and every one is the whole vault](#six-shelves-and-every-one-of-them-is-the-whole-vault) · [Build your own, from two questions](#build-your-own-from-two-questions) · [Arranged by hand](#arranged-by-hand) · [The room has no sidebar](#the-room-has-no-sidebar) · [Hiding never deletes](#hiding-never-deletes) |
+| **The library** | [Favourites, at the top](#favourites-at-the-top) · [Six shelves, and every one is the whole vault](#six-shelves-and-every-one-of-them-is-the-whole-vault) · [Build your own, from two questions](#build-your-own-from-two-questions) · [Arranged by hand](#arranged-by-hand) · [The room has no sidebar](#the-room-has-no-sidebar) · [Hiding never deletes](#hiding-never-deletes) |
 | **The bookcase** | [A shelf is a bookcase, not a conveyor belt](#a-shelf-is-a-bookcase-not-a-conveyor-belt) · [Thickness is the note count](#thickness-is-the-note-count) · [Year and decade plaques](#year-and-decade-plaques) · [A spine tells you where its notes came from](#a-spine-tells-you-where-its-notes-came-from) |
 | **Reading a book** | [The two-page spread](#the-two-page-spread) · [Index tabs, cut the way the book is ordered](#index-tabs-cut-the-way-the-book-is-ordered) · [Also shelved in](#also-shelved-in) · [Which end you open](#which-end-you-open) · [Obsidian's own renderer](#obsidians-own-renderer) |
 | **The magic** | [Ribbons that hang out of the book](#ribbons-that-hang-out-of-the-book) · [Shelf wear](#shelf-wear) · [The shelf parts as you type](#the-shelf-parts-as-you-type) |
@@ -27,6 +27,30 @@ each entry came from is named at the end of it.
 ---
 
 ## The library
+
+### Favourites, at the top
+
+The first shelf in the room starts **empty**, and holds whichever books you drag onto it from
+any other shelf, in the order you dropped them. Drag a spine onto the rail — it is a drop
+target along its whole length, and the mark between two books says where the next one will
+land. **To take one off, drag it off** — carry it away from the rail and drop it anywhere else in the
+library. The shelf you drop it on does not gain it; Favourites simply loses the reference, and
+the spine shows a dashed outline while that is what the drop would do. A drag you abandon with
+Escape, or by dropping outside the window, puts the book back. Right-clicking works too:
+**Add to Favourites** on any spine, **Take off Favourites** on a favourite.
+
+**A favourite is a reference to the book, not a copy of it.** It is stored as that book's
+address, so its title, its notes, its thickness and its colour are the source book's and they
+are **live**: a favourite *2024* grows as notes arrive in 2024. Opening one opens the source
+book, so a ribbon left in it and the wear on its spine are one thing rather than two.
+
+The laws hold on it like any other shelf: a note in two favourites is **one note** in the
+shelf's count, addresses do not move across a rebuild, a filter narrows a favourite the way it
+narrows its source, and a favourite of a book on a **hidden** shelf still resolves — hiding
+keeps a shelf's books. A favourite whose source no longer exists is dropped the next time the
+shelf is saved, never while you are only looking at it.
+
+`design/0019`
 
 ### Six shelves, and every one of them is the whole vault
 

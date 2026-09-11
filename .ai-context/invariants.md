@@ -9,7 +9,8 @@ Run one: `node scripts/smoke.mjs --only "<substring>"`. Run all of them: the pre
 
 Measured 2026-09-09 on the three fixture vaults: demo 394 notes / 11 folders / 8 people /
 15 tags / 18 undated, sparse 756 notes / 6 folders, library 10,000 notes / 15 folders. The
-demo vault draws **182 spines** across the six default shelves.
+demo vault draws **182 spines** across the six shelves that hold books; the seventh,
+Favourites, ships empty (`design/0019`).
 
 ---
 
@@ -22,11 +23,12 @@ starts, so a failure here means every other number would have been measured agai
 `"the page loads with no console errors"` reads `Runtime.exceptionThrown` over CDP and asserts
 zero. It is the cheapest check here and it has caught more than its share.
 
-## The six default shelves are the six default shelves
+## The seven default shelves are the seven default shelves
 
-`"the six default shelves are there, in order"` — `encyclopedia`, `years`, `months`, `weeks`,
-`people`, `tags`, in that order, by id. The order is the argument the product makes on first
-open (`design/0002`), so it is asserted rather than assumed.
+`"the seven default shelves are there, in order, Favourites first"` — `favourites`,
+`encyclopedia`, `years`, `months`, `weeks`, `people`, `tags`, in that order, by id. The order is
+the argument the product makes on first open (`design/0002`, `design/0019`), so it is asserted
+rather than assumed.
 
 ## A shelf's note count is unique notes, never the sum of its books
 
@@ -198,7 +200,8 @@ puts the shelf back the way it found it, because the checks in a shard share one
 `manual` and asserts the sequence and the whole library's address list are unchanged, that
 every spine on that shelf became draggable and none on the automatic Tags shelf did, and that
 nothing has been written to `order` yet. Measured — demo / sparse / library:
-**10 / 8 / 11 books**, **451 / 194 / 709 addresses** unchanged, **10/10, 8/8, 11/11** spines
+**10 / 8 / 11 books**, **447 / 194 / 709 addresses** unchanged (re-measured 2026-09-11; the
+demo fixture ages weekly, so its book count drifts and the other two are pinned), **10/10, 8/8, 11/11** spines
 draggable, **0** elsewhere.
 
 `"Alt+Right moves a book one place, and it survives a rebuild and a reload"` focuses the first
@@ -236,6 +239,68 @@ Not covered by a number: that a decade a person splits shows two plates in one r
 one plate over two runs. That was checked by looking — dropping *Marta Ortiz* between two A
 names on the mirror vault's People shelf gives `A | M | A`, ten plates over ten groups in the
 first row.
+
+## The Favourites shelf holds references, and only references
+
+`design/0019`. Four checks, and each one empties the shelf again on its way out, because the
+checks in a shard share one page.
+
+`"Favourites comes first and empty, fresh and by migration from schema 9"` asserts the fresh
+list is `favourites -> encyclopedia -> years -> months -> weeks -> people -> tags` with a
+`pick` shelf first holding **0 picks**, and that a schema-9 file of three shelves comes up at
+schema **10** as `favourites -> years -> people -> tags` — Favourites at position **0**,
+`direction: "manual"`, and every other shelf in the relative order it already had, a hidden
+People still hidden and a hand-arranged Tags keeping its sequence (`b|a`). A file that already
+says 10 is left alone (`years -> people -> tags`, no pick shelf added); a file whose own shelf
+has taken the id comes up `favourites-2 -> favourites`. A hand-edited pick shelf is normalised:
+`direction` manual, `order` dropped, `plaques` off, and of
+`["years/2024", 7, "years/2024", "nope", "", "people/Ada Lovelace"]` exactly the two real
+addresses survive. Identical on all three shapes, because it is settings arithmetic.
+
+`"a drop onto Favourites adds the book where it landed, and a rebuild keeps it"` dispatches
+real `dragstart` / `dragover` / `drop` events with a `DataTransfer`. The empty rail says
+**"Drag a book here"** at **132px** — a spine's height — and takes the accent while a book is
+over it; a Years book dropped on it arrives holding **the source book's own notes**, addressed
+`favourites/<source address>`; a People book dropped past it draws the **3px "after" mark** from
+`design/0018` and lands second; dragging that one onto the first's left half reverses the two
+and leaves **0** marks behind. A rebuild, a folder filter and `core.migrate` over the settings
+blob all read back the same picks, and the favourites' addresses are unchanged across the
+filter. Measured — demo / sparse / library: the dropped year held **2 / 70 / 303 notes**, the
+filter cut the shelf to **4 of 40**, **96 of 115** and **68 of 843** notes without touching the
+picks, the jump chip said **2** on all three, and **17/17**, **6/6** and **12/12** Years spines
+were draggable while **0** of them became `data-hand` handles — lifting is not arranging.
+
+`"a favourite comes off by the menu, and a dead pick is dropped on save and not before"`
+right-clicks a favourite's spine and asserts the `#vs-dye` menu offers **"Take off
+Favourites"**, then right-clicks the source spine and asserts the same menu offers **"Add to
+Favourites"**. It then hides the People shelf — **2 of 2** favourites still resolve, because
+hiding keeps a shelf's books — and then deletes that shelf from the settings: **1 of 2**
+resolves while the picks are still both, and only the next save writes the survivors. Measured
+on the demo: `[people/Halvor Estrin, years/2011]` drawn as one book, still two picks in the
+file, and `[years/2011, months/2011-09]` after a save. Restoring the shelf brings the book back.
+
+`"a favourite dragged off the shelf comes off, and a cancelled drag does not"` drives the
+gesture in four parts and is the check that guards the one unrecoverable act in this feature.
+Carrying a favourite off the rail marks its spine as leaving and clears the insertion mark
+(**0** left on the rail); dropping it on the Years shelf takes it off Favourites and **does not**
+add it to Years, which still has **17 / 6 / 12** books. Carried off and back over the rail the
+mark clears again and the book stays — landing at the **end**, which is what a drop past the last
+book means everywhere on this shelf, so membership is asserted and the order is reported. A drag
+that ends with **no drop at all** — Escape, or a drop outside the window — keeps the book and
+leaves **0** spines marked; that is the cancel path, and it is why removal is bound to `drop`
+rather than to `dragend`. A spine from an ordinary shelf dragged across the library changes
+nothing.
+
+`"a note in two favourites is one note on the shelf"` favourites a year and one of its months,
+so every note of the month is in both books. Measured — demo / sparse / library: **3 places /
+2 unique**, **86 / 70**, **338 / 303**; the shelf claims the unique count and its header says
+so. It is the same law as *a shelf's note count is unique notes*, one level further out, and
+`checkMembership` walks the pick shelf like any other.
+
+Not covered by a number: that the reader is never told a pick shelf exists. Opening a favourite
+opens the source book, so `resolveReading`, `alsoShelvedIn` and the wikilink search all skip
+pick shelves — the argument is in `design/0019`, and what a check would have to assert is the
+absence of a second address for one book.
 
 ## Hiding a shelf hides it, and never deletes it
 
@@ -693,7 +758,7 @@ all, which looks exactly like a broken plugin.
 |---|---|
 | the plugin loads | 394 markdown files; ready 0–1,600 ms after enabling |
 | the bookshelf icon is in the ribbon | 4 shapes at 18×18px, rail stroked |
-| the view opens and the library renders | 6 shelves, 182 spines, 6 year plaques, 1,250 ms |
+| the view opens and the library renders | 6 shelves, 182 spines, 6 year plaques, 1,250 ms — measured before `design/0019`; a fresh install now opens **7** shelves, the first one empty, and the spine count is unchanged |
 | the tab carries the same icon | 4 shapes in the tab header |
 | people and tags came from the metadata cache | 9 people books, 16 tag books |
 | the debug surface is not shipped | `window.__vs` is `undefined` inside Obsidian |

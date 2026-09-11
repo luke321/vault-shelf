@@ -127,6 +127,9 @@ const POINTER_DRIVEN = [
   /* design/0018 -- a drop is a pointer position against a box, and it has to scroll a shelf
    * into view before it can read one. */
   "drag and drop",
+  /* design/0019 -- the same, onto the Favourites rail, and the drag that takes one off it. */
+  "onto Favourites",
+  "dragged off",
 ];
 const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
 
@@ -147,9 +150,9 @@ check("__vs is present and the library rendered", async (p) => {
            detail: `${c.notes} notes, ${c.shelves} shelves, ${c.books} books, ${c.spines} spines drawn` };
 });
 
-check("the six default shelves are there, in order", async (p) => {
+check("the seven default shelves are there, in order, Favourites first", async (p) => {
   const ids = await p.j("__vs.views().map(function(v){return v.shelf.id})");
-  const want = ["encyclopedia", "years", "months", "weeks", "people", "tags"];
+  const want = ["favourites", "encyclopedia", "years", "months", "weeks", "people", "tags"];
   const ok = JSON.stringify(ids) === JSON.stringify(want);
   return { ok, detail: ok ? want.join(" -> ") : `got ${ids.join(" -> ")}` };
 });
@@ -438,6 +441,9 @@ check("a settings file from an older schema comes up with the newer defaults", a
       reading: [], wear: { "years/2026": 3 }, dateFields: ["date"],
       peopleFields: ["people"], useFileStamp: false
     };
+    var only = function (settings, id) {
+      return settings.shelves.filter(function (s) { return s.id === id; })[0];
+    };
     var up = core.migrate(old);
     var byId = {};
     up.shelves.forEach(function (s) { byId[s.id] = s; });
@@ -472,12 +478,15 @@ check("a settings file from an older schema comes up with the newer defaults", a
              fields: up.dateFields.join(","), keptOff: keptYears.plaques,
              stamp: up.useFileStamp, keptStampOff: core.migrate(atThree).useFileStamp,
              order: up.noteOrder,
-             lettered: core.migrate({ schema: 5, shelves: [{ id: "people", name: "People",
+             /* design/0019 -- BY ID, NOT BY POSITION: schema 10 puts a Favourites shelf in
+              * front of whatever a file carried, so shelves[0] is no longer the shelf under
+              * test. */
+             lettered: only(core.migrate({ schema: 5, shelves: [{ id: "people", name: "People",
                source: { kind: "all" }, classifier: "person", direction: "alphabetical",
-               hidden: false, position: 0, plaques: false }] }).shelves[0].plaques,
-             weeksHidden: core.migrate({ schema: 1, shelves: [{ id: "weeks", name: "Weeks",
+               hidden: false, position: 0, plaques: false }] }), "people").plaques,
+             weeksHidden: only(core.migrate({ schema: 1, shelves: [{ id: "weeks", name: "Weeks",
                source: { kind: "all" }, classifier: "week", direction: "chronological",
-               hidden: false, position: 0, plaques: true }] }).shelves[0].hidden,
+               hidden: false, position: 0, plaques: true }] }), "weeks").hidden,
              keptShown: shown ? shown.hidden === false : false };
   })()`);
   /* People carries plaques from schema 6 too -- the alphabet is a unit above the book like a
@@ -910,6 +919,426 @@ check("a filter narrows an arranged shelf without shuffling it", async (p) => {
     detail: `an arranged People shelf opening ${r.head.join(", ")}: ${r.full} books narrow to ` +
             `${r.narrow} under "${folder}" and every one of them is still in the arranged order ` +
             `(${r.ordered}); clearing the filter puts all ${r.full} back in it (${r.back})`
+  };
+});
+
+/* design/0019 -- the four that hold the Favourites shelf up. Each one empties the picks again
+ * on its way out, because the checks in a shard share one page. */
+
+check("Favourites comes first and empty, fresh and by migration from schema 9", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var byPos = function (list) {
+      return list.slice().sort(function (a, b) { return a.position - b.position; });
+    };
+    var ids = function (list) { return byPos(list).map(function (s) { return s.id; }); };
+    var fresh = byPos(core.emptySettings().shelves);
+    var nine = { schema: 9, shelves: [
+      { id: "years", name: "Years", source: { kind: "all" }, classifier: "year",
+        direction: "chronological", hidden: false, position: 0, plaques: true },
+      { id: "people", name: "People", source: { kind: "all" }, classifier: "person",
+        direction: "alphabetical", hidden: true, position: 1, plaques: true },
+      { id: "tags", name: "Tags", source: { kind: "all" }, classifier: "tag",
+        direction: "manual", order: ["b", "a"], hidden: false, position: 2, plaques: true }
+    ] };
+    var up = core.migrate(nine);
+    var fav = up.shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    var tags = up.shelves.filter(function (s) { return s.id === "tags"; })[0];
+    /* A file already at 10 means what it says, even with no pick shelf in it. */
+    var ten = core.migrate({ schema: 10, shelves: nine.shelves });
+    /* A shelf a person made and called Favourites already holds the id. */
+    var taken = core.migrate({ schema: 9, shelves: [
+      { id: "favourites", name: "Favourites", source: { kind: "tag", value: "fav" },
+        classifier: "tag", direction: "alphabetical", hidden: false, position: 0, plaques: false }
+    ] });
+    /* A hand-edited pick shelf comes up well-formed. */
+    var hand = core.migrate({ schema: 10, shelves: [
+      { id: "favourites", name: "Favourites", source: { kind: "all" }, classifier: "pick",
+        direction: "alphabetical", order: ["x"], plaques: true, hidden: false, position: 0,
+        picks: ["years/2024", 7, "years/2024", "nope", "", "people/Ada Lovelace"] }
+    ] }).shelves[0];
+    return { freshFirst: fresh[0].id, freshKind: fresh[0].classifier,
+             freshPicks: fresh[0].picks.length, freshIds: ids(fresh),
+             schema: up.schema, ids: ids(up.shelves), favPos: fav ? fav.position : -1,
+             favPicks: fav ? fav.picks.length : -1, favDir: fav ? fav.direction : "",
+             peopleHidden: up.shelves.filter(function (s) { return s.id === "people"; })[0].hidden,
+             tagsOrder: (tags.order || []).join("|"),
+             tenIds: ids(ten.shelves), takenIds: ids(taken.shelves),
+             hand: { direction: hand.direction, order: hand.order === undefined,
+                     picks: hand.picks.join("|"), plaques: hand.plaques } };
+  })()`);
+  const want = ["favourites", "encyclopedia", "years", "months", "weeks", "people", "tags"];
+  const ok = r.freshFirst === "favourites" && r.freshKind === "pick" && r.freshPicks === 0 &&
+             JSON.stringify(r.freshIds) === JSON.stringify(want) &&
+             r.schema === 10 &&
+             JSON.stringify(r.ids) === JSON.stringify(["favourites", "years", "people", "tags"]) &&
+             r.favPos === 0 && r.favPicks === 0 && r.favDir === "manual" &&
+             r.peopleHidden === true && r.tagsOrder === "b|a" &&
+             JSON.stringify(r.tenIds) === JSON.stringify(["years", "people", "tags"]) &&
+             JSON.stringify(r.takenIds) === JSON.stringify(["favourites-2", "favourites"]) &&
+             r.hand.direction === "manual" && r.hand.order && r.hand.plaques === false &&
+             r.hand.picks === "years/2024|people/Ada Lovelace";
+  return {
+    ok,
+    detail: `fresh: ${r.freshIds.join(" -> ")}, the first a ${r.freshKind} shelf with ` +
+            `${r.freshPicks} picks; schema 9 -> ${r.schema}: ${r.ids.join(" -> ")}, Favourites ` +
+            `at ${r.favPos} with ${r.favPicks} picks and direction "${r.favDir}", People still ` +
+            `hidden (${r.peopleHidden}) and Tags' arrangement kept (${r.tagsOrder}); a file ` +
+            `already at 10 keeps ${r.tenIds.join(" -> ")}; a taken id gives ` +
+            `${r.takenIds.join(" -> ")}; a hand-edited pick shelf comes up ${r.hand.direction} ` +
+            `with no order (${r.hand.order}), no plaques (${!r.hand.plaques}) and the picks ` +
+            `"${r.hand.picks}"`
+  };
+});
+
+check("a drop onto Favourites adds the book where it landed, and a rebuild keeps it", async (p) => {
+  await p.eval(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    fav.picks = [];
+    __vs.setFilters({});
+    document.getElementById("vs-library").scrollTop = 0;
+  })(); void 0`);
+  await sleep(250);
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    var rail = document.querySelector('[data-shelf="' + fav.id + '"] .vs-shelfrail');
+    var zone = rail.querySelector(".vs-dropzone");
+    var favBooks = function () {
+      return __vs.views().filter(function (v) { return v.shelf.id === fav.id; })[0];
+    };
+    var spineOf = function (id) {
+      return document.querySelector('#vs-shelves [data-book="' + id.replace(/"/g, '\\"') + '"]');
+    };
+    var at = function (el, dt, where) {
+      var box = el.getBoundingClientRect();
+      var x = where === "left" ? box.left + 3 : where === "right" ? box.right - 3 : box.left + box.width / 2;
+      return { bubbles: true, cancelable: true, dataTransfer: dt, clientX: x, clientY: box.top + box.height / 2 };
+    };
+    var carry = function (from, onto, where) {
+      var dt = new DataTransfer();
+      from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+      var payload = dt.getData("text/plain");
+      onto.dispatchEvent(new DragEvent("dragover", at(onto, dt, where)));
+      var out = { payload: payload, lifted: from.getAttribute("data-dragging"),
+                  landing: rail.getAttribute("data-drop"),
+                  mark: rail.querySelector("[data-drop]") ? rail.querySelector("[data-drop]").getAttribute("data-drop") : null,
+                  bar: rail.querySelector(".vs-drop") ? Math.round(rail.querySelector(".vs-drop").getBoundingClientRect().width) : 0 };
+      onto.dispatchEvent(new DragEvent("drop", at(onto, dt, where)));
+      from.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+      return out;
+    };
+    var emptyHint = zone ? zone.textContent : "";
+    var emptyHeight = zone ? Math.round(zone.getBoundingClientRect().height) : 0;
+
+    /* 1. a Years spine onto the empty rail, aimed at the landing rather than a spine */
+    var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0].books[0];
+    var yearsSpine = spineOf(years.id);
+    var first = carry(yearsSpine, rail.querySelector(".vs-track"), "middle");
+    var one = favBooks();
+    var sameNotes = one.books.length === 1 &&
+      one.books[0].notes.map(function (n) { return n.id; }).join("|") ===
+      years.notes.map(function (n) { return n.id; }).join("|");
+
+    /* 2. a People spine, dropped on the rail past the last book */
+    var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0].books[0];
+    rail = document.querySelector('[data-shelf="' + fav.id + '"] .vs-shelfrail');
+    var second = carry(spineOf(people.id), rail.querySelector(".vs-track"), "middle");
+    var two = favBooks();
+    var twoNotes = two.noteCount;
+    var seqAfterTwo = __vs.sequence(fav.id).slice();
+
+    /* 3. a drag within: the second favourite onto the left half of the first */
+    rail = document.querySelector('[data-shelf="' + fav.id + '"] .vs-shelfrail');
+    var favSpines = rail.querySelectorAll(".vs-spine");
+    var within = carry(favSpines[1], favSpines[0], "left");
+    var seqMoved = __vs.sequence(fav.id).slice();
+    var marksLeft = document.querySelectorAll('[data-shelf="' + fav.id + '"] .vs-drop').length +
+                    document.querySelectorAll('[data-shelf="' + fav.id + '"] [data-drop]').length;
+
+    /* 4. a rebuild, a filter and migrate() all keep the picks */
+    var stored = fav.picks.slice();
+    __vs.setFilters({});
+    var rebuilt = __vs.sequence(fav.id).slice();
+    var addressesBefore = __vs.addresses().filter(function (a) { return a.indexOf(fav.id + "/") === 0; });
+    var folder = years.notes[0].folder;
+    __vs.setFilters({ folders: [folder] });
+    var narrowed = favBooks();
+    var picksUnderFilter = fav.picks.slice();
+    __vs.setFilters({ folders: [] });
+    var addressesAfter = __vs.addresses().filter(function (a) { return a.indexOf(fav.id + "/") === 0; });
+    var reread = core.migrate(JSON.parse(JSON.stringify(__vs.settings())))
+      .shelves.filter(function (s) { return s.classifier === "pick"; })[0].picks;
+    var jump = document.querySelector('#vs-jump [data-jump="' + fav.id + '"] .vs-n').textContent;
+    var draggableElsewhere = document.querySelectorAll('[data-shelf="years"] .vs-spine[draggable="true"]').length;
+    var handElsewhere = document.querySelectorAll('[data-shelf="years"] .vs-spine[data-hand="1"]').length;
+    var yearsSpines = document.querySelectorAll('[data-shelf="years"] .vs-spine').length;
+
+    fav.picks = [];
+    __vs.setFilters({});
+    var emptied = favBooks().books.length;
+    var hintBack = !!document.querySelector('[data-shelf="' + fav.id + '"] .vs-dropzone');
+    return { hint: emptyHint, emptyHeight: emptyHeight, first: first, sameNotes: sameNotes,
+             oneCount: one.noteCount, sourceCount: years.notes.length, oneKey: one.books[0].key,
+             oneId: one.books[0].id, second: second, twoBooks: two.books.length,
+             twoNotes: twoNotes,
+             seqAfterTwo: seqAfterTwo, within: within, seqMoved: seqMoved, marksLeft: marksLeft,
+             stored: stored, rebuilt: rebuilt, narrowedBooks: narrowed.books.length,
+             narrowedNotes: narrowed.noteCount, picksUnderFilter: picksUnderFilter,
+             addressesStable: addressesBefore.join("|") === addressesAfter.join("|"),
+             reread: reread, jump: jump, draggableElsewhere: draggableElsewhere,
+             handElsewhere: handElsewhere, yearsSpines: yearsSpines, emptied: emptied,
+             hintBack: hintBack, yearsId: years.id, peopleId: people.id };
+  })()`);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const ok = r.hint === "Drag a book here" && r.emptyHeight > 100 &&
+             r.first.landing === "1" && r.first.lifted === "1" && r.first.payload === r.yearsId &&
+             r.sameNotes && r.oneCount === r.sourceCount && r.oneKey === r.yearsId &&
+             r.oneId === "favourites/" + r.yearsId &&
+             r.second.mark === "after" && r.second.bar === 3 && r.twoBooks === 2 &&
+             same(r.seqAfterTwo, [r.yearsId, r.peopleId]) &&
+             r.within.mark === "before" && same(r.seqMoved, [r.peopleId, r.yearsId]) &&
+             r.marksLeft === 0 && same(r.stored, r.seqMoved) && same(r.rebuilt, r.seqMoved) &&
+             r.narrowedBooks <= 2 && r.narrowedNotes < r.twoNotes &&
+             same(r.picksUnderFilter, r.seqMoved) && r.addressesStable &&
+             same(r.reread, r.seqMoved) && r.jump === "2" &&
+             r.draggableElsewhere === r.yearsSpines && r.handElsewhere === 0 &&
+             r.emptied === 0 && r.hintBack;
+  return {
+    ok,
+    detail: `the empty rail says "${r.hint}" at ${r.emptyHeight}px and lit for the drop ` +
+            `(${r.first.landing === "1"}); ${r.yearsId} landed with the source's ` +
+            `${r.sourceCount} notes (${r.sameNotes}) as ${r.oneId}; ${r.peopleId} dropped past it ` +
+            `drew an "${r.second.mark}" mark ${r.second.bar}px wide and the sequence is ` +
+            `${r.seqAfterTwo.join(", ")}; dragging the second onto the first's left half gave ` +
+            `${r.seqMoved.join(", ")} with ${r.marksLeft} marks left; a rebuild (${same(r.rebuilt, r.seqMoved)}), ` +
+            `a folder filter (${r.narrowedBooks} books / ${r.narrowedNotes} of ${r.twoNotes} notes, picks kept: ` +
+            `${same(r.picksUnderFilter, r.seqMoved)}, addresses stable: ${r.addressesStable}) and ` +
+            `migrate() (${same(r.reread, r.seqMoved)}) keep the picks; the jump chip says ${r.jump}; ` +
+            `${r.draggableElsewhere}/${r.yearsSpines} Years spines lift and ${r.handElsewhere} ` +
+            `are handles; emptied to ${r.emptied} and the hint is back (${r.hintBack})`
+  };
+});
+
+check("a favourite comes off by the menu, and a dead pick is dropped on save and not before",
+      async (p) => {
+  const r = await p.j(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    var shelves = __vs.settings().shelves;
+    var favView = function () {
+      return __vs.views().filter(function (v) { return v.shelf.id === fav.id; })[0];
+    };
+    var bookOn = function (shelfId) {
+      return __vs.views().filter(function (v) { return v.shelf.id === shelfId; })[0].books[0].id;
+    };
+    var spineOf = function (id) {
+      return document.querySelector('#vs-shelves [data-book="' + id.replace(/"/g, '\\"') + '"]');
+    };
+    var menuLine = function (spine) {
+      spine.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 200, clientY: 200 }));
+      var menu = document.getElementById("vs-dye");
+      var line = menu.querySelector(".vs-dyepick");
+      var out = { shown: !menu.hidden, text: line ? line.textContent : null };
+      if (line) line.click();
+      out.closed = menu.hidden;
+      return out;
+    };
+    var years = bookOn("years"), people = bookOn("people"), months = bookOn("months");
+    fav.picks = [];
+    __vs.pick(years);
+    __vs.pick(people);
+    var two = favView().books.length;
+
+    /* off, by the menu, from the favourite's own spine */
+    var off = menuLine(spineOf("favourites/" + years));
+    var afterOff = fav.picks.slice();
+    /* on again, by the same menu, from the source's spine */
+    var onAgain = menuLine(spineOf(years));
+    var afterOn = fav.picks.slice();
+
+    /* a hidden source shelf still resolves */
+    var peopleShelf = shelves.filter(function (s) { return s.id === "people"; })[0];
+    peopleShelf.hidden = true;
+    __vs.setFilters({});
+    var whileHidden = favView().books.length;
+    peopleShelf.hidden = false;
+
+    /* a deleted source shelf: skipped on read, dropped on the next save */
+    var at = shelves.indexOf(peopleShelf);
+    shelves.splice(at, 1);
+    __vs.setFilters({});
+    var whileGone = favView().books.length;
+    var picksWhileGone = fav.picks.slice();
+    __vs.pick(months);
+    var afterSave = fav.picks.slice();
+    shelves.splice(at, 0, peopleShelf);
+    __vs.setFilters({});
+    var restored = favView().books.length;
+
+    fav.picks = [];
+    __vs.setFilters({});
+    return { two: two, off: off, afterOff: afterOff, onAgain: onAgain, afterOn: afterOn,
+             whileHidden: whileHidden, whileGone: whileGone, picksWhileGone: picksWhileGone,
+             afterSave: afterSave, restored: restored, years: years, people: people,
+             months: months, left: favView().books.length };
+  })()`);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const ok = r.two === 2 && r.off.shown && r.off.text === "Take off Favourites" && r.off.closed &&
+             same(r.afterOff, [r.people]) && r.onAgain.text === "Add to Favourites" &&
+             same(r.afterOn, [r.people, r.years]) && r.whileHidden === 2 &&
+             r.whileGone === 1 && same(r.picksWhileGone, [r.people, r.years]) &&
+             same(r.afterSave, [r.years, r.months]) && r.restored === 2 && r.left === 0;
+  return {
+    ok,
+    detail: `${r.two} favourites; the menu on ${r.years} said "${r.off.text}" and left ` +
+            `[${r.afterOff.join(", ")}]; on the source spine it said "${r.onAgain.text}" and gave ` +
+            `[${r.afterOn.join(", ")}]; with People hidden ${r.whileHidden} still resolve; with ` +
+            `People deleted ${r.whileGone} resolves and the picks are still ` +
+            `[${r.picksWhileGone.join(", ")}] until a save, after which they are ` +
+            `[${r.afterSave.join(", ")}]; People back: ${r.restored} books; emptied to ${r.left}`
+  };
+});
+
+check("a favourite dragged off the shelf comes off, and a cancelled drag does not", async (p) => {
+  await p.eval(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    fav.picks = [];
+    __vs.setFilters({});
+    document.getElementById("vs-library").scrollTop = 0;
+  })(); void 0`);
+  await sleep(250);
+  const r = await p.j(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    var bookOn = function (id) {
+      return __vs.views().filter(function (v) { return v.shelf.id === id; })[0].books[0].id;
+    };
+    var years = bookOn("years"), people = bookOn("people"), months = bookOn("months");
+    [years, people, months].forEach(function (id) { __vs.pick(id); });
+    var started = fav.picks.slice();
+
+    var spineOf = function (id) {
+      return document.querySelector('#vs-shelves [data-book="' + id.replace(/"/g, '\\"') + '"]');
+    };
+    var favSpine = function (source) { return spineOf(fav.id + "/" + source); };
+    var at = function (el, dt) {
+      var b = el.getBoundingClientRect();
+      return { bubbles: true, cancelable: true, dataTransfer: dt,
+               clientX: b.left + b.width / 2, clientY: b.top + b.height / 2 };
+    };
+
+    /* 1. carried off the rail and dropped on another shelf: it comes off, and the shelf it was
+     *    dropped on does NOT take it. */
+    var dt = new DataTransfer();
+    var from = favSpine(people);
+    from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+    var onto = document.querySelector('[data-shelf="years"] .vs-track');
+    onto.dispatchEvent(new DragEvent("dragover", at(onto, dt)));
+    var leavingMark = __vs.leaving(fav.id + "/" + people);
+    var railMarks = document.querySelectorAll('[data-shelf="' + fav.id + '"] .vs-drop').length;
+    onto.dispatchEvent(new DragEvent("drop", at(onto, dt)));
+    from.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+    var afterDrop = fav.picks.slice();
+    var yearsSeq = __vs.sequence("years").length;
+
+    /* 2. carried off and then back over the rail before dropping: it stays. */
+    var dt2 = new DataTransfer();
+    var from2 = favSpine(years);
+    from2.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt2 }));
+    var away = document.querySelector('[data-shelf="months"] .vs-track');
+    away.dispatchEvent(new DragEvent("dragover", at(away, dt2)));
+    var wasLeaving = __vs.leaving(fav.id + "/" + years);
+    var back = document.querySelector('[data-shelf="' + fav.id + '"] .vs-track');
+    back.dispatchEvent(new DragEvent("dragover", at(back, dt2)));
+    var stoppedLeaving = !__vs.leaving(fav.id + "/" + years);
+    back.dispatchEvent(new DragEvent("drop", at(back, dt2)));
+    from2.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt2 }));
+    var afterReturn = fav.picks.slice();
+
+    /* 3. a drag that ends with no drop -- Escape, or a drop outside the window -- is a CANCEL
+     *    and has to put the book back. */
+    var dt3 = new DataTransfer();
+    var from3 = favSpine(years);
+    from3.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt3 }));
+    var out = document.querySelector('[data-shelf="months"] .vs-track');
+    out.dispatchEvent(new DragEvent("dragover", at(out, dt3)));
+    from3.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt3 }));
+    var afterCancel = fav.picks.slice();
+    var leftOver = document.querySelectorAll('#vs-shelves .vs-spine[data-leaving]').length +
+                   document.querySelectorAll('#vs-shelves .vs-spine[data-dragging]').length;
+
+    /* 4. a spine from an ordinary shelf dragged across the library is not a take-off. */
+    var dt4 = new DataTransfer();
+    var plain = spineOf(months);
+    plain.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt4 }));
+    var floor = document.querySelector('[data-shelf="years"] .vs-track');
+    floor.dispatchEvent(new DragEvent("dragover", at(floor, dt4)));
+    floor.dispatchEvent(new DragEvent("drop", at(floor, dt4)));
+    plain.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt4 }));
+    var afterPlain = fav.picks.slice();
+
+    fav.picks = [];
+    __vs.setFilters({});
+    return { started: started, leavingMark: leavingMark, railMarks: railMarks,
+             afterDrop: afterDrop, yearsSeq: yearsSeq, wasLeaving: wasLeaving,
+             stoppedLeaving: stoppedLeaving, afterReturn: afterReturn,
+             afterCancel: afterCancel, leftOver: leftOver, afterPlain: afterPlain,
+             years: years, people: people, months: months,
+             emptied: __vs.views().filter(function (v) { return v.shelf.id === fav.id; })[0].books.length };
+  })()`);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const sameSet = (a, b) => same(a.slice().sort(), b.slice().sort());
+  /* A book carried back over the rail and dropped on the rail itself lands at the END, which
+   * is what a drop past the last book means everywhere else on this shelf (design/0019). So
+   * what step 2 asserts is that it is still ON the shelf, and where it stands is reported. */
+  const ok = same(r.started, [r.years, r.people, r.months]) &&
+             r.leavingMark === true && r.railMarks === 0 &&
+             same(r.afterDrop, [r.years, r.months]) &&
+             r.wasLeaving === true && r.stoppedLeaving === true &&
+             sameSet(r.afterReturn, [r.years, r.months]) &&
+             same(r.afterCancel, r.afterReturn) && r.leftOver === 0 &&
+             same(r.afterPlain, r.afterReturn) && r.emptied === 0;
+  return {
+    ok,
+    detail: `3 favourites [${r.started.join(", ")}]: carrying ${r.people} off the rail marked the ` +
+            `spine as leaving (${r.leavingMark}) with ${r.railMarks} insertion marks left on the ` +
+            `rail, and dropping it on the Years shelf left [${r.afterDrop.join(", ")}] -- Years ` +
+            `itself still has ${r.yearsSeq} books. Carried off and back over the rail, the mark ` +
+            `cleared (${r.stoppedLeaving}) and the book stayed, landing at the end of the rail the way ` +
+            `any drop past the last book does: [${r.afterReturn.join(", ")}]. A ` +
+            `drag ended with no drop -- Escape, or a drop outside the window -- kept it too ` +
+            `([${r.afterCancel.join(", ")}]), with ${r.leftOver} spines still marked. A spine from ` +
+            `an ordinary shelf dragged across the library changed nothing ` +
+            `([${r.afterPlain.join(", ")}])`
+  };
+});
+
+check("a note in two favourites is one note on the shelf", async (p) => {
+  const r = await p.j(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0].books
+      .filter(function (b) { return b.key !== "-undated" && b.notes.length; })[0];
+    var month = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0].books
+      .filter(function (b) { return b.key.indexOf(years.key + "-") === 0; })[0];
+    fav.picks = [];
+    __vs.pick(years.id);
+    __vs.pick(month.id);
+    var view = __vs.views().filter(function (v) { return v.shelf.id === fav.id; })[0];
+    var report = __vs.checkMembership().filter(function (r) { return r.shelf === fav.id; })[0];
+    var head = document.querySelector('[data-shelf="' + fav.id + '"] .vs-shelfhead .vs-meta').textContent;
+    fav.picks = [];
+    __vs.setFilters({});
+    return { years: years.id, yearsNotes: years.notes.length, month: month.id,
+             monthNotes: month.notes.length, books: view.books.length, claimed: view.noteCount,
+             unique: report.unique, sum: report.sum, ok: report.ok, head: head };
+  })()`);
+  const ok = r.books === 2 && r.ok && r.sum === r.yearsNotes + r.monthNotes &&
+             r.unique === r.yearsNotes && r.claimed === r.unique && r.sum > r.unique &&
+             r.head.indexOf(r.claimed + " notes") >= 0;
+  return {
+    ok,
+    detail: `${r.years} (${r.yearsNotes} notes) and ${r.month} (${r.monthNotes}) on Favourites: ` +
+            `${r.sum} places, ${r.unique} unique notes, the shelf claims ${r.claimed} and the ` +
+            `header says "${r.head}"`
   };
 });
 
