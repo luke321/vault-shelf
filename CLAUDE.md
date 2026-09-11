@@ -101,7 +101,9 @@ of measuring it.** Build the page, drive it, read the numbers.
   is answerable for what is actually on `develop` and what a release contains. The orchestrator
   itself never implements: it stays on the integration branch, surveys, dispatches, reviews and
   merges. "Merge to `develop`" authorises the local merge and nothing more; the push is its own
-  ask. (Copied from Vault Graph, 2026-09-11.)
+  ask. **At most six Orca worktrees work at once**: when six are in progress the orchestrator
+  spawns nothing more — it files the issue and the brief, and dispatches when one has finished
+  and been merged. (Copied from Vault Graph, 2026-09-11; the cap added the same day.)
 - **A release is the range, not the work in hand.** Everything it needs — a `CHANGELOG.md`
   section accounting for every merge since the last tag, every clip it embeds, every doc naming
   the version, the release body itself — is finished on `release/<version>` and read there
