@@ -125,7 +125,9 @@ clean (418 css rules, 72 ids, 96 prefixed classes), `check-network` clean, `chec
 > only dates move like in vault graph?" · and, settling it: *"lets say 5k notes spread over 11
 > years always starting from today going backwards"*.
 
-`decisions/0014` is the record. Both ends were measured before anything was decided, because
+`decisions/0014` is the record — numbered 0014, not 0012, because `github#37` and `github#39`
+took 0012 and 0013 while this branch was open. Both ends were measured before anything was
+decided, because
 the question is how far apart a fixture and a real vault actually are:
 
 | | the demo fixture | a real vault, through its mirror |
@@ -259,6 +261,42 @@ of the old one too.
 `invariants.md` said a plaque hangs **12px** below its books clearing a **3px** floor. The
 check has printed **19px over 5px** for as long as the before-run log goes back; the geometry
 had not moved, the note about it had. Corrected.
+
+### Reconciling with the suite audit (github#39), after the fact
+
+This branch was cut before `github#37` and `github#39` landed, and the orchestrator refused the
+merge: it would have landed a suite that cannot start.
+
+**`git` merged `scripts/smoke.mjs` with no conflict at all.** `FIXTURE_NAMES = ["vault"]` and
+#39's 61 `{ on }` annotations touch different lines — textually compatible, semantically
+contradictory. #39's guard fired at module load, before the lock and before any Chrome, and
+**0 checks loaded instead of 89**. A clean merge is not agreement, and the one file that needed
+judgement is the one git said was fine.
+
+The 61 annotations went and the mechanism stayed; `decisions/0014` argues it. Proven
+non-vacuous afterwards: a staged `on: "demo-vault"` still fails the run by name, and the file
+came back byte-identical.
+
+**The win was re-measured, not re-typed** — #39's was arithmetic over three shapes:
+
+| | three shapes | one vault |
+|---|---|---|
+| wall, after the lock | 41-43 s | **32 s** (two runs) |
+| Chromes | 7 | **3** |
+| check runs | 146 | **90** |
+| check time | 34.1 s | **30.3-30.5 s** |
+| checks | 89 | **90** |
+
+Runs fell 38%, check time 11%. A run costs **234 ms** across the three shapes and **338 ms**
+here: this vault is twelve times the demo fixture, and most of a check's cost is the page it
+drives. Narrowing removed cheap runs; one big vault makes every remaining run dearer. Worth
+saying plainly, because re-typing #39's table would have claimed a saving this branch does not
+deliver.
+
+Also in the merge: the golden re-taken against `github#14`'s geometry (the board's floor moved
+every row), the two dead goldens kept deleted, and 33 `decisions/0012` references renumbered to
+`0014` while `github#37`'s own 0012 references — the lock, the screen, the harness, the
+recorder — were left alone.
 
 ### The film
 

@@ -90,6 +90,53 @@ binding one — and the drift `#31` names is exactly what an unbound policy prod
 The film gives up a real vault's extremity. `#17`'s density is what buys it back far enough to be
 worth filming: a recent year that is genuinely active rather than sampled.
 
+## What `decisions/0013`'s per-shape narrowing means now
+
+`github#39` landed on `develop` while this branch was open. It annotated **61 of 89 checks**
+with the vault shapes each one's assertion depends on — `check(name, fn, { on })` — and added a
+guard that rejects a check asking for a fixture that does not exist. Its measured win was
+**267 check runs down to 146**.
+
+Merging the two produced the sharpest possible demonstration of why the guard is worth having.
+`git` merged `scripts/smoke.mjs` **with no conflict at all**: `FIXTURE_NAMES = ["vault"]` and
+the 61 annotations touch different lines. Textually compatible, semantically contradictory. The
+guard fired at module load, before the lock and before any Chrome:
+
+```
+Error: check "the seven default shelves are there, in order, Favourites first"
+asks for fixture(s) demo-vault, which do not exist; the fixtures are vault
+```
+
+**0 checks loaded instead of 89.** A clean merge is not agreement.
+
+**Decision: the 61 annotations go; the parameter and its guard stay.**
+
+An annotation naming `demo-vault` is a claim about coverage that cannot be true once there is
+no demo vault, and nothing about "keeping it dormant" makes it truer — the guard refuses it
+either way, which is correct. Rewriting all 61 to `on: "vault"` would leave 61 statements that
+say nothing. So they go, and `DEMO_ONLY` goes with them: it hardcoded a dead fixture name.
+
+The parameter stays because the **guard** is the part with ongoing value, and it is independent
+of whether anything is annotated. It turns a stale shape name into a loud failure rather than a
+silent skip, which is exactly the service it just performed. A second shape, if one is ever
+argued for, arrives with the mechanism already in place and already proven.
+
+**And the win had to be re-measured rather than re-typed.** `github#39`'s arithmetic was over
+three shapes; with one shape there is nothing to narrow, and the saving arrives from the vault
+decision instead. Measured on the runner's own clock, two runs:
+
+| | three shapes | one vault |
+|---|---|---|
+| wall, after the lock | 41-43 s | **32 s** |
+| Chromes | 7 | **3** |
+| check runs | 146 | **90** |
+| check time | 34.1 s | **30.3-30.5 s** |
+
+The run count fell 38% and the check time 11%. The gap is the honest part: a run costs 234 ms
+on the three shapes and **338 ms** here, because this vault is twelve times the demo fixture and
+most of a check's cost is the page it drives. Narrowing removed cheap runs; one big vault makes
+every remaining run dearer.
+
 ## Consequences
 
 - One fixture directory in the store instead of six, and the digest question disappears with the

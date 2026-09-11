@@ -1481,8 +1481,8 @@ in place. `decisions/0014` records the call.
 
 **github#39's win was arithmetic over three shapes, and it has to be re-measured rather than
 re-typed.** Narrowing 61 of 89 checks off two of three shapes took 267 check runs to 146. With
-one shape there are **NN_RUNS** runs and nothing to narrow: the same saving, reached by having
-one vault instead of by annotating three. What is left of #39 here is the lane cap, the settle
+one shape there are **90** runs and nothing to narrow: the same saving, reached by having one
+vault instead of by annotating three. What is left of #39 here is the lane cap, the settle
 check, and `--timings`.
 
 **A check that returns with the page still moving FAILS, and says what it left.** After every
@@ -1495,13 +1495,21 @@ timer (`__vs.room().pending`), a drag still in the air, a reader or sheet left o
 
 | | three shapes, before `decisions/0014` | one vault |
 |---|---|---|
-| wall | **41-43 s** | **NN_WALL** |
-| Chromes | 7 | **NN_CHROMES** |
-| check runs | 146 | **NN_RUNS** |
-| check time | 34.1 s | **NN_CHECK** |
+| wall, after the lock | **41-43 s** | **32 s** (two runs) |
+| Chromes | 7 | **3** |
+| check runs | 146 | **90** |
+| check time | 34.1 s | **30.3-30.5 s** |
+| checks | 89 | **90** |
 
-`--timings <file>` writes every check's milliseconds per shape as JSON, which is how both
-columns were made.
+**The run count fell by 38% and the check time by 11%, and the gap is the point.** A run costs
+**234 ms** on the three shapes and **338 ms** here, because `decisions/0014`'s vault is twelve
+times the demo fixture and most of a check's cost is the page it is driving. Narrowing 61
+checks off two small shapes removed cheap runs; one big vault makes every remaining run dearer.
+The saving is real and it is smaller than the run count suggests — which is why this table was
+re-measured rather than re-typed from github#39's.
+
+`--timings <file>` writes every check's milliseconds as JSON, which is how both columns were
+made.
 
 ## Every release guard fires, and none of them writes a tag
 

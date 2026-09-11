@@ -157,10 +157,7 @@ function findChrome() {
 /* -------------------------------------------------------------- the checks */
 
 const all = [];
-/* github#39, decisions/0013, decisions/0014 -- a check may name the shapes it needs, and with
- * one vault nothing does. The GUARD is why the parameter stays: a name no fixture answers to
- * fails the run at module load, before the lock and before any Chrome, which is how #39's 61
- * annotations were caught still naming demo-vault after decisions/0014 left one shape. */
+// github#39, decisions/0013, decisions/0014 -- the guard is why the parameter stays
 const check = (name, fn, opts) => {
   const on = !opts || !opts.on || opts.on === "all" ? FIXTURE_NAMES.slice() : [].concat(opts.on);
   const stray = on.filter((n) => !FIXTURE_NAMES.includes(n));
