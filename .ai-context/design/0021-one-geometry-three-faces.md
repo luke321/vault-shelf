@@ -275,6 +275,207 @@ inset it is **5** (`Ü` alone flips in leather), which is already past 4. So it 
 number to move, in `github#45`'s commit, against `github#45`'s measurement — not a tolerance
 relaxed here on a tree where it still reads 4 and still passes.
 
+**Paid.** `github#45` moved it to **7** on the merged tree, against its own measurement of the
+three covers; the table and the argument for a census rather than a tolerance are in the addendum
+below. The three predicted here are the three that fell.
+
+## Addendum, `github#45` — one geometry is what left leather with three pixels
+
+> "the text should not reach the horizontal line of the book design ever"
+
+This record gave the three looks one padding — `20px 3px 26px` — and the comment in `page.css`
+recorded why: *"leather padded it 23/29 for its bands, cyber 10/15"*. The single number was
+chosen so that every look's **box** came out identical, which is rule 2 above and is correct.
+**Nobody then checked it against the decoration each look draws inside that box**, and the law as
+written had nothing to say about that, because the decoration is paint and paint was the part
+this record declared free.
+
+What the arithmetic actually was, on a 132px spine, in *ink* rather than in offsets:
+
+| | from the spine's top | from its bottom |
+|---|---|---|
+| the title's box (`padding`, plus leather's own 1px top border) | 21px | 26px |
+| leather's gilt bands (`::before`, gradient stops) | 10–**17**px | **22**–29px |
+| leather's panel rule (`::after`, `inset` + its 1px border) | 17–**18**px | 23–**24**px |
+| cyber's cap light (`::before`) | 0–2px | — |
+| cyber's rack marking (`::after`) | — | 16–19px |
+
+So the title's box cleared leather's panel rule by **2px** at the head — not the 3 the offsets
+suggest, because a rule has thickness and the inset positions its outer edge — and ran **3px into
+the tail gilt band**, which starts 29px up and not 23px. The band is the outermost thing leather
+paints; the panel rule was drawn *inside* it, six pixels in, and the padding was set against the
+rule rather than against the band. Cyber cleared by 7px because its tail decoration sits over the
+count instead of at the tail of the title. **One geometry, three different clearances, none of
+them declared, and in leather the accident was negative.**
+
+### What replaced it
+
+`page.css` declares the region a binding may draw in, and derives the title's box from it:
+
+```
+--spine-head: 17px;       /* a look's head decoration reaches this far down */
+--spine-tail: 29px;       /* ...and this far up from the bottom */
+--spine-rule-side: 4px;   /* its side rules stand this far in */
+--spine-rule: 1px;        /* and each of those rules is this thick */
+--spine-clear: 3px;
+padding: calc(head + rule + clear) rule-side calc(tail + rule + clear);   /* 21px 4px 33px */
+```
+
+**`--spine-rule` is arithmetic, not decoration.** The first cut of this fix omitted it and left
+2px at the head, because a 1px rule set at `inset: 17px` paints on 17..18 while the padding is
+measured to 17. It is the same pixel that made the original defect −3px rather than the −2 a
+reading of the offsets gives, and the same pixel that puts the title's box at `rule-side + rule`
+sideways rather than flush with the rule's outer edge.
+
+Every look's decoration is placed **from** those numbers rather than beside them: leather's two
+gilt bands end at `--spine-head` and `--spine-tail`, its panel is `inset: var(--spine-head)
+var(--spine-rule-side) var(--spine-tail)`, and that panel's border is `var(--spine-rule)`. The
+panel's lower rule moves from 23px to 29px — paint, and it moves no furniture — and the binding
+comes out **symmetric**, because the head rule already sat exactly where the head band ended and
+the tail rule never did. Cyber's rack marking keeps `bottom: 16px`: it is drawn over the **count**,
+deliberately below the title's region, and takes only the declared side inset. It clears the title
+by 14px now instead of 7.
+
+The cost is 8px of title, and the ellipsis is where it shows: 13 → **19** leather titles on the
+demo fixture, 9 → **12** modern, 21 → **29** cyber. Nothing else moved; the layout golden reports
+the same shelves, rows, spines, plaques and room in all three looks.
+
+Adding a fourth look means giving these four numbers whatever that binding needs and placing its
+own decoration from them; it does not mean re-deriving a padding.
+
+### Rule 5: a look may decorate, and page.css says where
+
+The four rules above get a fifth, which is rule 4 made measurable:
+
+> **A look may add decoration, and `page.css` declares the band it may occupy.** A `::before` or
+> `::after` that is absolutely positioned and `pointer-events: none` paints and moves nothing —
+> but *where* it paints is not the look's to choose alone, because the text's own box is derived
+> from it. `--spine-head`, `--spine-tail`, `--spine-rule-side`, `--spine-rule` and `--spine-clear`
+> are the declaration; a look that wants a rule somewhere else moves those, and every look moves
+> with it.
+
+### The sides, which were asked about and are a different question
+
+The issue noticed that `inset: … 4px …` against `padding: … 3px …` made the title's box a pixel
+**wider** than the panel on each side. That pixel is gone — the side padding is
+`--spine-rule-side`, so the box is exactly the panel. It was never the interesting half.
+
+**It takes `--spine-rule-side` and not `--spine-rule-side + --spine-rule`**, which is the
+asymmetry in this fix and it is deliberate. One more pixel there is one pixel off the title's
+**content box**, and `github#12`'s `fitsUpright` decides whether a short cover stands upright by
+asking whether it overflows that box. The pixel is not free anywhere, and on the **squeezed index
+rail** it is most of what there is: `squeezeIndex` (`github#34`) scales the Encyclopedia's spines
+down until the alphabet fits one shelf, so its books stand **19px** wide where the thickness floor
+elsewhere is 22px, and 4px of inset leaves them **nine pixels**.
+
+*(Written first as "one more pixel flips covers per look", which was true of the tree this landed
+on and is not true of the tree it merged into: `github#47` pinned the probe's face while this
+branch was open, so the decision is one face's now and the same cover falls the same way in all
+three looks. The pixel still costs uprights — it just costs them honestly. `--spine-rule` was
+introduced for the head and tail, where a rule's thickness is real ink under the glyph; sideways
+there is no glyph out there to protect, so the box stops at the rule and not past it.)*
+
+### The tally that pays for it: `sideways` 4 → 7
+
+`"a hovered spine shows one peek…"` counts short covers the geometry cannot stand upright. Nine
+pixels of room against the pinned deciding face, measured on the one vault:
+
+| cover | the deciding face draws it | margin at 4px | margin at develop's 3px |
+|---|---|---|---|
+| `map` (27px spine) | 27.70px | −10.70 | −8.70 |
+| `学` | 13.53px | −4.53 | −2.53 |
+| `読` | 13.53px | −4.53 | −2.53 |
+| `Œ` | 12.69px | −3.69 | −1.69 |
+| **`Ü`** | 9.67px | **−0.67** | +1.33 |
+| **`מ`** | 9.45px | **−0.45** | +1.55 |
+| **`Å`** | 9.25px | **−0.25** | +1.75 |
+| `У` — the tightest that still stands | 8.19px | +0.81 | +2.81 |
+| `Р` | 8.13px | +0.87 | +2.87 |
+| `É` | 7.25px | +1.75 | +3.75 |
+
+So the inset costs exactly three covers, all of them on the squeezed rail, all three by **under a
+pixel**. `github#47` predicted the three and the 4 → 7 from its own tree; these are the widths
+this branch measures on the merged one, and they agree.
+
+**Seven, and not a looser bound.** The tally is a **census, not a tolerance**: it counts covers,
+and each of the seven is derivable from two measured numbers — what the pinned face draws, and
+what the spine's content box is. There is no noise for a margin to absorb. The face is pinned
+(`github#47`), the widths come from note counts, and the numbers repeat exactly run to run; slack
+of three would silently swallow `У`, `Р` and `É` the next time a face or an inset moved a pixel,
+which is the failure `github#47` refused a constant for, from the other side. Seven also fails in
+**both** directions — stand `Å` back up and the check reads 6 and someone re-derives it — where a
+round 10 would only ever fail one way. The boundary was already this tight before this branch:
+at 3px, `Ü` had 1.33px and `У` had 2.81px, so the two groups were never more than a pixel and a
+half apart.
+
+### And then the tally went to one, because the rail stopped being squeezed that far
+
+Asked 2026-09-11, looking at the rail: *"characters in the encyclopedia should not have different
+positions and reading direction"*. Right, and the tally above is the evidence — but the defect it
+measures is **not** the three covers this ticket turned. It is that the rail draws the same kind of
+thing two ways at all, and which way is decided by a sub-pixel font metric no reader can perceive:
+`É` (7.25px) and `У` (8.19px) stand up, `Å` (9.25px) and `Ü` (9.67px) lie down, and nothing on the
+page says why. Four covers were already lying down on `develop` before this branch existed.
+
+It is not a script question either — it is a **width** question. A one-note volume is squeezed to
+19px, which leaves nine pixels; an accented capital or a CJK glyph is 9.25–13.53px. So the answer
+is to stop squeezing the rail below the width a letter needs:
+
+```
+var INDEX_MIN = 24;   /* was 13 */
+```
+
+`INDEX_MIN` is the floor in `widthOf`'s `Math.max(INDEX_MIN, Math.round(w * k))`, so it clamps the
+thinnest volumes up and leaves every wider one to the scale. 24px is 13.53 (the widest cover) plus
+2px of border and 8px of the declared side inset, rounded up. Measured on the one vault:
+
+| | before | after |
+|---|---|---|
+| Encyclopedia volumes standing upright | 29 of 35 | **35 of 35** |
+| short covers left sideways, whole library | 7 | **1** — `map`, a three-letter tag book |
+| spines at the floor | 9, at 19px | 9, at **24px** |
+| the rail's width against 1180px of room | 1127px | **1172px**, still **one row** |
+| tightest upright cover | `У` 0.81px to spare | `学` **0.47px** |
+| the title's box against the side rules, worst | **−2px** leather, −1.5px cyber | **+1px** leather, **+1.5px** cyber |
+
+The last row is the one to notice: widening the squeezed spines is also what makes the **sideways
+clearance positive**. The rail was the only place the type's own box was wider than the room
+between the panel's side rules, which is why `design/0011`'s 22–58px floor read as violated there.
+
+**The golden was rewritten deliberately** (`node scripts/update-layout-snapshots.mjs`) and it moved
+two boxes: the Encyclopedia's first spine 42 → 40px, its last 18 → 24px and 13px to the right.
+Shelves, rows, spines, plaques and the room are identical, and no shelf gained a row.
+
+**The `sideways` tolerance comes back down to 1**, by the same census argument that put it at 7 —
+the bound is the measured count, not a round number with slack. `map` is the one that remains, and
+it is a tag book on a 27px spine drawn 27.7px wide: three letters that no single-letter reasoning
+covers. Standing *that* up is a different question from the alphabet's.
+
+### What clears a side rule is the line box, and that is the face's
+
+Upright type turns the geometry round: the title's extent across its own text is the face's ascent
+and descent, not anything `page.css` sets. Against a spine whose width is its note count
+(**22–58px**, `design/0011`, and **19px** on the squeezed index rail), the clearance is
+`(spine-w − across) / 2 − rule-side`, and on the one vault the tightest is **−2px** in leather
+(a 19px spine, a 15px box across) and **−1.5px** in cyber (14px across). Negative: on the squeezed
+rail the type's own box is wider than the room between the panel's side rules.
+
+There is no padding that fixes that. The three levers are all worse than the defect:
+
+1. **Widen the side padding.** The line box does not shrink with it — `min-width: auto` on a flex
+   item holds it at its own block size — so a thin spine's type overflows the content box instead
+   of clearing anything, and the ellipsis appears earlier on every spine for nothing.
+2. **Pull the side rules in.** `--spine-rule-side: 0` still does not clear a 15px box across on a
+   19px spine once the borders are off — the face is wider than the board — and it draws a panel
+   with no margin on every book that is not.
+3. **Shrink the type on a thin spine.** A spine's thickness is data (`design/0011`); making the
+   face depend on it makes the shelf's type a chart.
+
+So the check **reports** the side clearance and does not assert it, with the worst spine named in
+every run. The number is visible, it is in `invariants.md`, and it moves when someone changes a
+face or the rule inset. That is the honest state: the horizontal rules are held by construction,
+the vertical ones are held by the face and watched.
+
 ## What this did not touch
 
 Membership, addresses, counts and `src/core` — all identical, and the existing checks say so:

@@ -107,6 +107,19 @@
    * scale against); src/page.js sets the real one per book. */
   --spine-w: 34px;
   --spine-h: 132px;
+  /* github#45, design/0021 -- WHERE A BINDING MAY DRAW, DECLARED. A look paints its head
+   * decoration down to --spine-head, its tail decoration up to --spine-tail and its side
+   * rules --spine-rule-side in, each of them --spine-rule thick; the title's box is derived
+   * from all four with --spine-clear between, so a rule is never drawn under a glyph. A look
+   * that moves a rule moves these and nothing else.
+   * THE SIDES TAKE --spine-rule-side AND NOT THE RULE'S OWN WIDTH: sideways there is no glyph
+   * out past the rule to protect, and the pixel would cost three more uprights on the squeezed
+   * index rail (github#34, github#47). design/0021 has the arithmetic. */
+  --spine-head: 17px;
+  --spine-tail: 29px;
+  --spine-rule-side: 4px;
+  --spine-rule: 1px;
+  --spine-clear: 3px;
   /* github#0 -- THICKER, because it is a handle now: at 3px the floor was a hairline to paint
    * and an impossible thing to grab.
    * github#14, design/0021 -- and ONE PLANK, in every look: each sheet used to declare its own
@@ -622,8 +635,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* github#14 -- one panel: leather padded it 23/29 for its bands, cyber 10/15. */
-  padding: 20px 3px 26px;
+  /* github#14 -- one panel: leather padded it 23/29 for its bands, cyber 10/15.
+   * github#45 -- and it is DERIVED now, not chosen: the clearance was a leftover and in
+   * leather it was negative, so the title's box ran three pixels into the lower gilt band. */
+  padding: calc(var(--spine-head) + var(--spine-rule) + var(--spine-clear))
+           var(--spine-rule-side)
+           calc(var(--spine-tail) + var(--spine-rule) + var(--spine-clear));
   background:
     linear-gradient(180deg,
       color-mix(in srgb, var(--text-1) 3%, transparent) 0 22%,

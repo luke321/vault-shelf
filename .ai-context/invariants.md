@@ -1042,6 +1042,85 @@ face drawing wider than the deciding one on a cover the decision allowed upright
 instead, so it fails the day it happens rather than being absorbed silently by a number nobody
 re-derives.
 
+### A spine's title never touches a line the binding draws
+
+`github#45`, `design/0021`. The check above compares a box to a box, and a binding's rules are
+**painted** — so every geometry check in the suite passed while the **M** of `Mar 2013` sat on
+leather's lower gilt band. `page.css` declares where a look may draw and derives the title's box
+from it:
+
+| | |
+|---|---|
+| `--spine-head` | **17px** — a look's head decoration reaches this far down from the spine's top |
+| `--spine-tail` | **29px** — its tail decoration reaches this far up from the bottom |
+| `--spine-rule-side` | **4px** — its side rules stand this far in from each edge |
+| `--spine-rule` | **1px** — and each of those rules is this thick |
+| `--spine-clear` | **3px** — the least the title's box keeps from any of them |
+| `.vs-spine` padding | `calc(head + rule + clear)` / `rule-side` / `calc(tail + rule + clear)` = **21px 4px 33px**, was `20px 3px 26px` |
+
+**`--spine-rule` is not decoration, it is arithmetic.** A rule drawn at `inset: 17px` puts ink on
+17..18, so a padding of 20px left two pixels, not three — and leather's spine has a 1px top border
+of its own, which the original reading of this defect missed in the other direction. The check
+reads the ink, so both are in the number now.
+
+`"a spine's title never touches a line the binding draws"` reads where each look actually puts
+ink — a pseudo-element's own border box, taken off the spine's **padding** box because that is
+what an inset resolves against, and the px stops of every gradient it paints, a run of **12px or
+less** being a rule and anything wider a wash — and measures the gap to the title's box along the
+spine. It also asserts the box is the **clip**: a glyph, and its `text-shadow`, cannot paint
+outside it, which is why 3px of empty box is 3px of clearance and not 1px after the shadow.
+
+Measured on the one vault, before and after by the same isolated `--only` run so the page state
+is the same in both: **231** titles against **924** painted rules in leather and **462** in cyber
+(modern draws none). The full-suite line reads 227 / 908 / 454, because a lane shares one page and
+this check runs after ones that narrow it.
+
+| | before | after |
+|---|---|---|
+| leather | **−3px** — the box ran *into* the tail gilt band (`"2026"`, box 21..105, band 102..109) | **+3px** |
+| cyber | +7px, by luck | **+14px**, by construction |
+| modern | no rule drawn | no rule drawn |
+| titles ellipsised, leather / modern / cyber | 15 / 10 / 26 | **23 / 13 / 37** |
+| short covers left sideways | 4 — `Œ 学 読 map` | **7** — `Å Ü Œ מ 学 読 map` |
+
+The ellipsis count and the sideways tally are the price, and together they are the whole price:
+the title's box is **8px shorter** and **1px narrower each side**. Nothing else moved — the golden
+reports the same 6 shelves, 10 rows, 227 spines and 52 plaques in a 1125px room in all three
+looks, and *a look moves nothing on the page* reads 4245 elements, 0 moved, 0 resized.
+
+**The alphabet reads one way, and `INDEX_MIN` is what makes it.** `squeezeIndex` (`github#34`)
+used to scale the Encyclopedia rail down to **19px** spines, which leaves nine pixels between the
+declared side rules — and the pinned deciding face (`github#47`) draws an accented capital
+9.25–9.67px and a CJK glyph 13.53px, so *some* covers stood upright and others lay on their side
+with nothing on the page to say why. `É` and `У` stood; `Å`, `Ü` and `מ` did not. `INDEX_MIN` is
+**24px** now — 13.53 for the widest cover, plus 2px of border and 8px of the declared inset — so
+every volume is wide enough for its letter:
+
+| | before | after |
+|---|---|---|
+| Encyclopedia volumes upright | 29 of 35 | **35 of 35** |
+| short covers sideways, whole library | 7 | **1** (`map`, a three-letter tag book) |
+| the rail against 1180px of room | 1127px | **1172px**, still one row |
+| tightest upright cover | `У`, 0.81px to spare | `学`, **0.47px** |
+| the title's box against the side rules, worst | −2px leather | **+1px** leather, +1.5px cyber |
+
+**`sideways` in `"a hovered spine shows one peek…"` is 1, and it is a census rather than a
+tolerance.** It counts covers the geometry cannot stand upright; each follows from two measured
+numbers, the face is pinned and the widths are note counts, so nothing varies run to run for a
+margin to absorb. The bound is the measured count, which fails in **both** directions, rather than
+a round number that only fails in one. `design/0021` has the tables, including the 4 → 7 this
+ticket passed through before the floor was raised.
+
+**The sides are reported, not asserted**, and `design/0021` says why: the title's box is exactly
+the panel now (`--spine-rule-side`, deliberately *without* the rule's own width — sideways there
+is no glyph out past the rule to protect, and the pixel would cost three more uprights), but what
+clears a side rule is the **line box**, and that is the face's own ascent and descent against a
+spine whose width is its note count. Measured worst case: **+1px** in leather and **+1.5px** in
+cyber, on a 25px spine whose box across is 15px and 14px. It was **−2px** and −1.5px until
+`INDEX_MIN` went to 24 — the squeezed index rail was the only place the type's own box was wider
+than the room between the side rules. No padding raises it further without clipping the type or
+legislating a spine's thickness, which `design/0011` gives to the vault, so it stays reported.
+
 ### Every control is the same size in every look
 
 `"every control is the same size in every look"` (2026-09-11, "make sure all components

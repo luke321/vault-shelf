@@ -247,6 +247,8 @@ const POINTER_DRIVEN = [
   /* github#44, design/0022 -- it reads every spine's box, before and after a hover. */
   "hovered swatch",
   "a right-click dyes",
+  /* github#45 -- it reads every spine's title box and the rules drawn on it */
+  "touches a line",
   /* design/0020 -- a right-click and a drag off the rail read boxes. */
   "made on the shelf",
   "edited, emptied",
@@ -3504,6 +3506,183 @@ check("a look moves nothing on the page", async (p) => {
   };
 });
 
+/* github#45, design/0021 -- a title never touches a line the binding draws */
+check("a spine's title never touches a line the binding draws", async (p) => {
+  const r = await p.j(`(function(){
+    /* EVERY GEOMETRY CHECK HERE PASSED while the M of a month spine sat on leather's lower
+     * gilt band, because they all compare a box to a box and a binding's rules are PAINTED
+     * rather than laid out. This one reads where a look actually puts ink -- a pseudo-
+     * element's own border box, and the px stops of every gradient it paints -- and measures
+     * the gap from each to the title's box along the spine. page.css owns --spine-head,
+     * --spine-tail, --spine-rule and --spine-clear; a look that moves a rule without moving
+     * those is what this fails on.
+     *
+     * THE SIDES ARE A DIFFERENT QUESTION and this reports rather than asserts them: the
+     * title's box stands outside the side rules now, so it cannot overhang one, but what
+     * clears a side rule is the LINE BOX, and that is the face's own ascent and descent
+     * against a spine whose width is its note count. design/0021 has the arithmetic. */
+    var core = window.VaultShelfCore;
+    var root = document.getElementById("vs-app");
+    var was = root.getAttribute("data-look") || "";
+    var px = function (v) { return parseFloat(v) || 0; };
+    var round = function (n) { return Math.round(n * 10) / 10; };
+
+    /* A gradient layer paints a RULE when it opens and closes on a px stop and the run
+     * between them is thin; a wider one is a wash down the whole board and draws no line.
+     * A layer neither a url() nor a gradient is reported rather than passed over. */
+    var RULE_MAX = 12;
+    var layersOf = function (image) {
+      var out = [], depth = 0, start = 0;
+      for (var i = 0; i < image.length; i++) {
+        var c = image.charAt(i);
+        if (c === "(") depth++;
+        else if (c === ")") depth--;
+        else if (c === "," && depth === 0) { out.push(image.slice(start, i).trim()); start = i + 1; }
+      }
+      out.push(image.slice(start).trim());
+      return out.filter(Boolean);
+    };
+    var ruleIn = function (layer, box, unread) {
+      if (layer === "none" || layer.indexOf("url(") === 0) return null;
+      if (layer.indexOf("linear-gradient(") !== 0) { unread.push(layer.slice(0, 48)); return null; }
+      var body = layer.slice("linear-gradient(".length, -1);
+      /* a computed 180deg is "to bottom", which Chrome prints as no angle at all */
+      var fromBottom = /^\\s*0deg\\b/.test(body);
+      var stops = [], m, re = /(-?\\d+(?:\\.\\d+)?)px/g;
+      while ((m = re.exec(body))) stops.push(parseFloat(m[1]));
+      if (!stops.length) return null;
+      var near = Math.min.apply(null, stops), far = Math.max.apply(null, stops);
+      if (far - near > RULE_MAX) return null;
+      return fromBottom ? { top: box.bottom - far, bottom: box.bottom - near }
+                        : { top: box.top + near, bottom: box.top + far };
+    };
+
+    /* Every line a look paints on one spine, in that spine's own coordinates -- which are
+     * its BORDER box, because that is what getBoundingClientRect gives for the title. A
+     * pseudo-element's offsets resolve against the PADDING box, so both borders are taken
+     * off first; a spine has none at the top today and a look may add one tomorrow. */
+    var rulesOn = function (spine, height, unread) {
+      var rules = [], sides = [];
+      var own = getComputedStyle(spine);
+      var padTop = px(own.borderTopWidth);
+      var padH = height - padTop - px(own.borderBottomWidth);
+      ["::before", "::after"].forEach(function (pseudo) {
+        var cs = getComputedStyle(spine, pseudo);
+        if (!cs || cs.content === "none" || cs.content === "normal") return;
+        var top = cs.top === "auto" ? padH - px(cs.bottom) - px(cs.height) : px(cs.top);
+        var bottom = cs.bottom === "auto" ? top + px(cs.height) : padH - px(cs.bottom);
+        var box = { top: padTop + top, bottom: padTop + bottom };
+        if (px(cs.left) > 0) sides.push(px(cs.left));
+        if (px(cs.right) > 0) sides.push(px(cs.right));
+        var edge = px(cs.borderTopWidth);
+        if (edge > 0 && cs.borderTopColor.indexOf("rgba(0, 0, 0, 0)") < 0) {
+          rules.push({ top: box.top, bottom: box.top + edge });
+          rules.push({ top: box.bottom - px(cs.borderBottomWidth), bottom: box.bottom });
+        }
+        if (box.bottom - box.top <= RULE_MAX && cs.backgroundImage !== "none") {
+          rules.push(box);
+        } else {
+          layersOf(cs.backgroundImage).forEach(function (layer) {
+            var rule = ruleIn(layer, box, unread);
+            if (rule) rules.push(rule);
+          });
+        }
+      });
+      return { rules: rules, sides: sides };
+    };
+
+    var read = function (look) {
+      var worst = null, tightest = null, unread = [], spilled = 0, seen = 0, rules = 0;
+      var run = document.createRange();
+      [].slice.call(document.querySelectorAll("#vs-shelves .vs-spine")).forEach(function (spine) {
+        var title = spine.querySelector(".vs-title");
+        if (!title || !title.textContent) return;
+        var s = spine.getBoundingClientRect();
+        var t = title.getBoundingClientRect();
+        var box = { top: t.top - s.top, bottom: t.bottom - s.top };
+        var ink = rulesOn(spine, s.height, unread);
+        seen++;
+        rules += ink.rules.length;
+        /* THE BOX IS THE CLIP: a glyph, and its shadow, cannot paint outside it. */
+        run.selectNodeContents(title);
+        var text = run.getBoundingClientRect();
+        if (text.top - s.top < box.top - 0.5 || text.bottom - s.top > box.bottom + 0.5) spilled++;
+        ink.rules.forEach(function (rule) {
+          var gap = rule.top >= box.bottom ? rule.top - box.bottom
+                  : rule.bottom <= box.top ? box.top - rule.bottom
+                  : Math.max(box.top, rule.top) - Math.min(box.bottom, rule.bottom);
+          if (!worst || gap < worst.gap) {
+            worst = { gap: round(gap), title: title.textContent, h: Math.round(s.height),
+                      rule: round(rule.top) + ".." + round(rule.bottom),
+                      box: round(box.top) + ".." + round(box.bottom) };
+          }
+        });
+        /* the sides, reported: the text's box across is the face's, the spine's width the
+         * vault's, and no padding stands between them */
+        ink.sides.forEach(function (inset) {
+          var lip = (s.width - text.width) / 2 - inset;
+          if (!tightest || lip < tightest.lip) {
+            tightest = { lip: round(lip), title: title.textContent, w: Math.round(s.width),
+                         line: round(text.width), inset: round(inset) };
+          }
+        });
+      });
+      return { worst: worst, tightest: tightest, unread: unread.slice(0, 3),
+               spilled: spilled, seen: seen, rules: rules };
+    };
+
+    var out = {};
+    core.LOOKS.forEach(function (l) {
+      __vs.setLook(l.value);
+      out[l.value || "modern"] = read(l.value || "modern");
+    });
+    __vs.setLook(was);
+    var probe = document.querySelector("#vs-shelves .vs-spine");
+    var cs = probe ? getComputedStyle(probe) : null;
+    var declared = function (name) { return cs ? px(cs.getPropertyValue(name)) : 0; };
+    return {
+      looks: out,
+      clear: declared("--spine-clear"),
+      head: declared("--spine-head"),
+      tail: declared("--spine-tail"),
+      side: declared("--spine-rule-side"),
+      rule: declared("--spine-rule"),
+      padding: cs ? cs.padding : ""
+    };
+  })()`);
+
+  const looks = Object.keys(r.looks);
+  const touching = [], unread = [];
+  for (const look of looks) {
+    const l = r.looks[look];
+    if (l.worst && l.worst.gap < r.clear) {
+      touching.push(`${look} ${JSON.stringify(l.worst.title)} on a ${l.worst.h}px spine: ` +
+                    `box ${l.worst.box}, rule ${l.worst.rule}, ${l.worst.gap}px apart`);
+    }
+    if (l.unread.length) unread.push(`${look}: ${l.unread.join(" | ")}`);
+  }
+  /* github#45, design/0021 -- the sides are reported, not asserted */
+  const sides = looks.filter((k) => r.looks[k].tightest)
+                     .map((k) => `${k} ${r.looks[k].tightest.lip}px ` +
+                                 `(a ${r.looks[k].tightest.w}px spine, a ` +
+                                 `${r.looks[k].tightest.line}px line box, a rule ` +
+                                 `${r.looks[k].tightest.inset}px in)`);
+  const seen = r.looks[looks[0]].seen;
+  return {
+    ok: !touching.length && !unread.length && r.clear > 0 && r.rule > 0 && seen > 0,
+    detail: `${seen} titles in ${looks.length} looks against ${looks.map((k) => r.looks[k].rules)
+             .join("/")} painted rules; page.css declares head ${r.head}px, tail ${r.tail}px, ` +
+            `side ${r.side}px, rule ${r.rule}px, clear ${r.clear}px and pads the spine ` +
+            `${r.padding}; nearest rule ` +
+            looks.map((k) => `${k} ${r.looks[k].worst ? r.looks[k].worst.gap + "px" : "none drawn"}`)
+                 .join(", ") +
+            `; ellipsised ` + looks.map((k) => `${k} ${r.looks[k].spilled}`).join("/") +
+            `; sideways (reported, not asserted) ` + sides.join(", ") +
+            (touching.length ? `; ${touching.length} TOUCHING: ${touching.join("; ")}` : "") +
+            (unread.length ? `; a paint layer this cannot read: ${unread.join("; ")}` : "")
+  };
+});
+
 /* github#9, design/0019 -- ONE MATERIAL FOR THE FURNITURE, read as computed style */
 check("the furniture is one material", async (p) => {
   const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
@@ -5296,8 +5475,9 @@ check("a hovered spine shows one peek, big enough to read, and short labels stan
              mode: mode, wide: wide, nameLines: Math.round(nameBox.height / (fontPx * 1.4)) };
   })()`);
   // github#34, github#36
+  /* github#45, design/0021 -- ONE, and it is a census rather than a tolerance */
   const ok = r.titled === 0 && r.shown && r.fontPx >= 13 && !r.clipped && r.above && r.hidden &&
-             r.uprightEnc + r.sideways.length >= r.enc && r.sideways.length <= 4 &&
+             r.uprightEnc + r.sideways.length >= r.enc && r.sideways.length <= 1 &&
              r.mode === "horizontal-tb" && r.wide === 0 && r.clippedUp === 0;
   return {
     ok,

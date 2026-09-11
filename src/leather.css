@@ -205,19 +205,27 @@
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
+  /* github#45 -- the two gilt bands END where page.css says a binding may draw: the head band
+   * at --spine-head, the tail band at --spine-tail. They are the same 17 and 29 they always
+   * were; what changed is that the title's box is now derived from them instead of from a
+   * number that happened to be near them. */
   background-image:
-    linear-gradient(180deg, transparent 10px, #00000055 10px 12px, #e6ce9c55 12px 13px, #ffffff16 13px 15px, #00000066 15px 17px, transparent 17px),
-    linear-gradient(0deg, transparent 22px, #00000055 22px 24px, #e6ce9c55 24px 25px, #ffffff16 25px 27px, #00000066 27px 29px, transparent 29px),
+    linear-gradient(180deg, transparent 10px, #00000055 10px 12px, #e6ce9c55 12px 13px, #ffffff16 13px 15px, #00000066 15px var(--spine-head), transparent var(--spine-head)),
+    linear-gradient(0deg, transparent 22px, #00000055 22px 24px, #e6ce9c55 24px 25px, #ffffff16 25px 27px, #00000066 27px var(--spine-tail), transparent var(--spine-tail)),
     var(--vs-grain);
   background-size: 100% 100%, 100% 100%, 140px 140px;
   background-blend-mode: normal, normal, soft-light;
 }
 
+/* github#45 -- THE PANEL FRAMES WHAT IS BETWEEN THE BANDS, and page.css says where they end.
+ * Its lower rule used to sit at 23px, six pixels inside the tail band it was drawn against and
+ * three pixels below the title's box: the frame crossed the band, and so did the title. Both
+ * edges come from the declaration now, so the panel is symmetric and the title clears it. */
 .vault-shelf[data-look="leather"] .vs-spine::after {
   content: "";
   position: absolute;
-  inset: 17px 4px 23px;
-  border: 1px solid #d7b97738;
+  inset: var(--spine-head) var(--spine-rule-side) var(--spine-tail);
+  border: var(--spine-rule) solid #d7b97738;
   border-radius: 1px;
   pointer-events: none;
 }

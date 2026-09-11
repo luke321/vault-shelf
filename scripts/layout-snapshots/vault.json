@@ -22,14 +22,14 @@
    "first": {
     "x": 0,
     "y": 41,
-    "w": 42,
+    "w": 40,
     "h": 132,
     "name": "encyclopedia/0-9"
    },
    "last": {
-    "x": 1054,
+    "x": 1067,
     "y": 41,
-    "w": 18,
+    "w": 24,
     "h": 132,
     "name": "encyclopedia/読"
    }

@@ -88,7 +88,8 @@ var SPINE_MIN = 22;
 var SPINE_MAX = 58;
 // github#34
 var INDEX_SLOTS = 35;
-var INDEX_MIN = 13;
+/* github#45, design/0021 -- WIDE ENOUGH FOR A LETTER, so the alphabet reads one way */
+var INDEX_MIN = 24;
 
 var ID = "vs-";
 
