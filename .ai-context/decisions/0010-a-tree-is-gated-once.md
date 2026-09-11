@@ -80,7 +80,7 @@ went ahead with two shapes. `SKIP_SMOKE` stays as the manual override; `release.
   starting, which is two suites that would otherwise have driven Chrome at the same time.
 - `node scripts/suite-stamp.mjs check [<rev>]` answers "what will this push do" before it is
   made; `list` shows every tree this machine has passed. `--selftest` proves the hit and miss
-  cases against a throwaway repository — sixteen cases.
+  cases against a throwaway repository — seventeen cases, the last of them the CLI driven through a directory junction (github#27).
 - **Both callers require the pass line, not exit 0.** The sister repo found its copy of this
   script exiting 0 while printing nothing when it was invoked through a directory junction —
   every Orca worktree is reached through one — so `if ! node ... check` read silence as

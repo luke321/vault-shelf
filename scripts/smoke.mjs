@@ -5380,11 +5380,12 @@ async function main() {
     }
   }
   // github#5, decisions/0010
+  // github#27
+  const lost = FIXTURE_NAMES.filter((n) => !vaults.some((v) => v.fixture && v.fixture.name === n));
   const partial = ONLY.length ? "--only" : argAll("vault").length ? "--vault"
                 : arg("url", "") ? "--url" : LOOK ? "--look"
                 : vaults.some((v) => !v.fixture) ? "an unstamped fixture"
-                : FIXTURE_NAMES.some((n) => !vaults.some((v) => v.fixture.name === n))
-                  ? "a fixture that could not be generated" : "";
+                : lost.length ? `a run without ${lost.join(" and ")} (the generator failed)` : "";
   if (!worst && !partial) {
     let checks = 0;
     for (const t of ran.values()) checks += t;

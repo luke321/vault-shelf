@@ -1,5 +1,35 @@
 # Releasing
 
+**Show the status table after every step.** Whoever is driving a release keeps a table of
+every step it still needs — the polish asks, the docs and clips it must carry, the version
+bump, the name, the merge-down sequence, the tag — and re-posts it, updated, after each step
+lands. Standing practice since the sister repo cut 2.5.0 (2026-09-11, `vault-graph@90ba5e7`):
+the owner asked for it after seeing one mid-release. Columns: step, status. Call out what is
+newly done since the last table and what is blocked or awaiting a decision (a release name,
+whether an in-flight issue gates this release or becomes a follow-up). Drop rows that do not
+apply; add a row per polish ask the release picked up.
+
+```markdown
+| # | Step | Status |
+|---|---|---|
+| 1 | <this release's own polish and fix asks, one row each> | |
+| 2 | List the range and account for every merge in it (below) | |
+| 3 | `CHANGELOG.md` section for `<version>`, written as the release body | |
+| 4 | Version bump: `manifest.json` → `<version>` | |
+| 5 | Release name — propose 2-4 candidates, the owner picks | |
+| 6 | Re-record every clip the change touched, and the hero if the page moved (`record-demo.mjs`, headless, no lock) — before the merge, so the clips show the merged tree | |
+| 7 | Read the whole branch: every doc naming the version, every link, the README's install block | |
+| 8 | **Review the release body before the tag** — the `## <version>` section, read as the page it becomes | |
+| 9 | `release.ps1 <version> -DryRun -AllowAnyBranch` on the branch — the run that pays the suite and stamps the tree | |
+| 10 | Push `release/<version>`; read the workflow's dry-run summary | |
+| 11 | Merge `release/<version>` → `develop`, one plain `git push` (never wrapped in the lock) | |
+| 12 | PR `develop` → `main` on the website, merged there | |
+| 13 | `release.ps1 <version>` on `main` — the tag, pushed alone | |
+| 14 | The workflow publishes; `verification-<version>.md` gets its post-tag rows | |
+```
+
+Status values: ✅ done, ⏳ not started / in progress, ⏸️ blocked (name what it is blocked on).
+
 **A release is the range, not the work in hand.** Everything below happens on
 `release/<version>` and is read there before anything merges down, because **once the tag
 exists nothing changes**: a fix is the next patch version, since editing after the fact leaves
@@ -73,11 +103,16 @@ re-cut — runs the invariant suite unless HEAD's tree already carries a pass st
 (`decisions/0010`; `-ForceSuite` re-earns one), writes an annotated tag with
 `--cleanup=verbatim`, and pushes **the tag alone**.
 
-**`--cleanup=verbatim` is load-bearing.** `git tag -F` defaults to `--cleanup=strip`, which
-treats a line starting with `#` as a comment and deletes it — and the tag message is the
-CHANGELOG section, so the default silently eats the `## <version>` heading and every `###` in
-it. Three of the sister repo's tags carry zero heading lines because of that, and a published
-tag is not edited.
+### A tag message loses every markdown heading unless you say `--cleanup=verbatim`
+
+`git tag -F` defaults to `--cleanup=strip`, which treats a line starting with `#` as a comment
+and deletes it. The tag message is the CHANGELOG section, so the default silently eats the
+`## <version>` heading and every `###` in it. Measured on the sister repo's own tags: **2.0.0,
+2.1.0 and 2.2.0 each carry zero heading lines**, against 8 in 2.3.0's source section — `git
+show <tag>` had been telling a flattened story since that script was written, and a published
+tag is not edited, so those three keep the defect. `release.ps1` here has passed
+`--cleanup=verbatim` since its first version. If the tag step is ever rewritten, that flag is
+the one thing about it that is not obvious from reading it.
 
 **It never pushes `main`.** `main` only ever receives `develop`, through a pull request merged
 on the website, so by the time the script runs `main` is already on origin or the equality
@@ -94,22 +129,27 @@ guard stops it. The branch push the sister repo's script used to make was a no-o
 3. **Write the `CHANGELOG.md` section**, heading included:
 
    ```
-   ## 0.2.0 -- "The reading room" -- 2026-10-01
+   ## 0.2.0 — "The reading room" — 2026-10-01
    ```
 
-   The workflow reads the release **title** out of the quotes and the release **body** out of
-   the section, so the two cannot drift. Use an **ASCII hyphen**, not an em dash: a title
-   cannot be quietly fixed after it has been seen.
+   The form `CHANGELOG.md`'s own preamble states, em dashes included; the file is read with an
+   explicit UTF-8 encoding everywhere it is read. The workflow takes the release **title** from
+   the quotes (`0.2.0 - The reading room`, ASCII on its side) and the **body** from the
+   section, so the two cannot drift, and a title cannot be quietly fixed after it has been
+   seen.
 
 4. **Put the numbers in `.ai-context/changelog-detail.md.`** Before and after, for anything
    that changed what a shelf contains or where a book lives. `CHANGELOG.md` says what
    shipped; that file is the regression suite.
 
-5. **Re-record what actually changed.** `release.ps1` warns when `assets/demo.webp` is older
-   than the last commit to `src/`, and once per clip in `docs/features/` that `src/page.js` has
-   moved since. Both are **warnings, not gates**, and deliberately: only a person can say
-   whether anything visible changed, and a hard stop on a docs-only patch would be wrong often
-   enough to get trained away.
+5. **Re-record every clip the change touched, before the merge — not only the hero.** A
+   constant change, a storyboard reorder or a sizing fix makes *every* existing feature clip
+   stale, not just the ones whose own beats moved, and the merged tree is what the clips
+   should show, so this happens on the release branch and not after (`vault-graph@c086cf6`).
+   `release.ps1` warns when `assets/demo.webp` is older than the last commit to `src/`, and
+   once per clip in `docs/features/` that `src/page.js` has moved since. Both are **warnings,
+   not gates**, and deliberately: only a person can say whether anything visible changed, and
+   a hard stop on a docs-only patch would be wrong often enough to get trained away.
 
    The staleness test compares **commit dates**, which is a proxy. Encoding an old take and
    committing it today makes a stale hero look fresh. Silence means "no evidence of
@@ -127,7 +167,17 @@ guard stops it. The branch push the sister repo's script used to make was a no-o
 6. **Read the whole branch.** Every doc that names a version, every link, the README's install
    block, the feature gallery, the docs site.
 
-7. **Rehearse the local half. This is the run that pays the suite:**
+7. **Review the release body before the tag goes out.** `release.yml` publishes live the
+   moment the tag lands, with the `## <version>` section as the body, **verbatim, and with no
+   draft gate**. There is no GitHub draft to look at afterwards: the section going out *is*
+   the publish. So read the section once, on `release/<version>`, as the page a stranger lands
+   on — not as a changelog entry — and fix it there. This is the actual review step, not
+   `release.ps1`'s pre-flight, and it is its own line because the workflow's step summary
+   and the script's closing text used to invite the opposite: "edit it in place" after the
+   tag, which is exactly the after-the-tag editing this file opens by forbidding
+   (`vault-graph@af7a43f`; github#27 took the invitation out of both).
+
+8. **Rehearse the local half. This is the run that pays the suite:**
 
    ```powershell
    .\scripts\release.ps1 <version> -DryRun -AllowAnyBranch *> dryrun.log
@@ -137,22 +187,26 @@ guard stops it. The branch push the sister repo's script used to make was a no-o
    with `stamped tree <sha> as passed`, which records the branch's tree and the three fixtures
    it ran against. **A dirty tree is never stamped; commit first.**
 
-8. **Push the branch.** Every push to `release/*` runs `release.yml` as a **dry run**: it
+9. **Push the branch.** Every push to `release/*` runs `release.yml` as a **dry run**: it
    builds, gates and attests the three files on a Linux runner and creates no Release. Read its
    summary — three SHA-256 lines and an attestation URL.
 
-9. **Merge `release/<version>` into `develop` and push.** The hook checks the pushed commit's
-   tree: **if `develop` had not moved, the merge commit's tree is the branch's tree and the hook
-   skips**, naming the stamp it trusts. If `develop` *had* moved, the merge is new content and
-   the hook runs the suite for real and stamps the new tree. Do not reach for `SKIP_SMOKE`
-   here; the stamp is what makes the skip honest.
+10. **Merge `release/<version>` into `develop` and push — one plain `git push origin develop`,
+    never wrapped in `lock.mjs`.** The hook takes the `suite` lock itself around the run it
+    makes; an outer acquire/release makes the hook's own attempt block on yours and the push
+    hang until the stale window expires (`vault-graph@f9a167a`, hit live while pushing a
+    release). The hook checks the pushed commit's tree: **if `develop` had not moved, the merge
+    commit's tree is the branch's tree and the hook skips**, naming the stamp it trusts. If
+    `develop` *had* moved, the merge is new content and the hook runs the suite for real and
+    stamps the new tree. Do not reach for `SKIP_SMOKE` here; the stamp is what makes the skip
+    honest.
 
-   This push also closes every issue the range names (`close-issues.yml`).
+    This push also closes every issue the range names (`close-issues.yml`).
 
-10. **Open `develop` → `main` on the website and merge it.** The `main only accepts develop`
+11. **Open `develop` → `main` on the website and merge it.** The `main only accepts develop`
     check reports on the pull request. The merge commit carries `develop`'s tree.
 
-11. **Tag from `main`:**
+12. **Tag from `main`:**
 
     ```powershell
     git switch main; git pull --ff-only
@@ -162,7 +216,7 @@ guard stops it. The branch push the sister repo's script used to make was a no-o
     It finds the stamp for `HEAD`'s tree, skips the suite, tags, and pushes the tag (never
     gated).
 
-12. **Watch the workflow.**
+13. **Watch the workflow.**
 
     ```bash
     gh run watch
@@ -176,22 +230,61 @@ guard stops it. The branch push the sister repo's script used to make was a no-o
     gh attestation verify main.js --repo luke321/vault-shelf
     ```
 
-13. **Rewrite the release body** (the shape is below), and **write the verification record**
-    (the template is below).
+14. **Finish the verification record** (the template is below) with the rows only the tag
+    run can fill: the workflow run, the three SHA-256s, the attestation check. **Not the
+    body.** It went out as reviewed in step 7, and an edit now is the after-the-tag change
+    this file forbids; `gh release edit` stays as the recovery for a body a workflow bug
+    mangled, not as a step.
 
-`node scripts/suite-stamp.mjs check` says what step 9 or 11 will do before you push, and
+`node scripts/suite-stamp.mjs check` says what step 10 or 12 will do before you push, and
 `list` shows every tree this machine has passed. `-ForceSuite` re-earns a stamp when there is a
 reason not to trust one.
 
-## The release body is a highlight reel ON TOP of the CHANGELOG section, not instead of it
+## The release branch is where everything lands, and the tag is the end of it
 
-The workflow drops the raw `## <version>` section straight into the release notes — fine as a
-first draft, wrong as the finished thing. `CHANGELOG.md` is the technical record: dense,
-bug-by-bug, written for someone reading the project's history. The Release page is what
-somebody deciding whether to update reads first, and a wall of bug-fix prose with no picture
-buries the one or two things that changed for them.
+**Everything the release needs is finished on `release/<version>` and checked there**: the
+section covering the whole range, every clip it embeds, every doc that names the version, the
+verification record's pre-tag half. Only then does it go `release/<version>` → `develop` →
+`main` → tag → publish. **After the tag exists, nothing changes.** Not the body, not the docs,
+not the changelog. If something is wrong enough to fix, it is the next patch version.
 
-Top to bottom:
+The sister repo's 2.1.0 was cut twice and edited after both, which is what this section is
+for. The branch had been used as a version-bump holder — the bump and the changelog went on it,
+and the work of finding out what the release actually contained happened after the tag. So the
+release was deleted and re-cut with the two bodies of work it had left out named and a clip
+finally recorded, and then the body was edited twice more, because the reel had been written in
+the same voice as the record it sat above and the page said everything twice. Its tag and its
+`develop` still differ by the commit that trimmed it. The order above is not bureaucracy; every
+one of those edits was avoidable by doing it on the branch.
+
+## What the release branch owes before `develop`, and what happens after
+
+The suite runs **once per distinct tree**, and the path is arranged so that the one run
+happens on the release branch, where a failure is still cheap. Measured here on 2026-09-11
+(`decisions/0010`, re-measured for github#27 at 87 checks per shape — the numbers are in
+`changelog-detail.md`): a full warm run is under a minute, most of it the serial lane of
+layout-reading checks, and the static gates ahead of it are seconds. Small next to the sister
+repo's 587 s, and the point is the record rather than the seconds: a skipped run that names
+the stamp it trusted, instead of `SKIP_SMOKE=1`, which names nothing.
+
+**Before merging into `develop`** — all of it on `release/<version>`: steps 1 to 9. The dry
+run in step 8 is the run that pays the suite and ends with `stamped tree <sha> as passed`.
+
+**After** — three moves, none of which should pay the suite again: the merge into `develop`
+(step 10, skipped by the hook when `develop` had not moved), the pull request into `main`
+(step 11, the branch-policy check alone), and the tag from `main` (step 12, the stamp found
+again for the same tree). What used to happen next door, for the record: 2.4.0 ran the suite
+on the release branch, skipped it by hand on both `develop` pushes because it had "just
+passed", and ran it again in full inside the release script. The stamp replaces the by-hand
+skip with one that can say what it trusted.
+
+## The `## <version>` section is the release body, and it is written as one
+
+The workflow drops the section straight into the release notes, verbatim, the moment the tag
+lands. There is no draft in between and nothing is edited after, so the section has to be the
+finished page — not a changelog entry that somebody will dress up later. Two readers, one
+text: the person deciding whether to update, who reads the top and looks at the pictures, and
+the person reading the project's history a year on, who wants the dense record. Top to bottom:
 
 1. **One line naming the release** (`**The reading room.**` style, bold) and the two or three
    things it is actually about, in the release's own voice — not a commit-log summary.
@@ -202,30 +295,33 @@ Top to bottom:
    comes from the merge list in *First, list what is actually in the release*, not from memory.
    Each with its clip. Do not call something new that already shipped — check the source at
    the previous tag (`git show <prev-tag>:src/page.js | grep ...`). Fixes that matter but are
-   not visually demonstrable go in prose under the nearest `###`, or a "Smaller things" list,
-   with no clip forced onto them.
-4. **A `---` divider**, then the CHANGELOG section **appended verbatim, heading included**. The
-   full technical writeup lives *in* the release body, underneath the reel, so nothing is lost
-   and nothing is maintained in two places.
+   not visually demonstrable go in prose under the nearest `###`, or a `### Smaller things`
+   list, with no clip forced onto them.
+4. **The record, under its own `###`**, dense and bug-by-bug, at the bottom of the same
+   section. Nothing is maintained in two places: the reel and the record are one document, and
+   `changelog-detail.md` holds the numbers behind both.
 
 **Pin every image URL to the tag**, never to a branch:
 `raw.githubusercontent.com/luke321/vault-shelf/<version>/assets/...`. A branch ref makes the
 release page's pictures change every time that branch moves, which breaks *once the tag exists
 nothing changes* by construction. The sister repo has a published release whose every image is
 a 404 because they were pinned to a release branch somebody later deleted, and another whose
-pictures still move because they point at `develop`. While the tag does not exist yet — you are
-previewing a draft — pin to `develop` and **change them to the tag before publishing**, or pin
-to the commit SHA, which is permanent either way.
-
-```bash
-gh release edit <version> --notes-file <file>
-```
+pictures still move because they point at `develop`. A tag URL answers 404 until the tag
+exists, which is fine: the review in step 7 reads the branch's file, not the rendered page. If
+you want to preview the rendering, pin to `develop` while you look and **change every URL to
+the tag before the dry run**, or pin to the clip's own commit SHA, which is permanent either
+way.
 
 ## The verification record
 
 **Every release gets `.ai-context/verification-<version>.md`, written on the release branch.**
 It is the answer to "what was actually run, and what is still unknown" a month later, when the
-only other evidence is a green tick nobody can reconstruct. Copy this shape:
+only other evidence is a green tick nobody can reconstruct. Everything known before the tag —
+the gates, the dry runs, what was looked at, what was not — is on the branch and merges down
+with it. The three rows only the tag run can fill (the workflow run, the SHA-256s, the
+attestation check) are appended on `develop` afterwards as their own commit: they are
+evidence *about* the release, not part of what the tag's tree claims, so writing them later
+breaks nothing the tag promised. Copy this shape:
 
 ```markdown
 # Verification of <version>

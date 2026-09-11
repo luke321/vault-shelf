@@ -5,7 +5,7 @@ markers already in the source: which code cites an issue, an ADR or a DDR; which
 enforces each invariant; who calls each `__vs` entry point. Stale when
 `node scripts/code-map.mjs --check` fails.
 
-## Issues — 14 cited (11 in code, 11 in `.ai-context/`)
+## Issues — 15 cited (12 in code, 12 in `.ai-context/`)
 
 | issue | code sites | prose sites |
 |---|---|---|
@@ -14,7 +14,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | #2 | src/cyber.css:59, src/cyber.css:246, src/leather.css:65, src/leather.css:123, src/leather.css:312, src/leather.css:324, src/page.css:42, src/page.css:363, scripts/smoke.mjs:3015, scripts/smoke.mjs:3108 | .ai-context/changelog-detail.md:38, .ai-context/changelog-detail.md:721, .ai-context/invariants.md:754, .ai-context/invariants.md:815, .ai-context/design/0016-the-leather-look.md:151, .ai-context/design/0017-the-cyberpunk-look.md:175, .ai-context/design/0019-a-plaque-opens-its-run.md:144 |
 | #3 | scripts/smoke.mjs:3018 | — |
 | #4 | src/page.css:1296, src/page.css:1346, src/page.css:1353, src/page.css:1470, src/page.css:1477, src/page.css:1488, src/page.js:237, src/page.js:2916, src/page.js:3002, src/page.js:3067, src/page.js:3193, src/page.js:3400, scripts/smoke.mjs:652, scripts/smoke.mjs:3365 | .ai-context/changelog-detail.md:722, .ai-context/invariants.md:755, .ai-context/invariants.md:864, .ai-context/design/0019-a-plaque-opens-its-run.md:177 |
-| #5 | src/build-shelf.mjs:239, src/page.js:3358, plugin/main.js:9, plugin/main.js:389, plugin/main.js:395, plugin/main.js:404, scripts/check-data-escape.mjs:2, scripts/check-data-escape.mjs:21, scripts/check-data-escape.mjs:27, scripts/check-data-escape.mjs:29, scripts/check-data-escape.mjs:36, scripts/check-data-escape.mjs:258, scripts/close-issues.mjs:2, scripts/close-issues.mjs:19, scripts/layout-snapshots/measure.mjs:1, scripts/layout-snapshots/measure.mjs:5, scripts/layout-snapshots/measure.mjs:8, scripts/refresh-check.mjs:2, scripts/refresh-check.mjs:30, scripts/refresh-check.mjs:57, scripts/release.ps1:9, scripts/release.ps1:13, scripts/release.ps1:77, scripts/release.ps1:118, scripts/release.ps1:387, scripts/release.ps1:514, scripts/smoke.mjs:3, scripts/smoke.mjs:205, scripts/smoke.mjs:4745, scripts/smoke.mjs:4908, scripts/smoke.mjs:5382, scripts/suite-stamp.mjs:2, scripts/teardown-check.mjs:2, scripts/teardown-check.mjs:42, scripts/teardown-check.mjs:103, scripts/teardown-check.mjs:142, scripts/teardown-check.mjs:160, scripts/update-layout-snapshots.mjs:2, scripts/update-layout-snapshots.mjs:23 | .ai-context/changelog-detail.md:440, .ai-context/changelog-detail.md:577, .ai-context/invariants.md:993, .ai-context/invariants.md:1018, .ai-context/invariants.md:1050, .ai-context/invariants.md:1055 |
+| #5 | src/build-shelf.mjs:239, src/page.js:3358, plugin/main.js:9, plugin/main.js:389, plugin/main.js:395, plugin/main.js:404, scripts/check-data-escape.mjs:2, scripts/check-data-escape.mjs:21, scripts/check-data-escape.mjs:27, scripts/check-data-escape.mjs:29, scripts/check-data-escape.mjs:36, scripts/check-data-escape.mjs:258, scripts/close-issues.mjs:2, scripts/close-issues.mjs:19, scripts/layout-snapshots/measure.mjs:1, scripts/layout-snapshots/measure.mjs:5, scripts/layout-snapshots/measure.mjs:8, scripts/refresh-check.mjs:2, scripts/refresh-check.mjs:30, scripts/refresh-check.mjs:57, scripts/release.ps1:9, scripts/release.ps1:13, scripts/release.ps1:77, scripts/release.ps1:118, scripts/release.ps1:387, scripts/release.ps1:514, scripts/smoke.mjs:3, scripts/smoke.mjs:205, scripts/smoke.mjs:4745, scripts/smoke.mjs:4908, scripts/smoke.mjs:5382, scripts/suite-stamp.mjs:2, scripts/teardown-check.mjs:2, scripts/teardown-check.mjs:42, scripts/teardown-check.mjs:103, scripts/teardown-check.mjs:142, scripts/teardown-check.mjs:160, scripts/update-layout-snapshots.mjs:2, scripts/update-layout-snapshots.mjs:23 | .ai-context/changelog-detail.md:440, .ai-context/changelog-detail.md:577, .ai-context/invariants.md:993, .ai-context/invariants.md:1018, .ai-context/invariants.md:1050, .ai-context/invariants.md:1055, .ai-context/invariants.md:1230 |
 | #6 | src/core/shelves.ts:583, src/core/shelves.ts:663, src/core/types.ts:107, src/page.css:569, src/page.css:576, src/page.js:715, src/page.js:735, src/page.js:1870, src/page.js:2583, scripts/smoke.mjs:483, scripts/smoke.mjs:559, scripts/smoke.mjs:604 | .ai-context/changelog-detail.md:216 |
 | #7 | — | .ai-context/changelog-detail.md:354, .ai-context/changelog-detail.md:435, .ai-context/changelog-detail.md:547, .ai-context/invariants.md:13, .ai-context/invariants.md:577, .ai-context/invariants.md:1129 |
 | #8 | scripts/fixture-store.mjs:2, scripts/fixture-store.mjs:7, scripts/release.ps1:546, scripts/smoke.mjs:27, scripts/smoke.mjs:37, scripts/smoke.mjs:53, scripts/smoke.mjs:74, scripts/smoke.mjs:4838, scripts/smoke.mjs:4843, scripts/smoke.mjs:4870, scripts/smoke.mjs:4879, scripts/smoke.mjs:4888, scripts/smoke.mjs:4995, scripts/smoke.mjs:5120, scripts/smoke.mjs:5303 | .ai-context/changelog-detail.md:518, .ai-context/design/0006-the-harness.md:39, .ai-context/design/0006-the-harness.md:65 |
@@ -23,6 +23,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | #12 | src/core/shelves.ts:195, src/core/shelves.ts:300, src/core/shelves.ts:341, src/core/types.ts:105, src/page.css:1572, src/page.js:757, src/page.js:1065, scripts/smoke.mjs:170, scripts/smoke.mjs:4650, scripts/smoke.mjs:4680 | .ai-context/changelog-detail.md:255, .ai-context/invariants.md:532, .ai-context/invariants.md:539, .ai-context/design/0005-colour-and-the-theme.md:182 |
 | #13 | scripts/fixture-store.mjs:2, scripts/refresh-check.mjs:181, scripts/suite-stamp.mjs:64, scripts/teardown-check.mjs:44, scripts/update-layout-snapshots.mjs:32 | — |
 | #16 | — | .ai-context/design/0019-a-plaque-opens-its-run.md:196 |
+| #27 | scripts/release.ps1:587, scripts/smoke.mjs:5383, scripts/suite-stamp.mjs:236 | .ai-context/invariants.md:1226, .ai-context/invariants.md:1235, .ai-context/releasing.md:176, .ai-context/releasing.md:262 |
 
 ## Decision and design records cited in code — 30
 
@@ -107,9 +108,9 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | The plugin behaves inside a real Obsidian (1113) | — no check named in the section |
 | No two suite runs, and no fixture pulled out from under one (1161) | — no check named in the section |
 | A tree is gated once, and a partial run never claims to be a full one (1198) | — no check named in the section |
-| Every release guard fires, and none of them writes a tag (1234) | — no check named in the section |
-| A native drag is the one gesture the harness cannot drive (1249) | — no check named in the section |
-| Not covered here (1273) | — no check named in the section |
+| Every release guard fires, and none of them writes a tag (1246) | — no check named in the section |
+| A native drag is the one gesture the harness cannot drive (1261) | — no check named in the section |
+| Not covered here (1285) | — no check named in the section |
 
 ## `__vs.*` entry points → callers outside page.js — 31
 
