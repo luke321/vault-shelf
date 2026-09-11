@@ -431,7 +431,7 @@ function mountVaultShelf(root, data, options) {
     menu.appendChild(edit);
     menu.appendChild(hide);
     /* design/0020 -- the keyboard's way to make a book. */
-    if (isPick(view.shelf)) {
+    if (view.shelf.direction === "manual") {
       var make = el("button", "", "New book");
       make.type = "button";
       on(make, "click", function () { openMadeBook(view.shelf, null, null); });
@@ -440,16 +440,31 @@ function mountVaultShelf(root, data, options) {
     head.appendChild(menu);
     wrap.appendChild(head);
 
+    /* design/0020 -- a hand-arranged shelf ends in a plus. */
+    var makes = view.shelf.direction === "manual";
     var rail = el("div", "vs-shelfrail");
-    rowsOf(view.books).forEach(function (row) {
-      rail.appendChild(renderTrack(row, view.shelf, true));
+    var rows = rowsOf(view.books, makes ? SPINE_MIN + SPINE_GAP : 0);
+    rows.forEach(function (row, i) {
+      var last = i === rows.length - 1;
+      rail.appendChild(renderTrack(row, view.shelf, true, makes && last ? plusOf(view.shelf) : null));
     });
-    if (isPick(view.shelf)) {
-      landingOf(rail, view);
-      offersBook(rail, view);
-    }
+    if (isPick(view.shelf)) landingOf(rail, view);
+    if (makes) offersBook(rail, view);
     wrap.appendChild(rail);
     return wrap;
+  }
+
+  /** design/0020 -- the plus: a spine's height, quiet until hovered.
+   * @param {Shelf} shelf @returns {HTMLElement} */
+  function plusOf(shelf) {
+    var plus = /** @type {HTMLButtonElement} */ (el("button", "vs-plusbook", "+"));
+    plus.type = "button";
+    plus.setAttribute("aria-label", "New book on " + shelf.name);
+    plus.setAttribute("data-peek", "Make a book here: a name, and what it holds.");
+    on(plus, "click", function () { openMadeBook(shelf, null, null); });
+    on(plus, "mouseenter", function () { showPeek(plus); });
+    on(plus, "mouseleave", hidePeek);
+    return plus;
   }
 
   /**
@@ -511,7 +526,7 @@ function mountVaultShelf(root, data, options) {
    *
    * @param {Book[]} books @returns {Book[][]}
    */
-  function rowsOf(books) {
+  function rowsOf(books, tail) {
     var avail = room();
     /** @type {Book[][]} */
     var rows = [];
@@ -557,6 +572,8 @@ function mountVaultShelf(root, data, options) {
       used += w;
     });
     closeRun();
+    /* design/0020 -- the plus at the end needs its own room, or its own row. */
+    if (tail && row.length && used + tail > avail) { rows.push(row); row = []; }
     if (row.length || !rows.length) rows.push(row);
     return rows;
   }
@@ -675,7 +692,7 @@ function mountVaultShelf(root, data, options) {
    * agrees with it, and the cost is that a decade a person has split shows two plates.
    */
   /** @param {Book[]} books @param {Shelf} shelf @param {boolean} hand @returns {HTMLElement} */
-  function renderTrack(books, shelf, hand) {
+  function renderTrack(books, shelf, hand, tail) {
     var track = el("div", "vs-track");
     /** @type {{ plaque: string|null, books: Book[] }[]} */
     var groups = [];
@@ -701,6 +718,7 @@ function mountVaultShelf(root, data, options) {
      * it rather than a floor rebuilt as an element -- that way one grip serves three looks and
      * none of their stylesheets has to know. `hand` is false in the builder's preview, which
      * is not a shelf anybody can rearrange. */
+    if (tail) track.appendChild(tail);
     if (hand) track.appendChild(gripOf(shelf));
     if (hand && (shelf.direction === "manual" || isPick(shelf))) takesBooks(track, shelf);
     return track;
@@ -1054,10 +1072,12 @@ function mountVaultShelf(root, data, options) {
       b.setAttribute("data-peek", b.getAttribute("data-peek") + "\n\nDrag it onto " +
         (onto.length === 1 ? onto[0].name : onto.length + " shelves take it") + ".");
     }
-    if (isPick(shelf)) {
-      b.setAttribute("data-peek", b.getAttribute("data-peek") + (core.isMadeKey(book.key)
-        ? "\n\nMade here. Right-click to edit; drag it off the shelf to delete."
-        : "\n\nDrag it off the shelf to take it off " + shelf.name + "."));
+    if (core.isMadeKey(book.key)) {
+      b.setAttribute("data-peek", b.getAttribute("data-peek") +
+        "\n\nMade here. Right-click to edit; drag it off the shelf to delete.");
+    } else if (isPick(shelf)) {
+      b.setAttribute("data-peek", b.getAttribute("data-peek") +
+        "\n\nDrag it off the shelf to take it off " + shelf.name + ".");
     }
     on(b, "dragstart", function (e) {
       var de = /** @type {DragEvent} */ (e);
@@ -1093,7 +1113,8 @@ function mountVaultShelf(root, data, options) {
   function leaving(e) {
     if (!dragging) return null;
     var shelf = shelfById(dragging.shelfId);
-    if (!shelf || !isPick(shelf)) return null;
+    /* design/0020 -- a made book leaves any shelf the way a favourite does. */
+    if (!shelf || (!isPick(shelf) && !core.isMadeKey(dragging.key))) return null;
     if (!(e.target instanceof Element)) return shelf;
     var own = '[data-shelf="' + cssEscape(shelf.id) + '"]';
     if (e.target.closest(own)) return null;
@@ -1437,7 +1458,14 @@ function mountVaultShelf(root, data, options) {
     if (!shelf.made) shelf.made = {};
     var made = key || core.madeKey(def.name, Object.keys(shelf.made));
     shelf.made[made] = def;
-    if (!key) shelf.picks = core.pickBefore(shelf.picks, liveFor(shelf), made, before);
+    /* design/0020 -- the pick list, or the hand-arranged order, takes the key. */
+    if (!key && isPick(shelf)) {
+      shelf.picks = core.pickBefore(shelf.picks, liveFor(shelf), made, before);
+    } else if (!key && shelf.direction === "manual") {
+      var live = core.buildShelf(shelf, notes, settings.noteOrder).books
+        .map(function (bk) { return bk.key; });
+      shelf.order = core.moveBefore(live, made, before);
+    }
     persist();
     refresh();
     return made;
@@ -1450,7 +1478,8 @@ function mountVaultShelf(root, data, options) {
   function deleteMadeBook(shelf, key) {
     if (shelf.made) delete shelf.made[key];
     if (shelf.made && !Object.keys(shelf.made).length) delete shelf.made;
-    shelf.picks = core.unpick(shelf.picks, liveFor(shelf), key);
+    if (isPick(shelf)) shelf.picks = core.unpick(shelf.picks, liveFor(shelf), key);
+    else if (shelf.order) shelf.order = shelf.order.filter(function (k) { return k !== key; });
     var id = core.bookId(shelf.id, key);
     delete settings.wear[id];
     delete settings.bookColors[id];
@@ -1651,7 +1680,7 @@ function mountVaultShelf(root, data, options) {
      * that would take it, named, because with several of them "Add to Favourites" would be a
      * guess about which one. This is also the path that needs no pointer. */
     var home = shelfById(book.shelfId);
-    if (home && isPick(home) && core.isMadeKey(book.key)) {
+    if (home && core.isMadeKey(book.key)) {
       /* design/0020 -- edit and delete; no take-off on a made book. */
       var editBtn = /** @type {HTMLButtonElement} */ (el("button", "vs-dyepick", "Edit book…"));
       editBtn.type = "button";
@@ -3537,7 +3566,7 @@ function mountVaultShelf(root, data, options) {
      */
     makeBook: function (shelfId, def, before) {
       var shelf = shelfById(shelfId);
-      if (!shelf || !isPick(shelf)) return "";
+      if (!shelf || shelf.direction !== "manual") return "";
       var key = writeMadeBook(shelf, null, core.clone(def), before === undefined ? null : before);
       return core.bookId(shelf.id, key);
     },

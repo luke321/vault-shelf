@@ -67,7 +67,10 @@ not a folder: nothing in the vault moves, and *Dailies* pointing at the dailies 
 as dailies arrive. Unlike a favourite it is a place a note lives — a ribbon left in it stays
 in it, and *also shelved in* offers it. Right-click the spine to **edit** it (a rename keeps
 its address) or **delete** it; dragging it off the shelf deletes it too. What is lost is a
-name and a rule, never a note. Any shelf that holds dragged-on books can hold made ones.
+name and a rule, never a note. **Any shelf arranged by hand can hold one**, not only
+Favourites: a *Dailies* among the years, if the Years shelf is yours to arrange. Every such
+shelf ends in a quiet **plus** — a book that is not there yet, standing where the books end —
+which opens the same sheet with the book going to the end.
 
 `design/0020`
 

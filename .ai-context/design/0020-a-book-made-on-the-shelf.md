@@ -68,12 +68,36 @@ under that name. So the skip narrows from "the pick shelf" to "the reference boo
 `sourceOf` returns a made book as its own source, which is what makes the dye menu, the wear
 and the click all fall through to the right address without a second case.
 
-## Where it lives: any pick shelf
+## Where it lives: any shelf arranged by hand
 
-`design/0019` made pick a **kind** of shelf. A made book belongs to whichever pick shelf it was
-made on — Favourites, a reading list, a shortlist — and each shelf's definitions are its own.
-Not on an ordinary manual shelf: that shelf's books are its classifier's, and a book with a
-rule of its own standing among them would be a second rule on a shelf that has one.
+> "should work on all manual book shelfs"
+
+The first cut allowed it only on a pick shelf, on the argument that an ordinary shelf's books
+are its classifier's and a book with a rule of its own would be a second rule on a shelf that
+has one. That was the wrong line to draw: the line that matters is **whether a person has taken
+the sequence in hand**. A Years shelf arranged by hand is already a shelf somebody composes,
+and a *Dailies* standing among the years is the same act as a *Dailies* standing among the
+favourites. So a made book lives on any shelf whose `direction` is `manual` — a pick shelf is
+one, always — and the definition sits in `Shelf.made` on that shelf.
+
+What differs is which list carries the key. On a pick shelf it is `picks`; on an ordinary
+shelf it is `order`, the list `design/0018` already keeps, and `arrange` places it exactly as
+it places a classifier key. `buildShelf` builds the made books after the classifier's and
+counts their notes into the same set, so the shelf's count is still unique notes. A made book
+carries no plaque, so on a Years shelf with decades on it stands in a run of its own — a plate
+says what is under it. A shelf switched **back** to automatic keeps its made books (hiding
+never deletes, and neither does a change of order): `compareKeys` sorts them after the specials,
+last on the shelf, until the person deletes them or arranges the shelf again.
+
+**The plus.** *"a plus symbol for a book on the left that moves with the edge of the books on
+the shelf please very subtle."* Every shelf arranged by hand ends in one: a spine's height, the
+thinnest spine's width, a dashed edge at a third of the ink, standing where the books end and
+moving along as books are added — on the last row, or on a row of its own when the last row is
+full, which `rowsOf` reserves for it the way it reserves a plate's width. It says nothing until
+the hand reaches it, then takes the accent and a peek. Clicking it opens the sheet with the
+book going to the end; the right-click on the wood still puts one *here*. On an automatic
+shelf there is no plus, because there is nowhere to put a book on a shelf that orders itself.
+The plus hides while a drop is being offered to an empty rail, so the landing reads alone.
 
 It follows that **no other shelf takes a made book.** A favourite dragged from one pick shelf
 onto another is added there (`design/0019`), because the reference can be re-made from the
@@ -93,9 +117,10 @@ arithmetic a drop uses), or at the end. The empty landing now says *Drag a book 
 right-click to make one*, because a right-click on an empty shelf is not a gesture anybody
 tries unprompted.
 
-**The keyboard's way in is the shelf head**: a pick shelf's *Edit · Hide* gains *New book*,
-which opens the same sheet with the book going to the end, because a right-click needs a
-pointer and the rail menu is where the pointer is, not where a tab stop is.
+**The keyboard's way in is the shelf head**: a hand-arranged shelf's *Edit · Hide* gains *New
+book*, which opens the same sheet with the book going to the end, because a right-click needs a
+pointer and the rail menu is where the pointer is, not where a tab stop is. The plus at the end
+of the rail is a button too, and a tab stop.
 
 **The sheet** is a name and *what it holds* — the four source kinds and the value list the
 builder's second question already fills — with the real count under it, over the notes the

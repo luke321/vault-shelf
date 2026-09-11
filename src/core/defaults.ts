@@ -354,14 +354,14 @@ function arrangedBy(shelf: Shelf): Shelf {
  */
 /* design/0020 -- a made key stays in picks while `made` defines it. */
 function pickedBy(shelf: Shelf): Shelf {
+  const made = madeOf(shelf.made);
   if (shelf.classifier !== "pick") {
     if (shelf.picks === undefined && shelf.made === undefined) return shelf;
     const rest: Shelf = { ...shelf };
     delete rest.picks;
-    delete rest.made;
+    if (Object.keys(made).length) rest.made = made; else delete rest.made;
     return rest;
   }
-  const made = madeOf(shelf.made);
   const listed = Array.isArray(shelf.picks)
     ? shelf.picks.filter((p): p is string =>
         typeof p === "string" && (p.indexOf("/") > 0 || made[p] !== undefined))

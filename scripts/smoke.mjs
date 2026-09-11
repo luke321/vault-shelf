@@ -139,6 +139,7 @@ const POINTER_DRIVEN = [
   /* design/0020 -- a right-click and a drag off the rail read boxes. */
   "made on the shelf",
   "edited, emptied",
+  "any shelf arranged by hand",
 ];
 const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
 
@@ -1811,6 +1812,144 @@ check("a made book is edited, emptied and deleted from its own menu, and the vau
             `Years still ${r.gone.yearsBooks} books; by the menu line: spine ${r.byMenu.spine}; from ` +
             `its sheet: spine ${r.bySheet.spine}, landing back ${r.bySheet.landing}; the vault's ` +
             `${r.notes} notes are byte-identical: ${r.vaultSame}`
+  };
+});
+
+/* design/0020 -- on a shelf arranged by hand, and the plus that ends it. */
+check("a book is made on any shelf arranged by hand, and a plus stands where the books end",
+      async (p) => {
+  await p.eval(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    fav.picks = [];
+    delete fav.made;
+    __vs.setFilters({});
+    document.getElementById("vs-library").scrollTop = 0;
+  })(); void 0`);
+  await sleep(250);
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var shelves = __vs.settings().shelves;
+    var years = shelves.filter(function (s) { return s.id === "years"; })[0];
+    var viewOf = function (id) {
+      return __vs.views().filter(function (v) { return v.shelf.id === id; })[0];
+    };
+    var spineOf = function (id) {
+      return document.querySelector('#vs-shelves [data-book="' + id.replace(/"/g, '\\"') + '"]');
+    };
+    var plusOn = function (id) {
+      return document.querySelectorAll('#vs-shelves [data-shelf="' + id + '"] .vs-plusbook');
+    };
+    var byFolder = {};
+    __vs.data().notes.forEach(function (n) { byFolder[n.folder] = (byFolder[n.folder] || 0) + 1; });
+    var folder = Object.keys(byFolder).sort(function (a, b) { return byFolder[b] - byFolder[a]; })[0];
+    var expected = __vs.data().notes.filter(function (n) {
+      return n.folder === folder || n.folder.indexOf(folder + "/") === 0;
+    }).length;
+
+    /* 1. an automatic shelf has no plus and refuses to make a book; a hand-arranged one has both */
+    var was = { direction: years.direction, order: years.order ? years.order.slice() : undefined };
+    var before = { plus: plusOn("years").length, favPlus: plusOn("favourites").length,
+                   refused: __vs.makeBook("years", { name: "Nope", source: { kind: "all" } }, null) };
+    years.direction = "manual";
+    years.order = viewOf("years").books.map(function (b) { return b.key; });
+    __vs.setFilters({});
+    var manual = { plus: plusOn("years").length, plusLast: false, height: 0, width: 0, opacity: "" };
+    var plus = plusOn("years")[0];
+    if (plus) {
+      var track = plus.closest(".vs-track");
+      var last = track.querySelectorAll(".vs-spine");
+      manual.plusLast = last.length > 0 && plus.getBoundingClientRect().left > last[last.length - 1].getBoundingClientRect().right;
+      var pb = plus.getBoundingClientRect();
+      manual.height = Math.round(pb.height); manual.width = Math.round(pb.width);
+      manual.opacity = getComputedStyle(plus).opacity;
+      manual.lastTrack = track === track.parentElement.lastElementChild;
+      manual.named = plus.getAttribute("aria-label");
+    }
+
+    /* 2. the plus opens the sheet; the book lands at the end of the arrangement, once */
+    plus.click();
+    var sheet = document.getElementById("vs-madebook");
+    var form = { shown: !sheet.hidden, title: document.getElementById("vs-mbtitle").textContent };
+    var name = document.getElementById("vs-mbname");
+    name.value = "Dailies";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+    var val = document.getElementById("vs-mbsourceval");
+    val.value = folder;
+    val.dispatchEvent(new Event("change", { bubbles: true }));
+    document.getElementById("vs-mbsave").click();
+    var made = viewOf("years").books.filter(function (b) { return b.key === "-made-dailies"; })[0];
+    var seq = __vs.sequence("years");
+    var report = __vs.checkMembership().filter(function (x) { return x.shelf === "years"; })[0];
+    var book = { id: made ? made.id : "", notes: made ? made.notes.length : -1, expected: expected,
+                 last: seq[seq.length - 1] === "-made-dailies", inOrder: years.order.indexOf("-made-dailies") >= 0,
+                 unique: report.unique, claimed: report.ok, plaqued: made ? made.plaque : "?",
+                 spineHand: !!spineOf("years/-made-dailies") && spineOf("years/-made-dailies").getAttribute("data-hand") === "1",
+                 plusStillLast: (function () {
+                   var pl = plusOn("years")[0]; var sp = spineOf("years/-made-dailies");
+                   return !!pl && !!sp && pl.getBoundingClientRect().left > sp.getBoundingClientRect().right;
+                 })() };
+
+    /* 3. Alt+Left moves it; a rename keeps the address; the menu edits and deletes it */
+    var sp = spineOf("years/-made-dailies");
+    sp.focus();
+    sp.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", altKey: true, bubbles: true }));
+    var nudged = __vs.sequence("years");
+    __vs.editBook("years/-made-dailies", { name: "Journal", source: { kind: "folder", value: folder } });
+    var renamed = viewOf("years").books.filter(function (b) { return b.key === "-made-dailies"; })[0];
+    spineOf("years/-made-dailies").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 200, clientY: 300 }));
+    var lines = [].map.call(document.querySelectorAll("#vs-dye .vs-dyepick"), function (b) { return b.textContent; });
+    document.querySelectorAll("#vs-dye .vs-dyepick")[1].click();
+    var gone = { spine: !!spineOf("years/-made-dailies"), inOrder: years.order.indexOf("-made-dailies") >= 0,
+                 defined: !!(years.made && years.made["-made-dailies"]), books: viewOf("years").books.length };
+
+    /* 4. a settings file round-trips a made book on an ordinary shelf */
+    __vs.makeBook("years", { name: "Dailies", source: { kind: "folder", value: folder } }, null);
+    var blob = JSON.parse(JSON.stringify(__vs.settings()));
+    var back = core.migrate(blob).shelves.filter(function (s) { return s.id === "years"; })[0];
+    var roundtrip = { made: JSON.stringify(back.made) === JSON.stringify(years.made),
+                      order: JSON.stringify(back.order) === JSON.stringify(years.order) };
+    /* and an automatic shelf keeps the book, sorted last */
+    years.direction = "alphabetical";
+    __vs.setFilters({});
+    var auto = __vs.sequence("years");
+    var autoState = { last: auto[auto.length - 1] === "-made-dailies", plus: plusOn("years").length,
+                      afterUndated: auto.indexOf("-made-dailies") > auto.indexOf("-undated") };
+    __vs.unmakeBook("years/-made-dailies");
+
+    years.direction = was.direction;
+    if (was.order) years.order = was.order; else delete years.order;
+    delete years.made;
+    __vs.setFilters({});
+    return { before: before, manual: manual, form: form, book: book, nudged: nudged,
+             renamed: renamed ? renamed.label : "", renamedId: renamed ? renamed.id : "",
+             lines: lines, gone: gone, roundtrip: roundtrip, auto: autoState, folder: folder,
+             left: viewOf("years").books.filter(function (b) { return core.isMadeKey(b.key); }).length };
+  })()`);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const n = r.nudged;
+  const ok = r.before.plus === 0 && r.before.favPlus === 1 && r.before.refused === "" &&
+             r.manual.plus === 1 && r.manual.plusLast && r.manual.lastTrack && r.manual.height === 132 &&
+             r.manual.width === 22 && Number(r.manual.opacity) < 0.5 && r.manual.named === "New book on Years" &&
+             r.form.shown && r.form.title === "New book on Years" &&
+             r.book.id === "years/-made-dailies" && r.book.notes === r.book.expected && r.book.last &&
+             r.book.inOrder && r.book.claimed && r.book.plaqued === null && r.book.spineHand && r.book.plusStillLast &&
+             n[n.length - 2] === "-made-dailies" && r.renamed === "Journal" && r.renamedId === "years/-made-dailies" &&
+             same(r.lines, ["Edit book…", "Delete book"]) && !r.gone.spine && !r.gone.inOrder && !r.gone.defined &&
+             r.roundtrip.made && r.roundtrip.order && r.auto.last && r.auto.afterUndated && r.auto.plus === 0 &&
+             r.left === 0;
+  return {
+    ok,
+    detail: `Years automatic: ${r.before.plus} plus, makeBook refused ("${r.before.refused}"); Favourites: ` +
+            `${r.before.favPlus} plus. Years by hand: ${r.manual.plus} plus, after the last book ` +
+            `${r.manual.plusLast}, on the last row ${r.manual.lastTrack}, ${r.manual.width}x${r.manual.height} ` +
+            `at opacity ${r.manual.opacity}, named "${r.manual.named}"; it opened "${r.form.title}" and made ` +
+            `${r.book.id} (${r.book.notes} of ${r.book.expected} in ${r.folder}), last in the order ${r.book.last}, ` +
+            `in \`order\` ${r.book.inOrder}, counted once ${r.book.claimed}, plaque ${r.book.plaqued}, a handle ` +
+            `${r.book.spineHand}, plus still after it ${r.book.plusStillLast}; Alt+Left put it second to last ` +
+            `(${n.slice(-3).join(", ")}); renamed "${r.renamed}" at ${r.renamedId}; menu [${r.lines.join(" | ")}]; ` +
+            `deleted: spine ${r.gone.spine}, in order ${r.gone.inOrder}, defined ${r.gone.defined}; migrate ` +
+            `round-trips made ${r.roundtrip.made} and order ${r.roundtrip.order}; back to automatic it sorts last ` +
+            `${r.auto.last} (after Undated ${r.auto.afterUndated}) with ${r.auto.plus} plus; ${r.left} left`
   };
 });
 

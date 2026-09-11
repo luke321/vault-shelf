@@ -1204,3 +1204,15 @@ still has **17 / 6 / 12** books; the vault's **396 / 758 / 10000** notes are byt
 across making, editing, emptying and deleting. The empty landing now reads *Drag a book here,
 or right-click to make one*. Two checks, 79 in the suite; the demo film gains `makebook` and
 `editbook`, and the recorder draws a pointer of its own because the camera has none.
+
+**Then: any shelf arranged by hand, and a plus.** *"should work on all manual book shelfs, I
+would like a plus symbol for a book on the left that moves with the edge of the books on the
+shelf please very subtle."* The first cut allowed a made book only on a pick shelf; the line
+that matters is whether a person has taken the sequence in hand, so it lives on any `manual`
+shelf now, its key in `order` where a pick shelf's is in `picks`, built after the classifier's
+books and counted into the same set. Switched back to automatic the shelf keeps it, sorted
+last. Every hand-arranged shelf ends in a **plus** — 22 × 132 px, a dashed edge at a third of
+the ink, after the last spine or on a row of its own that `rowsOf` reserves — which opens the
+sheet with the book going to the end. Measured on Years by hand — demo / sparse / library: the
+book holds **112 / 620 / 694**, the plus is **1** and after it; automatic Years has **0** and
+refuses `makeBook`. 80 checks.

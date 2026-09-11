@@ -677,6 +677,40 @@
 .vault-shelf .vs-railline { width: 100%; justify-content: center; }
 .vault-shelf .vs-sheetbody.vs-narrow { max-width: 440px; }
 .vault-shelf .vs-sheetbody .vs-lede { margin: -6px 0 16px; }
+/* design/0020 -- THE PLUS IS A BOOK THAT IS NOT THERE YET: a spine's height, the thinnest
+ * spine's width, standing where the books end and moving with them. Quiet by design -- a
+ * dashed edge at a fifth of the ink -- and it only says what it is when the hand reaches it.
+ * Three classes deep so no look's `button` rule dresses it as a button (design/0016). */
+.vault-shelf .vs-track .vs-plusbook {
+  flex: 0 0 auto;
+  width: 22px;
+  height: var(--spine-h);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 300 18px/1 var(--ui, inherit);
+  color: var(--text-3);
+  background: transparent;
+  background-image: none;
+  border: 1px dashed var(--border-strong);
+  border-top: 0;
+  border-radius: 0 0 2px 2px;
+  box-shadow: none;
+  opacity: 0.32;
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.vault-shelf .vs-track .vs-plusbook:hover,
+.vault-shelf .vs-track .vs-plusbook:focus-visible {
+  opacity: 1;
+  color: var(--accent);
+  border-color: var(--accent);
+  outline: none;
+}
+.vault-shelf .vs-shelfrail[data-drop="1"] .vs-plusbook { opacity: 0; }
 
 /* github#0 -- DELETE LOOKS ORDINARY UNTIL IT IS ARMED, and then it looks like what it is. It
  * lives in this block rather than beside the other Manage rules because the Manage sheet is

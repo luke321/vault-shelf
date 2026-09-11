@@ -578,6 +578,71 @@ function storyboard(P) {
       },
     },
     {
+      /* design/0020 -- the plus at the end of a shelf arranged by hand, on Years. */
+      name: "plusbook",
+      seconds: 10,
+      async at(t, first) {
+        await caption(t, 0.04, 0.94,
+          "Any shelf you arrange by hand takes one, and ends in a quiet <b>plus</b>.",
+          "It stands where the books end and moves with them. Press it: the book goes to the end.");
+        if (first) {
+          const folder = await dailiesFolder();
+          await go(`(function(){
+            var years = __vs.settings().shelves.filter(function (s) { return s.id === "years"; })[0];
+            if (years && years.direction !== "manual") {
+              years.direction = "manual";
+              years.order = __vs.sequence("years");
+            }
+            delete years.made;
+            years.order = (years.order || []).filter(function (k) { return k.indexOf("-made-") !== 0; });
+            __vs.setFilters({ folders: [] });
+            var lib = document.getElementById("vs-library");
+            var el = document.querySelector('[data-shelf="years"]');
+            lib.scrollTop = Math.max(0, el.offsetTop - 60);
+            window.__vsDailies = ${JSON.stringify(folder)};
+          })(); void 0`);
+          await pointer(null);
+        }
+        const plusSel = '[data-shelf="years"] .vs-plusbook';
+        if (t >= 0.06 && t < 0.3) {
+          const s = await centreOf(plusSel);
+          if (s) {
+            const k = easeInOut((t - 0.06) / 0.24);
+            await pointer({ x: Math.round(lerp(s.x + 300, s.x, k)), y: Math.round(lerp(s.y + 220, s.y, k)) });
+          }
+        }
+        if (t >= 0.3 && t < 0.4) { const s = await centreOf(plusSel); if (s) await pointer(s); }
+        await once("plus-click", 0.4, t, async () => {
+          const s = await centreOf(plusSel);
+          if (!s) throw new Error("plusbook: no plus on the Years shelf");
+          await pointer(s, true);
+          await go(`document.querySelector(${JSON.stringify(plusSel)}).click(); void 0`);
+          await go(`(function(){
+            var k = document.getElementById("vs-mbsource");
+            k.value = "folder";
+            k.dispatchEvent(new Event("change", { bubbles: true }));
+            var v = document.getElementById("vs-mbsourceval");
+            v.value = window.__vsDailies;
+            v.dispatchEvent(new Event("change", { bubbles: true }));
+          })(); void 0`);
+        });
+        if (t >= 0.42 && t < 0.68) {
+          const box = await centreOf("#vs-mbname", 60, 0);
+          if (box) await pointer(box);
+          await typeInto("vs-mbname", "Dailies", t, 0.44, 0.64);
+        }
+        if (t >= 0.68 && t < 0.78) { const s = await centreOf("#vs-mbsave"); if (s) await pointer(s); }
+        await once("plus-save", 0.78, t, async () => {
+          await pointer(await centreOf("#vs-mbsave"), true);
+          await go(`document.getElementById("vs-mbsave").click(); void 0`);
+        });
+        if (t > 0.8) {
+          const s = await centreOf(plusSel);
+          if (s) await pointer({ x: s.x + 60, y: s.y + 80 });
+        }
+      },
+    },
+    {
       name: "theme",
       seconds: 8,
       async at(t, first) {

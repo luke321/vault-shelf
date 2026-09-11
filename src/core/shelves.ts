@@ -268,10 +268,35 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
   }
 
   books.sort((a, b) => compareKeys(a.key, b.key, autoDirection(shelf, order)));
+  /* design/0020 -- a made book stands on any shelf; its notes count once. */
+  const seen = new Set(members.map((n) => n.id));
+  for (const key of madeKeys(shelf)) {
+    const made = madeBookOf(shelf, key, notes, order);
+    if (!made) continue;
+    books.push(made);
+    for (const n of made.notes) seen.add(n.id);
+  }
   return {
     shelf,
     books: shelf.direction === "manual" ? arrange(books, shelf.order) : books,
-    noteCount: members.length,
+    noteCount: seen.size,
+  };
+}
+
+/** design/0020 -- one made book, from the same filtered notes as the shelf. */
+function madeBookOf(shelf: Shelf, key: string, notes: Note[], order: NoteOrder): Book | null {
+  const made = shelf.made?.[key];
+  if (!made) return null;
+  const members = notes.filter((n) => matchesSource(n, made.source, true));
+  return {
+    id: bookId(shelf.id, key),
+    shelfId: shelf.id,
+    key,
+    label: made.name,
+    plaque: null,
+    notes: members.slice().sort((a, b) => (order === "newest" ? 1 : -1) * byDateThenTitle(a, b)),
+    bands: bandsOf(members),
+    matches: 0,
   };
 }
 
@@ -293,20 +318,10 @@ function buildPicks(shelf: Shelf, notes: Note[], order: NoteOrder, sources: Shel
   const books: Book[] = [];
   const seen = new Set<string>();
   for (const pick of shelf.picks ?? []) {
-    const made = isMadeKey(pick) ? shelf.made?.[pick] : undefined;
+    const made = isMadeKey(pick) ? madeBookOf(shelf, pick, notes, order) : null;
     if (made) {
-      const members = notes.filter((n) => matchesSource(n, made.source, true));
-      books.push({
-        id: bookId(shelf.id, pick),
-        shelfId: shelf.id,
-        key: pick,
-        label: made.name,
-        plaque: null,
-        notes: members.slice().sort((a, b) => (order === "newest" ? 1 : -1) * byDateThenTitle(a, b)),
-        bands: bandsOf(members),
-        matches: 0,
-      });
-      for (const n of members) seen.add(n.id);
+      books.push(made);
+      for (const n of made.notes) seen.add(n.id);
       continue;
     }
     const source = byId.get(pick);
@@ -430,6 +445,9 @@ export function moveBefore(keys: string[], key: string, before: string | null): 
  * would lose notes; putting them first would open every date shelf on its least useful page.
  */
 function compareKeys(a: string, b: string, direction: "alphabetical" | "chronological"): number {
+  /* design/0020 -- a made book sorts after the specials on an automatic shelf. */
+  const aMade = isMadeKey(a), bMade = isMadeKey(b);
+  if (aMade !== bMade) return aMade ? 1 : -1;
   const aSpecial = a === UNDATED || a === UNFILED;
   const bSpecial = b === UNDATED || b === UNFILED;
   if (aSpecial !== bSpecial) return aSpecial ? 1 : -1;

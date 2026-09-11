@@ -316,7 +316,7 @@ absence of a second address for one book.
 
 ## A book made on the shelf is a saved query, and a place a note lives
 
-`design/0020`. Two checks, both driven through the real right-click menu and the real sheet,
+`design/0020`. Three checks, driven through the real right-click menu, the plus and the real sheet,
 and both empty the shelf again on the way out.
 
 `"a book made on the shelf holds the notes it points at, where it was made"` right-clicks the
@@ -352,6 +352,19 @@ book and a drop on the Years shelf **deletes** it — its colour and wear go wit
 has **17 / 6 / 12** books; that the menu's *Delete book* and the sheet's own Delete each remove
 it and the landing comes back; and that the vault's notes are **byte-identical** across all of
 it (**396 / 758 / 10000** notes).
+
+`"a book is made on any shelf arranged by hand, and a plus stands where the books end"` turns
+the Years shelf manual and asserts what the plus is and does. An automatic Years has **0** plus
+and `makeBook` refuses it; Favourites has **1**. Arranged by hand, Years has **1** plus, on the
+last row, to the right of the last spine, **22 × 132 px** — the thinnest spine's width and a
+spine's height — at an opacity under **0.5**, named *New book on Years*. Clicking it opens the
+sheet as *New book on Years*; Save makes `years/-made-dailies` holding the biggest folder's
+notes (**112 / 620 / 694**), last in the sequence, in `order`, counted once, with no plaque, a
+hand handle, and the plus still after it. Alt+Left moves it one place; a rename keeps the
+address; the spine's menu offers exactly `Edit book… | Delete book` and deleting it takes it
+out of `order` and `made`. A settings file round-trips `made` and `order` on an ordinary
+shelf, and switched back to automatic the shelf keeps the book, sorted **last**, after Undated,
+with **0** plus.
 
 Not covered by a number: a made book dragged onto *another* pick shelf does nothing — that
 shelf refuses it and the take-off drop declines while over it — which is asserted only as the

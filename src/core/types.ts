@@ -78,7 +78,7 @@ export interface Shelf {
    * resolves is skipped on read and dropped when the list is next saved, like a manual key.
    */
   picks?: string[];
-  /** design/0020 -- the made books, by the key `picks` names. */
+  /** design/0020 -- the made books, by the key `picks` or `order` names. */
   made?: Record<string, MadeBook>;
   hidden: boolean;
   position: number;
