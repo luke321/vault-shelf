@@ -38,6 +38,20 @@ saturation lift and the lightness push stay, because the separation was never th
 keeps the one warm thread. Measured: **21/21** spines keep their board's hue, **21/21** a fifth of
 the lightness away.
 
+**The look was painting over the thread.** The tonal rule was only half of it: leather hard-coded
+`#ad5447` on every `.vs-ribbon`, so no book's own thread ever reached the shelf in the look a
+fresh library opens in. Both looks paint `var(--ribbon)` under their own sheen now. The check
+that should have caught it was reading the custom property rather than the paint, and passed; it
+reads `backgroundColor` now and compares it to what the book asked for. Demo: **6** distinct
+threads where there was **1**, **22/22** painted as chosen.
+
+**A magnifying glass at the head of the index.** The reader's right-hand strip jumps to places in
+the book; the box that searches *inside* the book is at the top of the left page, where nobody is
+looking while reading the right one. A glass tab above the index scrolls the left page up and
+puts the cursor in that box — **400px → 0** and focused — and Ctrl/Cmd+F does the same. It is the
+same height as a year tab (15 × 1.15 is 11.5 × 1.5), and every check that counts index tabs
+excludes it, because it names an act rather than a position.
+
 **The colour picker offers the twelve.** A slot's swatch opened the operating system's picker —
 sixteen million colours and none of the library's own — so putting slot 7's dye on a ribbon meant
 reading a hex out of one control and typing it into another. It opens a popover of the twelve,

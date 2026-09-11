@@ -128,6 +128,13 @@ centred, and the chrome stays full-bleed while its contents do not.
 
 `design/0009`
 
+### Search inside the book from the index
+
+The strip of tabs down the right edge of an open book jumps to places in it. The first tab is a
+**magnifying glass**: press it and the left page scrolls to the top with the cursor already in
+*Find within this book*, so searching a book is one press from wherever you are reading.
+Ctrl/Cmd+F does the same.
+
 ### The room parts where the thing will land
 
 Drag a book and its new neighbour steps aside, with a thin accent bar standing in the gap that

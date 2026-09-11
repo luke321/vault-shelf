@@ -340,7 +340,19 @@ back to the look's own. Choosing the seventh puts that colour on the slot and sa
 editing (not on a new one), reads *Delete*, then *Really delete?*, leaves the shelf standing
 until the second press, and closes the sheet when it goes.
 
-**The thread is tonal.** Every unchosen ribbon keeps its board's hue (**21/21** on the demo) and
+**The thread is tonal, and the look paints it.** Every unchosen ribbon keeps its board's hue
+(**22/22** on the demo) and sits more than a fifth of the lightness away from it (**22/22**).
+The check reads the ribbon element's **painted** colour rather than the custom property, and
+asserts it equals the thread the book asked for — because the first version read the property,
+passed, and missed a look painting `#ad5447` over every ribbon in the library. Demo: **6**
+distinct threads where there was **1**. The count is not asserted: the sparse vault honestly
+shows one, since nearly every book there draws from the same folder and wears the same dye.
+
+**The glass heads the index.** A magnifying-glass tab stands above the index entries in the
+reader's right-hand strip, the same height as a year tab. Pressing it takes the left page from
+**400px** back to **0** and leaves the cursor in the find box; Ctrl/Cmd+F does the same. It is
+not an index entry — it names an act rather than a position — so every check that counts index
+tabs excludes it. Every unchosen ribbon keeps its board's hue (**21/21** on the demo) and
 sits more than a fifth of the lightness away from it (**21/21**), which is what makes it visible
 without making it a different colour.
 

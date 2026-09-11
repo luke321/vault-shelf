@@ -158,6 +158,34 @@ which thread comes out of which board with no legend.
 > because a grey has no hue to deepen. Measured on the demo vault: **21 of 21** painted spines
 > keep their board's hue and **21 of 21** sit a fifth of the lightness away from it.
 
+**And the look was painting over it.** The tonal rule above was only half the fault. Leather set
+`background: ..., #ad5447` on every `.vs-ribbon`, so the thread a book chose never reached the
+shelf under the look a fresh library opens in: twelve books wore one muddy salmon between them,
+and that is what "ugly as hell" was actually looking at. Both looks paint `var(--ribbon)` under
+their own sheen now — the colour is the book's, the gloss is the look's.
+
+**A check that reads the input to a rule cannot see a rule that ignores its input.** The first
+version of this check read `--ribbon` off the spine and passed while the whole shelf was one
+colour. It reads the painted `backgroundColor` of the ribbon element now and compares it to the
+thread the book asked for. Measured: **22/22** ribbons painted as chosen, in **6** different
+colours on the demo vault where there was **1**. The count itself is not asserted — a lopsided
+vault can honestly show one, since the sparse fixture's books nearly all draw from one folder and
+so wear one dye.
+
+**And the look was painting over it.** The tonal rule above was only half the fault. Leather set
+`background: ..., #ad5447` on every `.vs-ribbon`, so the thread a book chose never reached the
+shelf under the look a fresh library opens in: twelve books wore one muddy salmon between them,
+and that is what "ugly as hell" was actually looking at. Both looks paint `var(--ribbon)` under
+their own sheen now — the colour is the book's, the gloss is the look's.
+
+**A check that reads the input to a rule cannot see a rule that ignores its input.** The first
+version of this check read `--ribbon` off the spine and passed while the whole shelf was one
+colour. It reads the painted `backgroundColor` of the ribbon element now and compares it to the
+thread the book asked for. Measured: **22/22** ribbons painted as chosen, in **6** different
+colours on the demo vault where there was **1**. The count itself is not asserted — a lopsided
+vault can honestly show one, since the sparse fixture's books nearly all draw from one folder and
+so wear one dye.
+
 **The default was the dye's complement, computed and not stored.** `complementOf()` turns the
 hue 180°, raises the saturation, and then moves the lightness *whichever way has more room*
 inside `[0.32, 0.78]`. All three steps earn their place:

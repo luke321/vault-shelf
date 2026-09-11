@@ -265,9 +265,14 @@
 .vault-shelf[data-look="leather"] .vs-spine[data-wear="3"] { --vs-wear: 0.16; }
 .vault-shelf[data-look="leather"] .vs-spine[data-wear="3"] .vs-title { color: #d8c398; }
 
+/* github#0 -- THE SILK IS THE BOOK'S, and the sheen is the look's. This rule painted every
+ * ribbon in the library one flat #ad5447 -- so the thread a book actually chose (design/0008)
+ * never reached the shelf under leather, and twelve books wore one muddy salmon between them.
+ * The gradient is the fold of light across silk and stays; the colour under it comes from the
+ * spine, which is where it has always been decided. */
 .vault-shelf[data-look="leather"] .vs-spine .vs-ribbon {
   z-index: 2;
-  background: linear-gradient(90deg, #ffffff30, transparent 35%, #00000030), #ad5447;
+  background: linear-gradient(90deg, #ffffff30, transparent 35%, #00000030), var(--ribbon);
   box-shadow: 0 2px 3px #00000050;
 }
 

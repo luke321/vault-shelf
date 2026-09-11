@@ -1096,6 +1096,24 @@
 /* design/0015 -- THE LAYERS OF THE INDEX. A year tab is the widest and boldest, a month tab
  * steps in, a day tab steps in again: read down the edge and the shape says which is which
  * before the label does. */
+/* github#0 -- the glass tab is an index entry for the act of looking: same tab, same height,
+ * and a wider glyph than a year so the eye finds it at the head of the strip. */
+.vault-shelf .vs-tabs .vs-findtab {
+  /* THE SAME BOX AS A YEAR TAB. A control that is a different height from the one under it is
+   * the thing the look check exists to catch (design/0016); the glyph is bigger and the line
+   * is shorter by exactly as much -- 15 x 1.15 is 11.5 x 1.5 -- so the strip stays even. */
+  font-size: 15px;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-align: center;
+}
+.vault-shelf .vs-tabs .vs-findtab:hover,
+.vault-shelf .vs-tabs .vs-findtab:focus-visible {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 .vault-shelf .vs-tabs button[data-level="0"] { font-weight: 600; }
 .vault-shelf .vs-tabs button[data-level="1"] { margin-left: 8px; min-width: 36px; }
 .vault-shelf .vs-tabs button[data-level="2"] { margin-left: 16px; min-width: 30px; font-size: 10px; opacity: 0.85; }

@@ -1806,6 +1806,20 @@ function mountVaultShelf(root, data, options) {
   function renderTabs() {
     var box = $("tabs");
     clear(box);
+    /* github#0 -- THE FIRST TAB IS THE ONE THAT FINDS. The index down the right edge jumps to a
+     * place in the book; the box that searches inside the book is at the top of the left page,
+     * which is where a person is not looking when they are reading the right one. A tab in the
+     * same strip, with a glass on it, takes them there: it scrolls the contents page up to the
+     * box and puts the cursor in it, so "search this book" is one press from wherever you are
+     * rather than a scroll and a click. It is an index entry for the act of looking, so it
+     * stands at the head of the index. */
+    var find = el("button", "vs-findtab", "\u2315");
+    find.type = "button";
+    find.setAttribute("data-level", "0");
+    find.title = "Search inside this book";
+    find.setAttribute("aria-label", "Search inside this book");
+    on(find, "click", findInBook);
+    box.appendChild(find);
     indexSections(reader.book).forEach(function (section) {
       var b = el("button", "", section.label);
       b.type = "button";
@@ -1814,6 +1828,20 @@ function mountVaultShelf(root, data, options) {
       on(b, "click", function () { goTo(section.at); });
       box.appendChild(b);
     });
+  }
+
+  /**
+   * github#0 -- scroll the left page to the top, where the find box is, and leave the cursor in
+   * it. `scrollIntoView` on the box itself would work on the page that holds it; the page is
+   * what scrolls, so it is the page that is told, and then the box is focused. A selection of
+   * whatever is already typed, so a second press replaces the query rather than appending to it.
+   */
+  function findInBook() {
+    var page = root.querySelector("#" + ID + "reader .vs-page.vs-left");
+    if (page instanceof HTMLElement) page.scrollTop = 0;
+    var box = field("within");
+    box.focus();
+    box.select();
   }
 
   function renderNote() {
@@ -2986,6 +3014,13 @@ function mountVaultShelf(root, data, options) {
       if (at && nudge(at, e.key === "ArrowRight" ? 1 : -1)) { e.preventDefault(); return; }
     }
     if (!reader) return;
+    /* github#0 -- the same act from the keyboard, on the key every reader uses for it. */
+    var ke = /** @type {KeyboardEvent} */ (e);
+    if ((ke.ctrlKey || ke.metaKey) && String(ke.key).toLowerCase() === "f") {
+      findInBook();
+      ke.preventDefault();
+      return;
+    }
     if (e.altKey && e.key === "ArrowLeft") { previousCollection(); e.preventDefault(); return; }
     if (e.key === "ArrowLeft") { goTo(reader.index - 1); e.preventDefault(); }
     if (e.key === "ArrowRight") { goTo(reader.index + 1); e.preventDefault(); }

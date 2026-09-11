@@ -564,7 +564,7 @@ check("the index tabs cut the book the way the book is ordered", async (p) => {
   const r = await p.j(`(function(){
     function tabsFor(id) {
       __vs.openBook(id, null);
-      var out = [].slice.call(document.querySelectorAll("#vs-tabs button"))
+      var out = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab)"))
         .map(function (b) { return b.textContent; });
       var titles = [].slice.call(document.querySelectorAll("#vs-contents .vs-t"))
         .map(function (t) { return t.textContent; });
@@ -1686,13 +1686,89 @@ check("the room parts where a thing will land, the twelve are offered, and a she
     out.gone = live().indexOf("doomed") < 0;
     out.sheetClosed = document.getElementById("vs-builder").hidden;
 
-    /* A ribbon nobody chose is now the BOARD'S OWN HUE, deeper -- not its opposite. */
-    out.threads = [].slice.call(document.querySelectorAll("#vs-shelves .vs-spine")).slice(0, 24)
-      .map(function (s) {
-        var cs = getComputedStyle(s);
-        return { dye: cs.getPropertyValue("--spine-tint").trim(),
-                 thread: cs.getPropertyValue("--ribbon").trim() };
+    /* A ribbon nobody chose is now the BOARD'S OWN HUE, deeper -- not its opposite.
+     *
+     * MEASURED AS PAINT, NOT AS A VARIABLE, and in the look the page actually opens in. The
+     * first version of this read --ribbon off the spine and passed while every ribbon in the
+     * leather look was one flat #ad5447: the look painted its own colour over the book's and
+     * the custom property never reached the shelf. A check that reads the input to a rule
+     * cannot see a rule that ignores its input. */
+    /* A ribbon has to be IN a book before it hangs off one, so a few are left here and taken
+     * out again -- the same thing the picture-taking path does before it shoots the reader. */
+    var marked = [];
+    __vs.views().filter(function (v) { return v.shelf.id === "encyclopedia"; })[0].books
+      .slice(0, 8).forEach(function (b) {
+        if (!b.notes.length) return;
+        __vs.openBook(b.id, b.notes[0].id);
+        var stub = document.querySelector("#vs-marks .vs-markstub");
+        if (stub) { stub.click(); marked.push(b.id); }
+      });
+    __vs.closeReader();
+    out.threads = [].slice.call(document.querySelectorAll("#vs-shelves .vs-spine .vs-ribbon"))
+      .slice(0, 24)
+      .map(function (r) {
+        var spine = r.closest(".vs-spine");
+        var want = getComputedStyle(spine).getPropertyValue("--ribbon").trim();
+        var probe = document.createElement("span");
+        probe.style.color = want;
+        document.body.appendChild(probe);
+        var asRgb = getComputedStyle(probe).color;
+        probe.remove();
+        return { dye: getComputedStyle(spine).getPropertyValue("--spine-tint").trim(),
+                 thread: getComputedStyle(r).backgroundColor,
+                 /* the look has to PAINT the thread the book chose, not one of its own */
+                 honoured: getComputedStyle(r).backgroundColor === asRgb };
       }).filter(function (x) { return x.dye && x.thread; });
+    out.look = document.getElementById("vs-app").getAttribute("data-look");
+    out.ribbonsPainted = out.threads.length;
+    out.oneColourForAll = new Set(out.threads.map(function (x) { return x.thread; })).size;
+
+    /* github#0 -- THE GLASS AT THE HEAD OF THE INDEX. */
+    /* The fattest book in the library, so the contents page is long enough to scroll away from. */
+    var fattest = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) {
+        if (!fattest || b.notes.length > fattest.notes.length) fattest = b;
+      });
+    });
+    __vs.openBook(fattest.id, null);
+    var tabs = document.querySelectorAll("#vs-tabs button:not(.vs-findtab)");
+    var glass = document.querySelector("#vs-tabs .vs-findtab");
+    var left = document.querySelector("#vs-reader .vs-page.vs-left");
+    left.scrollTop = 400;
+    var scrolledAway = left.scrollTop;
+    glass.click();
+    out.find = {
+      /* the glass heads the WHOLE strip; tabs above is the index entries without it */
+      first: (function () {
+        var all = document.querySelectorAll("#vs-tabs button");
+        return all.length > 1 && all[0].classList.contains("vs-findtab");
+      })(),
+      indexTabs: tabs.length,
+      glyph: glass ? glass.textContent : "",
+      named: glass ? glass.getAttribute("aria-label") : "",
+      scrolledAway: scrolledAway,
+      scrolledBack: left.scrollTop,
+      focused: document.activeElement === document.getElementById("vs-within"),
+      sameHeight: glass && tabs[1]
+        ? Math.round(glass.getBoundingClientRect().height) ===
+          Math.round(tabs[1].getBoundingClientRect().height)
+        : false
+    };
+    __vs.closeReader();
+
+    /* the ribbons were for the picture, not for the file */
+    marked.forEach(function (id) {
+      var book = __vs.views().reduce(function (found, v) {
+        return found || v.books.filter(function (b) { return b.id === id; })[0] || null;
+      }, null);
+      if (!book || !book.notes.length) return;
+      __vs.openBook(id, book.notes[0].id);
+      var mark = document.querySelector("#vs-marks .vs-mark");
+      if (mark) mark.click();
+    });
+    __vs.closeReader();
+    out.ribbonsLeft = document.querySelectorAll("#vs-shelves .vs-spine .vs-ribbon").length;
 
     __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })
       .forEach(function (s) { s.picks = []; });
@@ -1713,6 +1789,7 @@ check("the room parts where a thing will land, the twelve are offered, and a she
     if (d) h = max === R ? ((G - B) / d + (G < B ? 6 : 0)) / 6 : max === G ? ((B - R) / d + 2) / 6 : ((R - G) / d + 4) / 6;
     return { h, l, sat: d };
   };
+  const function_honoured = (t) => t.honoured;
   const pairs = rest.threads.map(({ dye, thread }) => ({ a: hsl(dye), b: hsl(thread) }))
     .filter((x) => x.a && x.b && x.a.sat > 0.08);
   const tonal = pairs.filter((x) => {
@@ -1730,7 +1807,13 @@ check("the room parts where a thing will land, the twelve are offered, and a she
              rest.made && rest.binOnNew === false && rest.binOnEdit === true &&
              rest.first === "Delete shelf" && rest.armed === "Really delete?" &&
              rest.stillThere && rest.gone && rest.sheetClosed &&
-             pairs.length > 0 && tonal === pairs.length && separated === pairs.length;
+             pairs.length > 0 && tonal === pairs.length && separated === pairs.length &&
+             /* the look paints the book's thread rather than one of its own */
+             rest.threads.every(function_honoured) &&
+             rest.find.first && rest.find.glyph === "\u2315" && rest.find.named &&
+             rest.ribbonsPainted >= 4 && rest.ribbonsLeft === 0 &&
+             rest.find.scrolledAway > 0 && rest.find.scrolledBack === 0 &&
+             rest.find.focused && rest.find.sameHeight;
   return {
     ok,
     detail: `a book's neighbour parts ${resting} -> ${parted.margin}px with the ${parted.barWidth}px ` +
@@ -1743,7 +1826,14 @@ check("the room parts where a thing will land, the twelve are offered, and a she
             `(new ${rest.binOnNew}, edit ${rest.binOnEdit}), reads "${rest.first}" then ` +
             `"${rest.armed}" with the shelf still there (${rest.stillThere}), gone on the second ` +
             `(${rest.gone}). Ribbons: ${tonal}/${pairs.length} keep their board's hue and ` +
-            `${separated}/${pairs.length} are a fifth of the lightness away from it`
+            `${separated}/${pairs.length} are a fifth of the lightness away from it, painted in ` +
+            `${rest.oneColourForAll} different colours under "${rest.look || "modern"}", every one of them ` +
+            `the thread the book chose (${rest.threads.every(function_honoured)}). The glass tab heads ` +
+            `the index (${rest.find.first}), ` +
+            `reads "${rest.find.glyph}" above ${rest.find.indexTabs} index tabs, is the same height as ` +
+            `one of them (${rest.find.sameHeight}), ` +
+            `and took the left page from ${rest.find.scrolledAway}px back to ` +
+            `${rest.find.scrolledBack}px with the cursor in the find box (${rest.find.focused})`
   };
 });
 
@@ -3020,7 +3110,7 @@ check("the date index is layered: years over months over days, each only where i
   const r = await p.j(`(function(){
     var tabsOf = function (id) {
       __vs.openBook(id, null);
-      var t = [].slice.call(document.querySelectorAll("#vs-tabs button")).map(function (b) {
+      var t = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab)")).map(function (b) {
         return { label: b.textContent, level: Number(b.getAttribute("data-level") || 0) };
       });
       __vs.closeReader();
@@ -3079,7 +3169,7 @@ check("the reader's index tabs stay countable on the biggest book", async (p) =>
     });
     __vs.openBook(biggest.id, null);
     return { book: biggest.id, notes: biggest.notes.length,
-             tabs: document.querySelectorAll("#vs-tabs button").length };
+             tabs: document.querySelectorAll("#vs-tabs button:not(.vs-findtab)").length };
   })()`);
   return { ok: r.tabs > 0 && r.tabs <= 26,
            detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} tabs (cap 26)` };
