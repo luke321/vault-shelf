@@ -20,11 +20,9 @@ const CHECK = argv.includes("--check");
 const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// github#5 -- the three shapes the suite runs, with smoke's own args
+// github#5, decisions/0012 -- the one shape the suite runs, with smoke's own args
 const FIXTURES = [
-  { name: "demo-vault", script: "make-demo-vault.mjs", args: [] },
-  { name: "sparse-vault", script: "make-sparse-vault.mjs", args: [] },
-  { name: "library-vault", script: "make-library-vault.mjs", args: ["--notes", "10000", "--years", "10"] },
+  { name: "vault", script: "make-vault.mjs", args: [] },
 ];
 
 /** @param {{ name: string, script: string, args: string[] }} fx @returns {{ dir: string, temp: boolean }} */

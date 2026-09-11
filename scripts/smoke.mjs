@@ -4813,7 +4813,7 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
   const file = join(ROOT, "scripts", "layout-snapshots", `${name}.json`);
   if (!name || !existsSync(file)) {
     return { ok: true, detail: `no golden for ${name || "this vault"} -- ` +
-                               `node scripts/update-layout-snapshots.mjs writes the three fixtures` };
+                               `node scripts/update-layout-snapshots.mjs writes it` };
   }
   await p.send("Emulation.setDeviceMetricsOverride",
                { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
@@ -4838,30 +4838,23 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
   };
 });
 
-/* ---------------------------------------------------- which vaults, and why
+/* ------------------------------------------------------ which vault, and why
  *
- * THREE SHAPES, BY DEFAULT, and none of them needs a vault of yours.
+ * ONE SHAPE, and it does not need a vault of yours. decisions/0012 replaced three fixtures
+ * with one that carries what all three carried: 5,000 notes over eleven years ending today,
+ * every classifier populated, a recent year that is genuinely active, a declared empty year
+ * for a chronological shelf to survive, a fifth of the non-daily notes undated, titles
+ * opening with digits, punctuation and four scripts, notes naming five people and six tags
+ * at once, and two impossible dates. Eleven years is ~574 ISO weeks, which is the long rail
+ * the 10k library fixture used to be for.
  *
- *   demo vault     ~700 notes across ten declared folders, two years of dates, every
- *                  classifier populated: eight people, thirteen tags including a three-level
- *                  hierarchy and two non-Latin ones, a status property, and a handful of
- *                  deliberately undated notes. The shape the plugin is meant for.
- *   sparse vault   ~756 notes where ONE FOLDER HOLDS 82%, a FIFTH ARE UNDATED, the dates sit
- *                  in two clusters five years apart with a hole between them, titles open
- *                  with digits, punctuation and four scripts, and a few notes name five
- *                  people and six tags at once -- eleven books for one note. Every edge the
- *                  demo vault rounds off.
- *   library vault  10,000 notes over ten years: ~520 week books on one rail, and an
- *                  Encyclopedia volume large enough that the reader's index has to fall back
- *                  to ranges.
- *
- * ALL THREE LIVE IN ONE SHARED STORE, beside the main repo, and invalidate themselves.
- * A fixture lives at <main repo>/.fixtures/<name>-<digest8>, where the digest is sha256 over
- * the CONTENTS of all three generator scripts plus this fixture's args -- content, not mtime,
- * because a branch switch rewrites mtimes without changing a byte. Every worktree resolves
- * the same store through git's common dir, so the gate sees one fixture set no matter where
- * the push runs. Editing a generator changes the digest and the next run regenerates; nothing
- * needs to remember to delete anything.
+ * IT LIVES IN A SHARED STORE, beside the main repo, and invalidates itself. A fixture lives
+ * at <main repo>/.fixtures/<name>-<digest8>, where the digest is sha256 over the CONTENTS of
+ * the generator plus this fixture's args -- content, not mtime, because a branch switch
+ * rewrites mtimes without changing a byte. Every worktree resolves the same store through
+ * git's common dir, so the gate sees one fixture no matter where the push runs. Editing the
+ * generator changes the digest and the next run regenerates; nothing needs to remember to
+ * delete anything.
  *
  * A fixture also AGES BY DESIGN: --end defaults to today so the activity calendar's live year
  * stays exercised, which means the newest note recedes from the real clock from the moment it
@@ -4876,7 +4869,7 @@ function resolveVaults() {
   if (arg("url", "")) return [{ path: "", label: "the page passed with --url" }];
 
   const out = [];
-  const GENERATORS = ["make-demo-vault.mjs", "make-sparse-vault.mjs", "make-library-vault.mjs"];
+  const GENERATORS = ["make-vault.mjs"];
   const FIXTURE_FORMAT = 1;
 
   const storeRoot = (() => {
@@ -4974,10 +4967,7 @@ function resolveVaults() {
     out.push({ path: dir, label, fixture: desc ? { name, ...desc } : null });
   };
 
-  gen("make-demo-vault.mjs", [], "demo-vault", "the demo vault (every classifier populated)");
-  gen("make-sparse-vault.mjs", [], "sparse-vault", "the sparse vault (undated, lopsided, multiscript)");
-  gen("make-library-vault.mjs", ["--notes", "10000", "--years", "10"], "library-vault",
-      "the 10k library vault (10 years)");
+  gen("make-vault.mjs", [], "vault", "the vault (5,000 notes over eleven years)");
 
   if (!out.length) throw new Error("no vault to check, and none could be generated");
   return out;

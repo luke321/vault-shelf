@@ -10,9 +10,7 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 const GENERATORS = [
-  { script: "make-demo-vault.mjs", args: [] },
-  { script: "make-sparse-vault.mjs", args: [] },
-  { script: "make-library-vault.mjs", args: ["--notes", "600", "--years", "6"] },
+  { script: "make-vault.mjs", args: [] },
 ];
 const END_A = "2024-02-10";
 const END_B = "2027-09-28";

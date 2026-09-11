@@ -49,7 +49,7 @@ export function storeVault(name) {
 function buildPage() {
   const given = arg("url", "");
   if (given) return { url: given, scratch: "" };
-  const vault = arg("vault", "") || storeVault("demo-vault");
+  const vault = arg("vault", "") || storeVault("vault");
   if (!vault) {
     throw new Error("no vault: pass --vault <dir> or --url <built page>, or run the suite once " +
                     "so the shared fixture store exists");

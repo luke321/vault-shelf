@@ -13,7 +13,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
 
 export const FIXTURE_MAX_AGE_DAYS = 7;
-export const FIXTURE_NAMES = ["demo-vault", "sparse-vault", "library-vault"];
+export const FIXTURE_NAMES = ["vault"];
 
 function git(args, cwd) {
   const r = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" });
@@ -173,12 +173,10 @@ function selftest() {
       writeFileSync(join(dir, ".stamp.json"),
                     JSON.stringify({ digest, day, args: pinned ? ["--end", "2026-08-28"] : [] }));
     };
-    seed("demo-vault", "aaaaaaaa", today, false);
-    seed("sparse-vault", "bbbbbbbb", today, false);
-    seed("library-vault", "cccccccc", today, false);
+    seed("vault", "aaaaaaaa", today, false);
 
     expect("no stamp yet -> miss", !lookup("HEAD", repo).ok);
-    const wrote = record({ fixtures: currentFixtures(repo), checks: 3, cwd: repo });
+    const wrote = record({ fixtures: currentFixtures(repo), checks: 1, cwd: repo });
     expect("a clean tree records a stamp", !!wrote.wrote);
     expect("the same commit hits", lookup("HEAD", repo).ok);
 
@@ -190,7 +188,7 @@ function selftest() {
     expect("a merge commit with the same tree hits", lookup("HEAD", repo).ok);
 
     writeFileSync(join(repo, "a.txt"), "changed\n");
-    const dirty = record({ fixtures: currentFixtures(repo), checks: 3, cwd: repo });
+    const dirty = record({ fixtures: currentFixtures(repo), checks: 1, cwd: repo });
     expect("a dirty tree refuses to record", !dirty.wrote && /differs from HEAD/.test(dirty.why));
     expect("a dirty tree still hits for HEAD's own tree", lookup("HEAD", repo).ok);
     sh(["commit", "-q", "-am", "changed"]);
@@ -198,35 +196,37 @@ function selftest() {
     expect("a changed tree misses", !miss.ok && /no stamp/.test(miss.why));
     expect("the earlier tree still hits by revision", lookup("HEAD~1", repo).ok);
 
-    const two = record({ fixtures: currentFixtures(repo).filter((f) => f.name !== "sparse-vault"),
-                         checks: 2, cwd: repo });
-    expect("a run missing a fixture refuses to record",
-           !two.wrote && /sparse-vault did not run/.test(two.why));
+    /* decisions/0012 -- ONE FIXTURE, so "a partial run" is a run that named none. It is
+     * still the case worth checking: the whole point of the stamp is that it vouches for a
+     * measurement that actually happened. */
+    const none = record({ fixtures: [], checks: 0, cwd: repo });
+    expect("a run naming no fixture refuses to record",
+           !none.wrote && /vault did not run/.test(none.why));
 
-    seed("demo-vault", "aaaaaaaa", "2026-01-01", false);
+    seed("vault", "aaaaaaaa", "2026-01-01", false);
     const moved = lookup("HEAD~1", repo);
     expect("a regenerated fixture misses", !moved.ok && /not the one that passed/.test(moved.why));
-    seed("demo-vault", "aaaaaaaa", today, false);
+    seed("vault", "aaaaaaaa", today, false);
     expect("restoring the fixture hits again", lookup("HEAD~1", repo).ok);
 
     const old = new Date(Date.now() - 8 * 86400000).toISOString().slice(0, 10);
-    seed("library-vault", "cccccccc", old, false);
+    seed("vault", "aaaaaaaa", old, false);
     sh(["checkout", "-q", "HEAD~1"]);
-    record({ fixtures: currentFixtures(repo), checks: 3, cwd: repo });
+    record({ fixtures: currentFixtures(repo), checks: 1, cwd: repo });
     const aged = lookup("HEAD", repo);
     expect("an aged unpinned fixture misses", !aged.ok && /would regenerate/.test(aged.why));
-    seed("library-vault", "cccccccc", "2026-08-28", true);
-    record({ fixtures: currentFixtures(repo), checks: 3, cwd: repo });
+    seed("vault", "aaaaaaaa", "2026-08-28", true);
+    record({ fixtures: currentFixtures(repo), checks: 1, cwd: repo });
     expect("a pinned fixture never ages", lookup("HEAD", repo).ok);
 
-    const twoNamed = lookup("HEAD", repo);
-    const stampFile = twoNamed.file;
+    const named = lookup("HEAD", repo);
+    const stampFile = named.file;
     const partial = JSON.parse(readFileSync(stampFile, "utf8"));
-    partial.fixtures = partial.fixtures.filter((f) => f.name !== "library-vault");
+    partial.fixtures = partial.fixtures.filter((f) => f.name !== "vault");
     writeFileSync(stampFile, JSON.stringify(partial, null, 2) + "\n");
     const short = lookup("HEAD", repo);
-    expect("a stamp naming two fixtures misses",
-           !short.ok && /names no library-vault run/.test(short.why));
+    expect("a stamp naming no fixture misses",
+           !short.ok && /names no vault run/.test(short.why));
 
     const cli = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "check", "HEAD"],
                           { cwd: repo, encoding: "utf8" });

@@ -39,7 +39,7 @@ const arg = (name, fallback) => {
   return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
 };
 
-const OUT = resolve(arg("out", join(ROOT, "demo-vault")));
+const OUT = resolve(arg("out", join(ROOT, "vault")));
 const SEED = Number(arg("seed", "20260909"));
 const END = arg("end", new Date().toISOString().slice(0, 10));
 /* FIFTEEN YEARS, NOT TWO. Two years of notes is a Years shelf with three books on it, which
