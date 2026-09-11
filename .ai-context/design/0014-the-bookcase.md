@@ -66,6 +66,18 @@ in step forever. Instead there is one transparent `.vs-floorgrip` per row, sized
 `--board` so it grows with whatever the look paints, standing a few pixels proud of it so it can
 actually be hit, and lighting in the accent only while the pointer is on it.
 
+**Lifting it has to wait one tick.** Taking the shelf out of the layout inside `dragstart` --
+which is the obvious place to do it -- cancels the drag: Chrome takes the drag image and then
+watches the element, and an element that stops being laid out ends the gesture. It shipped that
+way for one commit and shelf dragging did not work at all, while every check passed, because a
+synthetic `DragEvent` has no such lifecycle. `setTimeout(..., 0)`.
+
+**And the shelf under the pointer is found by geometry, not by hit-testing**, for the same reason
+the row hears a book drag (`design/0018`): the ghost this gesture inserts lands under the pointer,
+`closest("[data-shelf]")` then finds nothing, the dragover stops being accepted -- and a dragover
+nobody accepts means the browser never offers a drop. The shelf list is read off the page
+instead: the first shelf whose middle the pointer has not passed.
+
 **A carried shelf leaves the room, and its space goes with it.** A hairline between two shelves
 said nothing about where a shelf of eleven rows was going to sit — *"shelf dragging has no
 indicator at all where the shelf will end"*. The section is taken out of the flow while it is

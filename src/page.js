@@ -804,6 +804,10 @@ function mountVaultShelf(root, data, options) {
    * @param {Shelf} shelf @param {HTMLElement} section
    */
   function liftShelf(shelf, section) {
+    /* github#0 -- ONCE ONLY. Two things ask for the lift -- the tick after dragstart, and the
+     * first dragover if that tick has not landed yet -- and a second ghost would be left in the
+     * room when the first is forgotten. */
+    if (shelfGhost) return;
     var box = section.getBoundingClientRect();
     var ghost = el("div", "vs-shelfghost");
     ghost.style.height = Math.round(box.height) + "px";
@@ -839,7 +843,12 @@ function mountVaultShelf(root, data, options) {
         de.dataTransfer.setData("text/plain", shelf.id);
       }
       var section = sectionOf(shelf.id);
-      if (section) liftShelf(shelf, section);
+      /* github#0 -- HIDING THE SOURCE IN THE SAME TICK CANCELS THE DRAG. Chrome takes the drag
+       * image from the element and then keeps watching it; taking it out of the layout inside
+       * the dragstart handler ends the gesture before it has begun, which is how shelf dragging
+       * stopped working at all while every check still passed -- a synthetic DragEvent has no
+       * such lifecycle to lose. The lift happens on the next tick, once the drag is real. */
+      if (section) WIN.setTimeout(function () { if (shelfDrag) liftShelf(shelf, section); }, 0);
     });
     on(grip, "dragend", function () {
       shelfDrag = null;
@@ -874,13 +883,28 @@ function mountVaultShelf(root, data, options) {
    * @param {DragEvent} e @returns {{ section: HTMLElement, id: string, side: "before"|"after" }|null}
    */
   function shelfUnder(e) {
-    if (!(e.target instanceof Element)) return null;
-    var section = /** @type {HTMLElement|null} */ (e.target.closest("[data-shelf]"));
-    if (!section) return null;
-    var id = section.getAttribute("data-shelf") || "";
-    if (!id || id === "-reading" || !shelfDrag) return null;
-    var box = section.getBoundingClientRect();
-    return { section: section, id: id, side: e.clientY >= box.top + box.height / 2 ? "after" : "before" };
+    if (!shelfDrag) return null;
+    /* github#0 -- GEOMETRY, NOT WHATEVER IS UNDER THE POINTER, and for the same reason the row
+     * hears a book drag (design/0018): the ghost this gesture inserts takes the pointer off the
+     * shelf it was over, `closest("[data-shelf]")` then finds nothing, the dragover stops being
+     * accepted -- and a dragover nobody accepts means NO DROP AT ALL. The shelf order is read
+     * off the page instead: the first shelf whose middle the pointer has not passed. */
+    var sections = $("shelves").querySelectorAll("[data-shelf]");
+    /** @type {HTMLElement|null} */
+    var last = null;
+    for (var i = 0; i < sections.length; i++) {
+      var sec = /** @type {HTMLElement} */ (sections[i]);
+      var id = sec.getAttribute("data-shelf") || "";
+      if (!id || id === "-reading") continue;
+      last = sec;
+      var box = sec.getBoundingClientRect();
+      if (e.clientY < box.top + box.height / 2) {
+        return { section: sec, id: id, side: /** @type {"before"} */ ("before") };
+      }
+    }
+    if (!last) return null;
+    return { section: last, id: last.getAttribute("data-shelf") || "",
+             side: /** @type {"after"} */ ("after") };
   }
 
   /**
@@ -908,7 +932,14 @@ function mountVaultShelf(root, data, options) {
     on(box, "dragover", function (e) {
       var de = /** @type {DragEvent} */ (e);
       var over = shelfUnder(de);
-      if (!over || !shelfGhost) return;
+      if (!over) return;
+      /* belt and braces: if the lift has not landed yet, do it now rather than miss the move */
+      if (!shelfGhost && shelfDrag) {
+        var mine = shelfById(shelfDrag.id);
+        var sec = sectionOf(shelfDrag.id);
+        if (mine && sec) liftShelf(mine, sec);
+      }
+      if (!shelfGhost) return;
       de.preventDefault();
       if (de.dataTransfer) de.dataTransfer.dropEffect = "move";
       /* The ghost IS the indicator: it moves to where the shelf would land and the room shifts

@@ -871,6 +871,30 @@ and both land inside the page. The vault's own `appearance.json` does not do it 
 written, it is copied, and Obsidian starts dark anyway. Measured under cyber with a light host:
 body `theme-light`, the app's ground `rgb(255,255,255)`, the page reading `data-theme="light"`
 under `data-look="cyber"`, note ink `rgb(232,245,255)`.
+## A native drag is the one gesture the harness cannot drive
+
+**This is the gap that let shelf dragging break completely while 77 checks passed.** A synthetic
+`DragEvent` is an event object; a real drag is a state machine the browser owns. Two things only
+the real one has, and both bit:
+
+- **Hiding the source cancels the drag.** `liftShelf` took the carried shelf out of the layout
+  inside the `dragstart` handler. Chrome takes the drag image and then keeps watching the
+  element, so removing it ends the gesture before it starts -- nothing moved, at all, for a
+  person. A synthetic dragstart has no such lifecycle to lose, so every check stayed green. The
+  lift happens on the next tick now.
+- **A dragover nobody accepts means no drop is ever offered.** A synthetic `drop` lands whether
+  or not anything called `preventDefault` on the dragover before it, so a target that refuses
+  every drag still passes a synthetic check. The check now asserts `defaultPrevented` on the
+  dragover it dispatches, which is the part that is really about acceptance.
+
+What still cannot be measured here: the drop itself. Chrome only synthesises a native drag under
+`Input.setInterceptDrags`, and an intercepted drag is handed to the debugger rather than to the
+page -- measured, with interception on and the drag forwarded back: **dragstart 1, dragover 1,
+drop 0**. The page was proven to *accept* the drag (`accepted: 1`, and the ghost appeared and
+followed), but the drop that would follow it in a real browser was never delivered. So the drop
+handler is covered by a synthetic drop, the acceptance by `defaultPrevented`, and **the join
+between them by hand**.
+
 ## Not covered here
 
 - **Anything about how it looks.** Every check above asserts a number; none of them can see

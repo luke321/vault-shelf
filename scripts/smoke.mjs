@@ -1481,12 +1481,15 @@ check("a shelf is deleted on the second press, made at the end the button is at,
     var last = document.querySelector('[data-shelf="foot-shelf"]');
     var dt = new DataTransfer();
     grip.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
-    var carrying = section.getAttribute("data-carrying");
     var payload = dt.getData("text/plain");
     var box = last.getBoundingClientRect();
     var at = { bubbles: true, cancelable: true, dataTransfer: dt,
                clientX: box.left + 40, clientY: box.top + box.height - 6 };
     last.dispatchEvent(new DragEvent("dragover", at));
+    /* github#0 -- read AFTER a dragover: the shelf leaves the room on the tick after dragstart
+     * (hiding it inside dragstart cancels the drag), so the first dragover is the first moment
+     * the lift is certain to have happened. */
+    var carrying = section.getAttribute("data-carrying");
     var mark = last.getAttribute("data-shelfdrop");
     last.dispatchEvent(new DragEvent("drop", at));
     grip.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
@@ -1631,15 +1634,21 @@ check("the room parts where a thing will land, the twelve are offered, and a she
     var S = window.__sp;
     S.grip.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: S.dt }));
     var b = S.section.getBoundingClientRect();
-    S.section.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true,
-      dataTransfer: S.dt, clientX: b.left + 40, clientY: b.top + 6 }));
+    var over = new DragEvent("dragover", { bubbles: true, cancelable: true,
+      dataTransfer: S.dt, clientX: b.left + 40, clientY: b.top + 6 });
+    S.section.dispatchEvent(over);
+    /* github#0 -- A DRAGOVER NOBODY ACCEPTS MEANS NO DROP AT ALL: the browser only offers a
+     * drop where something called preventDefault. A synthetic drop lands either way, which is
+     * how a shelf that could never be dropped anywhere still passed every check. */
+    S.accepted = over.defaultPrevented;
   })(); void 0`);
   await sleep(320);
   const shelfParted = await p.j(`(function(){
     var S = window.__sp;
     var ghost = document.querySelector("#vs-shelves .vs-shelfghost");
     var carried = document.querySelector("#vs-shelves .vs-shelf[data-carrying]");
-    return { ghost: !!ghost,
+    return { accepted: S.accepted === true,
+             ghost: !!ghost,
              ghostHeight: ghost ? Math.round(ghost.getBoundingClientRect().height) : 0,
              ghostName: ghost ? ghost.textContent : "",
              above: ghost && S.section
@@ -1813,7 +1822,8 @@ check("the room parts where a thing will land, the twelve are offered, and a she
 
   const ok = parted.margin >= parted.carried && parted.side === "before" &&
              parted.barWidth === 3 && parted.inTheGap && settled === resting &&
-             shelfParted.ghost && shelfParted.ghostHeight > 80 && shelfParted.hidden &&
+             shelfParted.accepted && shelfParted.ghost && shelfParted.ghostHeight > 80 &&
+             shelfParted.hidden &&
              shelfParted.above &&
              shelfSettled.ghosts === 0 && shelfSettled.carrying === 0 &&
              shelfResting.onScreen && shelfResting.grip &&
@@ -1834,7 +1844,8 @@ check("the room parts where a thing will land, the twelve are offered, and a she
     detail: `a book's neighbour parts ${resting} -> ${parted.margin}px for a ${parted.carried}px book, ` +
             `with the ${parted.barWidth}px ` +
             `bar standing in the gap (${parted.inTheGap}), and settles back to ${settled}px; a shelf ` +
-            `leaves the room while carried (${shelfParted.hidden}) and a ${shelfParted.ghostHeight}px ghost ` +
+            `leaves the room while carried (${shelfParted.hidden}), the drag is accepted ` +
+            `(${shelfParted.accepted}) and a ${shelfParted.ghostHeight}px ghost ` +
             `named "${shelfParted.ghostName}" stands where it would land (${shelfParted.above}); ` +
             `(on screen: ${shelfResting.onScreen}, grip: ${shelfResting.grip}) and ` +
             `Nothing left behind: ${shelfSettled.ghosts} ghosts, ${shelfSettled.carrying} carried. ` +
