@@ -1,5 +1,64 @@
 # Changelog detail
 
+## 2026-09-11 — The suite takes its own lock, and stops deleting other worktrees' fixtures
+
+> github#8: "workers are not honoring our locks I think"
+
+Two faults with one symptom — parallel worktrees corrupting each other's measurements, and the
+failures looking like code bugs.
+
+**The mutex was never in the suite.** `scripts/lock.mjs` has existed since `design/0006` and two
+documents told a person to wrap a run in it, but `grep -n lock scripts/smoke.mjs` matched one
+unrelated comment line. The command the iteration loop is made of — `--only "<substring>"` — is
+the one nobody wraps. Six worktrees were live when this was filed.
+
+`smoke.mjs` acquires `suite` itself now, after the `--only` spelling is checked and before the
+store is touched or any Chrome starts, and releases on exit, on a throw and on a signal. Driven,
+not reasoned about:
+
+| run | result |
+|---|---|
+| `--only` while `vault-graph-86` held the lock, `--lock-timeout-ms 15000` | `WAITING ... held by vault-graph-86 for 13s`, `BUSY ... gave up after 15s`, exit 1, **no Chrome started** |
+| the same run, lock free | waited 54 s for the sister repo's suite, then `ACQUIRED`, ran, `RELEASED` |
+| a throw after acquiring (`--chrome C:/nope/chrome.exe`) | `ACQUIRED` → `RELEASED`, exit 1 |
+| `--no-lock` while `test-holder` held it | ran 1/1 × 3 shapes; `test-holder`'s lock still held afterwards |
+| `--only nothing-matches-this` | refused before the lock |
+
+The two callers that legitimately hold the lock already — the pre-push hook and `release.ps1` —
+pass `--no-lock`. Without that they would have waited for a lock their own parent held until the
+timeout ran out, so the refusal text names that case explicitly.
+
+**The store deleted the vault other runs were reading.** `storeRoot` is `git rev-parse
+--git-common-dir`, so all six worktrees share `C:\git-personal\vault-shelf\.fixtures`, and on a
+miss `gen()` removed every other `<name>-*` directory — including one another worktree's Chrome
+had open. The digest is sha256 over the three generator sources, so github#7, which is editing a
+generator, produced a new digest on every save and wiped the store for the other five on every
+run; their next runs regenerated and wiped it again.
+
+Nothing prunes by name now. Measured by seeding the shared store and forcing a miss (run twice,
+once against each version of the collection rule):
+
+| seeded | wanted | got |
+|---|---|---|
+| `demo-vault-deadbee1`, stamp dated today, with a marker file | survives | survived, marker intact |
+| `demo-vault-deadbee2`, stamp dated 30 days ago | collected | collected |
+| the real `demo-vault-5bd2a221`, stamp backdated 30 days, marker added | rebuilt | stamp day `2026-09-11`, marker gone |
+
+The third row is the trap: the first draft skipped the same-digest directory in the prune, which
+also made the **weekly refresh** unable to replace it — a fixture would have gone stale for ever
+while reporting itself fresh. Publishing now separates a fresh same-digest directory (another run
+published first: keep theirs, drop ours) from a stale one (rename aside, replace, delete), and
+never renames onto an existing path, which on Windows throws rather than replacing.
+
+### Gates
+
+| | Before | After |
+|---|---|---|
+| `grep -n lock scripts/smoke.mjs` | 1 unrelated comment | the suite takes and releases it |
+| `check-comments` baseline | 1096 | 1096 (new comments are bare pointers) |
+| `npm run lint` | 0 errors, 0 warnings | 0 errors, 0 warnings |
+| `smoke.mjs --only` one check, three shapes | 1/1 × 3 | 1/1 × 3 |
+
 ## 2026-09-11 — The docs site wears the product's dark look, and it is Vault Graph's sheet
 
 > github#1: "a theme close to vault-shelf's own dark look ... not a generic off-the-shelf

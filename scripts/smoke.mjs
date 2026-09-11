@@ -2,7 +2,7 @@ import { attach, json } from "./cdp.mjs";
 import { leftmostScreen, leftWindowPos } from "./screen.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync,
-         renameSync, mkdirSync } from "node:fs";
+         renameSync, mkdirSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { createServer } from "node:net";
@@ -20,6 +20,72 @@ const argAll = (n) => {
   });
   return out;
 };
+/* github#8, decisions/0011 */
+const NO_LOCK = argv.includes("--no-lock");
+const LOCK_TIMEOUT_MS = Number(arg("lock-timeout-ms", "1800000")) || 1800000;
+const LOCK_OWNER = (() => {
+  const b = spawnSync("git", ["-C", ROOT, "rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" });
+  const where = b.status === 0 && b.stdout.trim() ? b.stdout.trim() : "?";
+  return `smoke.mjs ${where} pid ${process.pid}`;
+})();
+let lockHeld = false;
+
+/* github#8, decisions/0011 */
+const liveBrowsers = new Set();
+
+function killLiveBrowsers() {
+  for (const child of liveBrowsers) {
+    try {
+      if (process.platform === "win32" && child.pid) {
+        spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+      } else {
+        child.kill("SIGKILL");
+      }
+    } catch { void 0; }
+  }
+  liveBrowsers.clear();
+}
+
+/* github#8, decisions/0011 */
+function takeLock() {
+  if (NO_LOCK) {
+    console.log("--no-lock: the caller is holding the suite lock, not this run");
+    return;
+  }
+  const r = spawnSync(process.execPath,
+                      [join(HERE, "lock.mjs"), "acquire", "suite", "--owner", LOCK_OWNER,
+                       "--timeout-ms", String(LOCK_TIMEOUT_MS)],
+                      { stdio: "inherit" });
+  if (r.status !== 0) {
+    console.error("\nsmoke: could not take the suite lock -- another suite is running on this " +
+                  "machine.\nSee who holds it with: node scripts/lock.mjs status\n\n" +
+                  "If YOU are holding it -- you wrapped this run in lock.mjs yourself, the way " +
+                  "the\ndocs used to tell you to -- then it is waiting for its own parent. Drop " +
+                  "the wrapper,\nor pass --no-lock.");
+    process.exit(1);
+  }
+  lockHeld = true;
+}
+
+/* github#8, decisions/0011 */
+function dropLock() {
+  if (!lockHeld) return;
+  lockHeld = false;
+  spawnSync(process.execPath,
+            [join(HERE, "lock.mjs"), "release", "suite", "--owner", LOCK_OWNER],
+            { stdio: "inherit" });
+}
+
+process.on("exit", dropLock);
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {
+  process.on(sig, () => {
+    console.log(`\nsmoke: ${sig} -- taking the browsers down and releasing the lock`);
+    killLiveBrowsers();
+    dropLock();
+    process.exit(1);
+  });
+}
+
 const PINNED_PORT = arg("port", "") ? Number(arg("port", "")) : 0;
 /* Kept as the flag that says "leave the window where I can see it"; the position is now the
  * left screen either way (design/0006), so this only reads as documentation of intent. */
@@ -2465,21 +2531,25 @@ function resolveVaults() {
 
   const todayDay = () => new Date().toISOString().slice(0, 10);
   const ageDays = (day) => Math.floor((Date.parse(todayDay()) - Date.parse(day)) / 86400000);
+  // github#8
+  const ABANDONED_BUILD_MS = 60 * 60 * 1000;
+  const SCRATCH = [".building-", ".retired-"];
+  const ageMs = (p) => { try { return Date.now() - statSync(p).mtimeMs; } catch { return 0; } };
+
+  /* github#8, decisions/0011 */
+  const isFresh = (d, digest, pinned) => {
+    try {
+      const st = JSON.parse(readFileSync(join(d, ".stamp.json"), "utf8"));
+      return st.digest === digest &&
+             (pinned || (typeof st.day === "string" && ageDays(st.day) <= FIXTURE_MAX_AGE_DAYS));
+    } catch { return false; }
+  };
 
   const gen = (script, args, name, label) => {
     const digest = digestOf(args);
     const dir = join(storeRoot, `${name}-${digest}`);
-    const stampPath = join(dir, ".stamp.json");
-    let fresh = false;
-    if (existsSync(stampPath)) {
-      try {
-        const st = JSON.parse(readFileSync(stampPath, "utf8"));
-        const pinned = args.indexOf("--end") >= 0;
-        fresh = st.digest === digest &&
-                (pinned || (typeof st.day === "string" && ageDays(st.day) <= FIXTURE_MAX_AGE_DAYS));
-      } catch { fresh = false; }
-    }
-    if (!fresh) {
+    const pinned = args.indexOf("--end") >= 0;
+    if (!isFresh(dir, digest, pinned)) {
       console.log(`generating ${label} ...`);
       const building = join(storeRoot, `.building-${name}-${process.pid}`);
       rmSync(building, { recursive: true, force: true });
@@ -2493,13 +2563,39 @@ function resolveVaults() {
       }
       writeFileSync(join(building, ".stamp.json"),
                     JSON.stringify({ digest, day: todayDay(), script, args }, null, 2) + "\n");
+      /* github#8, decisions/0011 */
       for (const d of readdirSync(storeRoot)) {
-        if (d.startsWith(`${name}-`) ||
-            (d.startsWith(`.building-${name}-`) && d !== `.building-${name}-${process.pid}`)) {
-          rmSync(join(storeRoot, d), { recursive: true, force: true });
+        const full = join(storeRoot, d);
+        if (SCRATCH.some((pre) => d.startsWith(pre))) {
+          if (d.endsWith(`-${name}-${process.pid}`)) continue;
+          if (ageMs(full) > ABANDONED_BUILD_MS) rmSync(full, { recursive: true, force: true });
+          continue;
+        }
+        if (!d.startsWith(`${name}-`) || d === `${name}-${digest}`) continue;
+        // github#8, decisions/0011
+        let sib = null;
+        try { sib = JSON.parse(readFileSync(join(full, ".stamp.json"), "utf8")); } catch { sib = null; }
+        const sibPinned = !!(sib && Array.isArray(sib.args) && sib.args.indexOf("--end") >= 0);
+        if (sib && typeof sib.day === "string" && !sibPinned &&
+            ageDays(sib.day) > FIXTURE_MAX_AGE_DAYS) {
+          rmSync(full, { recursive: true, force: true });
         }
       }
-      renameSync(building, dir);
+      /* github#8, decisions/0011 */
+      if (existsSync(dir) && isFresh(dir, digest, pinned)) {
+        console.log(`  another run published ${name}-${digest} first -- using theirs`);
+        rmSync(building, { recursive: true, force: true });
+      } else {
+        if (existsSync(dir)) {
+          const away = join(storeRoot, `.retired-${name}-${process.pid}`);
+          rmSync(away, { recursive: true, force: true });
+          renameSync(dir, away);
+          renameSync(building, dir);
+          rmSync(away, { recursive: true, force: true });
+        } else {
+          renameSync(building, dir);
+        }
+      }
     }
     if (existsSync(join(ROOT, name))) {
       console.log(`  note: ${name}/ exists in this checkout and is IGNORED -- the suite uses ` +
@@ -2590,6 +2686,8 @@ async function runOne(vault, work) {
     ...(slot ? [`--window-position=${slot.x},${slot.y}`] : [leftWindowPos()]),
     slot ? `--window-size=${slot.w},${slot.h}` : "--window-size=1600,1000", `--app=${url}`
   ], { stdio: ["ignore", "ignore", "pipe"], detached: false });
+  // github#8
+  liveBrowsers.add(chrome);
 
   const chromeSaid = [];
   if (chrome.stderr) {
@@ -2705,6 +2803,8 @@ async function runOne(vault, work) {
     try { if (page) await page.send("Browser.close"); } catch { }
     if (page) page.close();
     await killBrowser(chrome, PORT);
+    // github#8
+    liveBrowsers.delete(chrome);
     try { rmSync(profile, { recursive: true, force: true }); } catch {}
     if (scratch) { try { rmSync(dirname(scratch), { recursive: true, force: true }); } catch {} }
   }
@@ -2839,6 +2939,8 @@ async function main() {
                 picked.map((c) => c.name).join("; "));
     console.log("");
   }
+  // github#8, decisions/0011
+  takeLock();
   const vaults = resolveVaults();
   console.log(`checking ${vaults.length} vault(s): ${vaults.map((v) => v.label).join(", ")}`);
 

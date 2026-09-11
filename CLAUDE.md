@@ -74,14 +74,23 @@ of measuring it.** Build the page, drive it, read the numbers.
   claimed palette parity that nobody had ever verified. **Look at it.**
   `node scripts/smoke.mjs --only "<one check>" --shot out.png` writes the library and, beside
   it, `out-reader.png` of an open book — from the same Chrome the checks drive.
-- **Two things may not run twice at once, and `scripts/lock.mjs` is how you know.** A **screen
-  recording** grabs a display region, so a second take captures the first one's window; the
-  **full suite** drives Chrome over CDP, so two runs fight for ports and each blames the code.
-  Take the lock, do the thing, release it — always release, even on failure:
+- **Two things may not run twice at once, and `scripts/lock.mjs` is the mutex.** A **screen
+  recording** grabs a display region, so a second take captures the first one's window; **any
+  suite run** drives Chrome over CDP, so two runs fight for ports and a contended GPU, and each
+  blames the code.
+
+  **`smoke.mjs` takes the `suite` lock itself now** (`github#8`), at startup, and releases it on
+  exit and on a signal — so *every* run is covered, including the `--only` iteration loop, which
+  is the one nobody ever wrapped. **Do not wrap a suite run in `lock.mjs`**: it would wait for a
+  lock its own parent holds. A caller that legitimately holds the lock already — the pre-push
+  hook, `release.ps1` — passes `--no-lock`, and nothing else should. A blocked run names who is
+  holding it and gives up rather than starting.
+
+  A **screen recording** is still wrapped by hand, and it is the only thing that is:
 
   ```bash
-  node scripts/lock.mjs acquire suite --owner "#12 plaques"   # blocks; exit 1 = give up
-  node scripts/lock.mjs release suite --owner "#12 plaques"
+  node scripts/lock.mjs acquire record --owner "#12 plaques"   # blocks; exit 1 = give up
+  node scripts/lock.mjs release record --owner "#12 plaques"
   node scripts/lock.mjs status
   ```
 
@@ -91,6 +100,13 @@ of measuring it.** Build the page, drive it, read the numbers.
   other could not see and the two ran together anyway. A machine has one Chrome and one
   screen no matter which repository the suite belongs to.
   `--shot` is part of a suite run, so it is inside the lock like everything else.
+- **The fixture store is shared and content-addressed, and nothing prunes a sibling.** Every
+  worktree resolves the same `.fixtures` through git's common dir, so a fixture directory is
+  named after the digest of the generators that built it, and two digests coexist. A run
+  collects only what is provably finished with: a fixture older than the refresh window, and an
+  abandoned build directory. It used to delete every other digest of a fixture on a miss, which
+  pulled the vault out from under five other running suites every time somebody edited a
+  generator. `github#8`.
 - `git push` and merging into `develop` are separate asks, every time. `main` only ever
   receives `develop`.
 - **Only the orchestrator session pushes to `develop` or cuts a release.** A dispatched

@@ -16,13 +16,20 @@ Five things are worth knowing before you touch anything, all expanded in `CLAUDE
   to a class selector so the reader painted over the library while every check passed.
   `node scripts/smoke.mjs --only "<one check>" --shot out.png` takes the picture.
 - **Two things may not run twice at once.** A **screen recording** grabs a display region, so
-  a second take captures the first one's window; the **full suite** drives Chrome over CDP, so
-  two runs fight for ports and each blames the code. Both are guarded by one machine-wide
-  mutex that every worktree shares:
+  a second take captures the first one's window; **any suite run** drives Chrome over CDP, so
+  two runs fight for ports and a contended GPU, and each blames the code. Both are guarded by
+  one machine-wide mutex that every worktree — and every sister project — shares.
+
+  **You do not have to remember it for a suite run.** `smoke.mjs` takes the `suite` lock itself
+  and releases it on exit and on a signal, so the `--only` iteration loop is covered too. Do
+  **not** wrap a run in `lock.mjs`: it would wait for its own parent. Only a caller that already
+  holds the lock passes `--no-lock` (the pre-push hook, `release.ps1`).
+
+  A screen recording is still taken by hand:
 
   ```bash
-  node scripts/lock.mjs acquire suite --owner "<who you are>"   # exit 1 = give up
-  node scripts/lock.mjs release suite --owner "<who you are>"   # always, even on failure
+  node scripts/lock.mjs acquire record --owner "<who you are>"   # exit 1 = give up
+  node scripts/lock.mjs release record --owner "<who you are>"   # always, even on failure
   node scripts/lock.mjs status
   ```
 

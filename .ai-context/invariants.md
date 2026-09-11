@@ -641,6 +641,43 @@ and both land inside the page. The vault's own `appearance.json` does not do it 
 written, it is copied, and Obsidian starts dark anyway. Measured under cyber with a light host:
 body `theme-light`, the app's ground `rgb(255,255,255)`, the page reading `data-theme="light"`
 under `data-look="cyber"`, note ink `rgb(232,245,255)`.
+## No two suite runs, and no fixture pulled out from under one
+
+Not a check in `smoke.mjs` but a property of the harness, held by driving the runs themselves.
+`decisions/0011`, `design/0006`.
+
+**The suite takes the `suite` lock itself**, at startup, and releases it on every way out. Until
+2026-09-11 it took no lock at all — `grep -n lock scripts/smoke.mjs` matched one unrelated
+comment — and the mutex was caller discipline the `--only` iteration loop never followed.
+Measured by driving it:
+
+| run | what happened |
+|---|---|
+| `--only ...` while the sister repo's suite held the lock | `WAITING for suite -- held by vault-graph-86 for 13s`, then `BUSY ... gave up after 15s`, exit 1, no Chrome started |
+| `--only ...` with the lock free | `ACQUIRED`, ran, `RELEASED`; `lock.mjs status` clean afterwards |
+| a run that throws after acquiring (`--chrome C:/nope/chrome.exe`) | `ACQUIRED` then `RELEASED`, exit 1 — the release is an exit handler, not a happy path |
+| `--no-lock` while another owner held the lock | ran to completion, and the holder's lock was **still held** afterwards: a `--no-lock` run never releases somebody else's |
+| `--only` misspelled | refused before the lock is taken, so a typo never waits out another run |
+
+The owner string carries this process's pid and `lock.mjs` refuses a release by anyone else, so
+a late release cannot take a lock somebody has since acquired.
+
+**A fixture directory is never removed because a sibling appeared.** The store is shared by
+every worktree through git's common dir, and a fixture is named after the digest of the
+generators that built it. Measured by seeding the store and forcing a miss, twice:
+
+| seeded | after a run that regenerated `demo-vault` |
+|---|---|
+| a **fresh** sibling digest with a marker file in it | still there, marker intact — under the old prune it was deleted |
+| an **aged** sibling digest (30 days) | collected |
+| the **real** fixture, same digest, stamp backdated 30 days, marker file added | rebuilt: stamp day back to today, marker gone — the weekly refresh still refreshes |
+
+That third row is the one that nearly broke: skipping the same-digest directory in the prune
+made a miss unable to replace it, so a week-old fixture would have been used for ever. Publishing
+now tells a **fresh** same-digest directory (another run got there first — keep theirs) from a
+**stale** one (rename aside, replace, delete), and never renames onto an existing directory,
+which on Windows throws rather than replacing.
+
 ## Not covered here
 
 - **Anything about how it looks.** Every check above asserts a number; none of them can see
