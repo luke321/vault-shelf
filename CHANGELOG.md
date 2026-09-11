@@ -143,8 +143,8 @@ hero by act rather than by second.
 - Nothing shipped makes a network request. Not one, and a gate refuses a push that adds one.
 - Settings migrate by schema (10 at this release): an older file comes up with decade and
   letter plaques on, the file-stamp fallback on, Weeks hidden, and a look the selector offers.
-- **The tooling.** 87 invariant checks per vault shape, over three generated shapes — a demo
-  vault that reads like somebody's, a sparse and lopsided one, and a 10,000-note library — 261
+- **The tooling.** 88 invariant checks per vault shape, over three generated shapes — a demo
+  vault that reads like somebody's, a sparse and lopsided one, and a 10,000-note library — 264
   in a run, driven in a real Chrome over CDP; a golden per shape for the packing; a
   data-escape gate whose vault's metadata is markup; a teardown check over twenty
   mount/unmount cycles; a refresh check that changes the vault under an open book; a comment

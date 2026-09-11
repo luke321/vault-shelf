@@ -32,7 +32,7 @@ the `=== hero ===` warning fires; it is carried knowingly unless #21 lands first
 
 The first release: everything in the section is new, and the numbers behind it are the
 baselines in `changelog-detail.md` ("0.1.0 — the first measurements", 2026-09-09, and every
-dated entry since). The suite holds 87 checks per shape, 261 a run, on `develop`'s tree
+dated entry since). The suite holds 88 checks per shape, 264 a run, on `develop`'s tree
 `d0ee696` and on this branch.
 
 ## What was NOT verified

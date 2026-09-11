@@ -510,6 +510,14 @@ and a chevron drawn as inline SVG, so one on the paper sheet reads as paper, one
 as the rail's field, and one under the modern look as your theme's. The check puts Obsidian's
 actual `select` rule into the page and measures.
 
+**A date shelf dyes by period rather than by folder.** A folder's dye says what *kind* of book
+this is, and on a shelf of years every book is the same kind — so a run of years came out one
+colour. Years dye by decade, Months and Weeks by year, and the slot is the period itself modulo
+twelve, so it belongs to the calendar rather than to the vault and a rebuild cannot recolour
+anything. Manage offers *Colour by folder / year / decade* on those rows; Encyclopedia, People
+and Tags keep their folder's dye. A colour you gave a book by hand, and a shelf that varies its
+books, both still win.
+
 The dyes are the ones a binder had, in slot order: oxblood, tan, dark green, ochre, forest,
 plum, navy, vermilion, teal, aubergine, chestnut and near-black calf. Nothing is fetched to
 draw any of it — the leather grain, the wood grain and the marbled endpaper are all CSS
