@@ -672,6 +672,126 @@ the user agent's `[hidden] { display: none }` at 0-1-0, so all three painted ove
 at all times while every attribute-reading check passed. One screenshot showed two dialogs
 stacked over the shelves. `changelog-detail.md` has the whole story.
 
+## Vault data cannot break out of the data block
+
+`scripts/check-data-escape.mjs` (`github#5`, unskippable in the pre-push hook) builds a vault
+whose metadata **is** markup and reads the built page back. One note carries a tag that closes a
+script and opens another, a person who is an `<img src=x onerror=…>`, a property that begins
+`"]]>`, a body holding a lone U+2028, and a title carrying `${…}`, `]]` and an ampersand;
+Windows forbids `<` and `>` in a filename, so the note whose **filename** is markup is written
+only where the filesystem allows it.
+
+It found a real hole on the day it was written: `window.VAULT_DATA=${JSON.stringify(data)}`
+left **9 raw `<` and 10 raw `>`** in the data of a two-note vault, so a note called
+`</script>` closed the block and everything after it was markup — in a page built from
+**anybody's** vault. The exporter writes through `jsonForScript()` now: `<`, `>` and the two
+line separators become their `\u` escapes, which `JSON.parse` reads straight back, so every
+string is still byte for byte what the note said.
+
+Measured on the hostile vault: **1,173 characters** of `VAULT_DATA`, **0** raw `<`, **0** raw
+`>`, **0** raw U+2028/U+2029, **4** script tags in the file, and every payload back byte for
+byte. `--browser` drives the built page too: **0 console errors**, **4** script elements in the
+DOM (the same four), **0** `<img>`, **0** `<svg>`, **0 of 5** markers executed, and
+`__vs.data()` identical to the block the exporter wrote.
+
+The static half also refuses a bare `JSON.stringify(data)` in `src/build-shelf.mjs`, so the
+escaping cannot be quietly walked back.
+
+## Mounting and unmounting leaves nothing behind
+
+`scripts/teardown-check.mjs` (`github#5`, ported from `vault-graph#62`) mounts the page,
+destroys it the way the plugin's `onClose()` does — `handle.destroy()`, then the host removes
+the root — and mounts it again, **20 times**, counting after each cycle. A destroy is only
+honest if nothing survives it, and nothing here is measured by reasoning: the listeners come
+from devtools' own `getEventListeners`, the nodes and listener totals from
+`Memory.getDOMCounters`, the heap from `Runtime.getHeapUsage` after two forced collections.
+
+Each cycle first dispatches a `resize`, which schedules `watchRoom`'s **60ms** repack timer,
+and then destroys the page with that timer still pending — the check asserts a timer **was**
+pending, so it cannot pass by not testing anything. After every destroy: **0** nodes left
+inside the root, **0** `.vault-shelf` nodes in the document, `window.__vs` **undefined**, and
+**0** live timers.
+
+Measured on the demo vault, 20 cycles, 198 spines drawn every time:
+
+| | load | cycle 1 | cycle 20 |
+|---|---|---|---|
+| DOM nodes | 4,618 | 3,370 | 3,370 |
+| JS listeners | 3,649 | 2,446 | 2,446 |
+| listeners on `document` | 3 | 3 | 3 |
+| listeners on `window` | 1 | 1 | 1 |
+| post-GC heap | 1.6 MB | 1.6 MB | 1.7 MB |
+| `.vault-shelf` roots | 1 | 1 | 1 |
+
+Nothing grows: nodes and listeners are **flat from the first cycle to the twentieth**, the
+three `document` listeners (two `keydown`, one `mousedown`) and the one `window` listener
+(`resize`) are exactly what the page registers once, and the heap moves **0.005 MB a cycle**
+against a bound of 1.5. The first row is the page as the browser parsed it; the steady state is
+what a destroy and a remount actually cost.
+
+## The library follows the vault
+
+`scripts/refresh-check.mjs` (`github#5`, ported from `vault-graph#6`). Two halves, because the
+two hosts fail differently.
+
+**Headless**, and unskippable in the hook (`--wiring-only`): it builds the plugin bundle, loads
+it with `obsidian` stubbed — a fake app whose metadata cache and vault are event emitters — and
+drives the real scheduler. Until `github#5` the plugin rebuilt **only** when somebody ran its
+Rebuild command; it now listens for the cache's `changed` and `deleted` and the vault's
+`rename`, one handler each. Measured: **14 changes fired inside 50ms → 0 rebuilds during the
+burst, exactly 1 after it**, a later change → **1** more, and a change caught mid-flight by
+unload → **0**. The coalescing window is `REBUILD_MS` = **400ms**: a sync or a bulk edit fires
+`changed` per file, and every rebuild walks every note and repacks every shelf.
+
+**In a browser**, against the standalone: a book is opened, a note is pushed into the data and
+the handle is refreshed. The library counts **one** more note, the open book is **one** thicker
+and holds it, the shelf's note count moves by **exactly one**, the open book's contents gain
+**one** entry naming it, and `__vs.reader()` still names the same book at the same note.
+Taking the note away again puts every number back. **0** console errors throughout.
+
+It caught a second real bug the first time it ran. `refresh()` restored the reader by **row
+number**: `reader.index` was clamped to the rebuilt book's length and the note at that index
+was drawn. Add a note to the book you are reading and the note that sorts into your position
+takes your place — measured, on the Years 2011 book of the demo vault: 2 notes became 3, and
+the spread moved from the note being read to `Refresh Probe`. The place is a note now
+(`reader.noteId`), and the row number is only the fallback for a note the rebuild removed.
+
+Measured on the demo vault: **396 → 397 notes**, the open book **2 → 3**, its shelf's count
+**396 → 397**, its contents **2 → 3 entries** with exactly **1** naming the new note, and the
+reader still on the note it was on. Taking the note away again: **396**, **2**, **2**, same
+note. **0** console errors across the whole sequence.
+
+## The packing has a golden
+
+`"the shelves are packed the way the golden snapshot says"` diffs the geometry of every shelf
+against `scripts/layout-snapshots/<fixture>.json`, at a viewport pinned to **1180×900** so the
+answer cannot depend on which window the suite happened to get. Per shelf: how many rows, how
+many books, every plaque's text and box, and the first and last spine's address and box, each
+measured relative to its own shelf so where the library is scrolled cannot move a number. A
+shelf is scrolled into view before it is read, because `content-visibility: auto` skips one
+that is off screen and a skipped shelf measures nothing at all.
+
+Exact for rows, books, counts and names; **2px** of tolerance on a box, which is where text
+metrics live (a plaque's drawn width) while the packing above it is arithmetic
+(`plaqueWidth()`, `thicknessOf()`). `node scripts/update-layout-snapshots.mjs` rewrites the
+three goldens and `--check` diffs them without the suite. What is in them:
+
+Seeded 2026-09-11 at 1180×900, where the room measures **1125px** in all three:
+
+| shelf | demo | sparse | library |
+|---|---|---|---|
+| Encyclopedia | 1 row, 20 books, 0 plaques | 1 row, 23 books | 2 rows, 27 books |
+| Years | 1 row, 17 books, 2 plaques | 1 row, 6 books, 1 plaque | 1 row, 12 books, 2 plaques |
+| Months | 4 rows, 135 books, 19 plaques | 2 rows, 30 books, 6 plaques | 5 rows, 122 books, 14 plaques |
+| People | 1 row, 10 books, 9 plaques | 1 row, 8 books, 7 plaques | 1 row, 11 books, 10 plaques |
+| Tags | 1 row, 16 books, 10 plaques | 1 row, 10 books, 5 plaques | 1 row, 14 books, 7 plaques |
+| **total** | **8 rows, 198 spines, 40 plaques** | **6 rows, 77 spines, 19 plaques** | **10 rows, 186 spines, 33 plaques** |
+
+Five shelves, not six: Weeks is hidden by default from schema 4 on. A decade run that wraps is
+named on both its rows, which is why Months carries more plaques than it has years — the
+golden holds every one of them by text and by box, so a plate that drifts off its run is a
+diff. The Encyclopedia has no plaques at all: a letter volume names itself.
+
 ---
 
 ## The plugin behaves inside a real Obsidian

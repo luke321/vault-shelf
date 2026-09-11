@@ -236,6 +236,13 @@ const part = (f) => readFileSync(join(HERE, f), "utf8");
 const LOOK_SHEETS = ["leather.css", "cyber.css"];
 const asScript = (js) => js.replace(/^export \{[^}]*\};?\s*$/m, "").trimEnd();
 
+/* github#5 -- JSON is not script-safe: </script> closes the block */
+const SEPARATORS = new RegExp(String.fromCharCode(0x2028) + "|" + String.fromCharCode(0x2029), "g");
+const jsonForScript = (value) => JSON.stringify(value)
+  .replace(/</g, "\\u003c")
+  .replace(/>/g, "\\u003e")
+  .replace(SEPARATORS, (c) => (c === String.fromCharCode(0x2028) ? "\\u2028" : "\\u2029"));
+
 const html = part("shell.html")
   .replace("<!--CSS-->", () => part("page.css").trimEnd())
   /* design/0016 -- the opt-in look travels with the page, off unless the setting says so.
@@ -245,7 +252,7 @@ const html = part("shell.html")
   .replace("<!--SCRIPT-->", () => asScript(part("page.js")))
   .replace("<!--LIBS-->", () => `<script>\n${core.trimEnd()}\n</script>`)
   .replace("<!--ASSETS-->", () => "")
-  .replace("<!--DATA-->", () => `<script>window.VAULT_DATA=${JSON.stringify(data)};</script>`);
+  .replace("<!--DATA-->", () => `<script>window.VAULT_DATA=${jsonForScript(data)};</script>`);
 
 writeFileSync(OUT, html, "utf8");
 

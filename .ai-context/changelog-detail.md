@@ -1,5 +1,83 @@
 # Changelog detail
 
+## 2026-09-11 — Four gates Vault Graph had and this repo did not, and the two bugs they found
+
+> github#5: "Gates Vault Graph has and we do not" — `check-data-escape`, `teardown-check`,
+> `refresh-check`, layout snapshots.
+
+**A note's own words were markup.** The exporter wrote
+`window.VAULT_DATA=${JSON.stringify(data)}` into a `<script>` block, and JSON is not
+script-safe: `JSON.stringify` escapes quotes and backslashes and passes `<`, `>` and the two
+Unicode line separators straight through. A note titled `</script>` therefore closed the data
+block, and everything the vault said after it was parsed as markup — in a page built from
+anybody's vault and shipped as one HTML file you can mail to somebody. Measured on a two-note
+hostile vault: **9 raw `<` and 10 raw `>`** in the data. `jsonForScript()` escapes all four to
+their `\u` form, which `JSON.parse` reads straight back, so the data is identical and the block
+cannot be closed. After: **0** of each, **1,173 characters** of `VAULT_DATA`, **4** script tags
+in the file and **4** script elements in the DOM, **0** `<img>`, **0** `<svg>`, **0 of 5**
+payload markers executed, **0** console errors, and `__vs.data()` in the live page byte for
+byte identical to the block the exporter wrote.
+
+The hostile vault is built by the check rather than by a fixture generator: a tag that closes a
+script, a person who is an `<img src=x onerror=…>`, a property beginning `"]]>`, a body with a
+lone U+2028, a title carrying `${…}`. **Windows forbids `<` and `>` in a filename**, so the
+note whose filename is markup is written only where the filesystem allows it and the
+frontmatter payloads carry the rest. The static half is in the pre-push gate list and also
+refuses a bare `JSON.stringify(data)`, so the escaping cannot be quietly walked back.
+
+**The library did not follow the vault.** `plugin/main.js` rebuilt only when somebody ran its
+Rebuild command: a note written, renamed or deleted while the library was open left the shelves
+as they were. It listens now for the metadata cache's `changed` and `deleted` and the vault's
+`rename`, all three through one timer — `REBUILD_MS` **400ms** — because a sync or a bulk edit
+fires `changed` per file and every rebuild walks every note and repacks every shelf.
+
+`refresh-check.mjs` proves that without an Obsidian: it builds the plugin bundle, loads it with
+`obsidian` stubbed — a fake app whose metadata cache and vault are event emitters — and drives
+the real scheduler. **14 changes inside 50ms → 0 rebuilds during the burst and exactly 1 after
+it**; a later change → **1** more; a change caught mid-flight by `unload` → **0**.
+
+**And its browser half found the second bug.** `refresh()` restored the open book by **row
+number**: `reader.index` was clamped to the rebuilt book's length and whatever note now sat at
+that index was drawn. Add a note to the book you are reading and the note that sorts into your
+position takes your place. Measured on the Years 2011 book of the demo vault: 2 notes became 3
+and the spread moved off the note being read onto `Refresh Probe`. A reading place is a note
+now (`reader.noteId`), and the row number is only the fallback for a note the rebuild removed —
+which is the same rule the saved reading place already followed. After the fix: **396 → 397
+notes**, the open book **2 → 3**, its shelf **396 → 397**, its contents **2 → 3 entries** with
+exactly **1** naming the new note, the reader still on its own note, every number back where it
+started when the note is taken away again, and **0** console errors throughout.
+
+**Nothing is left behind.** `teardown-check.mjs` mounts, destroys the way the plugin's
+`onClose()` does and mounts again, **20 times**, counting from devtools rather than from
+argument: `getEventListeners` for what is on `document` and `window`, `Memory.getDOMCounters`
+for nodes and listeners, `Runtime.getHeapUsage` after two forced collections. Each cycle
+dispatches a `resize` first, so `watchRoom`'s **60ms** repack timer is pending when the destroy
+lands — and the check asserts it was, so it cannot pass by testing nothing. Measured on the
+demo vault, 198 spines every cycle: nodes **3,370 → 3,370**, JS listeners **2,446 → 2,446**,
+`document` **3**, `window` **1**, heap **1.6 → 1.7 MB** (0.005 MB a cycle against a bound of
+1.5), and after every destroy **0** nodes inside the root, **0** `.vault-shelf` nodes in the
+document, **0** live timers and no `window.__vs`. It found nothing, which is the result a
+teardown check wants and the reason to have written it before it was needed.
+
+**The packing is a diff now, not a feeling.** `scripts/layout-snapshots/<fixture>.json` holds,
+per shelf, how many rows and books, every plaque's text and box, and the first and last spine's
+address and box, measured at a viewport pinned to **1180×900** — the suite's own window is
+whatever a grid slot gave it, and geometry read at an accidental width is not comparable to
+anything. Every box is relative to its own shelf, and a shelf is scrolled into view before it
+is read, because `content-visibility: auto` skips one that is off screen and a skipped shelf
+measures nothing at all. Exact on rows, books, counts and names; **2px** of tolerance on a box,
+which is where text metrics live, while the packing above it is arithmetic. Seeded at a
+**1125px** room: demo **8 rows / 198 spines / 40 plaques**, sparse **6 / 77 / 19**, library
+**10 / 186 / 33**. `node scripts/update-layout-snapshots.mjs` rewrites all three, deliberately
+and with a reason in the commit.
+
+**Looked at, not only counted.** The suite ran **67/67 on all three shapes** with `--shot`, and
+both pictures were opened: the library in leather with its plaques under their runs and nothing
+running off the right edge, and a book open at a note with its contents, its ribbons and its
+index tabs. Two new gates joined the pre-push list — `check-data-escape` and
+`refresh-check --wiring-only`, both static, both unskippable; the three that drive a browser
+are suite-lock jobs, run by hand.
+
 ## 2026-09-11 — The suite takes its own lock, and stops deleting other worktrees' fixtures
 
 > github#8: "workers are not honoring our locks I think"

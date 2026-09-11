@@ -249,6 +249,45 @@ EOF
   exit 1
 fi
 
+# VAULT DATA ESCAPING NEXT, same bar again -- one build of a tiny hostile vault, no
+# Chrome, well under a second. The exporter writes every note's title, tags, people, folder and
+# body into a <script> block in the built page, and JSON is not script-safe: a note called
+# </script> closes it. That was true here until github#5. The check builds a vault whose
+# metadata is markup and reads the block back; the browser half (--browser) is a suite-lock
+# job and is not run here.
+echo "pre-push: checking vault data cannot break out of the data block..."
+if ! node "$root/scripts/check-data-escape.mjs" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: data escape check failed -- push blocked.
+
+A note's own words reached the built page as markup instead of as text. The exporter
+must write window.VAULT_DATA through jsonForScript() in src/build-shelf.mjs, which
+escapes <, > and the two line separators. .ai-context/invariants.md has the numbers.
+
+There is no skip flag for this check.
+EOF
+  exit 1
+fi
+
+# THE PLUGIN'S REFRESH WIRING NEXT -- the headless half only: it builds the plugin bundle,
+# loads it with `obsidian` stubbed and drives the real scheduler, so it costs an esbuild run
+# and about five seconds of timers, with no Obsidian and no Chrome. What it holds is that the
+# library still follows the vault, and still coalesces a burst into one rebuild. The browser
+# half is part of the suite-lock jobs and is not run here.
+echo "pre-push: checking the plugin still follows the vault..."
+if ! node "$root/scripts/refresh-check.mjs" --wiring-only </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: refresh wiring check failed -- push blocked.
+
+The plugin either stopped listening for metadata changes, stopped coalescing a burst
+into one rebuild, or left a rebuild scheduled after unload. github#5 and
+.ai-context/invariants.md, "The library follows the vault".
+EOF
+  exit 1
+fi
+
 # THE GENERATED NAVIGATION FILES NEXT, same bar -- a read of the tree, well under a second.
 # .ai-context/code-map.md and code-index.md are written from the source by
 # scripts/code-map.mjs (decisions/0007) and are only worth having while they agree with it; a

@@ -147,8 +147,15 @@ of measuring it.** Build the page, drive it, read the numbers.
   `SKIP_SMOKE=1` leaves no record of what was trusted, and a stamp cannot say "recently" — only
   which tree, measured against which fixtures, and when.
 - `npm run lint` holds every finding at zero, and typechecks `src/core` under `strict` first.
-  `check-pii`, `check-scope`, `check-network`, `check-comments` and the two determinism checks
-  gate every push and have no skip flag.
+  `check-pii`, `check-scope`, `check-network`, `check-comments`, `check-data-escape`,
+  `refresh-check --wiring-only` and the two determinism checks gate every push and have no
+  skip flag.
+- **Three gates drive a browser and are therefore suite-lock jobs**, run by hand rather than by
+  the hook: `check-data-escape --browser` (a vault whose metadata is markup), `teardown-check`
+  (twenty mount/unmount cycles, nothing left behind) and `refresh-check` (the library and an
+  open book follow a changed vault). The packing is a golden per fixture in
+  `scripts/layout-snapshots/`, diffed by the suite and rewritten, deliberately, by
+  `node scripts/update-layout-snapshots.mjs`.
 - Commit messages are sentences; `Closes #n` on its own line closes the issue when the work
   reaches `develop` — `close-issues.yml` does it, since GitHub itself only resolves a keyword on
   the default branch, which has to stay `main`.
@@ -162,7 +169,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 66 checks over three vault shapes |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), TBD checks over three vault shapes |
 | `scripts/release.ps1` | the local half of a release: the guards, the gates, the tag, the tag push. `-SelfTest` drives every refusal in a throwaway clone; `.ai-context/releasing.md` is the authority on the flow |
 | `scripts/suite-stamp.mjs` | which trees have passed the suite (`decisions/0010`), read by the pre-push hook and `release.ps1`. `--selftest` proves the hit and miss cases |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
