@@ -186,6 +186,7 @@ function storyboard(P) {
   const { go, j, caption, scrollTo, settleOn, click, shelfTop, once, pointer, rightClick,
           centreOf, lift, carry, drop } = P;
   let parted = "note";   // the search the parting act types, taken from the vault itself
+  let turnedAt = -1;     // github#36 -- which beat of the turn act has already turned
 
   /* design/0020 -- the dailies folder if there is one, else the biggest. */
   const dailiesFolder = () => j(`(function(){
@@ -572,6 +573,34 @@ function storyboard(P) {
         await caption(t, 0.1, 0.88,
           "Open it and <b>read</b>, from its oldest note.",
           "Contents on the left, the note on the right, an index down the edge.");
+      },
+    },
+    {
+      /* github#36, design/0023 -- the turn is under the book, so the camera looks there. */
+      name: "turn",
+      seconds: 7,
+      async at(t, first) {
+        await caption(t, 0.06, 0.9,
+          "Turning the page is <b>under the book</b>.",
+          "Previous and Next sit where your hands already are, the count says where you " +
+          "are, and the glyph on each is the arrow key that does the same thing.");
+        if (first) {
+          /* github#36 -- the act opens its own book, so --act turn stands alone */
+          if (await j(`document.getElementById("vs-reader").hidden`)) {
+            const book = await thickest("months");
+            await go(`__vs.openBook(${JSON.stringify(book)}, null); void 0`);
+          }
+          await pointer(await centreOf("#vs-nextnote"));
+          return;
+        }
+        /* github#36 -- five turns, spaced so the count stays readable */
+        const step = Math.floor(t * 5);
+        if (step === turnedAt) return;
+        turnedAt = step;
+        const next = await centreOf("#vs-nextnote");
+        await pointer(next, true);
+        await go(`(function(){ document.getElementById("vs-nextnote").click(); })(); void 0`);
+        await pointer(next, false);
       },
     },
     {
