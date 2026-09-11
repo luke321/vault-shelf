@@ -2088,7 +2088,15 @@ function mountVaultShelf(root, data, options) {
       var again = findBook(reader.book.id);
       if (again) {
         reader.book = again;
-        reader.index = Math.min(reader.index, Math.max(0, again.notes.length - 1));
+        /* github#5 -- THE PLACE IS A NOTE, NOT A ROW NUMBER. */
+        var at = -1;
+        if (reader.noteId) {
+          for (var ri = 0; ri < again.notes.length; ri++) {
+            if (again.notes[ri].id === reader.noteId) { at = ri; break; }
+          }
+        }
+        reader.index = at >= 0 ? at : Math.min(reader.index, Math.max(0, again.notes.length - 1));
+        if (at < 0 && again.notes.length) reader.noteId = again.notes[reader.index].id;
         renderReader();
       } else {
         closeReader();
