@@ -9,7 +9,7 @@ Run one: `node scripts/smoke.mjs --only "<substring>"`. Run all of them: the pre
 
 Measured 2026-09-11 on the three fixture vaults: demo 424 notes / 17 folders / 17 people /
 43 tags / 18 undated, sparse 756 notes / 6 folders, library 10,000 notes / 15 folders. The
-demo vault draws **239 spines** across the five visible default shelves and holds **467
+demo vault draws **238 spines** across the five visible default shelves and holds **465
 addresses** in all. `github#7` rebuilt the demo fixture to read like somebody's vault rather
 than like a generator; the numbers below moved with it, and `changelog-detail.md` says which.
 
@@ -207,7 +207,7 @@ puts the shelf back the way it found it, because the checks in a shard share one
 `manual` and asserts the sequence and the whole library's address list are unchanged, that
 every spine on that shelf became draggable and none on the automatic Tags shelf did, and that
 nothing has been written to `order` yet. Measured — demo / sparse / library:
-**18 / 8 / 11 books**, **467 / 194 / 709 addresses** unchanged, **18/18, 8/8, 11/11** spines
+**18 / 8 / 11 books**, **465 / 194 / 709 addresses** unchanged, **18/18, 8/8, 11/11** spines
 draggable, **0** elsewhere.
 
 `"Alt+Right moves a book one place, and it survives a rebuild and a reload"` focuses the first
@@ -222,7 +222,7 @@ most books, scrolls it into view, and dispatches a real `dragstart` / `dragover`
 a `DataTransfer`, dropping the first spine on the right half of the last one. It asserts the
 book landed at the end, the mark was drawn on the right side and is **3px** wide, the carried
 spine was flagged as lifted, the payload was the address, and no mark was left behind.
-Measured on Months: **131 books over 4 rows** (demo), **30 over 2** (sparse), **122 over 5**
+Measured on Months: **130 books over 4 rows** (demo), **30 over 2** (sparse), **122 over 5**
 (library) — a different row in all three, so the cross-row case is the one being measured.
 
 `"the reading order in the top bar leaves an arranged shelf alone"` gives the Years shelf a
@@ -289,7 +289,7 @@ the book, or every selection dragged past the edge would put the book down on re
 
 
 `"a wide table scrolls inside the page and never widens the book"` opens the fixture note that
-is one 12-row table with a 2,017-character cell and asserts the spread is still no wider than
+is one 12-row table with a 2,048-character cell and asserts the spread is still no wider than
 `--measure` (**1180px**), that the right-hand page does not scroll sideways (**0px**), and that
 the table rendered as a table (**13 rows, 72 cells**). It was written for a real note that is
 31 rows of history and rendered as a stack of cells; `design/0010` says why the article scrolls
@@ -396,7 +396,7 @@ membership. A theme/look switch may repaint the palette; incoming notes may not 
 
 `node scripts/smoke.mjs --only "book colors"` drives the checkbox and reloads its saved
 setting, changes the dominant folder by adding notes, and reverses folder ranks. Measured
-in light, dark and leather: **467 / 194 / 709** existing book colors unchanged on demo,
+in light, dark and leather: **465 / 194 / 709** existing book colors unchanged on demo,
 sparse and 10k fixtures; encyclopedia volumes use **one** color in every case. Turning
 variation on/off preserves all addresses and counts.
 
@@ -432,7 +432,7 @@ fourth look is covered the day it is added, and it asserts:
   look's hex reports a different colour and passes. `design/0017` records what that caught;
 - switching back to the default restores the ground, the dye and the slots exactly.
 
-Measured: **467 addresses on the demo vault, 194 on the sparse, 709 on the 10k library —
+Measured: **465 addresses on the demo vault, 194 on the sparse, 709 on the 10k library —
 identical under all three looks in all three.** A book is the same **55x132** in every look,
 in a room of the same 1180px.
 

@@ -24,7 +24,7 @@ one note each. Four properties worth a shelf: `status` (5 values), `type` (9), `
 
 **People three ways, because the setting is a list.** `attendees` on a meeting note, a
 `person` scalar on a 1-on-1 (whose title is then `2019-04-02 1-1 with Tomas`), and `people` on
-everything else — plus the two sentinels, untouched: `Dagny Halvorsen` in **46 bodies and 0
+everything else — plus the two sentinels, untouched: `Dagny Halvorsen` in **43 bodies and 0
 people lists**, and `Halvor Estrin` in **36 bodies, half of them `[[Halvor Estrin|Halvor]]`**,
 in no property at all, earning exactly one book of 36.
 
@@ -32,7 +32,9 @@ in no property at all, earning exactly one book of 36.
 than drawn one at a time, because drawing independently put the same sentence twice in a
 paragraph often enough to see it. Headings, bullets, task lists, numbered lists, blockquotes,
 callouts, fenced code, inline code, tables, bold and italics, each where that kind of note
-would carry it. The picture caught what the numbers could not: a three-line agenda reading
+would carry it — **emphasis in one sentence in fifty**, which is a dozen-odd notes rather than
+the two hundred a tenth gave: most notes a person writes carry none, and the export the docs
+site ships prints the markers rather than drawing them. The picture caught what the numbers could not: a three-line agenda reading
 "2. book the collection slot / 3. book the collection slot", because each item was drawn
 independently too. Items within one list are distinct now; the deck is per-list, so a
 recurring chore still recurs in the next note.
@@ -49,16 +51,16 @@ anything.
 | | before | after |
 |---|---|---|
 | notes / folders / people / tags | 394 / 11 / 8 / 15 | 424 / 17 / 17 / 43 |
-| spines drawn, addresses | 182 / 194 | 239 / 467 |
+| spines drawn, addresses | 182 / 194 | 238 / 465 |
 | People, Tags (places / unique) | 478/394, 516/394 | 495/424, 683/424 |
 | the `0-9` volume | 187 of 394 | 168 of 424 |
 | biggest Encyclopedia volume | `G`, 25 notes, **1** tab | `M`, 23 notes, **4** tabs |
 | biggest book in the vault | `people/-unfiled` 228 / 20 tabs | `people/-unfiled` 250 / 16 tabs |
 | plates across every shelf | 40 | 52 |
-| Months books over rows | 136 / 4 | 131 / 4 |
+| Months books over rows | 136 / 4 | 130 / 4 |
 | a folder filter | 394 → 112 → 394 | 424 → 100 → 424 |
 | `#garden` with / without children | 78 / 38 | 110 / 62 |
-| the wide table's widest cell | 1,981 chars | 2,017 chars |
+| the wide table's widest cell | 1,981 chars | 2,048 chars |
 | library rows at 2560 / 760px | 15 → 25 → 15 | 9 → 16 → 9 |
 
 **Everything the checks pin stayed pinned.** The two sentinel names, the `type: people` notes,

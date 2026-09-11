@@ -383,7 +383,15 @@ const emphasise = (line) => {
 
 const para = (n) => {
   const out = [];
-  for (let i = 0; i < n; i++) out.push(rand() < 0.1 ? emphasise(sentence()) : sentence());
+  /* ONE SENTENCE IN FIFTY, NOT ONE IN TEN. At a tenth, 114 of 424 notes carried bold and 62
+   * carried inline code -- better than a generator that emphasised nothing, and still not
+   * what a vault looks like: most notes a person writes carry no emphasis at all. A picture
+   * of the shipped export settled it. The docs demo opens on the first note of the 0-9 volume
+   * and that note read "the **right** bit ... the cost is in the `fittings`", because the
+   * standalone's fallback renderer prints the markers rather than drawing them
+   * (design/0010) -- so at a tenth the odds were good that whatever page a visitor landed on
+   * showed one. The construct stays, in a dozen-odd notes rather than two hundred. */
+  for (let i = 0; i < n; i++) out.push(rand() < 0.02 ? emphasise(sentence()) : sentence());
   return out.join(" ");
 };
 
