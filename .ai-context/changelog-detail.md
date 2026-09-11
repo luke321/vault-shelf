@@ -1,5 +1,91 @@
 # Changelog detail
 
+## 2026-09-11 — A look stopped moving the furniture, and the law got a check that walks (github#14, github#16)
+
+> "shelfs still move when switching themes, because the shelf heading have a different font size"
+> "modern is missing right index tabs in some books and the look a lot different from leather, we
+> need to make themes real themes that do not have different component sizes"
+
+`CLAUDE.md` has said a look *"may repaint anything and move nothing"* since `design/0016`. It was
+enforced for a spine's size, the room's width and 38 named controls, and nothing else. Measured on
+the demo fixture at 1180×900, walking every element under `.vault-shelf` in each look:
+
+| | modern | leather | cyber |
+|---|---|---|---|
+| library `scrollHeight`, before | 2147 | **2258 (+111)** | **2161 (+14)** |
+| library `scrollHeight`, after | **2186** | **2186** | **2186** |
+| elements moved against modern, before | — | **818** | **679** |
+| elements resized against modern, before | — | **307** | **282** |
+| the new walk, after (demo / sparse / 10k) | — | **0 moved, 0 resized, 0 absent** in **4363 / 1979 / 3517** elements | the same |
+
+`github#14` reported +108px and said `--board` was not involved at 3px in both looks. It measured
++111 and `--board` was **5 / 10 / 7** — the largest single contributor, because the board is
+charged **twice per row**, to the floor grip's height and to the plaque's top margin. Two stale
+numbers in one issue is the argument for the check rather than the paragraph.
+
+### The audit, which had never been made (`github#16`'s item 2)
+
+| | `leather.css` | `cyber.css` |
+|---|---|---|
+| geometry declarations | **52** | **28** |
+| part declarations (a rule drawing what another look has not) | **25** | **16** |
+
+The worst of the parts: **leather carried a whole private responsive layout** — its own
+`@media (max-width: 860px)` and `(max-width: 520px)` blocks re-ordering the rail, wrapping the
+shelf head, re-padding the reading page and re-drawing the tab strip, against a different one in
+`page.css`. Below 860px the two looks were not the same product, and no check had ever opened a
+narrow viewport in a look. Leather's was the better of the two and is `page.css`'s now.
+
+### What moved, and why
+
+| | before | after |
+|---|---|---|
+| `--board` | **5px** modern, **10px** leather, **7px** cyber, each declared on its own `.vs-track` | **10px** in `page.css`, one plank for every look — leather's, because a bookcase is what this is a picture of |
+| `.vs-floorgrip` height | 13 / 18 / 15 | **18** everywhere |
+| `.vs-plaque` margin-top | 14 / 19 / 16 | **19** everywhere |
+| first spine, relative to its shelf's top | **41.3** modern, **47.3** leather, 41.3 cyber | **41.3** in all three |
+| `.vs-shelfhead` height | 32.3 modern, **33.3** leather (it aligned on the *baseline*) | its buttons' height, centred, with a fixed line box on each label and no explicit height |
+| `.vs-shelf` / `.vs-shelfhead` margin-bottom | 26 / 9, and **32 / 14** under leather | 26 / 9 everywhere |
+| the spine's hover lift | 5px / 5px / **6px** | **6px** everywhere |
+| a spine's padding | 10/15, **23/29** under leather | **20/26** everywhere; leather's raised bands are paint over the panel |
+| an index tab's border | `border-right` in `page.css`, `border-left` in leather, `border-left: 0` in cyber | one side, one box |
+| the builder's preview count (`#vs-previewcount`) | **15px** high under one face, **12** under another, with an explicit `line-height` on it | `display: inline-block`, so the line box decides — a bare inline box is sized by the font's own ascent and descent |
+| the builder's `Vary book colours` label | inherited leather's 17px base, grew wide enough to wrap the row, and dropped onto a line of its own in one look | a form label is a control and `page.css` sizes a control: **13px / 22px** |
+
+### The goldens had been taken in leather the whole time
+
+`core.LOOKS[0]` is leather and a fresh library opens in it, so `scripts/layout-snapshots/*.json`
+recorded **leather's** geometry — and the modern look sat **6px** off its own golden without
+failing anything, because the check only ever ran in the look the page opened in. It runs in all
+three looks now, against one golden, which a look that moves nothing makes possible. All three
+goldens were regenerated deliberately: **6 shelves, 11 / 7 / 11 rows, 238 / 77 / 186 spines,
+53 / 19 / 33 plaques, a 1125px room — every count unchanged**, only positions moved.
+
+### A book with nothing to index (`github#16`'s item 1)
+
+`dateTabs` refuses to cut three notes or fewer (`design/0015`, deliberate), and `renderTabs` still
+drew the find glass — so the edge of the page carried **one orphan tab**. `.vs-tabs` now runs the
+height of the page as a strip drawn from the plate tokens, with the glass at its head and the
+tabs, when there are any, cut from it. Same part in every look. How a *present* index reads and
+wraps is `github#32` and `github#35`.
+
+### The check (`github#16`'s item 3)
+
+`"a look moves nothing on the page"` replaces a list of 38 selectors with a walk over **every**
+element under `.vault-shelf`, in four states — the library, an open book, the Manage sheet, the
+builder — in every look `core.LOOKS` knows. It identifies an element by a path rather than a
+selector, so a box nothing names is still compared with the same box in the next look, and it
+prints how many elements it compared so the coverage is itself a measurement. It asserts a top and
+a box across the direction the text runs; width *along* the text is the face's, and is held by
+`"every control is the same size in every look"` (38, 0 off) and by the golden in every look.
+It stops at a page of the open book — **1596 / 1584 / 6117 nodes** set on one, which are the
+vault's content and not the page's furniture — and says so. `design/0021`.
+
+Gates: `smoke.mjs` **89/89 on all three shapes** (it was 88; this adds one), `lint` 0 errors
+0 warnings with `tsc` clean, `check-pii` clean (111 files, 6 names, 5 patterns), `check-scope`
+clean (418 css rules, 72 ids, 96 prefixed classes), `check-network` clean, `check-comments`
+**1511, exactly at the baseline**, `code-map.mjs --check` current.
+
 ## 2026-09-11 — The gate holes were closed; the proof was not (github#27)
 
 > "Bring the release practice level with Vault Graph's, and cut 0.1.0."

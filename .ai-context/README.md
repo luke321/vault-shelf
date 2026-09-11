@@ -57,6 +57,7 @@ changing what a shelf contains or how a book is addressed.
 | `0019-a-plaque-opens-its-run` | Clicking a plate opens the run under it as one book of unique notes, with an address of its own; why open rather than narrow, and why an address rather than none |
 | `0019-the-favourites-shelf` | The shelf at the top that holds references to other shelves' books: why a favourite is an address rather than a copy, and why the reader is never told about it |
 | `0020-a-book-made-on-the-shelf` | A book made on a pick shelf by right-clicking empty space: a saved query with an address of its own, why it is a place a note lives when a reference is not, and why off the rail means delete |
+| `0021-one-geometry-three-faces` | Where the line between a face and a box falls, the audit of every geometry and part declaration in the two look sheets, and the walk over every element that replaced a list of 38 named controls |
 
 **ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
 it explains *why not the other thing*. A DDR describes how a part actually works and the

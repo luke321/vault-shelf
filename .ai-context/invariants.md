@@ -186,9 +186,10 @@ same address; then puts the shelf back. Measured: demo `acoustics` **1 vs 145**;
 `archive` **63 vs 160**; 10k library `archive` **1,097 vs 3,778**. `design/0018`, `design/0019`.
 
 The plate became a button without moving: *a plaque sits under the books it names* still reads
-**19px** below the books over a 3px floor with **0px** width difference; *every control is the
-same size in every look* measures **38** controls in three looks with 0 off; and the layout
-golden for all three fixtures is unchanged.
+**19px** below the books with **0px** width difference; *every control is the same size in every
+look* measures **38** controls in three looks with 0 off; and the layout golden for all three
+fixtures is unchanged. (The floor under it was 3px then, 5px by `github#0` and **10px in every
+look** since `github#14`; the plaque's offset is `calc(var(--board) + 9px)` and follows it.)
 
 ## A book is as thick as it is full
 
@@ -488,8 +489,9 @@ button now builds at position 0 and the foot button appends; the check builds on
 asserts the first is first and the last is last, with every other shelf's relative order kept.
 
 **Carried.** Every row of every shelf carries a floor grip (**grips == rows**, and the builder's
-preview carries none), and the board measures **5px** in the default look and **10px** under
-leather. Dragging a shelf by its floor onto the lower half of another draws an *after* mark and
+preview carries none), and the board measures **10px in every look** — it was 5 / 10 / 7, each
+look declaring its own, which is `github#14`'s largest single drift because a board is charged
+twice a row (`design/0021`). Dragging a shelf by its floor onto the lower half of another draws an *after* mark and
 lands it below that shelf, leaving **0** marks behind. A book dragged onto Favourites in the same
 breath leaves the shelf order untouched — a spine is a book, a board is a shelf.
 
@@ -673,9 +675,11 @@ identical.
 
 ## Binding colors belong to stable books
 
-The leather look renders at **120% scale**: logical 132px spines are **158.4px** on screen,
-13px Georgia titles render at **15.6px**, and spacing and controls grow with them. Row
-wrapping may repeat more plaques, but note/book counts, order and addresses remain intact.
+The leather look **no longer scales the page**. It shipped as `zoom: 1.2`, and this paragraph
+described that: 158.4px spines, 15.6px titles, controls growing with them. `design/0016`'s own
+rework note replaced it with a 17px base font size and left this standing, so the file claimed a
+geometry the product had already stopped having. A spine is **the same size in every look**,
+row wrapping may still repeat plaques, and counts, order and addresses are untouched.
 
 Month display labels use **Jan–Dec plus the four-digit year** (for example `Sep 2026`).
 Their keys remain `YYYY-MM`; addresses, date ordering and year plaques are unchanged.
@@ -724,8 +728,10 @@ fourth look is covered the day it is added, and it asserts:
 - switching back to the default restores the ground, the dye and the slots exactly.
 
 Measured: **465 addresses on the demo vault, 194 on the sparse, 709 on the 10k library —
-identical under all three looks in all three.** A book is the same **55x132** in every look,
-in a room of the same 1180px.
+identical under all three looks in all three.** A book is the same size in every look, in a
+room of the same **1180px** — **55x132** on the demo vault, **49x132** on the sparse and
+**47x132** on the 10k library, because a spine's width is its note count against that vault's
+fullest book (`design/0011`) and not a constant.
 
 The default look is the one every other check in this file measures, and it is unchanged: with
 the setting off, not one selector in `leather.css` matches. `scripts/check-scope.mjs` reads
@@ -733,9 +739,9 @@ the setting off, not one selector in `leather.css` matches. `scripts/check-scope
 exactly as one in the first — and `scripts/check-network.mjs` reads the second one too, so the
 leather grain and wood stay CSS gradients and inline SVG data URIs.
 
-The reworked leather look keeps spines at **22–58px × 132px**, with a **5px vertical hover
-lift** and no rotation. Reduced motion removes transforms, including worn and matching books.
-Its walnut board is **10px** deep. The reading cover has an **11px** outer ring, with **24px
+The reworked leather look keeps spines at **22–58px × 132px**, with a **6px vertical hover
+lift** and no rotation — one lift for every look since `github#14`, where it was 5 / 5 / 6. Reduced motion removes transforms, including worn and matching books.
+Its walnut board is **10px** deep, and since `github#14` so is every other look's. The reading cover has an **11px** outer ring, with **24px
 side gutters** on desktop and **16px** below 860px, so the cover stays inside the view.
 The page remains capped at **1180px**. These are paint dimensions, not membership constants.
 Measured in leather at **390, 768 and 1440px**: zero row or page overflow; **419** demo books
@@ -747,11 +753,53 @@ Obsidian exactly as one in `page.css` — and `scripts/check-network.mjs` reads 
 leather grain, the wood, the marbling, and cyber's sensor grain, brushed aluminium, rain and
 selector chevron all stay CSS gradients and inline SVG data URIs. No look loads a font.
 
-Two constants move under cyber, both local and neither measured above: `--board: 3px → 7px` on
-the track (still the background line at `var(--spine-h)`, so the plaque still hangs beneath it)
-and the `.vs-spread` margin `10px/14px → 22px/26px` (the frame is a `box-shadow` ring, which
-costs the grid nothing). The hover lift is **6px and no rotation**, one pixel over
-`design/0005`'s budget and still nothing but a transform.
+One constant moves under cyber and it is not a size: the `.vs-spread` margin `10px/14px →
+22px/26px` (the frame is a `box-shadow` ring, which costs the grid nothing). `--board: 7px` was
+the other, and `github#14` took it: the depth is `page.css`'s at **10px** in every look, and this
+sheet draws its strip light on whatever plank the page lays down. The hover lift is **6px and no
+rotation** and is now every look's.
+### A look moves nothing on the page
+
+`github#14`, `github#16`, `design/0021`. The section above names **38** controls by selector,
+which means anything nobody remembered to name drifted freely — and every drift found so far was
+found by eye. `"a look moves nothing on the page"` walks **every element** under `.vault-shelf`
+instead, in **four states** (the library, an open book, the Manage sheet, the builder), in every
+look `core.LOOKS` knows, shelved ones included, against the modern look's reading. It identifies
+an element by a **path** — tag, id, first two classes, index among its siblings, up to the root —
+rather than by a selector, so a box nothing names is still compared with the same box in the next
+look, and it **prints how many elements it compared**, so the coverage is itself a measurement.
+
+It asserts two things and reports three numbers:
+
+- **every element's top, relative to the library root, is the modern look's**, within a pixel.
+  Nothing slides down the page. No exception list;
+- **every element is the same size across the direction its text runs** — its height where the
+  text is horizontal, its **width** where it is upright, because vertical type turns the box
+  round and a spine title is vertical. The line box is `page.css`'s; the glyphs on it are the
+  look's;
+- moved, resized, and **present in one look and not another** — which is how a *part* a look
+  adds or removes gets caught.
+
+**Width along the text is the face's**, deliberately, and it is not unguarded: *every control is
+the same size in every look* fixes it wherever a rule sizes a control, and *the shelves are packed
+the way the golden snapshot says* now runs in **every look** against the one golden. That is the
+one concession — a wider face may move a label's neighbour **along its own row** and nothing else
+— and `CLAUDE.md`'s look law carries the clause.
+
+**The walk stops at a page of the open book**, and says how many nodes that costs. A `.vs-page`
+is furniture and is measured; what is *set* on it — the contents, the note's meta line, the
+rendered markdown, the also-shelved-in chips — is the vault's content reflowing inside a box that
+scrolls on its own, and a look may set the size it is read at (`design/0016`). Nothing outside the
+page can be moved by any of it.
+
+Measured after: **4363 / 1979 / 3517 elements** on the demo, sparse and 10k fixtures — **0 moved,
+0 resized, 0 present in one look and not another** — with **1596 / 1584 / 6117** nodes on a page
+skipped, and **832 / 216 / 636** of the walked ones upright type. The library is **2186px tall in
+all three looks** where it was **2258 leather / 2147 modern / 2161 cyber**. Measured before, on
+the demo shape: **818 moved and 307 resized** under leather, **679 and 282** under cyber.
+
+The floor is 600 elements: below that the walk has not found the page.
+
 ### Every control is the same size in every look
 
 `"every control is the same size in every look"` (2026-09-11, "make sure all components
@@ -784,7 +832,9 @@ resizing a control:
    became 26**. The columns are pinned at 24 + 44 + 24 and the swatch is `flex: 0 0 auto`.
 
 Which is the same rule as everywhere else, from three directions: a look paints a control and
-does not size it, and neither does the box it is standing in. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
+does not size it, and neither does the box it is standing in. Since `github#14` this list is no
+longer the only thing holding it — the section above walks every element there is, and this one
+keeps the widths a rule fixes. **Height within a pixel everywhere; width within a pixel where a rule fixes it**
 (a button that sizes to its text may be a different width in a different face).
 
 Measured before: **21 controls off under leather** — the rail 60.5 vs 46.5px and the reader
@@ -1103,21 +1153,30 @@ metrics live (a plaque's drawn width) while the packing above it is arithmetic
 (`plaqueWidth()`, `thicknessOf()`). `node scripts/update-layout-snapshots.mjs` rewrites the
 three goldens and `--check` diffs them without the suite. What is in them:
 
-Seeded 2026-09-11 at 1180×900, where the room measures **1125px** in all three:
+**In every look, against the one golden**, since `github#14`. It had only ever run in the look
+the page opens in, which is `core.LOOKS[0]` — **leather** — so the goldens recorded leather's
+geometry and the modern look sat **6px** off its own golden the whole time without failing
+anything. A look moves nothing (`design/0021`), so one golden is the truth for all of them, and
+this is also what holds a book's **width**, which the walk deliberately leaves to it.
+
+Reseeded 2026-09-11 for `github#14`, at 1180×900, where the room measures **1125px** in all three.
+Every count is unchanged from the previous seeding; only positions moved, by the board's 5px a row:
 
 | shelf | demo | sparse | library |
 |---|---|---|---|
-| Encyclopedia | 1 row, 20 books, 0 plaques | 1 row, 23 books | 2 rows, 27 books |
+| Favourites | 1 row, 0 books | 1 row, 0 books | 1 row, 0 books |
+| Encyclopedia | 2 rows, 29 books, 0 plaques | 1 row, 23 books | 2 rows, 27 books |
 | Years | 1 row, 17 books, 2 plaques | 1 row, 6 books, 1 plaque | 1 row, 12 books, 2 plaques |
-| Months | 4 rows, 135 books, 19 plaques | 2 rows, 30 books, 6 plaques | 5 rows, 122 books, 14 plaques |
-| People | 1 row, 10 books, 9 plaques | 1 row, 8 books, 7 plaques | 1 row, 11 books, 10 plaques |
-| Tags | 1 row, 16 books, 10 plaques | 1 row, 10 books, 5 plaques | 1 row, 14 books, 7 plaques |
-| **total** | **8 rows, 198 spines, 40 plaques** | **6 rows, 77 spines, 19 plaques** | **10 rows, 186 spines, 33 plaques** |
+| Months | 4 rows, 130 books, 18 plaques | 2 rows, 30 books, 6 plaques | 5 rows, 122 books, 14 plaques |
+| People | 1 row, 18 books, 15 plaques | 1 row, 8 books, 7 plaques | 1 row, 11 books, 10 plaques |
+| Tags | 2 rows, 44 books, 18 plaques | 1 row, 10 books, 5 plaques | 1 row, 14 books, 7 plaques |
+| **total** | **11 rows, 238 spines, 53 plaques** | **7 rows, 77 spines, 19 plaques** | **11 rows, 186 spines, 33 plaques** |
 
-Five shelves, not six: Weeks is hidden by default from schema 4 on. A decade run that wraps is
-named on both its rows, which is why Months carries more plaques than it has years — the
-golden holds every one of them by text and by box, so a plate that drifts off its run is a
-diff. The Encyclopedia has no plaques at all: a letter volume names itself.
+Six shelves, not seven: Weeks is hidden by default from schema 4 on, and Favourites is a rail with
+nothing dropped on it. A decade run that wraps is named on both its rows, which is why Months
+carries more plaques than it has years — the golden holds every one of them by text and by box, so
+a plate that drifts off its run is a diff. The Encyclopedia has no plaques at all: a letter volume
+names itself.
 
 ---
 

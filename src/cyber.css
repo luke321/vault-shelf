@@ -357,11 +357,8 @@
  * bloom above and below. The plaque's own offset is `calc(var(--board) + 9px)` in page.css
  * and follows the new thickness without being told.
  */
+/* github#14 -- the depth is page.css's; the strip light is drawn on whatever plank it lays. */
 .vault-shelf[data-look="cyber"] .vs-track {
-  /* 7px, not the leather look's 14: a plank is a piece of timber and a strip light is a
-   * strip. The first cut was 9px with a 16px bloom above and a 22px one below, and the board
-   * was the brightest object in the room -- a highlighter ruled under every shelf. */
-  --board: 7px;
   background-image:
     /* the light leaking UP between the books, which is the whole reason the strip reads as a
      * strip and not as a coloured rule under a row of slabs */
