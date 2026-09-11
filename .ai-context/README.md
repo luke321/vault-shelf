@@ -23,7 +23,7 @@ changing what a shelf contains or how a book is addressed.
 | `0001-settings-are-the-hosts-and-schema-is-migrated` | Where a shelf definition lives, and why the page stores nothing |
 | `0002-a-book-has-a-stable-address` | `shelfId/key`, and why not an index or a generated id |
 | `0003-metadata-is-declared-never-inferred` | Dates, people and tags come from properties; nothing is guessed from prose |
-| `0004-declared-fixtures-not-a-real-vault` | Three generated vaults, keyed by generator digest, day-independent |
+| `0004-declared-fixtures-not-a-real-vault` | A declared vault, generated on demand, keyed by generator digest, day-independent. Amended by `0014` |
 | `0005-the-plugin-reads-the-metadata-cache` | Not the filesystem, and what that costs |
 | `0006-zero-network-calls` | Both artifacts are offline objects, and the check that keeps them so |
 | `0007-comments-are-pointers` | Why the reasoning lives here and not in the code |
@@ -33,6 +33,7 @@ changing what a shelf contains or how a book is addressed.
 | `0011-the-suite-holds-its-own-lock` | Why the mutex stopped being caller discipline, and why a fixture directory is never deleted because a sibling appeared |
 | `0012-lock-the-screen-not-the-job` | Why a lock is named after the display it takes over rather than the activity, what the claim-and-return shape buys over handing back a name, and how a hold proves it is still alive |
 | `0013-two-chromes-and-a-check-says-what-it-needs` | Why the suite caps at two browsers where the sister repo went to one, why a check declares the shapes it needs, and why a check that leaves the page moving fails |
+| `0014-one-vault-for-the-checks-and-the-film` | Four generated vaults become one: what the one vault had to absorb to replace three, what was given up, why the film stopped being shot in a mirror, and what `0013`'s per-shape narrowing means once there is one shape |
 
 ### DDRs — `design/`
 
@@ -50,7 +51,7 @@ changing what a shelf contains or how a book is addressed.
 | `0010-the-note` | Obsidian's own markdown renderer, and why that is not a filesystem read |
 | `0011-thickness-is-the-note-count` | A spine's width is a measurement of the book, log-scaled against the library |
 | `0012-the-reader-is-a-book` | Four pieces of geometry that make a spread an open book, and none of them a texture |
-| `0013-the-mirror-vault` | Why a film is shot in a mirror of a real vault rather than in a fixture |
+| `0013-the-mirror-vault` | The mirror of a real vault: what it preserves, what it replaces, and the guard that has no skip flag. No longer the film's vault (`decisions/0014`) |
 | `0014-the-bookcase` | Rows instead of a horizontal scroller: why the packing is arithmetic, and how a plaque earns its width |
 | `0015-the-index` | The tabs are cut the way the book is ordered, and as deep as its titles need |
 | `0016-the-leather-look` | The opt-in leather binding: why a texture is allowed once it stops claiming to follow the theme |

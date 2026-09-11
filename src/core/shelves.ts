@@ -533,12 +533,42 @@ export function datedClassifier(classifier: string): boolean {
   return classifier === "year" || classifier === "month" || classifier === "week";
 }
 
-/** github#21, design/0005 -- Years by decade, Months by year. */
+// github#35, design/0019
+export function seedPicks(views: ShelfView[]): string[] {
+  const out: string[] = [];
+  const real = (view: ShelfView) =>
+    view.books.filter((b) => b.key.charAt(0) !== "-" && b.notes.length > 0);
+  const take = (shelfId: string, best: (a: Book, b: Book) => Book) => {
+    const view = views.find((v) => v.shelf.id === shelfId);
+    if (!view) return;
+    const books = real(view);
+    if (!books.length) return;
+    const book = books.reduce(best);
+    if (out.indexOf(book.id) < 0) out.push(book.id);
+  };
+  // github#35
+  const latest = (a: Book, b: Book) => (b.key > a.key ? b : a);
+  const fullest = (a: Book, b: Book) => (b.notes.length > a.notes.length ? b : a);
+  take("years", latest);
+  take("months", latest);
+  take("people", fullest);
+  take("tags", fullest);
+  return out;
+}
+
+/** github#21, github#33, design/0005 -- Years by decade, Months by year, an index by nothing. */
 export function colorRule(shelf: Shelf): ColorRule {
   if (shelf.colorBy) return shelf.colorBy;
   if (shelf.classifier === "year") return "decade";
   if (shelf.classifier === "month" || shelf.classifier === "week") return "year";
+  if (shelf.classifier === "initial") return "one";
   return "folder";
+}
+
+/** github#33, design/0005 -- a shelf of identities varies unless the file says otherwise. */
+export function variesColors(shelf: Shelf): boolean {
+  if (shelf.varyColors !== undefined) return shelf.varyColors;
+  return shelf.classifier === "person" || shelf.classifier === "tag";
 }
 
 /** github#21 -- the period a key's dye follows, null for the folder's. */

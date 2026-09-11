@@ -193,7 +193,7 @@ async function pageHalf() {
   let url = arg("url", "");
   let scratch = "";
   if (!url) {
-    const vault = arg("vault", "") || storeVault("demo-vault");
+    const vault = arg("vault", "") || storeVault("vault");
     if (!vault) throw new Error("no vault: pass --vault <dir> or --url <built page>");
     scratch = mkdtempSync(join(tmpdir(), "vs-refresh-build-"));
     const out = join(scratch, "vault-shelf.html");

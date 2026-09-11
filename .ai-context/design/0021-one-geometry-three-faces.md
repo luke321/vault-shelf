@@ -160,6 +160,121 @@ Measured after: **4363 / 1979 / 3517 elements** across the demo, sparse and 10k 
 moved, 0 resized, 0 present in one look and not another**, and the library is **2186px tall in all
 three looks** where it was 2258 / 2147 / 2161.
 
+## Uprightness is geometry, so one face decides it
+
+`github#47`. Rule 2 above says every element is the same size **across the direction its text
+runs**, and rule 3 concedes the width **along** it to the face. Both rules assume the direction
+itself is settled. For a short cover it was not.
+
+`fitsUpright()` (`src/page.js`) decides whether a cover of three characters or fewer stands
+upright by **measuring**: it builds a real `.vs-spine[data-upright="1"]` with a `.vs-title` in
+it, appends the probe to `root` — the element carrying `data-look` — and reads
+`title.scrollWidth <= title.clientWidth`. So the probe inherited the current look's face, and a
+face is exactly what decides how wide a glyph is. The same cover at the same width could come
+back `horizontal-tb` in one look and `vertical-rl` in the next, which is not a concession rule 3
+makes: it swaps which axis is fixed, and the box grows eightfold.
+
+### What it actually costs, in pixels
+
+The three shipped faces draw the same capital letter at **8.4px** (cyber, 10.5px/600, uppercase,
+0.13em), **8.9px** (leather, Georgia 13px/400, 0.015em) and **9.3px** (modern, system 13px/600,
+0.04em). At the narrowest spine — 19px, which is a book of one or two notes on a squeezed index
+shelf — `github#14`'s 3px inset leaves **11px** of line box and everything clears. `github#45`
+derives the inset from where a binding may draw and it becomes 4px, leaving **9px**, and three
+covers land inside the spread:
+
+| cover, at a 19px spine | leather | modern | cyber | 9px of room |
+|---|---|---|---|---|
+| `Å` | 8.90 | **9.30** | 8.40 | upright / sideways / upright |
+| `Ü` | **10.00** | **9.70** | 8.80 | sideways / sideways / upright |
+| `מ` | 6.50 | **9.50** | 8.60 | upright / sideways / upright |
+
+Three covers, three different answers per look, and `a look moves nothing on the page` reports
+**20 resized** with `9 -> 76 wide` on the Encyclopedia rail. It is not `github#45`'s defect;
+`github#45` is the thing that happens to move the pixel. The looks had been agreeing by **0.08px**
+on the tightest cover and nothing had ever measured that.
+
+### The answer: the probe is measured in one pinned face
+
+Of the three the issue put up:
+
+- **a canonical face for the probe** — taken;
+- **no DOM probe at all**, deciding from a character count and a script class against `--spine-w`
+  — rejected. It legislates what the type does instead of asking it, and the table above is the
+  argument against legislating: three faces of the *same* nominal size disagree by 0.9px on one
+  capital letter, and a fallback font for a script none of them carry would not be in the law at
+  all;
+- **a margin** — rejected on its own, and see below.
+
+`page.css`'s `.vs-probe` block declares the probe title's whole type at **0-5-0**: family, size,
+weight, line box, letter spacing, word spacing, case, and both feature-setting properties. 0-5-0
+because a look's own `.vs-spine .vs-title` rule is 0-4-0 and its sheet is concatenated *after*
+`page.css`, so anything less would be decided by file order. The stack is written out rather than
+read from `var(--ui)`, on purpose: `--ui` is a look's to redefine — leather redefines it to
+Georgia — and this face is **pinned**, so it moves when somebody decides it should and not when
+somebody restyles the default look.
+
+**The pinned values are not a fourth face.** They are `page.css`'s own — `13px`, `600` and
+`0.04em` are exactly what `.vs-spine[data-upright="1"] .vs-title` already declares, on the
+stack `--ui` already holds here — so in the default look the probe and the drawn title are the
+same type, and the decision is one a reader of `page.css` can see being made. A look draws the
+same cover in its own face afterwards, up to 1.45px wider on this vault, which is rule 3's
+concession and nothing new.
+
+The probe is still a real spine, so it still inherits the *room's* geometry: `--spine-w`,
+`--spine-h`, the inset `github#45` derives, the border. That is the whole point. It inherits the
+box and none of the paint, which is what makes the answer a measurement of geometry.
+
+The cache key, `cover + "|" + width`, never named the look. It was safe by accident —
+`drawLibrary()` clears it and a look switch goes through `refresh()` → `applyLook()` → redraw —
+and it is **correct** now, with nothing left for a future redraw path to miss.
+
+### Why no margin, when a margin is the cheap answer
+
+A margin — require the cover to fit with a pixel or two to spare — would be calibrated to the
+three faces on the machine today. Two things are wrong with that. It **moves the cliff rather
+than removing it**, which the issue says in as many words; and it is not free, because at a 19px
+spine every capital letter is already within a pixel of the edge, so two pixels of margin lay
+covers down that fit perfectly well.
+
+The residual is real and is left **asserted instead of absorbed**. `"a short cover is stood
+upright by one face, not the look's"` reads every short cover on the one vault, at the width the
+page asks about it, in every look `core.LOOKS` knows, and fails on any of: the probe reading more
+than one face, a cover oriented one way in one look and another in the next, or a look's own
+glyphs being clipped by the decision another face made. It also **prints two margins nobody had**
+— how much wider than the deciding face the widest look draws the same cover, and how much room
+the tightest upright cover has left. Neither is asserted; both are there so the next person to
+move a padding sees the headroom before spending it.
+
+Measured, on the one vault:
+
+| | before | before + `github#45` | after | after + `github#45` |
+|---|---|---|---|---|
+| faces the probe reads | **3** | **3** | **1** | **1** |
+| covers oriented one way in one look and another in the next | 0 | **3** | 0 | **0** |
+| upright titles clipped in any look | 0 | 0 | 0 | 0 |
+| `a look moves nothing`: moved / resized / present-in-one | 0/0/0 | **0/20/0** | 0/0/0 | **0/0/0** |
+| short covers standing upright | 33 | 32 | 33 | 30 |
+| widest face over the deciding one | 2.93px | 2.06px | **1.45px** | **1.45px** |
+| room left on the tightest upright cover | 0.97px | **0.08px** | 0.97px | 0.27px |
+| `Encyclopedia labels upright`, in leather | 32/35 | 31/35 | 32/35 | 29/35 |
+
+**Nothing visible moves on today's tree**: 32/35 and 33 upright before and after, the same four
+covers sideways (`Œ`, `学`, `読`, `map`). The change is that the answer no longer depends on which
+look asked.
+
+### What `github#45` still owes, and why it is not paid here
+
+With the pinned face *and* `github#45`'s 4px inset, `Å`, `Ü` and `מ` go sideways **in every
+look** — stably, and correctly, because the deciding face draws them 9.30, 9.70 and 9.50 into
+nine pixels of room. The `sideways` tally in `"a hovered spine shows one peek…"` therefore goes
+**4 → 7**, past its tolerance of 4.
+
+That tolerance moves under `github#45` either way: with the *old* per-look probe and the same
+inset it is **5** (`Ü` alone flips in leather), which is already past 4. So it is `github#45`'s
+number to move, in `github#45`'s commit, against `github#45`'s measurement — not a tolerance
+relaxed here on a tree where it still reads 4 and still passes.
+
 ## What this did not touch
 
 Membership, addresses, counts and `src/core` — all identical, and the existing checks say so:

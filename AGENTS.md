@@ -42,7 +42,7 @@ Five things are worth knowing before you touch anything, all expanded in `CLAUDE
   makes **no screen recording** (`design/0007`), so there is nothing left to wrap by hand;
   driving a window yourself is the one case:
 
-  ```bash
+  ```powershell
   node scripts/lock.mjs acquire screen-left --owner "<who you are>"   # exit 1 = give up
   node scripts/lock.mjs release screen-left --owner "<who you are>"   # always, even on failure
   node scripts/lock.mjs status

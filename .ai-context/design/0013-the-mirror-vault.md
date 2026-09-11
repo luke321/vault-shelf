@@ -5,7 +5,15 @@
 appearing in the same forty notes, the same tag hierarchy with the same distribution — and not
 one word of real content.
 
-It exists for one reason: the films.
+It was built for one reason: the films.
+
+> **Amended by `decisions/0014` (2026-09-11).** It is no longer a step in the film pipeline. The
+> film is shot in the one generated vault, and `record-demo.mjs` reaches a mirror only when asked
+> — `--mirror-of <path>`. What the mirror *is* did not change, and neither did one line of its
+> guard: it stays on disk as the diagnostic you point at your own vault when you suspect the
+> product breaks on real data, which is how it earned its keep (it found `date: 2024-15-01`). The
+> section below is why a fixture used to be too even to film in; `0014` measured how far apart the
+> two actually were and what the one vault had to absorb.
 
 ## Why the generated fixtures are not enough
 

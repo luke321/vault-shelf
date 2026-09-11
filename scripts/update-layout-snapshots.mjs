@@ -24,11 +24,9 @@ const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[
 const LOCK_TIMEOUT_MS = Number(arg("lock-timeout-ms", "2700000")) || 2700000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// github#5 -- the three shapes the suite runs, with smoke's own args
+// github#5, decisions/0014 -- the one shape the suite runs, with smoke's own args
 const FIXTURES = [
-  { name: "demo-vault", script: "make-demo-vault.mjs", args: [] },
-  { name: "sparse-vault", script: "make-sparse-vault.mjs", args: [] },
-  { name: "library-vault", script: "make-library-vault.mjs", args: ["--notes", "10000", "--years", "10"] },
+  { name: "vault", script: "make-vault.mjs", args: [] },
 ];
 
 /** @param {{ name: string, script: string, args: string[] }} fx @returns {{ dir: string, temp: boolean }} */
@@ -101,6 +99,12 @@ async function measure(htmlPath) {
       if (Date.now() > ready) throw new Error("the library never rendered");
       await sleep(300);
     }
+    // github#35
+    await page.eval(`(function(){
+      var s = __vs.settings();
+      var shelf = s.shelves.filter(function (x) { return x.classifier === "pick"; })[0];
+      if (shelf && shelf.picks && shelf.picks.length) { shelf.picks = []; __vs.setFilters({}); }
+    })(); void 0`);
     await page.eval(`window.dispatchEvent(new Event("resize")); void 0`);
     await sleep(400);
     return JSON.parse(await page.eval(`JSON.stringify(${MEASURE})`));
