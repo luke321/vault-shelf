@@ -1,5 +1,89 @@
 # Changelog detail
 
+## 2026-09-11 — A demo fixture that reads like a vault
+
+> github#7: "make the demo fixture more fidelic to show off all the different features"
+
+`scripts/make-demo-vault.mjs` was visibly a generator. Its prose was a bag of fifteen
+bookbinding nouns shuffled into sentence-shaped runs; its titles were `<Subject> — <facet>`
+permutations off a deck of sixteen subjects, so the Encyclopedia's **G volume was 25 notes all
+called "Greenhouse Rebuild — …"** and its index had one tab; its eight people were spread
+evenly, so the People shelf was eight books of roughly the same thickness; and several things
+`docs/features.md` promises had nothing in the vault to show them.
+
+**What the vault is now.** 424 notes (was 394) over fifteen years to the `--end` day,
+recent-heavy: **5 notes in 2011, 121 in 2026**. A PARA-ish tree of ten numbered folders with
+**four nested ones** (`01 - Projects/Website Migration`, `02 - Areas/Health`,
+`03 - Resources/Field Notes`, `05 - Meeting Notes/1-1s`), a `Templates` folder and `Home`,
+`Dashboard` and the wide table at the root — **17 folders on disk, 12 the folder classifier
+sees**, since it reads the top segment. **16 named people on a long tail**: Mira Vance in 44
+notes, seven people in three or fewer, one in a single note. **43 tags** — three levels deep
+(`area/health/sleep`), two non-Latin, three over thirty characters, and eighteen on exactly
+one note each. Four properties worth a shelf: `status` (5 values), `type` (9), `priority` (3),
+`area` (6). **18 undated notes**, and four headers that are not dates at all.
+
+**People three ways, because the setting is a list.** `attendees` on a meeting note, a
+`person` scalar on a 1-on-1 (whose title is then `2019-04-02 1-1 with Tomas`), and `people` on
+everything else — plus the two sentinels, untouched: `Dagny Halvorsen` in **46 bodies and 0
+people lists**, and `Halvor Estrin` in **36 bodies, half of them `[[Halvor Estrin|Halvor]]`**,
+in no property at all, earning exactly one book of 36.
+
+**Prose, not a bag of words.** Forty whole dull sentences dealt from a shuffled deck rather
+than drawn one at a time, because drawing independently put the same sentence twice in a
+paragraph often enough to see it. Headings, bullets, task lists, numbered lists, blockquotes,
+callouts, fenced code, inline code, tables, bold and italics, each where that kind of note
+would carry it. The picture caught what the numbers could not: a three-line agenda reading
+"2. book the collection slot / 3. book the collection slot", because each item was drawn
+independently too. Items within one list are distinct now; the deck is per-list, so a
+recurring chore still recurs in the next note.
+
+**Titles with real first words**, which is the whole of the index-tab change:
+`M` now holds **23 notes behind `Ma Me Mi Mo`**, of the 17 prefixes its titles admit. The
+`0-9` volume stays the big one at **168 of 424**, because the daily, meeting and 1-on-1 notes
+are titled with an ISO date. Daily notes arrive in **runs of one to seven consecutive days**
+rather than as a uniform sprinkle, which is what gives a month book day tabs that separate
+anything.
+
+**The numbers that moved**, demo vault, before → after:
+
+| | before | after |
+|---|---|---|
+| notes / folders / people / tags | 394 / 11 / 8 / 15 | 424 / 17 / 17 / 43 |
+| spines drawn, addresses | 182 / 194 | 239 / 467 |
+| People, Tags (places / unique) | 478/394, 516/394 | 495/424, 683/424 |
+| the `0-9` volume | 187 of 394 | 168 of 424 |
+| biggest Encyclopedia volume | `G`, 25 notes, **1** tab | `M`, 23 notes, **4** tabs |
+| biggest book in the vault | `people/-unfiled` 228 / 20 tabs | `people/-unfiled` 250 / 16 tabs |
+| plates across every shelf | 40 | 52 |
+| Months books over rows | 136 / 4 | 131 / 4 |
+| a folder filter | 394 → 112 → 394 | 424 → 100 → 424 |
+| `#garden` with / without children | 78 / 38 | 110 / 62 |
+| the wide table's widest cell | 1,981 chars | 2,017 chars |
+| library rows at 2560 / 760px | 15 → 25 → 15 | 9 → 16 → 9 |
+
+**Everything the checks pin stayed pinned.** The two sentinel names, the `type: people` notes,
+the wide table at 12 rows and 6 columns with one ~2,000-character cell, `--end` / `--days` /
+`--seed`, and 350–500 notes. Two runs at the same seed are byte-identical, and
+`check-generator-determinism` reports **424 notes over 17 folders, identical at `--end`
+2024-02-10 and 2027-09-28** — the daily-note runs are drawn from the same `--end`-independent
+offsets as everything else. **66/66 on all three vault shapes, `smoke exit=0`.**
+
+**Four impossible date headers, not two.** `date: 2024-15-01` on a note whose *filename* is
+`2024-01-15 …` falls through to the filename and is right; `date: 2023-02-30` on a note with
+nothing to fall through to is Undated, which is the honest answer. The other two are the
+`Templates` notes carrying `date: {{date}}` — a placeholder is not a date either, and a real
+vault has them. The same folder carries `people: [[{{VALUE}}]]`, which `core.cleanPerson`
+must read as nobody: it does, and the People shelf grows no `{{VALUE}}` book.
+
+**What the fixture cannot fix.** The standalone's fallback renderer
+(`renderMarkdownInto`, `src/page.js`) knows headings, lists, blockquotes, tables and
+wikilinks. It does **not** know inline emphasis, inline code, fenced blocks, numbered lists or
+callouts, so in the export the docs site ships — and only there; inside Obsidian the app's own
+renderer draws all of them — `*overnight*` prints its asterisks and a `> [!note]` callout
+prints a blockquote whose first line reads `[!note]`. That is visible in the longest note in
+the vault. The constructs stay, because the vault is a vault and `github#7` asks for them;
+the renderer is `src/` and is somebody else's to widen.
+
 ## 2026-09-11 — The docs site wears the product's dark look, and it is Vault Graph's sheet
 
 > github#1: "a theme close to vault-shelf's own dark look ... not a generic off-the-shelf

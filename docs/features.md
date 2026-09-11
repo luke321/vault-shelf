@@ -8,7 +8,7 @@ title: Features
 
 Everything the library does, in the words of the design record that settled it. The
 [live demo](demo/) is the fastest way to check any of it: every claim below is something you
-can do to a real 394-note vault in the page itself.
+can do to a real 424-note vault in the page itself.
 
 | | |
 |---|---|
@@ -36,8 +36,8 @@ Encyclopedia **Ü**, the **2016** yearbook, **February 2016** and the **#attenti
 at once, and it is still one file that never moved.
 
 That is a measurable claim rather than a slogan, and the suite measures it: on the demo vault
-the People shelf reports **394 unique notes across books holding 500 places between them**, and
-the Tags shelf 394 across 508. *A shelf's note count is unique notes, never the sum of its
+the People shelf reports **424 unique notes across books holding 495 places between them**, and
+the Tags shelf 424 across 683. *A shelf's note count is unique notes, never the sum of its
 books.*
 
 **Weeks ships hidden.** A vault of any age has hundreds of ISO weeks, which as a bookcase is a
