@@ -160,6 +160,122 @@ Measured after: **4363 / 1979 / 3517 elements** across the demo, sparse and 10k 
 moved, 0 resized, 0 present in one look and not another**, and the library is **2186px tall in all
 three looks** where it was 2258 / 2147 / 2161.
 
+## Addendum, `github#45` — one geometry is what left leather with three pixels
+
+> "the text should not reach the horizontal line of the book design ever"
+
+This record gave the three looks one padding — `20px 3px 26px` — and the comment in `page.css`
+recorded why: *"leather padded it 23/29 for its bands, cyber 10/15"*. The single number was
+chosen so that every look's **box** came out identical, which is rule 2 above and is correct.
+**Nobody then checked it against the decoration each look draws inside that box**, and the law as
+written had nothing to say about that, because the decoration is paint and paint was the part
+this record declared free.
+
+What the arithmetic actually was, on a 132px spine, in *ink* rather than in offsets:
+
+| | from the spine's top | from its bottom |
+|---|---|---|
+| the title's box (`padding`, plus leather's own 1px top border) | 21px | 26px |
+| leather's gilt bands (`::before`, gradient stops) | 10–**17**px | **22**–29px |
+| leather's panel rule (`::after`, `inset` + its 1px border) | 17–**18**px | 23–**24**px |
+| cyber's cap light (`::before`) | 0–2px | — |
+| cyber's rack marking (`::after`) | — | 16–19px |
+
+So the title's box cleared leather's panel rule by **2px** at the head — not the 3 the offsets
+suggest, because a rule has thickness and the inset positions its outer edge — and ran **3px into
+the tail gilt band**, which starts 29px up and not 23px. The band is the outermost thing leather
+paints; the panel rule was drawn *inside* it, six pixels in, and the padding was set against the
+rule rather than against the band. Cyber cleared by 7px because its tail decoration sits over the
+count instead of at the tail of the title. **One geometry, three different clearances, none of
+them declared, and in leather the accident was negative.**
+
+### What replaced it
+
+`page.css` declares the region a binding may draw in, and derives the title's box from it:
+
+```
+--spine-head: 17px;       /* a look's head decoration reaches this far down */
+--spine-tail: 29px;       /* ...and this far up from the bottom */
+--spine-rule-side: 4px;   /* its side rules stand this far in */
+--spine-rule: 1px;        /* and each of those rules is this thick */
+--spine-clear: 3px;
+padding: calc(head + rule + clear) rule-side calc(tail + rule + clear);   /* 21px 4px 33px */
+```
+
+**`--spine-rule` is arithmetic, not decoration.** The first cut of this fix omitted it and left
+2px at the head, because a 1px rule set at `inset: 17px` paints on 17..18 while the padding is
+measured to 17. It is the same pixel that made the original defect −3px rather than the −2 a
+reading of the offsets gives, and the same pixel that puts the title's box at `rule-side + rule`
+sideways rather than flush with the rule's outer edge.
+
+Every look's decoration is placed **from** those numbers rather than beside them: leather's two
+gilt bands end at `--spine-head` and `--spine-tail`, its panel is `inset: var(--spine-head)
+var(--spine-rule-side) var(--spine-tail)`, and that panel's border is `var(--spine-rule)`. The
+panel's lower rule moves from 23px to 29px — paint, and it moves no furniture — and the binding
+comes out **symmetric**, because the head rule already sat exactly where the head band ended and
+the tail rule never did. Cyber's rack marking keeps `bottom: 16px`: it is drawn over the **count**,
+deliberately below the title's region, and takes only the declared side inset. It clears the title
+by 14px now instead of 7.
+
+The cost is 8px of title, and the ellipsis is where it shows: 13 → **19** leather titles on the
+demo fixture, 9 → **12** modern, 21 → **29** cyber. Nothing else moved; the layout golden reports
+the same shelves, rows, spines, plaques and room in all three looks.
+
+Adding a fourth look means giving these four numbers whatever that binding needs and placing its
+own decoration from them; it does not mean re-deriving a padding.
+
+### Rule 5: a look may decorate, and page.css says where
+
+The four rules above get a fifth, which is rule 4 made measurable:
+
+> **A look may add decoration, and `page.css` declares the band it may occupy.** A `::before` or
+> `::after` that is absolutely positioned and `pointer-events: none` paints and moves nothing —
+> but *where* it paints is not the look's to choose alone, because the text's own box is derived
+> from it. `--spine-head`, `--spine-tail`, `--spine-rule-side`, `--spine-rule` and `--spine-clear`
+> are the declaration; a look that wants a rule somewhere else moves those, and every look moves
+> with it.
+
+### The sides, which were asked about and are a different question
+
+The issue noticed that `inset: … 4px …` against `padding: … 3px …` made the title's box a pixel
+**wider** than the panel on each side. That pixel is gone — the side padding is
+`--spine-rule-side`, so the box is exactly the panel. It was never the interesting half.
+
+**It takes `--spine-rule-side` and not `--spine-rule-side + --spine-rule`**, which is the
+asymmetry in this fix and it is deliberate. One more pixel there changes **which short covers
+stand upright**: `github#12`'s `fitsUpright` builds a hidden probe spine and asks whether
+`scrollWidth <= clientWidth`, so the decision is taken against the title's **content box** — and
+it is re-taken on every render, which means in whatever look the page is in. At `rule-side + rule`
+the tag `学び` on a 38px spine came out upright in leather and cyber and turned on its side in
+modern, and *"a look moves nothing on the page"* caught it as one element 20px wide in one look
+and 76 in another. It had been agreeing across the three looks by a margin of about a pixel the
+whole time, which nothing measured. That is a `github#12` question — an upright decision that
+depends on the look is a look moving something — and it is recorded here rather than fixed here.
+Measured after: **832** upright-type elements on the demo fixture, the same as before.
+
+What clears a side rule is not the box but the **line box**, and upright type turns the geometry
+round: the title's extent across its own text is the face's ascent and descent, not anything
+`page.css` sets. Measured: a 13px serif on leather reads **26.4px** across, cyber's 10.5px sans
+**14px**. Against a spine whose width is its note count (**22–58px**, `design/0011`), the
+clearance is `(spine-w − across) / 2 − rule-side`, which came out **1.8px** on a 38px demo spine,
+**1.5px** on a 26px sparse one and **6px** on the 10k library's 35px spines.
+
+There is no padding that fixes that. The three levers are all worse than the defect:
+
+1. **Widen the side padding.** The line box does not shrink with it — `min-width: auto` on a flex
+   item holds it at its own block size — so a thin spine's type overflows the content box instead
+   of clearing anything, and the ellipsis appears earlier on every spine for nothing.
+2. **Pull the side rules in.** `--spine-rule-side: 0` still does not clear a 26.4px face on a
+   22px spine — the face is wider than the board — and it draws a panel with no margin on every
+   book that is not.
+3. **Shrink the type on a thin spine.** A spine's thickness is data (`design/0011`); making the
+   face depend on it makes the shelf's type a chart.
+
+So the check **reports** the side clearance and does not assert it, with the worst spine named in
+every run. The number is visible, it is in `invariants.md`, and it moves when someone changes a
+face or the rule inset. That is the honest state: the horizontal rules are held by construction,
+the vertical ones are held by the face and watched.
+
 ## What this did not touch
 
 Membership, addresses, counts and `src/core` — all identical, and the existing checks say so:

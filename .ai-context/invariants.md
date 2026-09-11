@@ -800,6 +800,59 @@ the demo shape: **818 moved and 307 resized** under leather, **679 and 282** und
 
 The floor is 600 elements: below that the walk has not found the page.
 
+### A spine's title never touches a line the binding draws
+
+`github#45`, `design/0021`. The check above compares a box to a box, and a binding's rules are
+**painted** — so every geometry check in the suite passed while the **M** of `Mar 2013` sat on
+leather's lower gilt band. `page.css` declares where a look may draw and derives the title's box
+from it:
+
+| | |
+|---|---|
+| `--spine-head` | **17px** — a look's head decoration reaches this far down from the spine's top |
+| `--spine-tail` | **29px** — its tail decoration reaches this far up from the bottom |
+| `--spine-rule-side` | **4px** — its side rules stand this far in from each edge |
+| `--spine-rule` | **1px** — and each of those rules is this thick |
+| `--spine-clear` | **3px** — the least the title's box keeps from any of them |
+| `.vs-spine` padding | `calc(head + rule + clear)` / `rule-side` / `calc(tail + rule + clear)` = **21px 4px 33px**, was `20px 3px 26px` |
+
+**`--spine-rule` is not decoration, it is arithmetic.** A rule drawn at `inset: 17px` puts ink on
+17..18, so a padding of 20px left two pixels, not three — and leather's spine has a 1px top border
+of its own, which the original reading of this defect missed in the other direction. The check
+reads the ink, so both are in the number now.
+
+`"a spine's title never touches a line the binding draws"` reads where each look actually puts
+ink — a pseudo-element's own border box, taken off the spine's **padding** box because that is
+what an inset resolves against, and the px stops of every gradient it paints, a run of **12px or
+less** being a rule and anything wider a wash — and measures the gap to the title's box along the
+spine. It also asserts the box is the **clip**: a glyph, and its `text-shadow`, cannot paint
+outside it, which is why 3px of empty box is 3px of clearance and not 1px after the shadow.
+
+Measured, nearest rule to the title's box, on **238 / 77 / 186** titles against **952 / 308 / 744**
+painted rules in leather and **476 / 154 / 372** in cyber (modern draws none):
+
+| | before | after |
+|---|---|---|
+| leather | **−3px** — the box ran *into* the tail gilt band (box 21..105, band 102..109) | **+3px** |
+| cyber | +7px, by luck | **+14px**, by construction |
+| modern | no rule drawn | no rule drawn |
+| titles ellipsised, demo | leather 13 / modern 9 / cyber 21 | **19 / 12 / 29** |
+| ...sparse | 2 / 0 / 5 | **4 / 1 / 8** |
+| ...10k library | 5 / 0 / 9 | **8 / 3 / 13** |
+
+The ellipsis count is the price, and it is the whole price: the title's box is **8px shorter**, so
+six more demo titles reach it. Nothing else moved — the golden reports the same 6 shelves, 11 / 7
+/ 11 rows, 238 / 77 / 186 spines and 53 / 19 / 33 plaques in a 1125px room in all three looks.
+
+**The sides are reported, not asserted**, and `design/0021` says why: the title's box is exactly
+the panel now (`--spine-rule-side`, deliberately *without* the rule's own width — one more pixel
+there flips which short covers `github#12` stands upright, and it flips them per look), but what
+clears a side rule is the **line box**, and that is the face's own ascent and descent against a
+spine whose width is its note count. Measured worst case, unchanged by this and by design: **1.8px** on a 38px
+leather spine, **1.5px** on a 26px sparse one, **6px** on the 10k library's 35px spines. No
+padding can raise those without either clipping the type or legislating a spine's thickness, which
+`design/0011` gives to the vault.
+
 ### Every control is the same size in every look
 
 `"every control is the same size in every look"` (2026-09-11, "make sure all components

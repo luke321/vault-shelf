@@ -1,5 +1,56 @@
 # Changelog detail
 
+## 2026-09-11 — A spine's title stopped touching the line under it (github#45)
+
+> "the text should not reach the horizontal line of the book design ever"
+
+Seen at 8× on the demo fixture in leather: the **M** of `Mar 2013` crossed the lower rule of the
+title panel and landed on the gilt band. `design/0021` had given the three looks one padding so
+that every look's **box** was identical, and nobody checked it against the decoration each look
+draws **inside** that box. The clearance was a leftover, and in leather it was negative.
+
+| | before | after |
+|---|---|---|
+| `.vs-spine` padding | `20px 3px 26px`, chosen | `calc(head + rule + clear)` / `rule-side` / `calc(tail + rule + clear)` = **`21px 4px 33px`**, derived |
+| declared in `page.css` | **nothing** | `--spine-head: 17px`, `--spine-tail: 29px`, `--spine-rule-side: 4px`, `--spine-rule: 1px`, `--spine-clear: 3px` |
+| nearest painted rule to the title's box, leather | **−3px** (box 21..105, tail band 102..109) | **+3px** |
+| ...cyber | +7px, by luck | **+14px**, by construction |
+| ...modern | none drawn | none drawn |
+| leather's panel `inset` | `17px 4px 23px` — the lower rule six pixels inside the band | `var(--spine-head) var(--spine-rule-side) var(--spine-tail)` — symmetric |
+| painted rules the check reads, demo/sparse/10k | — | **952 / 308 / 744** in leather, 476 / 154 / 372 in cyber, 0 in modern |
+| titles ellipsised, demo | leather 13 / modern 9 / cyber 21 | **19 / 12 / 29** |
+| ...sparse / 10k | 2 / 0 / 5 and 5 / 0 / 9 | **4 / 1 / 8** and **8 / 3 / 13** |
+| sideways clearance, worst (reported, not asserted) | leather 1.8px demo, 1.5px sparse, 6px 10k | unchanged — it is the face's, not the box's |
+| `smoke.mjs` | 89 checks / 146 runs | **90 checks / 149 runs** |
+| golden snapshots | 6 shelves, 11/7/11 rows, 238/77/186 spines, 53/19/33 plaques, 1125px room | **identical**, in all three looks — `box-sizing: border-box`, and `--spine-w`/`--spine-h` were not touched |
+| `check-comments` baseline | 1500 | 1500 |
+
+The check is the point. Every geometry check in the suite compares a box to a box, and a
+binding's rules are **painted** — so all 89 passed while a glyph sat on a band.
+`"a spine's title never touches a line the binding draws"` reads a pseudo-element's own border
+box **and the px stops of every gradient it paints** (a run of 12px or less is a rule, wider is a
+wash), and measures the gap to the title's box along the spine. Reverted against the old CSS it
+reports `leather "0-9" on a 132px spine: box 21..105, rule 102..109, -3px apart`, on all three
+shapes.
+
+**−3px, not the −2px the first reading gave**, and the correction is `--spine-rule`: a rule set at
+`inset: … 23px` paints on 22..23, so the clearance owes a pixel to the rule's own thickness at
+each end. Writing the check against the pseudo's **padding** box — which is what an inset resolves
+against, and which leather narrows with a 1px top border of its own — is what surfaced it.
+
+**The sides take `--spine-rule-side` and not `rule-side + rule`, and that asymmetry is the one
+finding worth carrying forward.** Charging the rule's width sideways too cost one pixel of content
+box, and `github#12`'s `fitsUpright` decides whether a short cover stands upright by asking
+`scrollWidth <= clientWidth` **on that box, in the look the page is currently in**. At 5px the tag
+`学び` stood upright in leather and cyber and lay on its side in modern, and *"a look moves nothing
+on the page"* reported it as `20 -> 76 wide`. It had been agreeing across the looks by about a
+pixel all along. Left at 4px here (**832** upright elements, unchanged); the look-dependent
+upright decision is `github#12`'s to answer.
+
+The sides were asked about and are answered in `design/0021` rather than fixed: the box no longer
+overhangs the panel, but what clears a side rule is the **line box**, which is the face's ascent
+and descent (26.4px in leather, 14px in cyber) against a spine whose width is its note count.
+
 ## 2026-09-11 — The lock names a job; what the two plugins share is a screen (github#37, github#25)
 
 > "only two places acquire a lock at all, nothing anywhere acquires `record`, and five
