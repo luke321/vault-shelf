@@ -670,6 +670,13 @@
 }
 .vault-shelf .vs-dyepick { width: 100%; margin-top: 6px; justify-content: center; }
 
+/* design/0020 -- A BOOK MADE ON THE SHELF. The menu a right-click on empty rail space opens is
+ * the dye menu's box with one line in it, and the sheet that follows is the builder's sheet at
+ * a form's width: nothing here has geometry of its own, so a look repaints it and moves
+ * nothing (design/0016). A made spine is a spine. */
+.vault-shelf .vs-railline { width: 100%; justify-content: center; }
+.vault-shelf .vs-sheetbody.vs-narrow { max-width: 440px; }
+
 /* github#0 -- DELETE LOOKS ORDINARY UNTIL IT IS ARMED, and then it looks like what it is. It
  * lives in this block rather than beside the other Manage rules because the Manage sheet is
  * being reworked on another branch; the geometry is the shared button's, so only the colour

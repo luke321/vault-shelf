@@ -136,6 +136,10 @@ const POINTER_DRIVEN = [
   "carried by its floor",
   /* github#0 -- it reads margins while a drag is in the air. */
   "the room parts",
+  /* design/0020 -- a right-click is a pointer position against a row, and a drag off the rail
+   * is the same geometry the dragged-off check reads. */
+  "made on the shelf",
+  "edited, emptied",
 ];
 const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
 
@@ -1097,7 +1101,7 @@ check("a drop onto Favourites adds the book where it landed, and a rebuild keeps
              hintBack: hintBack, yearsId: years.id, peopleId: people.id };
   })()`);
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const ok = r.hint === "Drag a book here" && r.emptyHeight > 100 &&
+  const ok = r.hint === "Drag a book here, or right-click to make one" && r.emptyHeight > 100 &&
              r.first.landing === "1" && r.first.lifted === "1" && r.first.payload === r.yearsId &&
              r.sameNotes && r.oneCount === r.sourceCount && r.oneKey === r.yearsId &&
              r.oneId === "favourites/" + r.yearsId &&
@@ -1446,6 +1450,369 @@ check("a note in two favourites is one note on the shelf", async (p) => {
     detail: `${r.years} (${r.yearsNotes} notes) and ${r.month} (${r.monthNotes}) on Favourites: ` +
             `${r.sum} places, ${r.unique} unique notes, the shelf claims ${r.claimed} and the ` +
             `header says "${r.head}"`
+  };
+});
+
+/* design/0020 -- a book made on the shelf: built by the real menu and sheet, then measured
+ * against every law a book on a pick shelf has to keep. */
+check("a book made on the shelf holds the notes it points at, where it was made", async (p) => {
+  await p.eval(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    fav.picks = [];
+    delete fav.made;
+    __vs.setFilters({});
+    document.getElementById("vs-library").scrollTop = 0;
+  })(); void 0`);
+  await sleep(250);
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    var viewOf = function (id) {
+      return __vs.views().filter(function (v) { return v.shelf.id === id; })[0];
+    };
+    var spineOf = function (id) {
+      return document.querySelector('#vs-shelves [data-book="' + id.replace(/"/g, '\\"') + '"]');
+    };
+    var rail = document.querySelector('#vs-shelves [data-shelf="' + fav.id + '"] .vs-shelfrail');
+    var inFolder = function (n, f) { return n.folder === f || n.folder.indexOf(f + "/") === 0; };
+    var byFolder = {};
+    __vs.data().notes.forEach(function (n) { byFolder[n.folder] = (byFolder[n.folder] || 0) + 1; });
+    var folders = Object.keys(byFolder).sort(function (a, b) { return byFolder[b] - byFolder[a]; });
+    var folder = folders[0], other = folders[folders.length - 1];
+    var expected = __vs.data().notes.filter(function (n) { return inFolder(n, folder); }).length;
+
+    /* 1. right-click the empty landing, and the menu offers one thing */
+    var landing = rail.querySelector(".vs-dropzone");
+    var track = landing.parentElement;
+    var lb = landing.getBoundingClientRect();
+    track.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true,
+      clientX: Math.round(lb.left + lb.width / 2), clientY: Math.round(lb.top + lb.height / 2) }));
+    var menu = document.getElementById("vs-railmenu");
+    var line = menu.querySelector("button");
+    var offered = { shown: !menu.hidden, text: line ? line.textContent : null,
+                    named: menu.querySelector(".vs-dyename").textContent,
+                    dyeShut: document.getElementById("vs-dye").hidden };
+    line.click();
+
+    /* 2. the sheet: a name and what it holds, with the real count under it */
+    var sheet = document.getElementById("vs-madebook");
+    var name = document.getElementById("vs-mbname");
+    var kind = document.getElementById("vs-mbsource");
+    var val = document.getElementById("vs-mbsourceval");
+    var form = { shown: !sheet.hidden, menuShut: menu.hidden,
+                 title: document.getElementById("vs-mbtitle").textContent,
+                 focused: document.activeElement === name,
+                 deleteHidden: document.getElementById("vs-mbdelete").hidden };
+    name.value = "Dailies";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+    kind.value = "folder";
+    kind.dispatchEvent(new Event("change", { bubbles: true }));
+    val.value = folder;
+    val.dispatchEvent(new Event("change", { bubbles: true }));
+    form.count = document.getElementById("vs-mbcount").textContent;
+    document.getElementById("vs-mbsave").click();
+    form.shut = sheet.hidden;
+
+    /* 3. the book: its own address, the folder's notes, a spine like any favourite */
+    var made = viewOf(fav.id).books[0];
+    var spine = made ? spineOf(made.id) : null;
+    var book = {
+      id: made ? made.id : "", key: made ? made.key : "", label: made ? made.label : "",
+      notes: made ? made.notes.length : -1, expected: expected,
+      spine: !!spine, focused: !!spine && document.activeElement === spine,
+      draggable: !!spine && spine.draggable, hand: !!spine && spine.getAttribute("data-hand") === "1",
+      landingGone: !document.querySelector('#vs-shelves [data-shelf="' + fav.id + '"] .vs-dropzone'),
+      jump: document.querySelector('#vs-jump [data-jump="' + fav.id + '"] .vs-n').textContent,
+      picks: fav.picks.slice(), defined: !!(fav.made && made && fav.made[made.key])
+    };
+
+    /* 4. a favourite of a year it overlaps: one note, counted once */
+    var dated = made.notes.filter(function (n) { return n.date; })[0];
+    var yearId = dated ? "years/" + dated.date.slice(0, 4) : viewOf("years").books[0].id;
+    __vs.pick(yearId);
+    var report = __vs.checkMembership().filter(function (x) { return x.shelf === fav.id; })[0];
+    var overlap = { books: viewOf(fav.id).books.length, sum: report.sum, unique: report.unique,
+                    claimed: viewOf(fav.id).noteCount, ok: report.ok, overlaps: report.sum > report.unique,
+                    dated: !!dated };
+
+    /* 5. a filter narrows it, and moves nothing: same address, same picks, an empty spine at worst */
+    var narrowedTo = __vs.data().notes.filter(function (n) {
+      return inFolder(n, folder) && inFolder(n, other);
+    }).length;
+    __vs.setFilters({ folders: [other] });
+    var narrowed = viewOf(fav.id).books.filter(function (b) { return b.key === made.key; })[0];
+    var filtered = { there: !!narrowed, notes: narrowed ? narrowed.notes.length : -1, expected: narrowedTo,
+                     empty: !!spineOf(made.id) && spineOf(made.id).getAttribute("data-empty") === "1",
+                     picks: JSON.stringify(fav.picks) };
+    __vs.setFilters({ folders: [] });
+
+    /* 6. the settings round-trip through migrate, and a hand-edited file is put right */
+    var blob = JSON.parse(JSON.stringify(__vs.settings()));
+    var back = core.migrate(blob).shelves.filter(function (s) { return s.id === fav.id; })[0];
+    var roundtrip = { picks: JSON.stringify(back.picks) === JSON.stringify(fav.picks),
+                      made: JSON.stringify(back.made) === JSON.stringify(fav.made) };
+    var edited = core.migrate({ schema: 10, shelves: [{ id: "favourites", name: "F",
+      source: { kind: "all" }, classifier: "pick", direction: "manual", hidden: false,
+      position: 0, plaques: false,
+      picks: ["-made-gone", "years/2024", "-made-x"],
+      made: { "-made-x": { name: "X", source: { kind: "folder", value: "a" } },
+              "-made-bad": { name: 3 },
+              "-made-lost": { name: "Lost", source: { kind: "tag", value: "t" } },
+              "years/2024": { name: "Nope", source: { kind: "all" } } } }] }).shelves[0];
+    var normalised = { picks: edited.picks, made: Object.keys(edited.made) };
+
+    /* 7. a second one, right-clicked into the gap before the year: it lands there */
+    var ySpine = spineOf(fav.id + "/" + yearId);
+    var yb = ySpine.getBoundingClientRect();
+    ySpine.closest(".vs-track").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true,
+      cancelable: true, clientX: Math.round(yb.left - 1), clientY: Math.round(yb.top + yb.height / 2) }));
+    menu.querySelector("button").click();
+    name.value = "Everything";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+    kind.value = "all";
+    kind.dispatchEvent(new Event("change", { bubbles: true }));
+    var wholeCount = document.getElementById("vs-mbcount").textContent;
+    var valueHidden = val.hidden;
+    document.getElementById("vs-mbsave").click();
+    var whole = viewOf(fav.id).books.filter(function (b) { return b.key === "-made-everything"; })[0];
+    var between = { sequence: __vs.sequence(fav.id), notes: whole ? whole.notes.length : -1,
+                    total: __vs.data().notes.length, count: wholeCount, valueHidden: valueHidden };
+
+    /* 8. Alt+Right moves it along the shelf like any book arranged by hand */
+    var dSpine = spineOf(made.id);
+    dSpine.focus();
+    dSpine.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", altKey: true, bubbles: true }));
+    var nudged = __vs.sequence(fav.id);
+
+    /* 9. it is a place a note lives: a ribbon in it resolves to it, "also shelved in" offers it,
+     *    and opening it opens it -- while the reference beside it stays invisible to all three */
+    var note = viewOf(fav.id).books.filter(function (b) { return b.key === made.key; })[0].notes[0];
+    __vs.settings().reading.push({ noteId: note.id, shelfId: fav.id, bookId: made.id, at: Date.now() });
+    __vs.setFilters({});
+    var resolved = core.resolveReading(note.id, made.id, __vs.views());
+    var alsoIn = core.alsoShelvedIn(note.id, __vs.views(), "nowhere").map(function (b) { return b.id; });
+    __vs.openBook(made.id);
+    var opened = __vs.reader();
+    __vs.closeReader();
+    var place = {
+      onReadingShelf: !!document.querySelector('#vs-shelves [data-shelf="-reading"] [data-book="' + made.id + '"]'),
+      resolved: resolved ? resolved.id : null,
+      ribbon: !!spineOf(made.id).querySelector(".vs-ribbon"),
+      alsoIn: alsoIn.indexOf(made.id) >= 0,
+      referenceNot: alsoIn.indexOf(fav.id + "/" + yearId) < 0,
+      opened: opened ? opened.book : null
+    };
+    __vs.settings().reading.pop();
+
+    /* put the shelf back */
+    __vs.unmakeBook(made.id);
+    __vs.unmakeBook(fav.id + "/-made-everything");
+    fav.picks = [];
+    __vs.setFilters({});
+    return { offered: offered, form: form, book: book, overlap: overlap, filtered: filtered,
+             roundtrip: roundtrip, normalised: normalised, between: between, nudged: nudged,
+             place: place, yearId: yearId, folder: folder, other: other,
+             left: viewOf(fav.id).books.length, madeLeft: Object.keys(__vs.made(fav.id)).length };
+  })()`);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const ok = r.offered.shown && r.offered.text === "New book here…" && r.offered.dyeShut &&
+             r.form.shown && r.form.menuShut && r.form.focused && r.form.deleteHidden &&
+             r.form.title.indexOf("New book") === 0 && r.form.count === r.book.expected + " notes" &&
+             r.form.shut &&
+             r.book.id === "favourites/-made-dailies" &&
+             r.book.key === "-made-dailies" && r.book.label === "Dailies" &&
+             r.book.notes === r.book.expected && r.book.notes > 0 && r.book.spine && r.book.focused &&
+             r.book.draggable && r.book.hand && r.book.landingGone && r.book.jump === "1" &&
+             same(r.book.picks, ["-made-dailies"]) && r.book.defined &&
+             r.overlap.books === 2 && r.overlap.ok && r.overlap.claimed === r.overlap.unique &&
+             (!r.overlap.dated || r.overlap.overlaps) &&
+             r.filtered.there && r.filtered.notes === r.filtered.expected &&
+             (r.filtered.notes > 0 || r.filtered.empty) &&
+             r.filtered.picks === JSON.stringify(["-made-dailies", r.yearId]) &&
+             r.roundtrip.picks && r.roundtrip.made &&
+             same(r.normalised.picks, ["years/2024", "-made-x", "-made-lost"]) &&
+             same(r.normalised.made, ["-made-x", "-made-lost"]) &&
+             same(r.between.sequence, ["-made-dailies", "-made-everything", r.yearId]) &&
+             r.between.notes === r.between.total && r.between.valueHidden &&
+             r.between.count === r.between.total + " notes, the whole vault" &&
+             same(r.nudged, ["-made-everything", "-made-dailies", r.yearId]) &&
+             r.place.onReadingShelf && r.place.resolved === r.book.id && r.place.ribbon &&
+             r.place.alsoIn && r.place.referenceNot && r.place.opened === r.book.id &&
+             r.left === 0 && r.madeLeft === 0;
+  return {
+    ok,
+    detail: `right-click on the landing offered "${r.offered.text}" under "${r.offered.named}"; the ` +
+            `sheet "${r.form.title}" counted "${r.form.count}" and made ${r.book.id} ("${r.book.label}", ` +
+            `${r.book.notes} of ${r.book.expected} notes in ${r.folder}), draggable ${r.book.draggable}, ` +
+            `a handle ${r.book.hand}, focused ${r.book.focused}, the jump chip says ${r.book.jump}; with ` +
+            `${r.yearId} beside it ${r.overlap.sum} places are ${r.overlap.unique} notes and the shelf ` +
+            `claims ${r.overlap.claimed}; a filter to ${r.other} left ${r.filtered.notes} of ` +
+            `${r.filtered.expected} (empty spine ${r.filtered.empty}) and the picks ${r.filtered.picks}; ` +
+            `migrate round-trips picks ${r.roundtrip.picks} and made ${r.roundtrip.made}, a hand-edited ` +
+            `file comes up [${r.normalised.picks.join(", ")}] defining [${r.normalised.made.join(", ")}]; ` +
+            `a second one right-clicked into the gap gave [${r.between.sequence.join(", ")}] holding ` +
+            `${r.between.notes} of ${r.between.total} ("${r.between.count}"), Alt+Right gave ` +
+            `[${r.nudged.join(", ")}]; a ribbon resolves to ${r.place.resolved}, is drawn ${r.place.ribbon}, ` +
+            `on the Reading shelf ${r.place.onReadingShelf}, also-shelved-in offers it ${r.place.alsoIn} ` +
+            `and not the reference ${r.place.referenceNot}, opening it opened ${r.place.opened}; ` +
+            `left ${r.left} books and ${r.madeLeft} definitions` +
+            (ok ? "" : `; flags: ${JSON.stringify({ offered: r.offered, form: r.form, book: r.book })}`)
+  };
+});
+
+/* design/0020 -- the same book, edited, emptied and deleted, and the vault untouched throughout. */
+check("a made book is edited, emptied and deleted from its own menu, and the vault does not move",
+      async (p) => {
+  await p.eval(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    fav.picks = [];
+    delete fav.made;
+    __vs.setFilters({});
+    document.getElementById("vs-library").scrollTop = 0;
+  })(); void 0`);
+  await sleep(250);
+  const r = await p.j(`(function(){
+    var fav = __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })[0];
+    var viewOf = function (id) {
+      return __vs.views().filter(function (v) { return v.shelf.id === id; })[0];
+    };
+    var spineOf = function (id) {
+      return document.querySelector('#vs-shelves [data-book="' + id.replace(/"/g, '\\"') + '"]');
+    };
+    var at = function (el, dt) {
+      var b = el.getBoundingClientRect();
+      return { bubbles: true, cancelable: true, dataTransfer: dt,
+               clientX: b.left + b.width / 2, clientY: b.top + b.height / 2 };
+    };
+    var notesBefore = JSON.stringify(__vs.data().notes);
+    var byFolder = {}, byTag = {};
+    __vs.data().notes.forEach(function (n) {
+      byFolder[n.folder] = (byFolder[n.folder] || 0) + 1;
+      n.tags.forEach(function (t) { byTag[t] = (byTag[t] || 0) + 1; });
+    });
+    var folder = Object.keys(byFolder).sort(function (a, b) { return byFolder[b] - byFolder[a]; })[0];
+    var tag = Object.keys(byTag).sort(function (a, b) { return byTag[b] - byTag[a]; })[0] || "";
+    var tagged = tag
+      ? __vs.data().notes.filter(function (n) {
+          return n.tags.some(function (t) { return t === tag || t.indexOf(tag + "/") === 0; });
+        }).length
+      : __vs.data().notes.length;
+
+    var id = __vs.makeBook(fav.id, { name: "Dailies", source: { kind: "folder", value: folder } }, null);
+    var first = viewOf(fav.id).books[0].notes.length;
+
+    /* 1. the menu on a made spine: the twelve, then edit and delete, and no "take off" */
+    var spine = spineOf(id);
+    spine.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 200, clientY: 200 }));
+    var dye = document.getElementById("vs-dye");
+    var lines = [].map.call(dye.querySelectorAll(".vs-dyepick"), function (b) { return b.textContent; });
+    var swatches = dye.querySelectorAll(".vs-swatch").length;
+
+    /* 2. edit: the sheet comes up filled in; a rename and a new predicate keep the address */
+    dye.querySelectorAll(".vs-dyepick")[0].click();
+    var sheet = document.getElementById("vs-madebook");
+    var name = document.getElementById("vs-mbname");
+    var kind = document.getElementById("vs-mbsource");
+    var val = document.getElementById("vs-mbsourceval");
+    var form = { shown: !sheet.hidden, menuShut: dye.hidden,
+                 title: document.getElementById("vs-mbtitle").textContent,
+                 name: name.value, kind: kind.value, value: val.value,
+                 deleteOffered: !document.getElementById("vs-mbdelete").hidden };
+    name.value = "Journal";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+    kind.value = tag ? "tag" : "all";
+    kind.dispatchEvent(new Event("change", { bubbles: true }));
+    if (tag) { val.value = tag; val.dispatchEvent(new Event("change", { bubbles: true })); }
+    document.getElementById("vs-mbsave").click();
+    var edited = viewOf(fav.id).books[0];
+    var afterEdit = { id: edited.id, label: edited.label, notes: edited.notes.length, expected: tagged,
+                      picks: fav.picks.slice(), defined: fav.made[edited.key].name };
+
+    /* 3. a source the vault has lost: an empty book, kept through a save, unlike a dead pick */
+    __vs.editBook(id, { name: "Journal", source: { kind: "folder", value: "nowhere/at/all" } });
+    var years = viewOf("years").books[0].id;
+    __vs.pick(years);
+    var emptied = viewOf(fav.id).books.filter(function (b) { return b.id === id; })[0];
+    var eSpine = spineOf(id);
+    var hollow = { there: !!emptied, notes: emptied ? emptied.notes.length : -1,
+                   emptySpine: !!eSpine && eSpine.getAttribute("data-empty") === "1",
+                   picksAfterSave: fav.picks.slice(), defined: !!(fav.made && fav.made["-made-dailies"]) };
+    __vs.unpick(years);
+
+    /* 4. a colour and wear given to it; an abandoned drag keeps it; a drop off the rail deletes it */
+    __vs.settings().bookColors[id] = 4;
+    __vs.settings().wear[id] = 3;
+    __vs.setFilters({});
+    var yearsBooks = viewOf("years").books.length;
+    var onto = document.querySelector('[data-shelf="years"] .vs-track');
+    var dt = new DataTransfer();
+    var lifted = spineOf(id);
+    lifted.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+    onto.dispatchEvent(new DragEvent("dragover", at(onto, dt)));
+    var wasLeaving = __vs.leaving(id);
+    lifted.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+    var kept = { still: !!spineOf(id), defined: !!(fav.made && fav.made["-made-dailies"]), leaving: wasLeaving };
+    var dt2 = new DataTransfer();
+    lifted = spineOf(id);
+    lifted.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt2 }));
+    onto.dispatchEvent(new DragEvent("dragover", at(onto, dt2)));
+    onto.dispatchEvent(new DragEvent("drop", at(onto, dt2)));
+    lifted.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt2 }));
+    var gone = { spine: !!spineOf(id), defined: !!(fav.made && fav.made["-made-dailies"]),
+                 picks: fav.picks.slice(), colour: __vs.settings().bookColors[id],
+                 wear: __vs.settings().wear[id], yearsBooks: viewOf("years").books.length,
+                 yearsBefore: yearsBooks };
+
+    /* 5. made again and deleted by the menu line; made again and deleted from its own sheet */
+    id = __vs.makeBook(fav.id, { name: "Dailies", source: { kind: "folder", value: folder } }, null);
+    spineOf(id).dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 200, clientY: 200 }));
+    dye.querySelectorAll(".vs-dyepick")[1].click();
+    var byMenu = { spine: !!spineOf(id), picks: fav.picks.length, menuShut: dye.hidden };
+    id = __vs.makeBook(fav.id, { name: "Dailies", source: { kind: "folder", value: folder } }, null);
+    spineOf(id).dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 200, clientY: 200 }));
+    dye.querySelectorAll(".vs-dyepick")[0].click();
+    document.getElementById("vs-mbdelete").click();
+    var bySheet = { spine: !!spineOf(id), picks: fav.picks.length, sheetShut: sheet.hidden,
+                    landing: !!document.querySelector('[data-shelf="' + fav.id + '"] .vs-dropzone') };
+
+    fav.picks = [];
+    delete fav.made;
+    __vs.setFilters({});
+    return { first: first, lines: lines, swatches: swatches, form: form, afterEdit: afterEdit,
+             hollow: hollow, kept: kept, gone: gone, byMenu: byMenu, bySheet: bySheet,
+             folder: folder, tag: tag, id: "favourites/-made-dailies",
+             vaultSame: JSON.stringify(__vs.data().notes) === notesBefore,
+             notes: __vs.data().notes.length };
+  })()`);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const ok = r.first > 0 && same(r.lines, ["Edit book…", "Delete book"]) && r.swatches === 12 &&
+             r.form.shown && r.form.menuShut && r.form.title === "Edit book" && r.form.name === "Dailies" &&
+             r.form.kind === "folder" && r.form.value === r.folder && r.form.deleteOffered &&
+             r.afterEdit.id === r.id && r.afterEdit.label === "Journal" &&
+             r.afterEdit.notes === r.afterEdit.expected && same(r.afterEdit.picks, ["-made-dailies"]) &&
+             r.afterEdit.defined === "Journal" &&
+             r.hollow.there && r.hollow.notes === 0 && r.hollow.emptySpine &&
+             r.hollow.picksAfterSave.length === 2 && r.hollow.picksAfterSave[0] === "-made-dailies" && r.hollow.defined &&
+             r.kept.still && r.kept.defined && r.kept.leaving &&
+             !r.gone.spine && !r.gone.defined && same(r.gone.picks, []) && r.gone.colour === undefined &&
+             r.gone.wear === undefined && r.gone.yearsBooks === r.gone.yearsBefore &&
+             !r.byMenu.spine && r.byMenu.picks === 0 && r.byMenu.menuShut &&
+             !r.bySheet.spine && r.bySheet.picks === 0 && r.bySheet.sheetShut && r.bySheet.landing &&
+             r.vaultSame;
+  return {
+    ok,
+    detail: `${r.id} held ${r.first} notes of ${r.folder}; its menu offered ${r.swatches} swatches and ` +
+            `[${r.lines.join(" | ")}]; the sheet came up "${r.form.title}" as "${r.form.name}" / ` +
+            `${r.form.kind} ${r.form.value} with delete ${r.form.deleteOffered}; renamed and repointed at ` +
+            `${r.tag ? "#" + r.tag : "the whole vault"} it is still ${r.afterEdit.id}, called ` +
+            `"${r.afterEdit.label}", ${r.afterEdit.notes} of ${r.afterEdit.expected} notes; pointed at a ` +
+            `folder the vault lacks it is ${r.hollow.notes} notes on an empty spine (${r.hollow.emptySpine}) ` +
+            `and a save kept it (${r.hollow.picksAfterSave.join(", ")}); an abandoned drag left it ` +
+            `(${r.kept.still}, marked leaving ${r.kept.leaving}); a drop on Years deleted it -- spine ` +
+            `${r.gone.spine}, defined ${r.gone.defined}, colour ${r.gone.colour}, wear ${r.gone.wear}, ` +
+            `Years still ${r.gone.yearsBooks} books; by the menu line: spine ${r.byMenu.spine}; from ` +
+            `its sheet: spine ${r.bySheet.spine}, landing back ${r.bySheet.landing}; the vault's ` +
+            `${r.notes} notes are byte-identical: ${r.vaultSame}`
   };
 });
 

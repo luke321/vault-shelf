@@ -19,6 +19,52 @@ export function slug(text: string): string {
   return base || "shelf";
 }
 
+/* ---- a book made on the shelf --------------------------------------------
+ * design/0020 -- a made book's key starts with a hyphen like the two special keys, and with a
+ * word no classifier produces, so it can never collide with a source address (which has a
+ * slash) or with a real tag, person, initial or date. The key is fixed when the book is made
+ * and survives a rename, which is what decisions/0002 asks of an address.
+ */
+
+const MADE = "-made-";
+
+export function isMadeKey(key: string): boolean {
+  return key.indexOf(MADE) === 0;
+}
+
+/** The key a new made book gets: its name as a slug, made unique against `taken`. */
+export function madeKey(name: string, taken: string[]): string {
+  const base = MADE + (name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "book");
+  let key = base;
+  for (let n = 2; taken.indexOf(key) >= 0; n++) key = base + "-" + n;
+  return key;
+}
+
+/**
+ * design/0020 -- A REFERENCE IS NOT A PLACE A NOTE LIVES, AND A MADE BOOK IS. A favourite is
+ * its source book under a second name, so the reader, the reading places and "also shelved
+ * in" skip it (design/0019). A made book has no source: it is the only address its notes have
+ * under that name, so a ribbon left in it resolves to it and nothing skips it.
+ */
+export function isReference(shelf: Shelf, book: Book): boolean {
+  return shelf.classifier === "pick" && !isMadeKey(book.key);
+}
+
+export function madeKeys(shelf: Shelf): string[] {
+  return Object.keys(shelf.made ?? {});
+}
+
+/**
+ * design/0020 -- what a pick shelf's list is saved against: every address the library
+ * resolves, and the shelf's own made keys -- a made book is live by definition, since its
+ * definition is on the shelf, and `pickBefore` would otherwise drop it on every save.
+ */
+export function liveOn(shelf: Shelf, live: Set<string>): Set<string> {
+  const out = new Set(live);
+  for (const key of madeKeys(shelf)) out.add(key);
+  return out;
+}
+
 /* ---- the source predicate ------------------------------------------------
  * design/0002
  */
@@ -202,7 +248,7 @@ export function decadeOf(year: string): string | null {
  */
 export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "oldest",
                            sources: ShelfView[] = []): ShelfView {
-  if (shelf.classifier === "pick") return buildPicks(shelf, sources);
+  if (shelf.classifier === "pick") return buildPicks(shelf, notes, order, sources);
   const includeSubtags = shelf.includeSubtags !== false;
   const members = notes.filter((n) => matchesSource(n, shelf.source, includeSubtags));
   const byKey = new Map<string, Note[]>();
@@ -249,7 +295,14 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
  * dropped: reading is where a filter is in force, and a filter is not a deletion. The plaque
  * is null because a shelf arranged by dropping has no unit above the book.
  */
-function buildPicks(shelf: Shelf, sources: ShelfView[]): ShelfView {
+/*
+ * design/0020 -- A MADE BOOK IS BUILT HERE TOO, from the same filtered notes every other shelf
+ * is built from, so a filter narrows it exactly as it narrows its neighbours. One whose
+ * predicate admits nothing is an EMPTY BOOK rather than a skipped one: a dead reference has
+ * lost the thing that explained it, but a made book's explanation is its own definition,
+ * which somebody wrote and can edit.
+ */
+function buildPicks(shelf: Shelf, notes: Note[], order: NoteOrder, sources: ShelfView[]): ShelfView {
   const byId = new Map<string, Book>();
   for (const view of sources) {
     if (view.shelf.classifier === "pick") continue;
@@ -258,6 +311,22 @@ function buildPicks(shelf: Shelf, sources: ShelfView[]): ShelfView {
   const books: Book[] = [];
   const seen = new Set<string>();
   for (const pick of shelf.picks ?? []) {
+    const made = isMadeKey(pick) ? shelf.made?.[pick] : undefined;
+    if (made) {
+      const members = notes.filter((n) => matchesSource(n, made.source, true));
+      books.push({
+        id: bookId(shelf.id, pick),
+        shelfId: shelf.id,
+        key: pick,
+        label: made.name,
+        plaque: null,
+        notes: members.slice().sort((a, b) => (order === "newest" ? 1 : -1) * byDateThenTitle(a, b)),
+        bands: bandsOf(members),
+        matches: 0,
+      });
+      for (const n of members) seen.add(n.id);
+      continue;
+    }
     const source = byId.get(pick);
     if (!source) continue;
     books.push({
@@ -484,9 +553,9 @@ export function markMatches(views: ShelfView[], query: string): { books: number;
 export function alsoShelvedIn(noteId: string, views: ShelfView[], exceptBook: string): Book[] {
   const out: Book[] = [];
   for (const view of views) {
-    if (view.shelf.hidden || view.shelf.classifier === "pick") continue;
+    if (view.shelf.hidden) continue;
     for (const book of view.books) {
-      if (book.id === exceptBook) continue;
+      if (book.id === exceptBook || isReference(view.shelf, book)) continue;
       if (book.notes.some((n) => n.id === noteId)) out.push(book);
     }
   }
@@ -498,19 +567,22 @@ export function alsoShelvedIn(noteId: string, views: ShelfView[], exceptBook: st
  * re-resolved rather than trusted: the book it names if that book still holds the note,
  * otherwise the first visible book anywhere that does.
  */
-/* design/0019 -- THE READER NEVER SEES A PICK SHELF. A favourite is its source book, so the
+/* design/0019 -- THE READER NEVER SEES A REFERENCE. A favourite is its source book, so the
  * reading place, the ribbon and the also-shelved-in list all name the source; offering the
- * favourite as well would be the same book twice under two addresses. */
+ * favourite as well would be the same book twice under two addresses. A book MADE on the pick
+ * shelf is not a reference and is seen like any other (design/0020). */
 export function resolveReading(noteId: string, bookId_: string, views: ShelfView[]): Book | null {
   for (const view of views) {
-    if (view.shelf.hidden || view.shelf.classifier === "pick") continue;
+    if (view.shelf.hidden) continue;
     for (const book of view.books) {
+      if (isReference(view.shelf, book)) continue;
       if (book.id === bookId_ && book.notes.some((n) => n.id === noteId)) return book;
     }
   }
   for (const view of views) {
-    if (view.shelf.hidden || view.shelf.classifier === "pick") continue;
+    if (view.shelf.hidden) continue;
     for (const book of view.books) {
+      if (isReference(view.shelf, book)) continue;
       if (book.notes.some((n) => n.id === noteId)) return book;
     }
   }

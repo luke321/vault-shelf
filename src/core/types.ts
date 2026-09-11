@@ -48,6 +48,16 @@ export interface Source {
   value?: string;
 }
 
+/**
+ * design/0020 -- A BOOK MADE ON A PICK SHELF: a name and the predicate it holds, and nothing
+ * copied. Its notes are whatever `matchesSource` admits on every build, so it follows the
+ * vault the way a shelf does; it is the only address those notes have under this name.
+ */
+export interface MadeBook {
+  name: string;
+  source: Source;
+}
+
 export interface Shelf {
   /** decisions/0002 */
   id: string;
@@ -72,6 +82,13 @@ export interface Shelf {
    * resolves is skipped on read and dropped when the list is next saved, like a manual key.
    */
   picks?: string[];
+  /**
+   * design/0020 -- the books MADE on a pick shelf, keyed by the made key `picks` names
+   * (`-made-<slug>`, which has no slash and so can never be a source address). The key is in
+   * `picks` because the sequence is one list; the definition is here because, unlike a
+   * reference, a made book has nowhere else to be read from.
+   */
+  made?: Record<string, MadeBook>;
   hidden: boolean;
   position: number;
   /** design/0003 */

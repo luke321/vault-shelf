@@ -437,7 +437,10 @@ function mountVaultShelf(root, data, options) {
     rowsOf(view.books).forEach(function (row) {
       rail.appendChild(renderTrack(row, view.shelf, true));
     });
-    if (isPick(view.shelf)) landingOf(rail, view);
+    if (isPick(view.shelf)) {
+      landingOf(rail, view);
+      offersBook(rail, view);
+    }
     wrap.appendChild(rail);
     return wrap;
   }
@@ -453,17 +456,21 @@ function mountVaultShelf(root, data, options) {
   function landingOf(rail, view) {
     rail.setAttribute("data-pick", "1");
     if (!view.books.length && rail.firstChild) {
-      rail.firstChild.appendChild(el("div", "vs-dropzone", "Drag a book here"));
+      rail.firstChild.appendChild(el("div", "vs-dropzone",
+        "Drag a book here, or right-click to make one"));
     }
     /** @param {Event} e @returns {boolean} */
     var overSpine = function (e) {
       return e.target instanceof Element &&
              !!(e.target.closest(".vs-spine") || e.target.closest(".vs-floorgrip"));
     };
+    /* design/0020 -- a made book belongs to the shelf it was made on; another pick shelf's
+     * empty rail neither lights for it nor takes it. */
+    var refused = function () { return !dragging || core.isMadeKey(dragging.key); };
     on(rail, "dragover", function (e) {
       var de = /** @type {DragEvent} */ (e);
       /* A rail with books on it is the row's business (`takesBooks`); this is the empty one. */
-      if (!dragging || overSpine(de) || rail.querySelector(".vs-spine")) return;
+      if (refused() || overSpine(de) || rail.querySelector(".vs-spine")) return;
       de.preventDefault();
       if (de.dataTransfer) de.dataTransfer.dropEffect = "move";
       markLanding(rail);
@@ -476,7 +483,7 @@ function mountVaultShelf(root, data, options) {
     });
     on(rail, "drop", function (e) {
       var de = /** @type {DragEvent} */ (e);
-      if (!dragging || overSpine(de) || rail.querySelector(".vs-spine")) return;
+      if (refused() || overSpine(de) || rail.querySelector(".vs-spine")) return;
       de.preventDefault();
       var sourceId = carriedInto(view.shelf);
       dragging = null;
@@ -707,7 +714,8 @@ function mountVaultShelf(root, data, options) {
     var takes = function () {
       if (!dragging) return false;
       if (dragging.shelfId === shelf.id) return true;
-      return isPick(shelf) && !onShelf(shelf, dragging.id);
+      /* design/0020 -- a made book is its own shelf's; no other shelf takes it. */
+      return isPick(shelf) && !onShelf(shelf, dragging.id) && !core.isMadeKey(dragging.key);
     };
     on(track, "dragover", function (e) {
       var de = /** @type {DragEvent} */ (e);
@@ -1041,8 +1049,9 @@ function mountVaultShelf(root, data, options) {
         (onto.length === 1 ? onto[0].name : onto.length + " shelves take it") + ".");
     }
     if (isPick(shelf)) {
-      b.setAttribute("data-peek", b.getAttribute("data-peek") +
-        "\n\nDrag it off the shelf to take it off " + shelf.name + ".");
+      b.setAttribute("data-peek", b.getAttribute("data-peek") + (core.isMadeKey(book.key)
+        ? "\n\nMade on this shelf. Right-click to edit it; drag it off the shelf to delete it."
+        : "\n\nDrag it off the shelf to take it off " + shelf.name + "."));
     }
     on(b, "dragstart", function (e) {
       var de = /** @type {DragEvent} */ (e);
@@ -1081,7 +1090,12 @@ function mountVaultShelf(root, data, options) {
     if (!shelf || !isPick(shelf)) return null;
     if (!(e.target instanceof Element)) return shelf;
     var own = '[data-shelf="' + cssEscape(shelf.id) + '"]';
-    return e.target.closest(own) ? null : shelf;
+    if (e.target.closest(own)) return null;
+    /* design/0020 -- OFF IS DELETE FOR A MADE BOOK, so another pick shelf's rail is not "off":
+     * a person carrying Dailies onto the reading list is not asking to lose it. The drop there
+     * does nothing (that shelf refuses it too), and everywhere else off means what it says. */
+    if (core.isMadeKey(dragging.key) && e.target.closest(".vs-shelfrail[data-pick]")) return null;
+    return shelf;
   }
 
   /** The spine being carried, so it can say it is on its way off. @returns {HTMLElement|null} */
@@ -1142,11 +1156,15 @@ function mountVaultShelf(root, data, options) {
     on(box, "dragover", function (e) {
       var de = /** @type {DragEvent} */ (e);
       var shelf = leaving(de);
-      if (!shelf) return;
+      var spine = carriedSpine();
+      if (!shelf) {
+        /* A made book over a rail that will not take it is not on its way off either. */
+        if (spine && dragging && core.isMadeKey(dragging.key)) spine.removeAttribute("data-leaving");
+        return;
+      }
       de.preventDefault();
       if (de.dataTransfer) de.dataTransfer.dropEffect = "move";
       clearDrop();
-      var spine = carriedSpine();
       if (spine) spine.setAttribute("data-leaving", "1");
     });
     on(box, "drop", function (e) {
@@ -1198,7 +1216,7 @@ function mountVaultShelf(root, data, options) {
     if (isPick(shelf)) {
       /* design/0019 -- the same argument, one list along: the picks are saved against what
        * the UNFILTERED library resolves, so a dead pick goes here and nowhere else. */
-      shelf.picks = core.pickBefore(shelf.picks, liveSources(), key, before);
+      shelf.picks = core.pickBefore(shelf.picks, liveFor(shelf), key, before);
     } else {
       var live = core.buildShelf(shelf, notes, settings.noteOrder).books
         .map(function (bk) { return bk.key; });
@@ -1257,7 +1275,7 @@ function mountVaultShelf(root, data, options) {
   /** The book a favourite stands for; any other book is its own source. @param {Book} book @returns {Book} */
   function sourceOf(book) {
     var shelf = shelfById(book.shelfId);
-    if (!shelf || !isPick(shelf)) return book;
+    if (!shelf || !isPick(shelf) || core.isMadeKey(book.key)) return book;
     return bookIndex[book.key] || book;
   }
 
@@ -1266,9 +1284,181 @@ function mountVaultShelf(root, data, options) {
     return core.pickable(core.buildLibrary(settings.shelves, notes, settings.noteOrder));
   }
 
+  /** design/0020 -- the same set, plus the shelf's own made keys. @param {Shelf} shelf @returns {Set<string>} */
+  function liveFor(shelf) {
+    return core.liveOn(shelf, liveSources());
+  }
+
   /** @param {Shelf} shelf @param {string} sourceId */
   function takeOff(shelf, sourceId) {
-    shelf.picks = core.unpick(shelf.picks, liveSources(), sourceId);
+    /* design/0020 -- off is delete for a made book: there is nothing else it could be. */
+    if (core.isMadeKey(sourceId)) { deleteMadeBook(shelf, sourceId); return; }
+    shelf.picks = core.unpick(shelf.picks, liveFor(shelf), sourceId);
+    persist();
+    refresh();
+  }
+
+  /* ---- a book made on the shelf -------------------------------------------------
+   * design/0020 -- the other half of a pick shelf. A favourite is a reference to a book some
+   * classifier made; a MADE book is defined right here, by a name and what it holds, and
+   * stands on the shelf like any favourite: in `picks`, in the manual order, draggable. It is
+   * a saved query, not a folder -- nothing in the vault moves, and the book follows the vault.
+   */
+
+  /** @type {{ shelf: Shelf, key: string|null, before: string|null, draft: import("./core/index").MadeBook }|null} */
+  var making = null;
+  /** The shelf whose rail menu is open, if any. @type {Shelf|null} */
+  var railing = null;
+
+  /**
+   * A right-click on EMPTY rail space -- the dashed landing, the gap after the last book, the
+   * board between rows -- and not on a spine (the dye menu's) or the floor grip. Where it
+   * landed is where the book will stand: before the spine whose middle the pointer has not
+   * passed on that row, or at the end.
+   * @param {HTMLElement} rail @param {ShelfView} view
+   */
+  function offersBook(rail, view) {
+    on(rail, "contextmenu", function (e) {
+      var me = /** @type {MouseEvent} */ (e);
+      if (!(me.target instanceof Element)) return;
+      if (me.target.closest(".vs-spine") || me.target.closest(".vs-floorgrip")) return;
+      me.preventDefault();
+      var track = me.target.closest(".vs-track");
+      /** @type {string|null} */
+      var before = null;
+      if (track instanceof HTMLElement) {
+        var place = placeIn(track, me.clientX);
+        if (place.spine) {
+          before = place.side === "before" ? keyOfSpine(place.spine)
+                 : neighbour(view.shelf, keyOfSpine(place.spine), "after", "");
+        }
+      }
+      openRailMenu(view.shelf, before, me.clientX, me.clientY);
+    });
+  }
+
+  /** @param {Shelf} shelf @param {string|null} before @param {number} x @param {number} y */
+  function openRailMenu(shelf, before, x, y) {
+    closeDye();
+    railing = shelf;
+    var menu = node("railmenu");
+    clear(menu);
+    menu.appendChild(el("div", "vs-dyename", shelf.name));
+    var line = /** @type {HTMLButtonElement} */ (el("button", "vs-railline", "New book here…"));
+    line.type = "button";
+    on(line, "click", function () { closeRailMenu(); openMadeBook(shelf, null, before); });
+    menu.appendChild(line);
+    placeMenu(menu, x, y);
+    line.focus();
+  }
+
+  function closeRailMenu() {
+    railing = null;
+    $("railmenu").hidden = true;
+  }
+
+  /**
+   * The sheet: a name, and what it holds. Editing keeps the key -- the address is the one
+   * thing about a book that survives a rename (decisions/0002) -- so a ribbon left in
+   * Dailies is still in it after it is called Journal.
+   * @param {Shelf} shelf @param {string|null} key @param {string|null} before
+   */
+  function openMadeBook(shelf, key, before) {
+    var def = key && shelf.made && shelf.made[key] ? shelf.made[key] : null;
+    making = { shelf: shelf, key: def ? key : null, before: before,
+               draft: def ? core.clone(def) : { name: "", source: { kind: "folder" } } };
+    $("mbtitle").textContent = def ? "Edit book" : "New book on " + shelf.name;
+    $("mbsave").textContent = def ? "Save changes" : "Make the book";
+    node("mbdelete").hidden = !def;
+    writeMadeFields();
+    $("madebook").hidden = false;
+    node("mbname").focus();
+    previewMadeBook();
+  }
+
+  function closeMadeBook() {
+    making = null;
+    $("madebook").hidden = true;
+    node("library").focus();
+  }
+
+  function writeMadeFields() {
+    if (!making) return;
+    var d = making.draft;
+    field("mbname").value = d.name;
+    field("mbsource").value = d.source.kind;
+    $("mbsourceval").hidden = d.source.kind === "all";
+    fillValuesInto(field("mbsourceval"), d.source.kind, d.source.value || "");
+  }
+
+  function readMadeFields() {
+    if (!making) return;
+    var d = making.draft;
+    d.name = field("mbname").value.trim();
+    var kind = /** @type {import("./core/index").SourceKind} */ (field("mbsource").value);
+    if (kind !== d.source.kind) {
+      d.source = { kind: kind };
+      fillValuesInto(field("mbsourceval"), kind, "");
+    }
+    if (kind !== "all") d.source.value = field("mbsourceval").value;
+    $("mbsourceval").hidden = kind === "all";
+  }
+
+  /** The count under the form is the real one, over the notes the shelf would be built from. */
+  function previewMadeBook() {
+    if (!making) return;
+    var d = making.draft;
+    var n = core.applyFilters(notes, filters).filter(function (note) {
+      return core.matchesSource(note, d.source, true);
+    }).length;
+    $("mbcount").textContent = n + (n === 1 ? " note" : " notes") +
+      (d.source.kind === "all" ? ", the whole vault" : d.source.value ? "" : " -- choose one");
+  }
+
+  function saveMadeBook() {
+    if (!making) return;
+    readMadeFields();
+    var shelf = making.shelf, key = making.key, before = making.before;
+    var def = making.draft;
+    if (!def.name) def.name = "Untitled book";
+    if (def.source.kind !== "all" && !def.source.value) { node("mbsourceval").focus(); return; }
+    closeMadeBook();
+    var made = writeMadeBook(shelf, key, def, before);
+    var spine = /** @type {HTMLElement|null} */ (root.querySelector(
+      "#" + ID + 'shelves .vs-spine[data-book="' + cssEscape(core.bookId(shelf.id, made)) + '"]'));
+    if (spine) spine.focus();
+  }
+
+  /**
+   * THE ONE WRITE, for the sheet and for the harness: the definition onto the shelf, and --
+   * for a new book -- its key into the sequence, in front of `before`. An existing key is
+   * kept, which is how a rename keeps its address.
+   * @param {Shelf} shelf @param {string|null} key @param {import("./core/index").MadeBook} def
+   * @param {string|null} before @returns {string} the key
+   */
+  function writeMadeBook(shelf, key, def, before) {
+    if (!shelf.made) shelf.made = {};
+    var made = key || core.madeKey(def.name, Object.keys(shelf.made));
+    shelf.made[made] = def;
+    if (!key) shelf.picks = core.pickBefore(shelf.picks, liveFor(shelf), made, before);
+    persist();
+    refresh();
+    return made;
+  }
+
+  /**
+   * Nothing to lose but a name and a predicate, so nothing is asked. What the book owned --
+   * its wear, its colour -- goes with it, the way a deleted shelf's does; a ribbon in it
+   * re-resolves to the next book that holds the note, as a saved place always has.
+   * @param {Shelf} shelf @param {string} key
+   */
+  function deleteMadeBook(shelf, key) {
+    if (shelf.made) delete shelf.made[key];
+    if (shelf.made && !Object.keys(shelf.made).length) delete shelf.made;
+    shelf.picks = core.unpick(shelf.picks, liveFor(shelf), key);
+    var id = core.bookId(shelf.id, key);
+    delete settings.wear[id];
+    delete settings.bookColors[id];
     persist();
     refresh();
   }
@@ -1466,7 +1656,18 @@ function mountVaultShelf(root, data, options) {
      * that would take it, named, because with several of them "Add to Favourites" would be a
      * guess about which one. This is also the path that needs no pointer. */
     var home = shelfById(book.shelfId);
-    if (home && isPick(home)) {
+    if (home && isPick(home) && core.isMadeKey(book.key)) {
+      /* design/0020 -- a made book is edited and deleted from the same menu, and "take off"
+       * is not offered because for this book it would be a delete under a softer name. */
+      var editBtn = /** @type {HTMLButtonElement} */ (el("button", "vs-dyepick", "Edit book…"));
+      editBtn.type = "button";
+      on(editBtn, "click", function () { closeDye(); openMadeBook(home, book.key, null); });
+      menu.appendChild(editBtn);
+      var delBtn = /** @type {HTMLButtonElement} */ (el("button", "vs-dyepick", "Delete book"));
+      delBtn.type = "button";
+      on(delBtn, "click", function () { closeDye(); takeOff(home, book.key); });
+      menu.appendChild(delBtn);
+    } else if (home && isPick(home)) {
       var offBtn = /** @type {HTMLButtonElement} */ (el("button", "vs-dyepick",
         "Take off " + home.name));
       offBtn.type = "button";
@@ -1487,17 +1688,24 @@ function mountVaultShelf(root, data, options) {
       });
     }
 
+    placeMenu(menu, x, y);
+    var first = menu.querySelector("button");
+    if (first instanceof HTMLElement) first.focus();
+  }
+
+  /**
+   * Placed where the pointer is, and pulled back inside the room if that would hang it off
+   * the edge. Measured after it is shown, because a hidden menu has no size.
+   * @param {HTMLElement} menu @param {number} x @param {number} y
+   */
+  function placeMenu(menu, x, y) {
     menu.hidden = false;
-    /* Placed where the pointer is, and pulled back inside the room if that would hang it off
-     * the edge. Measured after it is shown, because a hidden menu has no size. */
     var host = root.getBoundingClientRect();
     var w = menu.offsetWidth, h = menu.offsetHeight;
     var left = Math.min(x - host.left, host.width - w - 8);
     var top = Math.min(y - host.top, host.height - h - 8);
     menu.style.left = Math.max(8, left) + "px";
     menu.style.top = Math.max(8, top) + "px";
-    var first = menu.querySelector("button");
-    if (first instanceof HTMLElement) first.focus();
   }
 
   function closeDye() {
@@ -2135,8 +2343,10 @@ function mountVaultShelf(root, data, options) {
     var from = shelfById(here.shelfId);
     var fromAt = from ? from.position : 0;
     views.forEach(function (v) {
-      if (v.shelf.hidden || isPick(v.shelf)) return;
+      if (v.shelf.hidden) return;
       v.books.forEach(function (b) {
+        /* design/0020 -- a reference is skipped; a book made on a pick shelf is a place. */
+        if (core.isReference(v.shelf, b)) return;
         if (!b.notes.some(function (n) { return n.id === noteId; })) return;
         var distance = v.shelf.id === here.shelfId ? -1 : Math.abs(v.shelf.position - fromAt);
         if (!best || distance < best.distance) best = { book: b, distance: distance };
@@ -2344,9 +2554,16 @@ function mountVaultShelf(root, data, options) {
   }
 
   function fillSourceValues() {
-    var kind = field("bsource").value;
-    var select = field("bsourceval");
     var chosen = builder && builder.draft.source ? builder.draft.source.value : "";
+    fillValuesInto(field("bsourceval"), field("bsource").value, chosen || "");
+  }
+
+  /**
+   * The tags, people or folders the vault has, as the options of a source's value list. The
+   * builder's second question and the made-book sheet (design/0020) both ask it.
+   * @param {HTMLInputElement} select @param {string} kind @param {string} chosen
+   */
+  function fillValuesInto(select, kind, chosen) {
     /** @type {string[]} */
     var values = [];
     if (kind === "tag") values = uniqueSorted(flat(notes.map(function (n) { return n.tags; })));
@@ -2511,7 +2728,7 @@ function mountVaultShelf(root, data, options) {
     });
     var live = liveSources();
     settings.shelves.forEach(function (s_) {
-      if (isPick(s_)) s_.picks = core.unpick(s_.picks, live, "");
+      if (isPick(s_)) s_.picks = core.unpick(s_.picks, core.liveOn(s_, live), "");
     });
     persist();
     renderManage();
@@ -3030,11 +3247,26 @@ function mountVaultShelf(root, data, options) {
   /* The dye menu closes the way a menu does: a click anywhere else, or Escape. */
   on(DOC, "mousedown", function (e) {
     if (dyeing && e.target instanceof Node && !$("dye").contains(e.target)) closeDye();
+    if (railing && e.target instanceof Node && !$("railmenu").contains(e.target)) closeRailMenu();
     if (picking && e.target instanceof Node && !$("swatchpick").contains(e.target)) closeSwatchPick();
   });
   on(DOC, "keydown", function (e) {
     if (dyeing && /** @type {KeyboardEvent} */ (e).key === "Escape") closeDye();
+    if (railing && /** @type {KeyboardEvent} */ (e).key === "Escape") closeRailMenu();
     if (picking && /** @type {KeyboardEvent} */ (e).key === "Escape") closeSwatchPick();
+  });
+  /* design/0020 -- the made-book sheet: a name, what it holds, and the count under it. */
+  on($("mbsave"), "click", saveMadeBook);
+  on($("mbcancel"), "click", closeMadeBook);
+  on($("mbdelete"), "click", function () {
+    if (!making || !making.key) return;
+    var shelf = making.shelf, key = making.key;
+    closeMadeBook();
+    deleteMadeBook(shelf, key);
+  });
+  ["mbname", "mbsource", "mbsourceval"].forEach(function (id) {
+    on($(id), "change", function () { readMadeFields(); previewMadeBook(); });
+    on($(id), "input", function () { readMadeFields(); previewMadeBook(); });
   });
   on($("mnew"), "click", newShelfFromManage);
   on($("mclose"), "click", function () { $("manage").hidden = true; node("library").focus(); });
@@ -3101,6 +3333,7 @@ function mountVaultShelf(root, data, options) {
    * different objects, and check-scope refuses the second one for exactly that reason. */
   on(DOC, "keydown", function (e) {
     if (e.key === "Escape") {
+      if (!$("madebook").hidden) { closeMadeBook(); return; }
       if (!$("builder").hidden) { closeBuilder(); return; }
       if (!$("manage").hidden) { $("manage").hidden = true; node("library").focus(); return; }
       if (reader) closeReader();
@@ -3304,6 +3537,41 @@ function mountVaultShelf(root, data, options) {
       return pickShelves().map(function (s) {
         return { id: s.id, name: s.name, picks: (s.picks || []).slice() };
       });
+    },
+    /**
+     * design/0020 -- make a book on a pick shelf without the menu and the sheet: the same
+     * write the sheet's Save makes. Returns the new book's address, or "" if the shelf is not
+     * a pick shelf.
+     * @param {string} shelfId @param {import("./core/index").MadeBook} def @param {string|null} [before]
+     */
+    makeBook: function (shelfId, def, before) {
+      var shelf = shelfById(shelfId);
+      if (!shelf || !isPick(shelf)) return "";
+      var key = writeMadeBook(shelf, null, core.clone(def), before === undefined ? null : before);
+      return core.bookId(shelf.id, key);
+    },
+    /** design/0020 -- change what a made book is called or holds; its address stays.
+     * @param {string} bookId @param {import("./core/index").MadeBook} def */
+    editBook: function (bookId, def) {
+      var book = findBook(bookId);
+      var shelf = book ? shelfById(book.shelfId) : null;
+      if (!book || !shelf || !shelf.made || !shelf.made[book.key]) return false;
+      writeMadeBook(shelf, book.key, core.clone(def), null);
+      return true;
+    },
+    /** design/0020 -- delete a made book, as the menu line and a drag off the rail do.
+     * @param {string} bookId */
+    unmakeBook: function (bookId) {
+      var book = findBook(bookId);
+      var shelf = book ? shelfById(book.shelfId) : null;
+      if (!book || !shelf || !core.isMadeKey(book.key)) return false;
+      takeOff(shelf, book.key);
+      return true;
+    },
+    /** design/0020 -- the books made on one pick shelf, by key. @param {string} shelfId */
+    made: function (shelfId) {
+      var shelf = shelfById(shelfId);
+      return shelf && shelf.made ? core.clone(shelf.made) : {};
     },
     /** Every book's address, so a check can assert they are stable across a rebuild. */
     addresses: function () {

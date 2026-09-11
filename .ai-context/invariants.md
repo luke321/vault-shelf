@@ -259,7 +259,7 @@ addresses survive. Identical on all three shapes, because it is settings arithme
 
 `"a drop onto Favourites adds the book where it landed, and a rebuild keeps it"` dispatches
 real `dragstart` / `dragover` / `drop` events with a `DataTransfer`. The empty rail says
-**"Drag a book here"** at **132px** — a spine's height — and takes the accent while a book is
+**"Drag a book here, or right-click to make one"** at **132px** — a spine's height — and takes the accent while a book is
 over it; a Years book dropped on it arrives holding **the source book's own notes**, addressed
 `favourites/<source address>`; a People book dropped past it draws the **3px "after" mark** from
 `design/0018` and lands second; dragging that one onto the first's left half reverses the two
