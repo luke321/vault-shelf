@@ -291,6 +291,18 @@ leaves **0** spines marked; that is the cancel path, and it is why removal is bo
 rather than to `dragend`. A spine from an ordinary shelf dragged across the library changes
 nothing.
 
+`"a second favourites shelf is built from the builder and holds its own books"` drives the
+builder's own controls rather than `addShelf`: it opens the New shelf sheet, types a name, picks
+**Books you drag onto it** and saves. It asserts the classifier list offers `pick`; that what
+was saved is `manual`, has an empty `picks`, no `order` and no plaques; and that the form drops
+the source question, the order and the recipes while **keeping the classifier** — the control
+that made it a pick shelf and the only way back out — and shows the hint in place of the rule.
+Then it holds **two** pick shelves at once, `Favourites` and `Reading list`, with **1 and 2**
+books over **2** rails: the same year book sits on both and has **2 addresses**, one per shelf,
+and taking it off the first leaves **0** there and **2** on the second. The right-click menu on
+an ordinary spine offers exactly `Add to Favourites | Add to Reading list`. Identical on all
+three shapes, because it is the builder and the settings rather than the vault.
+
 `"a note in two favourites is one note on the shelf"` favourites a year and one of its months,
 so every note of the month is in both books. Measured — demo / sparse / library: **3 places /
 2 unique**, **86 / 70**, **338 / 303**; the shelf claims the unique count and its header says

@@ -130,6 +130,8 @@ const POINTER_DRIVEN = [
   /* design/0019 -- the same, onto the Favourites rail, and the drag that takes one off it. */
   "onto Favourites",
   "dragged off",
+  /* design/0019 -- it clicks the builder open and reads the form it draws. */
+  "second favourites shelf",
 ];
 const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
 
@@ -1309,6 +1311,105 @@ check("a favourite dragged off the shelf comes off, and a cancelled drag does no
             `([${r.afterCancel.join(", ")}]), with ${r.leftOver} spines still marked. A spine from ` +
             `an ordinary shelf dragged across the library changed nothing ` +
             `([${r.afterPlain.join(", ")}])`
+  };
+});
+
+check("a second favourites shelf is built from the builder and holds its own books", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var shelves = __vs.settings().shelves;
+    var before = __vs.picks().length;
+
+    /* Built the way a person builds one: the builder's own controls, not addShelf. */
+    document.getElementById("vs-newshelf").click();
+    var name = document.getElementById("vs-bname");
+    name.value = "Reading list";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+    var kind = document.getElementById("vs-bclassifier");
+    var offered = [].map.call(kind.options, function (o) { return o.value; });
+    kind.value = "pick";
+    kind.dispatchEvent(new Event("change", { bubbles: true }));
+    var form = {
+      source: document.getElementById("vs-bsource").closest("fieldset").hidden,
+      classifier: kind.closest("fieldset").hidden,
+      order: document.getElementById("vs-bdirection").closest("label").hidden,
+      recipes: document.getElementById("vs-recipes").closest(".vs-field").hidden,
+      hint: !document.getElementById("vs-pickhint").hidden,
+      preview: document.getElementById("vs-previewcount").textContent
+    };
+    document.getElementById("vs-bsave").click();
+
+    var made = shelves.filter(function (s) { return s.name === "Reading list"; })[0];
+    var sound = made && made.classifier === "pick" && made.direction === "manual" &&
+                Array.isArray(made.picks) && made.picks.length === 0 &&
+                made.order === undefined && made.plaques === false;
+
+    /* Two shelves, different books, and neither disturbs the other. */
+    var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0].books[0].id;
+    var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0].books[0].id;
+    var first = __vs.picks()[0].id;
+    __vs.pick(years, null, first);
+    __vs.pick(people, null, made.id);
+    __vs.pick(years, null, made.id);
+    var both = __vs.picks();
+
+    var viewOf = function (id) {
+      return __vs.views().filter(function (v) { return v.shelf.id === id; })[0];
+    };
+    var mine = viewOf(made.id), theirs = viewOf(first);
+    var rails = document.querySelectorAll("#vs-shelves .vs-shelfrail[data-pick]").length;
+    var addresses = __vs.addresses();
+    var shared = addresses.filter(function (a) { return a === made.id + "/" + years; }).length +
+                 addresses.filter(function (a) { return a === first + "/" + years; }).length;
+
+    /* The same book on two pick shelves is two references and one book: taking it off one
+     * leaves the other alone. */
+    __vs.unpick(years, first);
+    var afterOff = { first: viewOf(first).books.length, mine: viewOf(made.id).books.length };
+
+    /* The right-click menu names every shelf that would take the book. */
+    var spine = document.querySelector('#vs-shelves [data-shelf="months"] .vs-spine');
+    spine.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true,
+                                                        clientX: 200, clientY: 200 }));
+    var lines = [].map.call(document.querySelectorAll("#vs-dye .vs-dyepick"),
+                            function (b) { return b.textContent; });
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    /* Put the library back. */
+    var at = shelves.indexOf(made);
+    shelves.splice(at, 1);
+    shelves.filter(function (s) { return s.classifier === "pick"; })
+           .forEach(function (s) { s.picks = []; });
+    __vs.setFilters({});
+
+    return { before: before, offered: offered.indexOf("pick") >= 0, sound: !!sound,
+             form: form, madeId: made ? made.id : "", count: both.length,
+             names: both.map(function (s) { return s.name; }),
+             held: both.map(function (s) { return s.picks.length; }),
+             mine: mine.books.length, theirs: theirs.books.length,
+             mineNotes: mine.noteCount, rails: rails, shared: shared,
+             afterOff: afterOff, lines: lines,
+             after: __vs.picks().length };
+  })()`);
+  const ok = r.before === 1 && r.offered && r.sound && r.madeId === "reading-list" &&
+             r.form.source === true && r.form.classifier === false && r.form.order === true &&
+             r.form.recipes === true && r.form.hint === true &&
+             r.count === 2 && JSON.stringify(r.names) === JSON.stringify(["Favourites", "Reading list"]) &&
+             JSON.stringify(r.held) === JSON.stringify([1, 2]) &&
+             r.mine === 2 && r.theirs === 1 && r.rails === 2 && r.shared === 2 &&
+             r.afterOff.first === 0 && r.afterOff.mine === 2 &&
+             r.lines.length === 2 && r.lines[0] === "Add to Favourites" &&
+             r.lines[1] === "Add to Reading list" && r.after === 1;
+  return {
+    ok,
+    detail: `the builder offers "pick" (${r.offered}) and saving one gives ${r.madeId}: manual, ` +
+            `0 picks, no order, no plaques (${r.sound}); the form drops the source question ` +
+            `(${r.form.source}), the order (${r.form.order}) and the recipes (${r.form.recipes}), ` +
+            `keeps the classifier (${!r.form.classifier}) and shows the hint (${r.form.hint}). ` +
+            `${r.count} pick shelves — ${r.names.join(", ")} — holding ${r.held.join(" and ")} ` +
+            `books over ${r.rails} rails; the shared year has ${r.shared} addresses, one per ` +
+            `shelf. Taking it off the first left ${r.afterOff.first} there and ${r.afterOff.mine} ` +
+            `on the second. The menu offered: ${r.lines.join(" | ")}. Back to ${r.after} shelf`
   };
 });
 

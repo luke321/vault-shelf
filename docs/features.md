@@ -50,6 +50,12 @@ narrows its source, and a favourite of a book on a **hidden** shelf still resolv
 keeps a shelf's books. A favourite whose source no longer exists is dropped the next time the
 shelf is saved, never while you are only looking at it.
 
+**As many as you like.** *Books you drag onto it* is one of the answers to *what makes a book*
+in the builder, so Favourites is a **kind** of shelf rather than one shelf: a reading list, a
+shortlist for one project, and Favourites, side by side. A book can sit on several of them at
+once — each reference is its own, so taking it off one leaves the others alone — and the
+right-click menu names every shelf that would take it.
+
 `design/0019`
 
 ### Six shelves, and every one of them is the whole vault

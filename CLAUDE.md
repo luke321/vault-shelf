@@ -57,7 +57,9 @@ of measuring it.** Build the page, drive it, read the numbers.
   list — membership and sequence are one question here — a dead pick is dropped **on save** like
   a manual key, a hidden source still resolves, and the reader is never told a pick shelf
   exists: opening a favourite opens the source book. **Dragging one off the shelf takes it off**,
-  and it is bound to a drop rather than to `dragend` so Escape cancels. `design/0019`.
+  and it is bound to a drop rather than to `dragend` so Escape cancels. A pick shelf is a **kind**
+  of shelf, not one shelf: the builder makes as many as a person wants, a book may sit on several,
+  and every reference is its own. `design/0019`.
 - **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` the
   other one on offer, `"cyber"` shelved until its redesign but still shipped and still
   measured — and it may repaint anything and move nothing: not a shelf's

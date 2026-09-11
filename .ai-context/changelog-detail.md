@@ -29,6 +29,15 @@ whose own shelf took the id gets `favourites-2`. A hand-edited pick shelf comes 
 of `["years/2024", 7, "years/2024", "nope", "", "people/Ada Lovelace"]` the two real addresses
 survive, `order` is dropped and `plaques` goes off.
 
+**A pick shelf is a kind of shelf, not one shelf.** *"allow users to add multiple favourite type
+shelfs"* — so "What makes a book?" gains **Books you drag onto it**, and a library can hold as
+many as it likes. The form drops the source question, the order and the recipes but keeps the
+classifier, which is the way back out; the right-click menu offers one line per pick shelf, by
+name; a spine's peek names the shelf when there is one and counts them when there are more. A
+book can be on several at once, each reference its own, which is the product's own law one level
+out. Measured: **2** shelves over **2** rails holding **1 and 2** books, the shared year carrying
+**2 addresses**, and taking it off one leaving the other at **2**.
+
 **Dragging one off takes it off.** Carry a favourite off the rail, drop it anywhere else in the
 library, and the shelf loses it; the shelf you dropped it on does not gain it, because
 `takes` only lets a foreign spine land on a pick shelf. It is bound to a **drop** rather than to
@@ -61,7 +70,7 @@ its wear, its ribbons, its hand-given colour.
 Addresses did not move, because the shelf ships empty: **447 / 194 / 709** on demo / sparse /
 library, the same list element for element across a rebuild. `__vs.counts().shelves` is **6 ->
 7**. The suite is
-**66 → 71** checks (five new, and *the six default shelves* is now *the seven*), green on all
+**66 → 72** checks (six new, and *the six default shelves* is now *the seven*), green on all
 three shapes.
 ## 2026-09-11 — A ribbon per book colour, and the colours block became a table
 

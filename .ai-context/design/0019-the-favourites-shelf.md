@@ -144,6 +144,27 @@ somebody made already took the word.
 - **One more thing that has to skip pick shelves.** Five call sites do (`resolveReading`,
   `alsoShelvedIn`, the reader's nearest-shelf search, `plaqueFor`, and `buildLibrary`'s own
   source list), and a sixth added later that forgets would show a person the same book twice.
-- **The builder has one shelf it cannot make.** There is no `pick` option in "What makes a
-  book?" — a second Favourites shelf is not a thing anybody asked for, and the form's two
-  questions are exactly the two a pick shelf does not have. Editing one is a name and a colour.
+- **A pick shelf is a kind of shelf, not one shelf.** The first draft left `pick` out of the
+  builder, on the argument that a second Favourites shelf was not a thing anybody had asked for.
+  That was wrong within a day: *"allow users to add multiple favourite type shelfs"*. A library
+  holds a reading list, a shortlist for one project and Favourites, and they are the same
+  machinery pointed at different books.
+
+  So "What makes a book?" has a ninth answer, **Books you drag onto it**, and everything that
+  used to say *the* pick shelf now asks which one:
+
+  - the **form** drops the question a pick shelf does not ask (which notes belong here), the
+    order, and the recipes — but **keeps the classifier**, because it is the control that made
+    this a pick shelf and the only way back out of it. A line of hint stands where the rule
+    would be.
+  - the **menu** offers one line per pick shelf, by name, because with two of them *Add to
+    Favourites* would be a guess about which. A book already on one of them gets *Take off* on
+    that line instead, so the same menu says what is so.
+  - a **spine's peek** names the shelf when there is one and counts them when there are more.
+  - **a book can be on several of them at once**, and that is the same law the whole product
+    rests on: one note, many addresses. The reference on each shelf is its own — taking the book
+    off the reading list leaves it on Favourites — and dragging a favourite from one pick shelf
+    onto another **adds** it there rather than moving it, for the same reason.
+
+  What did not change is that a pick shelf still classifies nothing, still carries `picks` and
+  no `order`, and is still built last, against the others.

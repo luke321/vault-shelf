@@ -777,10 +777,10 @@ function mountVaultShelf(root, data, options) {
    */
   function liftable(b, book, shelf) {
     b.draggable = true;
-    var favourites = pickShelf();
-    if (favourites && !favourites.hidden && !isPick(shelf)) {
-      b.setAttribute("data-peek", b.getAttribute("data-peek") +
-        "\n\nDrag it onto " + favourites.name + ".");
+    var onto = pickShelves();
+    if (onto.length && !isPick(shelf)) {
+      b.setAttribute("data-peek", b.getAttribute("data-peek") + "\n\nDrag it onto " +
+        (onto.length === 1 ? onto[0].name : onto.length + " shelves take it") + ".");
     }
     if (isPick(shelf)) {
       b.setAttribute("data-peek", b.getAttribute("data-peek") +
@@ -1012,12 +1012,17 @@ function mountVaultShelf(root, data, options) {
   /** @param {Shelf} shelf @returns {boolean} */
   function isPick(shelf) { return shelf.classifier === "pick"; }
 
-  /** The first pick shelf, which is Favourites unless a file says otherwise. @returns {Shelf|null} */
-  function pickShelf() {
-    for (var i = 0; i < settings.shelves.length; i++) {
-      if (isPick(settings.shelves[i])) return settings.shelves[i];
-    }
-    return null;
+  /**
+   * design/0019 -- EVERY pick shelf, in the order the library shows them. There can be any
+   * number of them: a reading list, a shortlist for one project, and Favourites, each holding
+   * its own references to the same books. What a spine offers, and what a drop means, is per
+   * shelf; nothing here is about "the" favourites shelf any more.
+   * @returns {Shelf[]}
+   */
+  function pickShelves() {
+    return settings.shelves.slice()
+      .sort(function (a, b) { return a.position - b.position; })
+      .filter(function (s) { return isPick(s) && !s.hidden; });
   }
 
   /** The book a favourite stands for; any other book is its own source. @param {Book} book @returns {Book} */
@@ -1222,21 +1227,30 @@ function mountVaultShelf(root, data, options) {
     on(auto, "click", function () { setBookColor(source, null); });
     menu.appendChild(auto);
 
-    /* design/0019 -- THE SAME MENU, ONE MORE LINE. On a favourite it takes the book off; on any
-     * other spine it puts the book on, which is the path that needs no pointer. */
+    /* design/0019 -- THE SAME MENU, ONE LINE PER PICK SHELF. On a favourite the line takes the
+     * book off the shelf it is standing on; on any other spine there is a line for each shelf
+     * that would take it, named, because with several of them "Add to Favourites" would be a
+     * guess about which one. This is also the path that needs no pointer. */
     var home = shelfById(book.shelfId);
-    var favourites = pickShelf();
-    if (home && favourites && !favourites.hidden) {
-      var onIt = isPick(home);
-      var pickBtn = /** @type {HTMLButtonElement} */ (el("button", "vs-dyepick",
-        (onIt ? "Take off " : "Add to ") + favourites.name));
-      pickBtn.type = "button";
-      on(pickBtn, "click", function () {
-        closeDye();
-        if (onIt) takeOff(home, book.key);
-        else arrangeBook(favourites, book.id, null);
+    if (home && isPick(home)) {
+      var offBtn = /** @type {HTMLButtonElement} */ (el("button", "vs-dyepick",
+        "Take off " + home.name));
+      offBtn.type = "button";
+      on(offBtn, "click", function () { closeDye(); takeOff(home, book.key); });
+      menu.appendChild(offBtn);
+    } else if (home) {
+      pickShelves().forEach(function (target) {
+        var already = (target.picks || []).indexOf(book.id) >= 0;
+        var addBtn = /** @type {HTMLButtonElement} */ (el("button", "vs-dyepick",
+          (already ? "Take off " : "Add to ") + target.name));
+        addBtn.type = "button";
+        on(addBtn, "click", function () {
+          closeDye();
+          if (already) takeOff(target, book.id);
+          else arrangeBook(target, book.id, null);
+        });
+        menu.appendChild(addBtn);
       });
-      menu.appendChild(pickBtn);
     }
 
     menu.hidden = false;
@@ -2010,26 +2024,36 @@ function mountVaultShelf(root, data, options) {
     field("bsubtags").checked = d.includeSubtags !== false;
     field("bvary").checked = !!d.varyColors;
     field("bsubtags").disabled = d.classifier !== "tag" && d.source.kind !== "tag";
-    /* design/0019 -- A PICK SHELF HAS NO SOURCE, NO CLASSIFIER AND NO RULE TO EDIT: what it
-     * holds is what was dropped on it. The two questions and the order are taken off the form
-     * rather than greyed, and so are the recipes, which would answer them. */
+    /* design/0019 -- A PICK SHELF HAS NO PREDICATE AND NO RULE, so the first question and the
+     * order come off the form -- but "what makes a book" STAYS, because it is the control that
+     * made the shelf a pick shelf and the only way back out of it. The recipes go too: every
+     * one of them answers the question this shelf does not ask. */
     var pick = isPick(d);
     /** @type {(HTMLElement|null)[]} */
-    var ruled = [field("bsource").closest("fieldset"), field("bclassifier").closest("fieldset"),
-                 order.closest("label"), $("recipes").closest(".vs-field")];
+    var ruled = [field("bsource").closest("fieldset"), order.closest("label"),
+                 $("recipes").closest(".vs-field")];
     ruled.forEach(function (part) { if (part) part.hidden = pick; });
+    field("bplaques").disabled = pick || !PLAQUABLE[d.classifier];
+    field("bsubtags").disabled = pick || (d.classifier !== "tag" && d.source.kind !== "tag");
+    $("pickhint").hidden = !pick;
   }
 
   function readBuilderFields() {
     var d = builder.draft;
     d.name = field("bname").value.trim() || "Untitled shelf";
-    if (!isPick(d)) {
+    /* design/0019 -- the classifier is always read, so "Books you drag onto it" can be chosen
+     * and can be left again; everything a pick shelf does not have is skipped instead. */
+    d.classifier = /** @type {import("./core/index").ClassifierKind} */ (field("bclassifier").value);
+    if (isPick(d)) {
+      d.direction = "manual";
+      if (!Array.isArray(d.picks)) d.picks = [];
+      delete d.order;
+    } else {
       d.source = { kind: /** @type {import("./core/index").SourceKind} */ (field("bsource").value) };
       if (d.source.kind !== "all") {
         fillSourceValues();
         d.source.value = field("bsourceval").value;
       }
-      d.classifier = /** @type {import("./core/index").ClassifierKind} */ (field("bclassifier").value);
       if (d.classifier === "property") {
         fillProperties();
         d.property = field("bproperty").value;
@@ -2037,8 +2061,9 @@ function mountVaultShelf(root, data, options) {
       var picked = field("bdirection").value;
       d.direction = picked === "manual" ? "manual"
                   : picked === "chronological" ? "chronological" : "alphabetical";
+      delete d.picks;
     }
-    d.plaques = !!PLAQUABLE[d.classifier] && field("bplaques").checked;
+    d.plaques = !isPick(d) && !!PLAQUABLE[d.classifier] && field("bplaques").checked;
     d.includeSubtags = field("bsubtags").checked;
     d.varyColors = field("bvary").checked;
     writeBuilderFields();
@@ -2805,13 +2830,14 @@ function mountVaultShelf(root, data, options) {
       return view ? view.books.map(function (b) { return b.key; }) : [];
     },
     /**
-     * design/0019 -- a drop onto the pick shelf and a take-off, without a pointer: the same
-     * two writes the rail, the spines and the menu make.
-     * @param {string} sourceId @param {string|null} [before]
+     * design/0019 -- a drop onto a pick shelf and a take-off, without a pointer: the same two
+     * writes the rail, the spines and the menu make. `onto` names which pick shelf; without it
+     * the first one, which is what a library with one of them means.
+     * @param {string} sourceId @param {string|null} [before] @param {string} [onto]
      */
-    pick: function (sourceId, before) {
-      var shelf = pickShelf();
-      if (!shelf) return false;
+    pick: function (sourceId, before, onto) {
+      var shelf = onto ? shelfById(onto) : pickShelves()[0];
+      if (!shelf || !isPick(shelf)) return false;
       arrangeBook(shelf, sourceId, before === undefined ? null : before);
       return true;
     },
@@ -2820,12 +2846,18 @@ function mountVaultShelf(root, data, options) {
       var spine = root.querySelector("#" + ID + 'shelves [data-book="' + cssEscape(bookId) + '"]');
       return !!spine && spine.getAttribute("data-leaving") === "1";
     },
-    /** @param {string} sourceId */
-    unpick: function (sourceId) {
-      var shelf = pickShelf();
-      if (!shelf) return false;
+    /** @param {string} sourceId @param {string} [from] */
+    unpick: function (sourceId, from) {
+      var shelf = from ? shelfById(from) : pickShelves()[0];
+      if (!shelf || !isPick(shelf)) return false;
       takeOff(shelf, sourceId);
       return true;
+    },
+    /** design/0019 -- every pick shelf the library is showing, with what each one holds. */
+    picks: function () {
+      return pickShelves().map(function (s) {
+        return { id: s.id, name: s.name, picks: (s.picks || []).slice() };
+      });
     },
     /** Every book's address, so a check can assert they are stable across a rebuild. */
     addresses: function () {
