@@ -110,3 +110,78 @@ in leather now (`design/0016`). The recorder throws rather than shooting 98 seco
 wrong look if the attribute does not come back as asked. Three films are kept in the review
 folder, one per look, and the hero is cut from the leather one.
 
+## The hero opens on the drag (github#21, 2026-09-11)
+
+*"re record all clips in leather, make the hero thematically interesting, start with favourite
+shelf drag and drop, then ribbons, then search."* The order is a claim about what the product
+is — you make the shelf yours, you mark your place, and the room answers you — so the film
+opens on those three, and the rest follows them.
+
+**The storyboard now runs** `open, favourite, ribbon, parting, room, shelves, plaques, peek,
+read, index, alsoin, wear, build, makebook, editbook, plusbook, looks, close` — 149 seconds,
+3,576 frames at 24fps, 178 seconds of capture. The first five are the hero.
+
+**Leather is the default.** `--look` reads `leather` when it is absent, since that is the look
+a fresh library opens in (`design/0016`) and the old hero was cut before it was; `--look
+modern` still asks for the other one.
+
+**The hero is named by act, not by second.** `--hero-clip 5,12` stayed `5,12` while the acts
+under it were re-timed, so it cut a beat in half and nobody noticed. `--hero-acts` (default
+`open,favourite,ribbon,parting,room`) names the acts, and the window is wherever they land in
+the take being shot — `--act` moves it rather than cutting through it. `--hero-clip
+<start>,<duration>` still overrides it for a cut by hand.
+
+**Its budget** is `--hero-fps 8 --hero-width 800 --hero-q 40`: 2.9 MB for 38.5 seconds. The
+first cut at 10fps and 900px was 4.75 MB. Frame rate goes first, then width, then quality; at
+800px the 27px caption still reads at 15px, and at 720px its second line does not.
+
+### The drag
+
+The events are the page's own — a `dragstart` with a `DataTransfer`, a `dragover` on whatever
+is under the pointer on every frame, a `drop`, a `dragend` — so the landing lights, the mark
+stands in the gap and the book settles by the product's code and nobody else's. The act
+asserts on each: the rail's `data-drop` before the first drop, a `.vs-drop[data-side=before]`
+before the second, and the pick shelf's sequence after both.
+
+Two things the suite's history teaches (`github#3`) and this act depends on: the source is
+never hidden on `dragstart`, which cancels the gesture in Chrome; and a `dragover` nobody
+accepts offers no drop, which is why `drop` reads the page's answer rather than assuming it.
+
+**The ghost.** A headless screenshot has no drag image in it, the way it has no cursor: Chrome
+draws both outside the page. So `lift` clones the spine into `#vsrec-ghost`, inside the
+library's own root so its own stylesheet paints it, and `carry` moves it with the arrow;
+`drop` removes it the way the browser's would be. The spine on the shelf dims by the page's
+own rule, which is the part the product does.
+
+**The mouse stays still while a book is carried.** Chrome sends no mouse events during a
+native drag; the recorder's real `mouseMoved` on every frame raised a peek under every spine
+the ghost crossed. `pointer(p, pressed, quiet)` moves the arrow and not the mouse, `lift`
+dispatches `mouseleave` on the source so its peek closes, and hiding the arrow parks the real
+mouse in the caption bar — the spine it was last over otherwise keeps its peek open into the
+next act, which is how the wear act came to film a tooltip.
+
+### An act's own error stops the take
+
+The first take of the new hero ran green with the pointer frozen on one spine for eleven
+seconds. `act.at()` sat inside the same `try` as the screenshot, so a step that threw was
+"retried" by taking the picture again, and the act filmed a frozen page to the end. The act
+call has its own `try` now and reports the act, the frame and `t`; only the capture is
+retried, once.
+
+### What the old storyboard misrepresented
+
+- The opening said 394 notes: the fixture's count, hard-coded. It reads the page now.
+- "Six shelves" listed Weeks, which is hidden by default. The names are read off the page.
+- The plaque act scrolled a rail sideways; nothing has scrolled sideways since `design/0014`.
+  It opens the widest plaque now, since a plaque opens its run (`design/0019`).
+- The peek and read acts took the fourth Months spine, a one-note book with nothing to
+  index. They take the thickest.
+- The theme act set `data-theme` under leather, which is one palette by design, and filmed
+  nothing changing. It is a `looks` act: the selector to modern, the theme to light, and
+  back to leather.
+- The ribbon act clicked `#vs-ribbon`, which no longer exists; the ribbon is
+  `#vs-marks .vs-markstub`. The Reading shelf that appears is named in the caption.
+- The search needle was the most-used tag; it is the most-named person now, since a person
+  parts a shelf harder than a tag does.
+- Favourites, which the library opens on, was never mentioned. It is the first beat.
+

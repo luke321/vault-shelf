@@ -128,6 +128,12 @@ all: `node src/build-shelf.mjs --vault <vault> --out vault-shelf.html`. It is wh
 invariant suite drives. `docs/` is a Pages site with the feature list and a live demo built
 from a generated fixture; it goes live when the repository does.
 
+**The film** (`assets/demo.webp`, `node scripts/record-demo.mjs`) is shot in leather, in a
+mirror of a real vault with every word invented, and opens on the three things the product
+is: a book dragged onto Favourites, a ribbon left in it, and a search that parts the shelf.
+The recorder drives a real drag and drop, stops the take when an act throws, and cuts the
+hero by act rather than by second.
+
 ### For the record
 
 - The plugin reads Obsidian's metadata cache, never the filesystem; the only file it ever

@@ -104,6 +104,11 @@ Four rounds, each one a real hole:
    sentences`). Only **one-word** secrets can be hit by a single invented word; a phrase cannot
    be assembled by accident, and the guard is what catches it if it somehow is.
 
+5. **`09:00`** (github#21, 2026-09-11) — a bare clock time in a `start:` property, hunted as a
+   secret, found inside a preserved `created: 2026-07-22 09:00`. Both halves were right: the
+   stamp is date-shaped and kept, the time was not and was mapped. A time of day is a date at
+   a finer precision, so `DATE_VALUE` accepts one on its own and it is neither mapped nor hunted.
+
 Each of those was a passing run away from being invisible. That is the argument for a check
 that runs every time and cannot be skipped.
 

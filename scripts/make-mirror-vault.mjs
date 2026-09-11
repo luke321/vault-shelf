@@ -90,10 +90,8 @@ let SENTENCES = [
 const SKIP_DIRS = new Set(["node_modules"]);
 const SKIP_FILES = new Set(["claude.md", "claude-history.md", "readme.md", "license.md"]);
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-/* A date IS the thing being preserved, at whatever precision and in whatever notation it was
- * written -- day, month, quarter, ISO week -- so a date-shaped property value is never mapped
- * and never counted as a real string worth hunting for. */
-const DATE_VALUE = /^(\d{4}|\d{1,2})([-/.](\d{1,2}|Q[1-4]|W\d{1,2})){0,2}([ T][\d:.+Z-]*)?$/i;
+/* design/0013 -- a date is neither mapped nor hunted, clock time too. */
+const DATE_VALUE = /^(\d{4}|\d{1,2})([-/.](\d{1,2}|Q[1-4]|W\d{1,2})){0,2}([ T][\d:.+Z-]*)?$|^\d{1,2}:\d{2}(:\d{2})?$/i;
 const DATEISH = /^\d{4}(?:[-_ ]?(?:\d{2}|Q[1-4]|W\d{1,2}))?$/i;
 
 /** The earliest stamp the source file has, as milliseconds -- the same rule core.stampOf uses. */

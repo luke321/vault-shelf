@@ -569,8 +569,11 @@ vault has no date of its own. A confidently wrong shelf is worse than a visibly 
 
 ## Clips
 
-`assets/demo.webp` on the [home page](index.html) is the full walkthrough, shot frame by frame
-over CDP rather than off a screen, so it is reproducible, unattended and framed exactly.
+`assets/demo.webp` on the [home page](index.html) is the hero: the first 38 seconds of the
+149-second walkthrough — a book dragged onto Favourites, a ribbon left in it, and a search that
+parts the shelf — shot in leather, frame by frame over CDP rather than off a screen, so it is
+reproducible, unattended and framed exactly. `node scripts/record-demo.mjs --hero
+assets/demo.webp` cuts it again.
 
 Per-feature clips are not recorded yet. When they are, each gets a page under
 [`docs/features/`](https://github.com/luke321/vault-shelf/tree/main/docs/features) carrying the
