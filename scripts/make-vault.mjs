@@ -4,38 +4,15 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/* decisions/0004, decisions/0012 -- THE vault: declared, and the only one.
+/* decisions/0004, decisions/0012 -- THE vault: declared, generated, and the only one. It is
+ * what the checks run on, what the docs site is exported from and what the film is shot in,
+ * and it carries what the sparse and 10k fixtures carried (design/0013, github#17).
  *
- * Every shape this repo is checked against is generated from a seeded PRNG and a fixed
- * declaration, so no fixture needs a vault of yours and the same seed always writes the same
- * bytes. It is also the only way the people, tags and property coverage this plugin sorts on
- * can be guaranteed at all: a real vault has whatever it has, and a shelf classifier with no
- * data behind it is a check that silently passes.
- *
- * IT ALSO HAS TO READ LIKE SOMEBODY'S, and since decisions/0012 it is also what the film is
- * shot in, so that stopped being a nicety. design/0013 shot the films in a mirror of a real
- * vault because a fixture built to exercise the classifiers was too even; this one is 5,000
- * notes over eleven years with a genuinely active recent year, which is what closed that gap.
- * So: whole sentences from a deck, titles with real first-word variety, a long-tailed people
- * and tag distribution, and every markdown construct the reader can be asked to render.
- *
- * IT IS ALSO THE AWKWARD SHAPE AND THE BIG ONE. decisions/0012 folded three fixtures into
- * this one, so what used to be the sparse vault's whole reason for existing is declared in
- * here: a fifth of the notes that are not about a day carry no date, a run of days nobody
- * wrote leaves a hole a chronological shelf has to survive, titles open with digits,
- * punctuation and four scripts, and a handful of notes name five people and six tags at once
- * -- eleven books for one note. Eleven years is ~574 ISO weeks, which is the long rail the
- * 10,000-note fixture used to be for.
- *
- * THE DATES AGE ON PURPOSE. --end defaults to today so the activity calendar's live year
- * stays exercised, which means the newest note recedes from the real clock from the moment it
- * is written. scripts/smoke.mjs regenerates a fixture older than a week. Pass --end to pin
- * one, which is what the shelf-snapshot fixture does.
+ * THE DATES AGE ON PURPOSE: --end defaults to today, and smoke.mjs regenerates a fixture
+ * older than a week.
  *
  * NOTHING HERE MAY CONSULT THE CALENDAR EXCEPT --end, and nothing may make a note's FOLDER
- * depend on it: scripts/check-generator-determinism.mjs generates the same seed at two end
- * dates three years apart and compares the per-folder counts.
- */
+ * depend on it -- scripts/check-generator-determinism.mjs measures both. */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
@@ -54,43 +31,24 @@ const END = arg("end", new Date().toISOString().slice(0, 10));
  * decade plaque has anything to span. A real vault that has been going a while is what the
  * product is for, so the fixture is one. */
 const DAYS = Number(arg("days", "4018"));
-/* HOW MANY NOTES, and it is an argument because docs/demo/index.html is exported from a
- * smaller cut of the same declaration (decisions/0009, decisions/0012): at ~1.5 KB a note a
- * 5,000-note export is eight megabytes of committed HTML on a Pages site. Scaling is by a
- * FACTOR on every declared count, so a small vault is the same vault with fewer notes in it
- * rather than a different shape. */
+/* decisions/0009 -- docs/demo is a smaller cut of the same declaration, scaled by a factor
+ * so it is the same vault with fewer notes rather than another shape. */
 const NOTES = Number(arg("notes", "5000"));
-/* What the declaration below adds up to at full size. The guard at the bottom holds the real
- * total to within a few per cent of it, so this constant cannot quietly drift out of step
- * with the table it describes. */
+/* What the table below adds up to; the guard holds the real total near it. */
 const DECLARED = 5000;
 const SCALE = NOTES / DECLARED;
 
-/* THE ROLLING YEAR THE PRODUCT OPENS ON. Every date shelf opens on its most recent book, so
- * this is the part of the vault anybody actually looks at -- and it used to hold three to six
- * notes a month (github#17). It is declared rather than left to the aged curve below: a daily
- * note on most working days, the meetings that went with them, and the project and area notes
- * they generated. */
+/* github#17 -- the year every date shelf opens on, declared rather than left to the tail of
+ * the aged curve, which gave it three to six notes a month. */
 const RECENT = 365;
 
-/* THE YEAR NOBODY WROTE. A run of days with nothing in it, so a chronological shelf has a gap
- * to survive and the activity calendar has a year button with nothing behind it -- which is
- * what the sparse fixture's two clusters five years apart were for (decisions/0012).
- *
- * IT IS DECLARED IN OFFSET SPACE, NOT AS A CALENDAR YEAR, and that is not a detail. A banned
- * calendar year would have to be computed from --end, which makes the note count depend on
- * the generation day and breaks the law check-generator-determinism.mjs measures. 760 days is
- * wide enough that at least one WHOLE calendar year falls inside it wherever --end lands, so
- * the Years shelf shows a book-sized hole at any end date. The guard at the bottom proves it
- * rather than trusting the arithmetic. */
+/* decisions/0012 -- THE YEAR NOBODY WROTE, in OFFSET space rather than as a calendar year: a
+ * banned year would have to be computed from --end. 760 days swallows a whole calendar year
+ * wherever --end lands, and the guard proves it rather than trusting the arithmetic. */
 const HOLE = { from: 2200, to: 2960 };
 const inHole = (offset) => offset >= HOLE.from && offset < HOLE.to;
 
-/* TWO DAYS A WEEK WITH NOTHING ON THEM, counted in offsets rather than weekdays -- offset and
- * offset+7 are the same weekday, so this reads as a real weekly rhythm at any --end while
- * staying a pure function of the offset. Looking up the weekday of the computed date instead
- * would make WHICH days get a note depend on --end, which is exactly the dependency the
- * determinism check exists to catch. */
+/* Two rest days a week, in OFFSETS -- offset and offset+7 share a weekday. */
 const WEEKEND = [5, 6];
 const restDay = (offset) => WEEKEND.indexOf(offset % 7) >= 0;
 
@@ -134,13 +92,8 @@ const shuffled = (list) => {
 /* A PARA-ish tree with real nesting in it, because a vault that is ten flat folders is a
  * vault nobody has -- and the folder classifier reads the top segment, so a nested folder is
  * also the case where the tree on disk and the shelf disagree on purpose. */
-/* `aged` notes are drawn from the fifteen-year curve below; `recent` notes are placed in the
- * last RECENT days on top of it. Two numbers rather than one because "denser" is a statement
- * about the recent year specifically (github#17) -- the old years stay as thin as they were,
- * and how thick recent is stops being whatever the tail of a power curve left over.
- *
- * Daily notes are not in this table's `recent` column: they are a RHYTHM, not a count, and
- * are drawn day by day below. */
+/* github#17 -- `aged` off the curve below, `recent` into the last RECENT days on top of it.
+ * Daily notes are in neither column: they are a rhythm, drawn day by day. */
 const FOLDERS = [
   { path: "00 - Inbox", kind: "note", aged: 130, recent: 60 },
   { path: "01 - Projects", kind: "project", aged: 300, recent: 130 },
@@ -170,12 +123,8 @@ const PEOPLE = [
   ["Lucia Ferrante", 4],
 ];
 
-/* THE TAIL IS A COUNT, NOT A SHARE, and github#17 is why it had to become one. A share is
- * relative, so when the vault went from 424 notes to 5,000 every share scaled with it and the
- * person who was in one note was suddenly in thirteen: the long tail the People shelf exists
- * to be lopsided about flattened out completely, and the generator's own summary said "0
- * people are in three or fewer" without failing. These are absolute, dealt to their own slots
- * before the shares are cut, so the tail is the same tail at 900 notes or 5,000. */
+/* github#17 -- A TAIL IS A COUNT, NOT A SHARE. Shares scaled with the vault and the person in
+ * one note ended up in thirteen; these are absolute, dealt before the shares are cut. */
 const TAIL_PEOPLE = [
   ["Kofi Mensah", 3], ["Bo Lindqvist", 3], ["Elin Sorby", 3], ["Marta Kubik", 3],
   ["Owen Traill", 2], ["Celestine Marchand", 2], ["Tarek Nassar", 2], ["Wren Aldous", 2],
@@ -766,16 +715,9 @@ const claim = (title) => {
   return out;
 };
 
-/* AGED, NOT SPREAD. A uniform draw over eleven years gives every year the same count, which
- * is a vault nobody has: the recent years are thick and the old ones are a handful of things
- * worth keeping. The exponent is what makes the Years shelf uneven, and uneven is the thing a
- * spine's thickness is there to show (design/0011).
- *
- * A DRAW THAT LANDS IN THE HOLE IS REDRAWN, not moved. Rejection consumes an unpredictable
- * number of rand() calls, which is fine -- the predicate is a pure function of the OFFSET and
- * never of --end, so the stream is the same at every end date. Moving it instead would make
- * the resulting date depend on which calendar year --end put it in, which is exactly the
- * dependency check-generator-determinism.mjs refuses. */
+/* AGED, NOT SPREAD -- the exponent is what makes the Years shelf uneven (design/0011). A draw
+ * inside the hole is REDRAWN rather than moved: rejection is a pure function of the offset, so
+ * the stream is the same at every --end. */
 const agedOffset = () => {
   for (let guard = 0; guard < 64; guard++) {
     const offset = Math.floor(Math.pow(rand(), 2.6) * DAYS);
@@ -784,14 +726,8 @@ const agedOffset = () => {
   return HOLE.from - 1;
 };
 
-/* THE RECENT YEAR, DEALT DAY BY DAY rather than drawn from the tail of the curve above
- * (github#17). The curve's tail is clumpy: it gave months with three notes in them and one
- * month with none, in the year every date shelf opens on. These offsets are spread across the
- * working days of the last RECENT days, so a month is full and a week is never empty.
- *
- * `nth` is the note's index within its folder's recent run, so consecutive notes in one
- * folder walk the year rather than piling onto one day -- with a seeded jitter, because a
- * vault where every folder writes on a strict cadence reads as a cron job. */
+/* github#17 -- the recent year dealt day by day, because the curve's tail was clumpy. `nth`
+ * walks the folder's run across the year, jittered so it is not a cron job. */
 const recentOffset = (nth, of) => {
   const spread = Math.max(1, Math.floor((RECENT * 5 / 7) / Math.max(1, of)));
   const at = Math.floor(nth * spread) + Math.floor(rand() * spread);
@@ -846,13 +782,8 @@ const fromDeck = (name, pool) => {
   return decks[name].pop();
 };
 
-/* A SUFFIX BEFORE A NUMBER (github#17). `claim` will always make a title unique by putting
- * "(4)" after it, and at 424 notes that almost never fired. At 5,000 it would fire constantly
- * -- every phrase is drawn a dozen times -- and a shelf of "Gutter brackets (4)" reads as a
- * generator that ran out rather than as somebody's notes. So a phrase that is taken tries the
- * suffixes first, and only a phrase with all twenty-six already spoken for falls through to a
- * number. The rand() is consumed unconditionally so the stream does not depend on what is
- * already claimed. */
+/* github#17 -- a taken title picks up a SUFFIX before it picks up a number, because "Gutter
+ * brackets (4)" reads as a generator that ran out. rand() is consumed unconditionally. */
 const titleFor = (folder) => {
   const bare = rand() < 0.35;
   const base = folder.deck ? fromDeck(folder.deck, DECKS[folder.deck])
@@ -875,17 +806,9 @@ for (const who of NAMES.concat([LINKED_ONLY])) {
               tagSlots: 0, field: null, slots: 0, links: [], halvor: false });
 }
 
-/* DAILY NOTES ARE A RHYTHM, NOT A COUNT (github#17). They used to be a hundred offsets drawn
- * in short runs off the aged curve, which put a daily note on one day in forty and left the
- * Weeks shelf a rail of gaps -- on the shelf whose entire job is the week. Now every working
- * day gets one with a probability that decays with age: nearly all of them in the last year,
- * about a third of them a decade back. That is what fills ~574 ISO weeks (decisions/0012) and
- * it is still a pure function of the offset, so nothing about it consults --end.
- *
- * A run of consecutive days is what the layered index needs to have anything to say: a month
- * book whose notes are all on separate days gets one tab per note, and a book of a run of
- * consecutive days is the case where day tabs are the only cut that separates anything
- * (design/0015). The rhythm produces runs naturally -- five days, then the two rest days. */
+/* github#17, decisions/0012 -- A RHYTHM, NOT A COUNT: every working day gets one with a
+ * probability that decays with age, which is what fills ~459 ISO weeks and gives the layered
+ * index the runs of consecutive days it needs (design/0015). */
 const dailyChance = (offset) => 0.3 + 0.62 * Math.pow(1 - offset / DAYS, 2.4);
 const dailyOffsets = [];
 for (let offset = 0; offset < DAYS; offset++) {
@@ -1221,23 +1144,13 @@ write("", "Dashboard", { type: "note", tags: ["map"] },
       "\n\n" + callout() + "\n\n## Waiting on\n\n" + hubLinks(4) + "\n");
 
 /* ---- the guard -----------------------------------------------------------
- * design/0013 -- THE GENERATOR PROVES ITS OWN DECLARATION. The mirror refuses to finish when
- * a real string reaches its output, for the same reason this refuses to finish when the shape
- * above quietly stops being the shape: a fixture that has drifted looks exactly like a
- * fixture that has not, and every number measured off it is then measured off something
- * nobody declared.
- *
- * Each of these was a real failure before it was a check. github#17 opened with a month
- * holding three notes and one holding none; the people tail flattened to nothing the first
- * time the vault was scaled up, and the generator's own summary printed "0 people are in
- * three or fewer" without anything going red.
- */
+ * design/0013, github#17 -- the generator proves its own declaration, the way the mirror
+ * proves no real string reached it. Each case below was a real failure first. */
 const problems = [];
 const dated = plan.filter((n) => n.day).map((n) => n.day);
 const endMs = Date.parse(END + "T00:00:00Z");
 
-/* github#17 -- NO EMPTY MONTH IN THE RECENT YEARS. Three years rather than one: the year the
- * shelves open on is the hard case, and the two behind it are where the curve thins out. */
+/* github#17 -- no empty month in the last three years. */
 const months = new Set(dated.map((d) => d.slice(0, 7)));
 const endDate = new Date(endMs);
 const emptyMonths = [];
@@ -1251,7 +1164,7 @@ if (emptyMonths.length) {
                 emptyMonths.slice(0, 6).join(", "));
 }
 
-/* github#17 -- NO EMPTY WEEK IN THE LAST YEAR, so the Weeks shelf is worth un-hiding. */
+/* github#17 -- no empty week in the last year: the Weeks shelf is worth un-hiding. */
 const isoWeekOf = (day) => {
   const d = new Date(day + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3);
@@ -1270,8 +1183,8 @@ if (emptyWeeks.length) {
                 emptyWeeks.slice(0, 6).join(", "));
 }
 
-/* decisions/0012 -- THE YEAR NOBODY WROTE is declared in offsets, so the only honest way to
- * know a whole calendar year came out empty is to look. */
+/* decisions/0012 -- the hole is in offsets, so the only honest way to know a calendar year
+ * came out empty is to look. */
 const years = new Set(dated.map((d) => d.slice(0, 4)));
 const span = [...years].map(Number).sort((a, b) => a - b);
 const hollow = [];
@@ -1281,8 +1194,7 @@ if (!hollow.length) {
                 `offsets ${HOLE.from}-${HOLE.to} is too narrow to swallow a whole one`);
 }
 
-/* decisions/0003 -- THE SENTINELS. Each of these is the entire fixture for a check in
- * scripts/smoke.mjs, and each would go quiet rather than red if it stopped being written. */
+/* decisions/0003 -- the sentinels; each would go quiet rather than red if it went missing. */
 if (proseMentions < 5) {
   problems.push(`${PROSE_ONLY} is named in ${proseMentions} bodies; the People shelf has ` +
                 `nothing to wrongly grow a book from`);

@@ -4241,13 +4241,8 @@ check("the contents scroll to the current row after a tab, Previous and a ribbon
 
 check("previous and next walk the book and stop at its ends", async (p) => {
   const r = await p.j(`(function(){
-    /* THE SMALLEST BOOK THAT CAN SHOW IT, not the first one found (github#17). This walks the
-     * book a click at a time, so its cost is the book's LENGTH -- and "the first book with
-     * three notes" is encyclopedia/0-9, which holds every daily, meeting and 1-1 note because
-     * they are all titled with a date. That was 168 notes when the fixture was 424 and is
-     * 2,097 now: a 78-second walk against a 10-second budget, measured. Three notes prove
-     * exactly what this check claims -- opens at the first, previous is dead, next steps one,
-     * and it stops at the last -- and they prove it in a fixed time. */
+    /* github#17 -- the SMALLEST book with three notes, not the first: this walks a click at a
+     * time, and the first is encyclopedia/0-9 at 2,097 notes, a measured 78-second walk. */
     var book = null;
     __vs.views().forEach(function (v) {
       v.books.forEach(function (b) {

@@ -81,18 +81,9 @@ function fixtureStore() {
   return join(dirname(abs), ".fixtures");
 }
 
-/* decisions/0012 -- WHERE THE FILM IS SHOT: the same vault the checks run on.
- *
- * design/0013 shot it in a mirror of a real vault, because a fixture built to exercise the
- * classifiers was too even to film. The fixture is no longer that vault -- it is 5,000 notes
- * over eleven years with a genuinely active recent year -- and shooting somewhere the suite
- * never looks is how a storyboard drifts out of step with the product.
- *
- * A mirror is still reachable, and now only on purpose: `--mirror-of <path>`. `.mirror-source`
- * and the environment no longer steer the default, because a default nobody typed is the one
- * that drifts. The path is never read from a commit either way: `check-pii` refuses a vault
- * path in a tracked file, and it is right to.
- */
+/* decisions/0012 -- the film is shot in the vault the checks run on; design/0013's mirror is
+ * `--mirror-of <path>` now, on purpose, because a default nobody typed is the one that
+ * drifts. Never read from a commit: check-pii refuses a vault path in a tracked file. */
 function mirrorSource() {
   const explicit = arg("mirror-of", "");
   return explicit ? resolve(explicit) : "";
