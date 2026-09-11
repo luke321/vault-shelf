@@ -552,10 +552,14 @@ in view are clipped (21, 23 and 27 measured on the three shapes), naming any sho
 had to stay sideways because it did not fit its spine (`map` on the demo vault).
 
 `"the date index is layered: years over months over days, each only where it separates"`
-opens a multi-year tag book and asserts one level-0 tab per year (**`#archive`: 4 years, 4
-tabs, 26 month tabs stepped in, 30 in all**; on the 10k vault `#attention` spans 15 years, 15
-tabs, 9 months, 24 in all), a month book and asserts only day tabs (`02 04 08 11 12 13 …`), and
-a book of three notes or fewer and asserts **0** tabs. `design/0015`.
+opens a multi-year tag book and asserts one level-0 tab per year, a month book and asserts only
+day tabs, and a book of three notes or fewer and asserts **0** tabs. Measured 2026-09-11:
+`#area/health/running` spans 11 years and gets 11 year tabs with **7** month tabs under them,
+18 in all; sparse `#archive` 4 years, **26** months, 30 in all; 10k `#archive` 11 years, **21**
+months, 32 in all. A month tab may now be a **span** of months (`Jan–Apr`) where the rail could
+not hold one per month, and the count ceiling here rose from **30 to 180** — thirty was what a
+single-column rail held, and the rail runs in banks now, so what actually fits is measured by
+`"no index tab is clipped"` instead. `design/0015`, `design/0021`, `github#32`.
 
 
 `"a click off the book puts it down, and a click on it does not"` opens a book, clicks the note's
@@ -589,10 +593,48 @@ cut that had gone wrong, which is why `github#7` gave the titles real first word
 `design/0015`.
 
 `"the reader's index tabs stay countable on the biggest book"` finds the largest book in the
-vault and asserts its tab count is between 1 and 26. Measured on the demo vault: the biggest
-book is `people/-unfiled` at **250 notes behind 16 tabs**. On the library fixture the biggest
-Encyclopedia volume runs to hundreds of notes and the tabs collapse to twelve ranges;
-`design/0004` says why a tab you cannot hit is not navigation.
+vault and asserts its tab count is between 1 and **180** — the structural ceiling before
+geometry has looked at it — and that it stands in at most **three banks**. It asserted 26,
+which was the whole index a single-column rail could hold; the rail wraps into banks now and
+what fits is the window's business, so this only catches a runaway cut and
+`"no index tab is clipped"` is the real gate. Measured 2026-09-11 in the suite's own windows:
+demo `people/-unfiled` **250 notes behind 124 tabs in 3 banks**, sparse `people/-unfiled` 501
+notes behind **33** in 1 bank, 10k `people/-unfiled` 6,937 notes behind **132** in 3 banks. The
+same books at 1600x1000 read 47, 33 and 42 — the count follows the window's height by design,
+which is why the assertions are geometric and the counts are printed rather than asserted.
+`design/0021`, `github#32`.
+
+`"no index tab is clipped: the tabs fit the rail and the rail fits the spread"` opens the
+twelve fattest books on the shape plus every Encyclopedia volume and asserts, for each, that
+**no tab's box falls outside the rail's**, that the rail's box is inside the spread's, that
+there are at most **three banks**, that the rail is at most a **fifth of the spread**, and that
+exactly one tab carries `aria-current`. It prints the longest index, the widest rail and its
+share per shape. Measured 2026-09-11: demo **40 books, longest `encyclopedia/0-9` at 125 tabs
+over 250 notes in 3 banks, widest rail 151px (14%)**; sparse 34 books, longest 34 tabs in 1
+bank, 51px (5%); 10k 39 books, longest 133 tabs in 3 banks, 151px (14%) — **0 clipped, 0 rails
+outside the spread, 0 over three banks, 0 over a fifth, 0 with more than one tab lit** on all
+three.
+
+This check did not exist and is why `github#32` shipped: `.vs-tabs` was `overflow: hidden`, so
+a tab past the spread's height was painted outside the box and cut off in silence while every
+tab check in the suite counted tabs and passed. Reverting the rail's CSS alone makes it fail
+with **6 books clipped on the demo, `people/-unfiled` losing 83 of its 111 tabs**; against the
+cut as it stood before `github#35` the same fixture lost **4 tabs across 2 books**, and sparse
+**2 across 1**. `design/0021`.
+
+`"a volume whose rows read as dates is indexed by date, not by year"` opens the Encyclopedia's
+`0-9` volume, presses every tab and reads back where it landed, and asserts the positions rise,
+that there are at least four of them, that no title's leading digits have been read as a year,
+and that **the largest step is at most a quarter of the book** — or, for a volume of plain
+numbers, that there are as many tabs as its titles admit at one digit, which is the data's
+limit rather than the code's. **The step is the number this check is about.** Measured
+2026-09-11 — demo: 168 notes, 165 ISO-titled, **31 tabs, largest step 28**; sparse: 109 notes,
+1 ISO-titled, **5 tabs (`0 1 2 3 4`), step 28**, 5 admitted; 10k: 412 notes, none ISO-titled,
+**9 tabs (`1`–`9`), step 58**, 9 admitted.
+
+Before `github#35` the same volumes read **17 tabs and a step of 51** (demo, labels
+`1000 2011 … 2026 0-9` — `1000` is `1000 Small Decisions — budget`, not a year), **3 tabs and a
+step of 54** (sparse), and **one tab over 412 notes** (10k). `design/0021`.
 
 `"the contents scroll to the current row after a tab, Previous and a ribbon"` opens the biggest
 book in the vault, clicks the **last** index tab and asserts the marked row's box is inside the

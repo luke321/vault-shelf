@@ -373,12 +373,10 @@
 .vault-shelf[data-look="leather"] .vs-prose h3,
 .vault-shelf[data-look="leather"] .vs-notemeta strong { font-family: var(--prose); color: var(--text-1); }
 .vault-shelf[data-look="leather"] .vs-notemeta strong { font-size: 20px; font-weight: 400; }
-/* github#9 -- a tab is a brass plate; its cut edge and shadow stay */
+/* github#9, github#32 -- a tab is a brass plate; page.css owns the cut, this owns the face */
 .vault-shelf[data-look="leather"] .vs-tabs button {
-  border-left: 0;
-  border-radius: 0 3px 3px 0;
   font-family: var(--prose);
-  box-shadow: 1px 2px 3px #00000025;
+  box-shadow: -1px 2px 3px #00000025;
 }
 .vault-shelf[data-look="leather"] .vs-tabs button[aria-current="true"] {
   color: #302b21;
@@ -429,7 +427,7 @@
   .vault-shelf[data-look="leather"] .vs-page.vs-left { border-bottom: 1px solid var(--border); }
   .vault-shelf[data-look="leather"] .vs-page::after { display: none; }
   .vault-shelf[data-look="leather"] .vs-tabs { background: #f0eadc; }
-  .vault-shelf[data-look="leather"] .vs-tabs button { border-radius: 3px; border-left: 1px solid var(--vs-plate-edge); }
+  .vault-shelf[data-look="leather"] .vs-tabs button { border-radius: 3px; border-right: 1px solid var(--vs-plate-edge); }
 }
 
 @media (max-width: 520px) {

@@ -4088,6 +4088,9 @@ check("clicking a spine opens a book on the note it names", async (p) => {
            detail: `opened ${r.got} (wanted ${r.wanted}), ${r.contents} entries in its contents` };
 });
 
+/* github#32 -- the count cap here was 30, which was what one column of the rail held. The rail
+ * runs in banks now and the ceiling is the structural one; what actually fits is measured, and
+ * `no index tab is clipped` is the check that says so. */
 check("the date index is layered: years over months over days, each only where it separates",
       async (p) => {
   const r = await p.j(`(function(){
@@ -4113,7 +4116,11 @@ check("the date index is layered: years over months over days, each only where i
     var top = tagTabs.filter(function (t) { return t.level === 0; });
     var yearsShown = top.every(function (t) { return /^\\d{4}$/.test(t.label); });
     var months = tagTabs.filter(function (t) { return t.level === 1; });
-    var monthsLook = months.every(function (t) { return /^[A-Z][a-z]{2}$/.test(t.label); });
+    /* github#32 -- a month tab may be a RANGE of months now: a book whose months will not
+     * fit the rail has them gathered into Jan-Apr before the layer is dropped. */
+    var monthsLook = months.every(function (t) {
+      return /^[A-Z][a-z]{2}(\\u2013[A-Z][a-z]{2})?$/.test(t.label);
+    });
     /* A month book: one year, one month -- neither is drawn; days are, if there are more than three notes. */
     var month = pick("months", function (b) { return b.key !== "-undated" && b.notes.length > 3; });
     var monthTabs = month ? tabsOf(month.id) : [];
@@ -4132,7 +4139,7 @@ check("the date index is layered: years over months over days, each only where i
              smallTabs: smallTabs ? smallTabs.length : -1 };
   })()`);
   const ok = (!r.tag || (r.top === r.tagYears && r.yearsShown && r.monthsLook)) &&
-             (!r.month || r.daysOnly) && (!r.small || r.smallTabs === 0) && r.tagTabs <= 30;
+             (!r.month || r.daysOnly) && (!r.small || r.smallTabs === 0) && r.tagTabs <= 180;
   return {
     ok,
     detail: (r.tag ? `#${r.tag} spans ${r.tagYears} years and gets ${r.top} year tabs ` +
@@ -4144,6 +4151,9 @@ check("the date index is layered: years over months over days, each only where i
   };
 });
 
+/* github#32 -- WHAT FITS, NOT A NUMBER. This asserted 26 tabs, which was the whole index a
+ * single-column rail could hold; the rail runs in banks now and the ceiling is geometry. The
+ * loose count here only catches a runaway cut -- `no index tab is clipped` is the real gate. */
 check("the reader's index tabs stay countable on the biggest book", async (p) => {
   const r = await p.j(`(function(){
     var biggest = null;
@@ -4151,11 +4161,130 @@ check("the reader's index tabs stay countable on the biggest book", async (p) =>
       v.books.forEach(function (b) { if (!biggest || b.notes.length > biggest.notes.length) biggest = b; });
     });
     __vs.openBook(biggest.id, null);
-    return { book: biggest.id, notes: biggest.notes.length,
-             tabs: document.querySelectorAll("#vs-tabs button:not(.vs-findtab)").length };
+    var rail = document.getElementById("vs-tabs");
+    var edges = {};
+    [].slice.call(rail.querySelectorAll("button")).forEach(function (b) {
+      edges[Math.round(b.offsetLeft + b.offsetWidth)] = true;
+    });
+    return { book: biggest.id, notes: biggest.notes.length, banks: Object.keys(edges).length,
+             tabs: rail.querySelectorAll("button:not(.vs-findtab)").length };
   })()`);
-  return { ok: r.tabs > 0 && r.tabs <= 26,
-           detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} tabs (cap 26)` };
+  return { ok: r.tabs > 0 && r.tabs <= 180 && r.banks <= 3,
+           detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} tabs in ${r.banks} bank(s) ` +
+                   `(ceiling 180 tabs, 3 banks; what a bank holds is the window's)` };
+});
+
+/* github#32 -- THE CHECK THAT WOULD HAVE CAUGHT IT. Every tab check counted tabs, and a tab
+ * clipped off the bottom of an `overflow: hidden` rail counts exactly like one you can reach.
+ * This one reads boxes: no tab outside the rail, no rail outside the spread. */
+check("no index tab is clipped: the tabs fit the rail and the rail fits the spread", async (p) => {
+  const r = await p.j(`(function(){
+    var books = [];
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { books.push({ shelf: v.shelf.id, book: b }); });
+    });
+    books.sort(function (a, b) { return b.book.notes.length - a.book.notes.length; });
+    /* The twelve fattest, plus every Encyclopedia volume -- github#35 gives the numeric one
+     * the longest index in the library on a vault of daily notes. */
+    var seen = {};
+    var picks = books.slice(0, 12);
+    books.forEach(function (x) { if (x.shelf === "encyclopedia") picks.push(x); });
+    var out = [];
+    picks.forEach(function (x) {
+      if (seen[x.book.id]) return;
+      seen[x.book.id] = true;
+      __vs.openBook(x.book.id, null);
+      var rail = document.getElementById("vs-tabs");
+      var spread = document.querySelector(".vs-spread");
+      var rb = rail.getBoundingClientRect(), sb = spread.getBoundingClientRect();
+      var tabs = [].slice.call(rail.querySelectorAll("button"));
+      var edges = {};
+      var outside = 0;
+      tabs.forEach(function (t) {
+        var tb = t.getBoundingClientRect();
+        edges[Math.round(t.offsetLeft + t.offsetWidth)] = true;
+        if (tb.top < rb.top - 0.5 || tb.bottom > rb.bottom + 0.5 ||
+            tb.left < rb.left - 0.5 || tb.right > rb.right + 0.5) outside++;
+      });
+      out.push({
+        id: x.book.id, notes: x.book.notes.length, tabs: tabs.length,
+        banks: Object.keys(edges).length, w: Math.round(rb.width), outside: outside,
+        railIn: rb.top >= sb.top - 0.5 && rb.bottom <= sb.bottom + 0.5 &&
+                rb.right <= sb.right + 0.5 && rb.left >= sb.left - 0.5,
+        share: Math.round(rb.width / spread.clientWidth * 100),
+        current: rail.querySelectorAll('button[aria-current="true"]').length
+      });
+      __vs.closeReader();
+    });
+    return out;
+  })()`);
+  const clipped = r.filter((x) => x.outside > 0);
+  const loose = r.filter((x) => !x.railIn);
+  const banked = r.filter((x) => x.banks > 3);
+  const wide = r.filter((x) => x.share > 20);
+  /* github#32 -- and exactly one thumb: every tab at or before the page used to be lit. */
+  const lit = r.filter((x) => x.current > 1);
+  const worst = r.slice().sort((a, b) => b.tabs - a.tabs)[0];
+  const banks = r.slice().sort((a, b) => b.banks - a.banks)[0];
+  return {
+    ok: clipped.length === 0 && loose.length === 0 && banked.length === 0 && wide.length === 0 &&
+        lit.length === 0 && r.length >= 10,
+    detail: `${r.length} books opened; longest index ${worst.id} at ${worst.tabs} tabs over ` +
+            `${worst.notes} notes in ${worst.banks} bank(s), rail ${worst.w}px; widest rail ` +
+            `${banks.w}px in ${banks.banks} bank(s) (${banks.share}% of the spread); ` +
+            `${clipped.length} clipped, ${loose.length} rails outside the spread, ` +
+            `${banked.length} over three banks, ${wide.length} over a fifth of the spread, ` +
+            `${lit.length} with more than one tab lit` +
+            (clipped.length ? ` -- ${clipped.map((x) => x.id + " loses " + x.outside).join("; ")}` : "")
+  };
+});
+
+/* github#35 -- THE STEP IS THE NUMBER. The 0-9 volume was indexed one tab per YEAR, so its
+ * index read 0-9, 2023, 2024 and a press landed hundreds of notes from the one wanted. */
+check("a volume whose rows read as dates is indexed by date, not by year", async (p) => {
+  const r = await p.j(`(function(){
+    var enc = __vs.views().filter(function (v) { return v.shelf.id === "encyclopedia"; })[0];
+    if (!enc) return { none: "no Encyclopedia here" };
+    var vol = enc.books.filter(function (b) { return b.key === "0-9"; })[0];
+    if (!vol) return { none: "no numeric volume here" };
+    __vs.openBook(vol.id, null);
+    var tabs = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab)"));
+    /* A tab is a position, so the step is read by pressing it and asking where it landed. */
+    var ats = tabs.map(function (t) { t.click(); return __vs.reader().index; });
+    var step = 0;
+    ats.forEach(function (at, i) {
+      step = Math.max(step, (i + 1 < ats.length ? ats[i + 1] : vol.notes.length) - at);
+    });
+    var dated = vol.notes.filter(function (n) { return /^\\d{4}-\\d{2}/.test(n.title); }).length;
+    var labels = tabs.map(function (t) { return t.textContent; });
+    __vs.closeReader();
+    return { key: vol.key, notes: vol.notes.length, dated: dated, tabs: tabs.length,
+             step: step, first: ats[0], rising: ats.every(function (a, i) { return i === 0 || ats[i - 1] <= a; }),
+             labels: labels.slice(0, 10),
+             /* HOW MANY TABS THE TITLES ADMIT, the way the volume check already asks it: a
+              * volume of plain numbers cannot be cut finer than its leading digits. */
+             possible: Object.keys(vol.notes.reduce(function (all, n) {
+               all[n.title.replace(/^[^0-9]+/, "").slice(0, 1)] = true;
+               return all;
+             }, {})).length,
+             /* the invention this replaces: a four-digit head with no hyphen is not a year */
+             yearish: labels.filter(function (l) { return /^\\d{4}$/.test(l); }).length,
+             wrongYear: vol.notes.some(function (n) { return /^1000/.test(n.title); }) &&
+                        labels.indexOf("1000") >= 0 };
+  })()`);
+  if (r.none) return { ok: true, detail: r.none };
+  /* THE STEP IS THE NUMBER. A quarter of the book is the most a press may leave you to read;
+   * before this the whole 10k volume was one tab, so the step was the book. A volume of plain
+   * numbers whose titles admit no finer cut is the data's limit, not the code's. */
+  const dateish = r.dated * 2 >= r.notes;
+  const fine = r.step * 4 <= r.notes || (!dateish && r.tabs >= r.possible);
+  return {
+    ok: r.tabs >= 4 && r.rising && !r.wrongYear && fine,
+    detail: `${r.key}: ${r.notes} notes, ${r.dated} of them ISO-titled, behind ${r.tabs} tabs ` +
+            `(${r.labels.join(" ")}${r.tabs > 10 ? " ..." : ""}); largest step ${r.step} notes ` +
+            `of ${r.notes} (the titles admit ${r.possible} at one digit); ` +
+            `${r.yearish} bare-year tabs; ${r.wrongYear ? "a title's leading digits are still read as a year" : "no invented year"}`
+  };
 });
 
 /* github#11, design/0015 */

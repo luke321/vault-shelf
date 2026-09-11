@@ -1055,7 +1055,9 @@
 .vault-shelf .vs-page.vs-right {
   background: var(--surface-2);
   padding-left: 32px;
-  padding-right: 56px;
+  /* github#32 -- the prose pays for the banks that exist and no more; one is the 56px it
+   * always was, and page.js writes the measured width after it fits the rail. */
+  padding-right: calc(var(--vs-railw, 51px) + 5px);
 }
 .vault-shelf .vs-page.vs-right::after {
   left: 0;
@@ -1224,6 +1226,10 @@
   align-items: baseline;
 }
 
+/* github#32 -- THE RAIL IS A BOOKCASE TOO: a run too long for the room continues in the bank
+ * to its left rather than off the bottom edge. `wrap-reverse` is what puts bank one at the
+ * right, which is the edge the thumb reaches; `overflow: hidden` used to eat the rest in
+ * silence. The count that fits is measured in page.js, not guessed here. */
 .vault-shelf .vs-tabs {
   position: absolute;
   top: 16px;
@@ -1231,9 +1237,12 @@
   z-index: 4;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  flex-wrap: wrap-reverse;
+  align-content: flex-start;
+  gap: 0;
+  /* the last cut in a bank is pulled 1px past the line by the collapse below; this is it */
+  padding-bottom: 1px;
   max-height: calc(100% - 32px);
-  overflow: hidden;
 }
 
 /* design/0015 -- THE LAYERS OF THE INDEX. A year tab is the widest and boldest, a month tab
@@ -1249,6 +1258,8 @@
   line-height: 1.15;
   letter-spacing: 0;
   text-align: center;
+  /* github#32 -- it names an act, not a position, so it keeps its air above the cut stack */
+  margin-bottom: 4px;
 }
 .vault-shelf .vs-tabs .vs-findtab:hover,
 .vault-shelf .vs-tabs .vs-findtab:focus-visible {
@@ -1261,17 +1272,27 @@
 .vault-shelf .vs-tabs button[data-level="1"] { margin-left: 8px; min-width: 36px; }
 .vault-shelf .vs-tabs button[data-level="2"] { margin-left: 16px; min-width: 30px; font-size: 10px; opacity: 0.85; }
 
-/* Protruding tabs, cut from the page rather than stuck on it. */
+/* github#32, design/0021 -- A CUT INTO THE PAGE, not a plate stuck to its edge. The radius
+ * was on the OUTER corners with the inner border dropped, which is a button hanging off the
+ * fore-edge; a thumb index is the other way round -- square and flush where the leaf is cut,
+ * the arc on the inside. The stack closes up and its hairlines collapse into one rule, so the
+ * strip reads as one cut edge divided into leaves rather than a column of floating controls.
+ * Geometry, so it is the same in all three looks and neither parity check moves. */
 .vault-shelf .vs-tabs button {
-  border-radius: 0 3px 3px 0;
-  border-left: 0;
+  border-radius: 3px 0 0 3px;
+  border-right: 0;
+  margin-bottom: -1px;
   min-width: 42px;
   text-align: right;
   font-variant-numeric: tabular-nums;
   /* github#9 */
-  box-shadow: 1px 1px 2px color-mix(in srgb, #000 14%, transparent);
+  box-shadow: -1px 1px 2px color-mix(in srgb, #000 14%, transparent);
 }
 
+/* github#32 -- ONE THUMB, not every cut you have passed. `aria-current` was set on every tab
+ * at or before the page, so a book read to its end lit the whole rail and marked nothing.
+ * The fill is the whole marker: a bank stretches its cuts to one width, so a wider open cut
+ * widens the BANK rather than the tab, and the bank it is in changes as you read. */
 .vault-shelf .vs-tabs button[aria-current="true"] {
   color: #fff;
   background: var(--accent);
@@ -1635,8 +1656,9 @@
   .vault-shelf .vs-spread { grid-template-columns: minmax(0, 1fr); }
   .vault-shelf .vs-page.vs-left { border-right: 0; border-bottom: 1px solid var(--border); }
   .vault-shelf .vs-page.vs-right { padding-right: 22px; }
-  .vault-shelf .vs-tabs { flex-direction: row; position: static; padding: 0 18px 12px; flex-wrap: wrap; }
-  .vault-shelf .vs-tabs button { border-radius: 3px; border-right: 1px solid var(--border); }
+  .vault-shelf .vs-tabs { flex-direction: row; position: static; padding: 0 18px 12px; flex-wrap: wrap; gap: 3px; }
+  .vault-shelf .vs-tabs button { border-radius: 3px; border-right: 1px solid var(--border); margin-bottom: 0; }
+  .vault-shelf .vs-tabs .vs-findtab { margin-bottom: 0; }
   .vault-shelf button { min-height: 34px; }
 }
 

@@ -1830,3 +1830,71 @@ decades, **0 / 0**; Encyclopedia **29 / 23 / 27** of the same on the folder's dy
 `folder,year,decade` on Months (came up `year`), by folder **129 / 29 / 121** follow the folder,
 by decade **0** torn, saved `"decade"`; no select on Encyclopedia or People. One check, 88 in
 the suite. No schema bump: the field is optional and an older file comes up on the defaults.
+
+
+**The index rail holds an index worth holding** (github#32, github#35). *"noticed that right
+side index tabs overflow sometime, file issue for multi row support, they need to look more
+like real indeces aswell"* and *"0-9 encyclopedia in my vault makes no sense with the right
+index, it's 0-9 then 2023 2024 and so on in large steps"*. Two issues, one worktree: a smarter
+cut makes more tabs, and more tabs is what the rail could not hold.
+
+**The rail was a hole with a lid on it.** `.vs-tabs` was one column with `overflow: hidden`, so
+a tab past the spread's height was painted outside the box and clipped in silence -- measured
+before the change on the fourteen fattest books per shape: demo **2 books losing 4 tabs**,
+sparse **1 losing 2**. Every tab check in the suite counted tabs and passed. It wraps into
+banks now (`flex-wrap: wrap-reverse`, so bank one is the right-hand edge the thumb reaches), up
+to **three** and never over **a fifth of the spread**; the right page's padding reads
+`calc(var(--vs-railw) + 5px)`, so one bank costs the 56px it always did and the prose pays only
+for the banks that exist. What fits is **measured, not calculated** -- the index is drawn at
+full depth, the banks are counted by their fore-edges, and while it does not fit it is rebuilt
+one step shallower: the deepest layer gathered into spans (`Jan–Apr`), then dropped, then the
+list collapsed into ranges. Once per book and once per resize, cached on `reader.tabs`, never
+per page turn.
+
+**A tab is a cut, not a plate.** The radius was on the OUTER corners with the inner border
+dropped -- a button hanging off the fore-edge. Flipped: `border-radius: 3px 0 0 3px`,
+`border-right: 0`, `gap: 3px` to **0** with the hairlines collapsed by `margin-bottom: -1px`
+(and 1px of padding on the rail to pay back the last cut in each bank), the shadow falling left
+instead of right, and the open cut 10px wider than the rest. Geometry, so it lives in
+`page.css`; leather and cyberpunk each carried their own radius and border side and now carry
+only their face. **`every control is the same size in every look` stayed at 0 off (38 controls,
+tab 27.3 high) and `the furniture is one material` at 0 off (56 controls, 4 rooms).**
+
+**One thumb.** `aria-current` was set on every tab at or before the page, so a book read to its
+end lit the whole rail: measured on the demo fixture, opening each of the fourteen fattest books
+at its last note lit **29 of 29** tabs on the worst and more than one on **all fourteen**. Now
+**1**, everywhere.
+
+**A cut must gather, or be the only cut there is.** Three banks of room turned out to be enough
+rope: a year book of 105 notes over nine months took **83 tabs**, a tab per row, filling three
+banks and 148px of prose with a second copy of the contents. A day layer is drawn where its days
+hold two rows each on average, or where nothing coarser was drawn at all (a month book). That
+year book reads **19** tabs in one bank.
+
+**The 0-9 volume is a book of dates.** `titlePrefix` took the first four digits of a numeric
+head as a YEAR -- with no hyphen required, so `1000 Small Decisions — budget` had a tab
+reading `1000`. A book whose rows read as dates (half or more ISO-titled) now takes the layered
+date cut over the date each **title** carries, since the volume stands in title order and a tab
+is a position in the rows as they stand; runs of four or more rows that are not dates keep a
+tab of their own at their place, so the demo volume reads `1 2011 ... 2026 3`. A numeric volume
+with no dates is cut by its leading digits.
+
+Measured 2026-09-11, before / after, at 1600x1000 on the suite's own fixtures:
+
+| | before | after |
+|---|---|---|
+| demo `encyclopedia/0-9`, 168 notes | 17 tabs, largest step **51** | 65 tabs in 3 banks, step **20** |
+| sparse `encyclopedia/0-9`, 109 notes | 3 tabs (`0-9 1000 2024`), step **54** | 5 tabs (`0 1 2 3 4`), step **28** |
+| 10k `encyclopedia/0-9`, 412 notes | **1 tab**, step **412** | 9 tabs (`1`-`9`), step **58** |
+| 10k `people/-unfiled`, 6,937 notes | 11 tabs | 42 tabs in 2 banks |
+| widest rail, all shapes | 51px, 1 bank | 158px, 2 banks (15% of the spread) |
+| clipped tabs | demo 4, sparse 2 | **0, 0, 0** |
+
+Two new checks: `no index tab is clipped` reads every tab's box against the rail's and the
+rail's against the spread's over the twelve fattest books plus every volume (**40 / 34 / 39
+books, 0 clipped**), and `a volume whose rows read as dates is indexed by date, not by year`
+presses every tab and reads back where it landed, printing **the largest step**, which is the
+number github#35 is about. `the reader's index tabs stay countable` moved from a count of 26 to
+the structural ceiling of 180 plus three banks, and the layered check's cap from 30 to 180 --
+thirty was what one column held. Reverting the rail's CSS alone fails the new check with **6
+demo books clipped, `people/-unfiled` losing 83 of 111 tabs**. 90 checks.

@@ -777,12 +777,10 @@
 
 /* Index tabs as illuminated keys protruding from the fore-edge. The current one is the only
  * lit key on the stack, which is how you find it without reading it. */
-/* github#9 -- a tab is a lit sign; its cut edge and shadow stay */
+/* github#9, github#32 -- a tab is a lit sign; page.css owns the cut, this owns the face */
 .vault-shelf[data-look="cyber"] .vs-tabs button {
-  border-left: 0;
-  border-radius: 0 2px 2px 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.6);
+  box-shadow: -2px 2px 6px rgba(0, 0, 0, 0.6);
 }
 
 .vault-shelf[data-look="cyber"] .vs-tabs button[aria-current="true"] {
@@ -790,7 +788,7 @@
   background: linear-gradient(90deg, var(--vs-neon), var(--vs-neon-hot));
   border-color: var(--vs-neon-hot);
   font-weight: 700;
-  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.6), 0 0 18px rgba(53, 240, 208, 0.5);
+  box-shadow: -2px 2px 6px rgba(0, 0, 0, 0.6), 0 0 18px rgba(53, 240, 208, 0.5);
 }
 
 .vault-shelf[data-look="cyber"] #vs-ribbon[aria-pressed="true"] {

@@ -62,6 +62,11 @@ and a letter cut can only ever give it the single tab `0-9`. What a title beginn
 `2023-02-16` is filed under is 2023, so a numeric head takes the leading four digits and the
 volume tabs read 2023, 2024, 2025, 2026.
 
+> **Superseded, `design/0021` (`github#35`).** A year in that book is hundreds of notes with
+> nothing under it, and no hyphen was required, so `1000 Small Decisions` was filed under the
+> year 1000. A book whose rows read as dates now takes the layered date cut over the date each
+> **title** carries; a numeric volume that is not dated is cut by its leading digits.
+
 **Obsidian centres every button, and a contents row is a button.** `app.css` sets
 `justify-content: center` on `button`; our rule set `display: flex` and never said otherwise,
 so a row with nothing after its title -- one whose date is already in the title, and therefore
@@ -120,6 +125,12 @@ only where it separates something.
 - A group of three notes or fewer is not cut further: three notes on following days are three
   rows on the left, not an index.
 - The whole thing is capped at about thirty tabs, dropping days first and then months.
+
+> **Amended, `design/0021` (`github#32`).** Thirty was what a single-column rail held, and the
+> rail runs in banks now: what fits is measured, and the deepest layer is halved into spans
+> (`Jan-Apr`) before it is dropped. A day layer is also only drawn where its days gather two
+> rows each, or where nothing coarser was drawn at all -- a vault of one note a day was being
+> given a tab per row.
 
 The layers step in from the edge — a year tab is bold and widest, a month tab steps in, a day
 tab steps in again — so the shape says which is which before the label does. The Encyclopedia

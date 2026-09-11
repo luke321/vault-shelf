@@ -213,7 +213,7 @@ function mountVaultShelf(root, data, options) {
   var bookIndex = {};
   /** The biggest book in the library, which every thickness is scaled against. */
   var thickest = 1;
-  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null }|null} */
+  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, tabs?: Section[]|null }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
   var history = [];
@@ -657,6 +657,9 @@ function mountVaultShelf(root, data, options) {
       var w = shelfWidth();
       roomLog.measured++;
       roomLog.last = w;
+      /* github#32 -- the rail packs against the spread's HEIGHT, so a window that changed
+       * shape re-fits the index even when the room it left is the same width. */
+      if (reader) { reader.tabs = null; renderTabs(); }
       if (w <= 80 || w === seen) return;
       seen = w;
       roomWidth = w;
@@ -2106,13 +2109,23 @@ function mountVaultShelf(root, data, options) {
    * gets letters; a person's book is in date order and gets dates. Cutting letters over a
    * date-ordered list is what produced tabs that jumped backwards.
    */
-  /** @param {Book} book @returns {{ label: string, at: number }[]} */
+  /**
+   * A place in the contents, and how deep the cut that names it is.
+   * @typedef {{ label: string, at: number, level?: number }} Section
+   */
+  /** @param {Book} book @returns {Section[]} */
   function indexSections(book) {
     var shelf = shelfById(book.shelfId);
     var kind = shelf ? shelf.classifier : "initial";
-    /** @type {{ label: string, at: number }[]} */
+    /** @type {Section[]} */
     var out = [];
     if (kind === "initial") {
+      /* github#35 -- A BOOK WHOSE ROWS READ AS DATES, not "the 0-9 volume". Every book on
+       * every other shelf is already cut by date, so in practice the volume is the only new
+       * wearer of this -- but the rule is about the rows, which is what a tab is a position
+       * in, and it holds for any alphabetical book whose titles are ISO dates. */
+      var dated = book.notes.filter(function (n) { return titleDate(n.title); }).length;
+      if (dated >= 4 && dated * 2 >= book.notes.length) return volumeTabs(book.notes);
       out = letterTabs(book.notes);
     } else {
       /* design/0015 -- ONE INDEX FOR EVERY DATE-ORDERED BOOK, however it was classified. A
@@ -2120,17 +2133,39 @@ function mountVaultShelf(root, data, options) {
        * then days, then whichever single unit happened to split the book -- so the same kind
        * of tab read "Jul" in one book, "07" in another and "2024" in a third. The layered cut
        * reads the book instead of the shelf. */
-      return dateTabs(book.notes);
+      return dateTabs(book.notes, function (n) { return n.date || ""; });
     }
-    if (out.length <= 26) return out;
-    /** @type {{ label: string, at: number }[]} */
-    var parts = [];
-    var per = Math.ceil(out.length / 12);
-    for (var i = 0; i < out.length; i += per) {
-      parts.push({ label: out[i].label + "\u2013" + out[Math.min(i + per, out.length) - 1].label,
-                   at: out[i].at });
+    /* github#32 -- A CEILING, NOT THE CAP A PERSON FEELS. This used to collapse anything over
+     * 26 into twelve ranges, which is the whole index the rail could hold while it was one
+     * column. The rail is three banks now and what fits is measured (`fitTabs`); this only
+     * keeps the first draw bounded, since a deep letter cut can run to hundreds. */
+    return out.length > RAW_TABS ? rangesOf(out, RAW_TABS) : out;
+  }
+
+  /**
+   * design/0015 -- A TAB YOU CANNOT HIT IS DECORATION. `n` tabs over the same list, each
+   * naming the span it opens -- `Ub-Ug` -- and each still standing at a real position in the
+   * contents, which is the only thing a tab has to be.
+   * @param {Section[]} sections @param {number} n @returns {Section[]}
+   */
+  function rangesOf(sections, n) {
+    /** @type {Section[]} */
+    var out = [];
+    var per = Math.ceil(sections.length / n);
+    /* A RANGE OF RANGES IS STILL ONE RANGE. Gathering twice used to read `Jan-Feb-Mar-Jul`,
+     * which is four labels stapled together rather than the span it opens; the ends of the
+     * ends are the ends. */
+    /** @param {Section} t @returns {string} */
+    var from = function (t) { return t.label.split("\u2013")[0]; };
+    /** @param {Section} t @returns {string} */
+    var to = function (t) { var p = t.label.split("\u2013"); return p[p.length - 1]; };
+    for (var i = 0; i < sections.length; i += per) {
+      var last = sections[Math.min(i + per, sections.length) - 1];
+      var label = from(sections[i]);
+      if (to(last) !== label) label += "\u2013" + to(last);
+      out.push({ label: label, at: sections[i].at });
     }
-    return parts;
+    return out;
   }
 
   /**
@@ -2166,7 +2201,7 @@ function mountVaultShelf(root, data, options) {
    * @param {ShelfNote[]} notes @returns {{ label: string, at: number }[]}
    */
   function letterTabs(notes) {
-    /** @type {{ label: string, at: number }[]} */
+    /** @type {Section[]} */
     var out = [];
     for (var depth = 1; depth <= 3; depth++) {
       out = cutBy(notes, function (n) { return titlePrefix(n.title, depth); },
@@ -2188,14 +2223,57 @@ function mountVaultShelf(root, data, options) {
    */
   function titlePrefix(title, depth) {
     var head = core.firstLetter(title);
-    if (depth <= 1 || head === "#") return head;
     var word = /^[\p{L}\p{N}]+/u.exec(title.replace(/^[^\p{L}\p{N}]+/u, ""));
-    if (!word) return head;
-    /* THE 0-9 VOLUME IS INDEXED BY YEAR. It is one book of 351 notes in a vault of daily
-     * notes, and "0-9" is the only tab a letter cut can give it. What a title beginning
-     * `2023-02-16` is actually filed under is 2023. */
-    if (head === "0-9") return /^\d{4}/.test(word[0]) ? word[0].slice(0, 4) : head;
+    /* github#35 -- A NUMERIC VOLUME IS CUT BY ITS NUMBERS. Every title in the 0-9 volume
+     * begins with a digit, so `0-9` is the only letter tab a letter cut can give it and a
+     * deeper one reads `0-90`. It used to take the first four digits as a YEAR, which filed
+     * `1000 Small Decisions` under the year 1000 and gave a volume of dates steps of hundreds
+     * of notes; what separates these titles is the number they start with, which is also the
+     * order they stand in. A volume that really is dated is cut by `volumeTabs` instead. */
+    if (head === "0-9" && word) return word[0].slice(0, depth);
+    if (depth <= 1 || head === "#" || !word) return head;
     return head + word[0].slice(1, depth).toLowerCase();
+  }
+
+  /**
+   * github#35 -- THE DATE A TITLE CARRIES, and only a real one. `2024-03-17 standup` is filed
+   * under that day; `1000 Small Decisions` and `3D printing notes` carry no date at all, and
+   * the four leading digits that made the first of them the year 1000 were this index's own
+   * invention. A hyphen is required, and the month and day have to exist.
+   * @param {string} title @returns {string}
+   */
+  function titleDate(title) {
+    var m = /^(\d{4})-(\d{2})(?:-(\d{2}))?(?![\d-])/.exec(title.replace(/^[^\p{L}\p{N}]+/u, ""));
+    if (!m) return "";
+    var month = Number(m[2]);
+    if (month < 1 || month > 12) return "";
+    if (m[3] !== undefined && (Number(m[3]) < 1 || Number(m[3]) > 31)) return "";
+    return m[0];
+  }
+
+  /**
+   * github#35 -- A VOLUME OF DATES, cut the way every other date-ordered book is: the layered
+   * cut over the date each TITLE carries, because the volume stands in title order and a tab
+   * has to be a position in the rows as they stand (`decisions/0003` is the disagreement, and
+   * this is the side of it the reader is on).
+   *
+   * THE ROWS THAT ARE NOT DATES KEEP A TAB OF THEIR OWN. `1000 Small Decisions` sorts before
+   * the dates and `3D printing notes` after them, so they are two groups rather than one; a
+   * run of four or more gets one tab at its place in the contents, labelled the way the letter
+   * cut would label it. Nothing a person can see on the left is unreachable from the right.
+   * @param {ShelfNote[]} notes @returns {Section[]}
+   */
+  function volumeTabs(notes) {
+    var out = dateTabs(notes, function (n) { return titleDate(n.title); });
+    var run = 0;
+    notes.forEach(function (n, i) {
+      if (titleDate(n.title)) { run = 0; return; }
+      run++;
+      if (run !== PLAIN_RUN) return;
+      var at = i - run + 1;
+      out.push({ label: titlePrefix(notes[at].title, 1), at: at, level: 0 });
+    });
+    return out.sort(function (a, b) { return a.at - b.at; });
   }
 
   /**
@@ -2211,26 +2289,40 @@ function mountVaultShelf(root, data, options) {
    *
    * The result is the same shape for a year book, a tag book and a person's book, which is
    * what an index is for: you learn to read it once.
-   * @param {ShelfNote[]} notes @returns {{ label: string, at: number, level?: number }[]}
+   * @param {ShelfNote[]} notes
+   * @param {function(ShelfNote): string} dateOf github#35 -- the note's, or its title's
+   * @returns {Section[]}
    */
-  function dateTabs(notes) {
-    /** @type {{ label: string, at: number, level?: number }[]} */
+  function dateTabs(notes, dateOf) {
+    /** @type {Section[]} */
     var out = [];
-    var years = runsOf(notes, function (n) { return n.date ? n.date.slice(0, 4) : ""; });
+    var years = runsOf(notes, function (n) { return dateOf(n).slice(0, 4); });
     var showYears = years.length > 1;
     years.forEach(function (y) {
       if (showYears) out.push({ label: y.key, at: y.at, level: 0 });
       if (y.size <= 3) return;
-      var months = runsOf(y.notes, function (n) { return n.date ? n.date.slice(0, 7) : ""; });
+      var months = runsOf(y.notes, function (n) { return dateOf(n).slice(0, 7); });
       var showMonths = months.length > 1;
+      var drawn = showYears || showMonths;
       months.forEach(function (m) {
         if (showMonths) {
           out.push({ label: core.monthLabel(m.key).slice(0, 3), at: y.at + m.at,
                      level: showYears ? 1 : 0 });
         }
         if (m.size <= 3) return;
-        var days = runsOf(m.notes, function (n) { return n.date || ""; });
+        /* github#35 -- a `2024-03` title names a month and has no day in it to cut on. */
+        var days = runsOf(m.notes, function (n) {
+          var d = dateOf(n);
+          return d.length >= 10 ? d : "";
+        });
         if (days.length <= 1) return;
+        /* github#32 -- A CUT MUST GATHER, or be the only cut there is. One note per day is the
+         * ordinary shape of a vault, so cutting a dense month into days puts a tab beside
+         * every row and says nothing the contents did not already say -- and with three banks
+         * to fill, it filled them. A day layer is drawn where its days hold two rows each on
+         * average, or where nothing coarser was drawn at all, which is how a month book keeps
+         * the only index it can have. */
+        if (drawn && days.length * 2 > m.size) return;
         days.forEach(function (d) {
           out.push({ label: d.key.slice(8), at: y.at + m.at + d.at,
                      level: (showYears ? 1 : 0) + (showMonths ? 1 : 0) });
@@ -2238,7 +2330,7 @@ function mountVaultShelf(root, data, options) {
       });
     });
     var deepest = out.reduce(function (max, t) { return Math.max(max, t.level || 0); }, 0);
-    while (out.length > 30 && deepest > 0) {
+    while (out.length > RAW_TABS * 2 && deepest > 0) {
       var drop = deepest;
       out = out.filter(function (t) { return (t.level || 0) < drop; });
       deepest--;
@@ -2267,7 +2359,149 @@ function mountVaultShelf(root, data, options) {
     return runs;
   }
 
+  /**
+   * github#32 -- HOW FAR THE INDEX MAY GROW. The rail stands over the right-hand page, so
+   * every bank is paid for out of the prose column: three banks is where that stops being an
+   * edge, and a fifth of the spread is where it stops being one whatever the labels say --
+   * three banks of `Sep-Oct` are half again the width of three banks of `Sep`.
+   */
+  var BANKS = 3;
+  var RAIL_SHARE = 5;
+
+  /**
+   * github#32 -- the ceiling on the first draw, before geometry has had a look. Comfortably
+   * over what three banks hold, so it is the rail that decides and not this number.
+   */
+  var RAW_TABS = 90;
+
+  /**
+   * github#35 -- how many rows in a row have to carry no date before the index says so. Below
+   * this they are the handful of strays any volume has; at it they are a block of the book.
+   */
+  var PLAIN_RUN = 4;
+
   function renderTabs() {
+    var rail = $("tabs");
+    if (!reader.tabs) {
+      /* `fitTabs` leaves what it settled on drawn, so there is nothing to draw again here. */
+      var fitted = fitTabs(rail, indexSections(reader.book));
+      /* A rail that is not laid out -- the reader still hidden -- measures one bank whatever
+       * is in it, so that answer is drawn and not kept, and the next draw tries again. */
+      if (rail.clientHeight >= 40) reader.tabs = fitted;
+      return;
+    }
+    drawTabs(reader.tabs);
+  }
+
+  /**
+   * github#32 -- MEASURED, NOT CALCULATED. How many tabs a bank holds is a tab's height and
+   * its border against the spread's, in whichever look and at whatever font the host has --
+   * five numbers this file does not own. So the index is drawn at full depth, the banks are
+   * counted, and while there are too many it is rebuilt one step shallower and drawn again.
+   * A handful of passes, once per book and once per resize, never per page turn.
+   * @param {HTMLElement} rail
+   * @param {{ label: string, at: number, level?: number }[]} sections
+   * @returns {{ label: string, at: number, level?: number }[]}
+   */
+  function fitTabs(rail, sections) {
+    var spread = rail.closest(".vs-spread");
+    drawTabs(sections);
+    /* Under the measure the rail is a wrapping ROW under the pages (page.css), where a bank
+     * is not a thing and the room is the whole width; there is nothing to fit. */
+    if (!(spread instanceof HTMLElement) ||
+        WIN.getComputedStyle(rail).flexDirection !== "column") return sections;
+    for (var pass = 0; pass < 8 && rail.clientHeight >= 40 && !fits(rail, spread); pass++) {
+      var next = shallower(sections);
+      if (!next) break;
+      sections = next;
+      drawTabs(sections);
+    }
+    /* github#32 -- what the banks cost the prose, written where the padding can read it. A
+     * rail with no width has not been laid out, and writing 0 here would put the tabs over
+     * the text; the page.css default stands until it has. */
+    if (rail.offsetWidth > 0) spread.style.setProperty("--vs-railw", rail.offsetWidth + "px");
+    return sections;
+  }
+
+  /**
+   * @param {HTMLElement} rail @param {HTMLElement} spread @returns {boolean}
+   */
+  function fits(rail, spread) {
+    return banksOf(rail) <= BANKS && rail.offsetWidth * RAIL_SHARE <= spread.clientWidth;
+  }
+
+  /**
+   * One bank per distinct fore-edge. The RIGHT edge, not `offsetLeft`: a deeper level steps in
+   * from the left by design, so its left edge says which layer it is and nothing about which
+   * bank it landed in.
+   * @param {HTMLElement} rail @returns {number}
+   */
+  function banksOf(rail) {
+    /** @type {Record<number, boolean>} */
+    var edges = {};
+    var kids = rail.children;
+    for (var i = 0; i < kids.length; i++) {
+      var kid = /** @type {HTMLElement} */ (kids[i]);
+      edges[Math.round(kid.offsetLeft + kid.offsetWidth)] = true;
+    }
+    return Object.keys(edges).length;
+  }
+
+  /**
+   * github#32 -- ONE STEP SHALLOWER. The deepest layer of the date cut goes first, the way the
+   * count cap has always dropped days before months; with no layers left the list collapses
+   * into ranges, halving each time. Null when there is nothing left to give up.
+   * @param {{ label: string, at: number, level?: number }[]} sections
+   * @returns {{ label: string, at: number, level?: number }[]|null}
+   */
+  function shallower(sections) {
+    var deepest = sections.reduce(function (max, t) { return Math.max(max, t.level || 0); }, 0);
+    if (deepest > 0) {
+      return thinned(sections, deepest) ||
+             sections.filter(function (t) { return (t.level || 0) < deepest; });
+    }
+    if (sections.length >= 8) return rangesOf(sections, Math.ceil(sections.length / 2));
+    return null;
+  }
+
+  /**
+   * github#32, github#35 -- HALVE THE DEEPEST LAYER BEFORE THROWING IT AWAY. A book of several
+   * thousand notes over fifteen years carries a month tab for every one of a hundred and
+   * thirty months, which no rail holds -- and dropping the layer outright leaves the years
+   * alone, which is the step of hundreds of notes github#35 is about. Each run of deepest tabs
+   * standing under one parent is gathered into half as many, naming the span it opens the way
+   * an over-long letter list already does: `Jan-Apr`. Null once every run is a single tab and
+   * there is nothing left to gather, which is when the layer really has to go.
+   * @param {Section[]} sections @param {number} level @returns {Section[]|null}
+   */
+  function thinned(sections, level) {
+    /** @type {Section[]} */
+    var out = [];
+    /** @type {Section[]} */
+    var run = [];
+    var gathered = false;
+    var flush = function () {
+      if (run.length > 1) {
+        gathered = true;
+        rangesOf(run, Math.ceil(run.length / 2)).forEach(function (t) {
+          out.push({ label: t.label, at: t.at, level: level });
+        });
+      } else if (run.length) {
+        out.push(run[0]);
+      }
+      run = [];
+    };
+    sections.forEach(function (t) {
+      if ((t.level || 0) === level) { run.push(t); return; }
+      flush();
+      out.push(t);
+    });
+    flush();
+    return gathered ? out : null;
+  }
+
+  /** @param {{ label: string, at: number, level?: number }[]} sections */
+  function drawTabs(sections) {
     var box = $("tabs");
     clear(box);
     /* github#0 -- THE FIRST TAB IS THE ONE THAT FINDS. The index down the right edge jumps to a
@@ -2284,11 +2518,16 @@ function mountVaultShelf(root, data, options) {
     find.setAttribute("aria-label", "Search inside this book");
     on(find, "click", findInBook);
     box.appendChild(find);
-    indexSections(reader.book).forEach(function (section) {
+    /* github#32 -- THE THUMB IS IN ONE CUT. Every tab at or before the page carried
+     * `aria-current`, so a book read to its end lit the whole rail and said nothing about
+     * where you were; the open cut is the last one the page has reached. */
+    var openAt = -1;
+    sections.forEach(function (section, i) { if (section.at <= reader.index) openAt = i; });
+    sections.forEach(function (section, i) {
       var b = el("button", "", section.label);
       b.type = "button";
       b.setAttribute("data-level", String(section.level || 0));
-      if (section.at <= reader.index) b.setAttribute("aria-current", "true");
+      if (i === openAt) b.setAttribute("aria-current", "true");
       on(b, "click", function () { goTo(section.at); });
       box.appendChild(b);
     });
@@ -3382,6 +3621,9 @@ function mountVaultShelf(root, data, options) {
       var again = findBook(reader.book.id, reader.noteId);
       if (again) {
         reader.book = again;
+        /* github#32 -- a rebuilt book has its own rows, so the index fitted to the old one is
+         * not an index of this one; the next draw measures it again. */
+        reader.tabs = null;
         /* github#5 -- THE PLACE IS A NOTE, NOT A ROW NUMBER. */
         var at = -1;
         if (reader.noteId) {

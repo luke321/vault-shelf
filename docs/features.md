@@ -331,6 +331,7 @@ order and gets dates.
 | Book | Order | Tabs |
 |---|---|---|
 | an Encyclopedia volume | by title | letters — `A`, `Aft`, `Al` |
+| a volume whose rows read as dates | by title | the layered date cut, off the **title's** date |
 | a year | by date | months — `Jan`, `Feb` |
 | a month, a week | by date | days — `04`, `09`, `27` |
 | a person, a tag, a folder, a property value | by date | the span it covers |
@@ -346,14 +347,42 @@ indexed by year; one of 40 notes inside a single year, by month; a fortnight of 
 the biggest unit that gives more than one tab, which is the rule a printed index follows and
 needs no setting.
 
-Above 26 tabs the list collapses into twelve ranges. A tab you cannot hit is decoration.
+**The numeric volume is a book of dates wearing a letter shelf's clothes.** `0-9` is where
+every note titled `2024-03-17` lands, so in a vault of daily notes it is the biggest book in the
+library — and a letter cut can only ever give it the single tab `0-9`. A volume whose rows read
+as dates takes the same layered cut every date-ordered book takes, off the date each **title**
+carries, because that is what its rows are sorted by; the rows that are not dates keep a tab of
+their own where four or more stand together, so the index reads `1 · 2011 · … · 2026 · 3` and
+nothing on the left page is out of reach from the right. A numeric volume that holds no dates
+is cut by its leading digits instead — `1 2 3 4`, then `10 24 42` — the way the letter cut
+deepens `M` into `Ma Me Mi`.
+
+**A cut must gather, or be the only cut there is.** A year of one note a day would take a day
+tab beside almost every row, which is a second copy of the contents rather than an index, so a
+day layer is drawn where its days hold two rows each on average — or where nothing coarser was
+drawn at all, which is how a month book keeps the only index it can have.
+
+### The rail is a thumb index
+
+A tab is square and flush where the leaf is cut and arced on the inside, stacked with its
+neighbours into one cut edge rather than floating as a column of little plates. The open cut is
+the widest, and it is the only one lit.
+
+**A run too long for the room continues in the bank to its left.** The rail was one column with
+`overflow: hidden`, so an index taller than the spread was simply cut off at the bottom and
+nothing said so. It wraps into banks now — the rightmost first, since that is the edge the
+thumb reaches — up to three of them and never more than a fifth of the spread, so the note's
+own prose keeps its column. What fits is measured rather than guessed: the index is drawn at
+full depth and, while it does not fit, rebuilt one step shallower — the deepest layer gathered
+into spans (`Jan–Apr`), then dropped, then the list collapsed into ranges. A tab you cannot hit
+is decoration, and a tab you cannot see is worse.
 
 **The contents follow.** A tab, Previous, Next, the arrow keys, a ribbon or a followed link
 brings the current row into view on the left page — the smallest move that does it, the way a
 printed index is thumbed to, never a re-centring — and the row is marked with a bar in the
 margin. A list you have scrolled yourself is not moved by a redraw that changes nothing.
 
-`design/0015`, `design/0004`
+`design/0015`, `design/0021`, `design/0004`
 
 ### A tag book's cover has no hash
 
