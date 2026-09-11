@@ -29,13 +29,14 @@ show a problem without showing your notes, generate a fixture — the same shape
 content:
 
 ```bash
-node scripts/make-demo-vault.mjs --out ./demo-vault
-node src/build-shelf.mjs --vault ./demo-vault --out ./demo.html
+node scripts/make-vault.mjs --out ./vault
+node src/build-shelf.mjs --vault ./vault --out ./demo.html
 ```
 
-Attach that, or a screenshot of it. Three generators cover the ground: `make-demo-vault.mjs`
-(every classifier populated), `make-sparse-vault.mjs` (undated, lopsided, multiscript) and
-`make-library-vault.mjs` (10,000 notes over ten years). None of them needs a vault of yours.
+Attach that, or a screenshot of it. One generator covers the ground: `make-vault.mjs` writes
+5,000 notes over eleven years with every classifier populated, a dense recent year, undated
+notes, impossible dates, four scripts in the titles and one year nobody wrote. `--notes` cuts
+a smaller one of the same shape. It does not need a vault of yours.
 
 ## If you do want to work on it
 
@@ -49,7 +50,7 @@ Six commands, and all six are gates rather than suggestions:
 
 ```bash
 npm run lint                                  # tsc --noEmit on src/core under strict, then typescript-eslint on our own code; every finding held at zero
-node scripts/smoke.mjs                        # the invariant suite, over three vault shapes
+node scripts/smoke.mjs                        # the invariant suite, over the generated vault
 node scripts/check-scope.mjs                  # the page cannot style, or be styled by, its host -- and nothing shipped carries an invisible character
 node scripts/check-network.mjs                # nothing shipped can make a network request
 node scripts/check-comments.mjs               # comments are pointers; the count of prose lines only goes down
