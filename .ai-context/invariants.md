@@ -29,15 +29,41 @@ address was wear nobody ever read back. Found because seeding put a book on that
 wear check picks the first book in the library, which had never been a reference before. Now
 **2 spines** show it, the favourite and its source.
 
+**A title is its own** (`github#36`). 362 authored phrases over 2,883 worded notes is each
+phrase four times, and a suffixed copy sorts directly against its original, so the contents
+read as a wall of near-copies: *Indexing is the work*, *— scope*, *— week one*, *— week two*.
+**77% of neighbouring titles shared a stem.** Titles are combined now — a verb or an adjective
+against a subject, or a subject against a facet — dealt without replacement, with a **quota per
+opening word** so that no template's size decides how often one word opens a run.
+
+| | before | after |
+|---|---|---|
+| distinct stems, of 2,883 worded titles | 660 | **2,521** |
+| neighbours sharing a stem | **77.1%** | **12.5%** |
+| longest run of one opening word | 52 | **15** |
+| biggest group of one subject | 6 | **4** |
+
+Two of those only showed up by reading the list rather than the number. A subject-first
+template repeats its subject (*Irrigation line for the cellar*, *… for the shed*), so both
+opener templates lead with the verb or the adjective and the subject-first one has a smaller
+quota. And **no two openers share a root**: `Insulated` sorts directly against `Insulating`,
+and the two read as a single run of sixteen.
+
+It costs the thinnest Encyclopedia volumes their upright covers. A wider vocabulary is more
+volumes, `github#34` squeezes them into one row, and at **18px** a `学` cannot be drawn upright
+— it is turned on its side rather than clipped. The check asserts that every short cover is
+upright *except* the ones the page names as not fitting, at most four, and that nothing upright
+is clipped.
+
 Measured 2026-09-11 on **the** fixture vault — `decisions/0012` replaced three with one, so
 a number here no longer comes in threes: **4,938 notes / 17 folders / 25 people / 43 tags /
-523 undated**. It draws **227 spines** across the five visible default shelves and holds
-**687 addresses** in all. `github#17` made it eleven years and five thousand notes; the
+531 undated**. It draws **227 spines** across the five visible default shelves and holds
+**691 addresses** in all (687 of them before the Favourites shelf was seeded). `github#17` made it eleven years and five thousand notes; the
 numbers below moved with it, and `changelog-detail.md` gives each one its old value, its new
 value and a reason.
 
 The vault's own shape: **eleven years to 2026-09-11, ending today by default**, recent-heavy
-(**54 notes in 2015, 1,697 in 2026**, and **2,213 in the rolling twelve months** against 146
+(**54 notes in 2015, 1,755 in 2026**, and **2,268 in the rolling twelve months** against 146
 before, none of its months below **123**); **2019 is empty on purpose** — the year nobody wrote, so a chronological shelf has a
 gap to survive; a PARA-ish tree of ten numbered folders with four nested ones, a `Templates`
 folder and three notes at the root, the largest holding **1,204 of 4,938** notes; **24 named
@@ -78,8 +104,8 @@ one note. `"a shelf's note count is unique notes"` walks every shelf, collects n
 every book into a set, and asserts the set's size equals the shelf's own `noteCount`.
 
 It also reports how many shelves have `sum > unique` — that is, how many genuinely place a
-note in more than one book. Measured: **2 of 7** do, People at **5,963/4,938** and Tags at
-**8,090/4,938**. The notes that name five people and six tags at once — eleven books for one
+note in more than one book. Measured: **3 of 7** do — Favourites at **3,552/2,611**, People at
+**5,969/4,938** and Tags at **8,150/4,938**. The notes that name five people and six tags at once — eleven books for one
 note — are declared in the vault rather than in a second fixture (`decisions/0012`). A run
 where **no** shelf overlaps means the fixture stopped exercising the law and the check has
 gone quiet without failing.
@@ -121,7 +147,7 @@ fallback is worthless: all 545 files of the author's own vault stamped inside `2
 
 `"an undated note lands in Undated"` counts notes with `date === null` and asserts the Years
 shelf's `-undated` book holds exactly that many, and that it sorts **last**. Measured on the
-the vault: **523 undated notes, 523 in the book**, which sorts last. `decisions/0003` is
+the vault: **531 undated notes, 531 in the book**, which sorts last. `decisions/0003` is
 why there is an Undated book at all rather than a file-stamp fallback.
 
 The vault puts a fifth of the notes that are not about a day there on purpose
@@ -146,7 +172,7 @@ date rule that is wrong in most hand-written implementations.
 `"the Encyclopedia opens with a 0-9 volume"` asserts **zero** books whose key is a single
 digit. A vault whose titles start with dates would otherwise open with ten one-note books
 before it reached A. Measured: 0 single-digit books, and the `0-9` volume
-holds **2,097 of 4,938** notes, because its daily, meeting and 1-on-1 notes are titled with an
+holds **2,063 of 4,938** notes, because its daily, meeting and 1-on-1 notes are titled with an
 ISO date.
 
 ## Plaques are date-only and asked for
@@ -198,7 +224,7 @@ on `shelfId/-plaque-<label>` with exactly the unique count of rows, the title ba
 `<shelf> · <label>`, the meta line opening `<unique> notes across <n> books`, and that Escape
 closes it; then finds a plate drawn on two rows anywhere in the library, clicks both, and
 asserts the same book id; and that the address list, book count and spine count are what they
-were. Measured: `Tags · A` **1,776 unique across 7 books that sum to 2,022**, 12 tabs,
+were. Measured: `Tags · A` **1,812 unique across 7 books that sum to 2,043**, 12 tabs,
 `-plaque-2018` drawn on two rows opening the same book. `design/0019`.
 
 `"a ribbon left in a plaque-book re-resolves after a rebuild, and the Reading shelf holds it"`
@@ -207,13 +233,13 @@ opens the biggest plaque-run on the first plaqued shelf **by address** through
 that `core.resolveReading` returns a book with that id; rebuilds (`setFilters({})`) and asserts
 the reader is on the same book and the same note and the Reading shelf shows the plaque-book as
 a spine whose count is its unique notes and which hangs one ribbon; takes the ribbon out and
-asserts the spine is gone. Measured: `years/-plaque-2020-2029` **3,927 notes**.
+asserts the spine is gone. Measured: `years/-plaque-2020-2029` **3,908 notes**.
 
 `"on a manual shelf a plate opens what is under it, not the whole letter"` turns Tags manual,
 moves the first book of the first letter with two or more books to the very end — past
 Untagged — so that letter is drawn on two plates, clicks each and asserts the last opens
 exactly that one book's notes and the first the rest of the letter's unique notes, under the
-same address; then puts the shelf back. Measured: `acoustics` **1 vs 1,776**.
+same address; then puts the shelf back. Measured: `acoustics` **1 vs 1,812**.
 `design/0018`, `design/0019`.
 
 The plate became a button without moving: *a plaque sits under the books it names* still reads
@@ -226,7 +252,7 @@ golden is unchanged by it.
 `"a spine's thickness is its note count"` reads `--spine-w` off every spine on the Years shelf
 and asserts that widths rise with note counts, that the fullest book is as wide as any book on
 the shelf, and that every width falls between **22px and 58px**. Measured:
-**40px for a 54-note book, 56px for the 1,697-note one**; before `github#17` **45px at 309
+**40px for a 54-note book, 56px for the 1,755-note one**; before `github#17` **45px at 309
 notes and 50px at 1020**.
 
 **An index fits on one shelf, and is squeezed until it does** (`github#34`). `0-9` and the
@@ -293,7 +319,7 @@ puts the shelf back the way it found it, because the checks in a shard share one
 `"a shelf arranged by hand keeps every address and starts where it stood"` switches People to
 `manual` and asserts the sequence and the whole library's address list are unchanged, that
 every spine on that shelf became draggable and none on the automatic Tags shelf did, and that
-nothing has been written to `order` yet. Measured: **26 books**, **687 addresses** unchanged,
+nothing has been written to `order` yet. Measured: **26 books**, **691 addresses** unchanged,
 **26/26** spines draggable, **0** elsewhere.
 
 `"Alt+Right moves a book one place, and it survives a rebuild and a reload"` focuses the first
@@ -654,8 +680,8 @@ cut that had gone wrong, which is why `github#7` gave the titles real first word
 
 `"the reader's index tabs stay countable on the biggest book"` finds the largest book in the
 vault and asserts its tab count is between 1 and 26. Measured: the biggest
-book is `people/-unfiled` at **2,481 notes behind 11 tabs**, and the `0-9` Encyclopedia volume
-holds **2,097** — the case the 10,000-note fixture used to be for, now carried by the one
+book is `people/-unfiled` at **2,450 notes behind 11 tabs**, and the `0-9` Encyclopedia volume
+holds **2,063** — the case the 10,000-note fixture used to be for, now carried by the one
 vault (`decisions/0012`). `design/0004` says why a tab you cannot hit is not navigation.
 
 `"the contents scroll to the current row after a tab, Previous and a ribbon"` opens the biggest
@@ -712,7 +738,7 @@ started.
 
 `"parent tag inclusion is a setting, and it changes the answer"` builds the same tag-sourced
 shelf twice, with `includeSubtags` on and off, and asserts the first collects at least as many
-notes as the second. Measured: `#garden` collects **1,417** notes with its
+notes as the second. Measured: `#garden` collects **1,440** notes with its
 `garden/seeds` and `garden/soil` children and **62** without -- a difference of 48.
 
 `"people come from the property alone, never from prose"` asserts that a name the fixtures
@@ -752,7 +778,7 @@ notes may not reassign it.
 
 `node scripts/smoke.mjs --only "book colors"` drives the checkbox and reloads its saved
 setting, changes the dominant folder by adding notes, and reverses folder ranks. Measured
-in light, dark and leather: **687** existing book colors unchanged;
+in light, dark and leather: **691** existing book colors unchanged;
 encyclopedia volumes use **one** color in every case. Turning
 variation on/off preserves all addresses and counts.
 
@@ -788,7 +814,7 @@ fourth look is covered the day it is added, and it asserts:
   look's hex reports a different colour and passes. `design/0017` records what that caught;
 - switching back to the default restores the ground, the dye and the slots exactly.
 
-Measured: **687 addresses on the vault —
+Measured: **691 addresses on the vault —
 identical under all three looks in all three.** A book is the same **55x132** in every look,
 in a room of the same 1180px.
 

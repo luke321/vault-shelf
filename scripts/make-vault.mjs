@@ -322,6 +322,103 @@ const SUFFIXES = ["— log", "— scope", "— budget", "— retro",
                   "— what to do differently", "— parts list", "— sign-off",
                   "(draft)"];
 
+// github#36
+// github#36
+const DOING = [
+  "Replacing", "Sanding", "Lagging", "Repointing", "Bleeding", "Priming", "Levelling",
+  "Clearing", "Sealing", "Fitting", "Rehanging", "Regrouting", "Draining", "Insulating",
+  "Mounting", "Rewiring", "Painting", "Patching", "Trimming", "Staking", "Mulching",
+  "Pruning", "Splicing", "Sharpening", "Oiling", "Greasing", "Testing", "Measuring",
+  "Marking out", "Boxing in", "Making good", "Stripping", "Varnishing", "Waxing",
+  "Planting", "Dividing", "Potting on", "Hardening off", "Netting", "Shimming",
+  "Torquing", "Bedding in",
+  "Ordering", "Pricing", "Costing", "Sourcing", "Collecting", "Returning", "Swapping",
+  "Borrowing", "Hiring", "Retrieving", "Sorting", "Labelling", "Stowing", "Storing",
+  "Counting", "Checking", "Adjusting", "Aligning", "Balancing", "Calibrating", "Bundling",
+  "Cleaning", "Degreasing", "Descaling", "Dismantling", "Reassembling", "Refitting",
+  "Rehousing", "Relocating", "Securing", "Supporting", "Bracing", "Packing", "Wrapping",
+  "Taping", "Gluing", "Screwing", "Bolting", "Riveting", "Welding", "Soldering",
+  "Drilling", "Reaming", "Tapping", "Filing", "Grinding", "Polishing", "Buffing",
+  "Scrubbing", "Rinsing", "Drying", "Airing", "Venting", "Weatherproofing", "Winterising",
+];
+
+const THINGS = [
+  "gutter brackets", "sash cords", "seed potatoes", "pond liner", "stair nosing",
+  "skirting boards", "door furniture", "window catches", "hinge pins", "tap washers",
+  "waste traps", "floor joists", "roof battens", "ridge tiles", "lead flashing",
+  "downpipes", "soakaway pipe", "land drains", "fence posts", "gate latches",
+  "trellis panels", "raised beds", "cold frames", "cloches", "propagator trays",
+  "grow bags", "leaf mould", "compost bins", "water butts", "hose fittings",
+  "irrigation line", "bird netting", "fruit cages", "espalier wires", "vine eyes",
+  "tree ties", "stakes and guards", "mulch mats", "path edging", "gravel boards",
+  "decking screws", "coach bolts", "wall plugs", "masonry nails", "panel pins",
+  "wood glue", "filler and caulk", "sandpaper grades", "wire wool", "paint brushes",
+  "roller sleeves", "dust sheets", "masking tape", "white spirit", "linseed oil",
+  "beeswax polish", "danish oil", "shellac flakes", "chisel handles", "plane irons",
+  "saw teeth", "drill bits", "hole saws", "router cutters", "sanding discs",
+  "clamp heads", "vice jaws", "bench dogs", "marking gauges", "try squares",
+  "spirit levels", "chalk lines", "plumb bobs", "tape measures", "folding rules",
+  "work gloves", "ear defenders", "dust masks", "safety glasses", "knee pads",
+  "extension leads", "junction boxes", "cable clips", "consumer unit", "earth bonding",
+  "immersion timer", "thermostat wiring", "radiator valves", "pipe insulation",
+  "stopcock and gate", "header tank", "expansion vessel", "pump bearings",
+  "flue liner", "chimney cowl", "air bricks", "trickle vents", "loft hatch",
+  "insulation rolls", "vapour barrier", "membrane laps", "screed depth", "damp course",
+  "lime mortar", "pointing mix", "render coats", "quarry tiles", "grout lines",
+  "silicone beads", "threshold strips", "draught seals", "letterbox brushes",
+  "apple cages", "asparagus crowns", "awning ropes", "barrow tyres", "bean poles",
+  "bee smoker", "bird feeders", "blanket boxes", "bolt croppers", "boot scrapers",
+  "bramble hooks", "brick ties", "broom heads", "bulb planters", "cable ties",
+  "cane toppers", "cellar steps", "chain links", "chicken wire", "chimney pots",
+  "coir matting", "cold chisels", "comfrey tea", "copper pipe", "cordless batteries",
+  "corner beads", "cotton cord", "curtain poles", "cutting boards", "dibber set",
+  "door sweeps", "drain rods", "dust extraction", "earth spikes", "edging irons",
+  "fan belts", "feather boards", "felt nails", "fence spurs", "filter cartridges",
+  "fire bricks", "flashing tape", "flower pots", "fork handles", "frost cloth",
+  "gate springs", "glazing sprigs", "gravel trays", "grease nipples", "guttering clips",
+  "hand forks", "hasp and staple", "hay rakes", "hedge shears", "hook and eye",
+  "hose reels", "hurdle panels", "jubilee clips", "kettle elements", "key blanks",
+  "kneeling pads", "ladder feet", "lawn seed", "leaf grabbers", "lifting straps",
+  "lime wash", "line pins", "locking nuts", "loft boards", "log rings",
+  "measuring jugs", "mesh screens", "mortar boards", "moss killer", "nail punches",
+  "netting pegs", "nozzle sets", "oil filters", "onion nets", "outdoor sockets",
+  "packing crates", "paint kettles", "pea netting", "peat-free compost", "pegboard hooks",
+  "pipe clips", "planting trays", "plaster beads", "plumb lines", "post caps",
+  "potting grit", "pressure gauges", "pruning shears", "putty knives", "rain covers",
+  "rasp files", "razor scrapers", "reel mowers", "resin anchors", "ridge vents",
+  "rocker switches", "roofing felt", "rope cleats", "rubber mallets", "sack trucks",
+  "scaffold boards", "screw eyes", "seed trays", "shear pins", "sheep hurdles",
+  "shelf pins", "shovel handles", "sieve mesh", "slate hooks", "sledge heads",
+  "sluice gates", "soil sieves", "spade grips", "spirit burners", "spray nozzles",
+  "staple guns", "step treads", "stone chips", "storm straps", "strimmer heads",
+  "sump covers", "swing hooks", "tank floats", "tarpaulin eyelets", "thatch pegs",
+  "thread files", "tile nibblers", "timber wedges", "tool rolls", "torch batteries",
+  "trowel blades", "tube cutters", "tyre levers", "valve keys", "vent covers",
+  "wall anchors", "washing lines", "watering roses", "wheel braces", "window films",
+  "wire cutters", "wood chips", "worm casts", "yard brooms", "zinc trays",
+];
+
+// github#36 -- a tail that reads after any subject
+const FACETS = [
+  "— what it cost", "— sizes", "— where it went", "— second attempt", "— what worked",
+  "— snags", "— the quote", "— measurements", "— what is left", "— worth repeating",
+  "— not worth it", "— the short version", "— before and after", "— what to order",
+  "— who to ask", "— where it came from",
+];
+
+// github#36 -- no two openers off one root
+const QUALITY = [
+  "Cracked", "Loose", "Warped", "Seized", "Perished", "Split", "Rusted", "Chipped",
+  "Sagging", "Missing", "Spare", "Surplus", "Mismatched", "Oversized", "Undersized",
+  "Second-hand", "Galvanised", "Stainless", "Brass", "Reclaimed", "Bent", "Worn",
+  "Leftover", "Odd", "Matched", "Numbered", "Awkward", "Heavy", "Narrow", "Wide",
+  "Short", "Coarse", "Rough", "Smooth", "Threaded", "Countersunk", "Recessed", "Exposed",
+  "Buried", "Hollow", "Solid", "Rigid", "Flexible", "Woven", "Knotted", "Frayed",
+  "Blunt", "Sharpish", "Sticky", "Brittle", "Crooked", "Level", "Square", "Round",
+  "Tapered", "Slotted", "Hooked", "Ribbed", "Toothed", "Spoked", "Hinged", "Latched",
+  "Weathered", "Faded", "Mottled", "Streaked", "Pitted", "Scored", "Notched", "Scuffed",
+];
+
 const DECKS = {
   migration: ["Content inventory", "Redirect map for the old blog", "Cutover plan",
               "DNS and certificates", "Analytics parity", "Image pipeline",
@@ -783,13 +880,49 @@ const fromDeck = (name, pool) => {
   return decks[name].pop();
 };
 
+// github#36
+const PER_OPENER = 13;
+const PER_SUBJECT = 3;
+/** @type {string[]|null} */
+let combined = null;
+const invented = () => {
+  if (!combined) {
+    /** @type {string[][]} */
+    const groups = [];
+    for (const doing of DOING) groups.push(THINGS.map((t) => doing + " " + t));
+    for (const quality of QUALITY) groups.push(THINGS.map((t) => quality + " " + t));
+    /** @type {string[][]} */
+    const subjects = THINGS.map((thing) => {
+      const head = thing.charAt(0).toUpperCase() + thing.slice(1);
+      return FACETS.map((f) => head + " " + f);
+    });
+    /** @type {string[]} */
+    const all = [];
+    const deal = (from, many) => from.forEach((group) => {
+      const bag = shuffled(group);
+      for (let i = 0; i < many && bag.length; i++) all.push(bag.pop());
+    });
+    deal(groups, PER_OPENER);
+    deal(subjects, PER_SUBJECT);
+    combined = shuffled(all);
+  }
+  return combined.pop() || null;
+};
+
 /* github#17 -- a taken title picks up a SUFFIX before it picks up a number, because "Gutter
  * brackets (4)" reads as a generator that ran out. rand() is consumed unconditionally. */
+// github#36 -- the authored phrases once each, then the combined deck
+let phrasesLeft = PHRASES.length;
+/** @type {Record<string, number>} */
+const deckLeft = {};
 const titleFor = (folder) => {
-  const bare = rand() < 0.35;
-  const base = folder.deck ? fromDeck(folder.deck, DECKS[folder.deck])
-                           : fromDeck("phrases", PHRASES);
-  if (bare && !claimed.has(base)) return claim(base);
+  let base;
+  // github#36
+  if (folder.deck && deckLeft[folder.deck] === undefined) deckLeft[folder.deck] = DECKS[folder.deck].length;
+  if (folder.deck && deckLeft[folder.deck]-- > 0) base = fromDeck(folder.deck, DECKS[folder.deck]);
+  else if (phrasesLeft-- > 0) base = fromDeck("phrases", PHRASES);
+  else base = invented() || fromDeck("phrases", PHRASES);
+  if (!claimed.has(base)) return claim(base);
   for (const suffix of shuffled(SUFFIXES)) {
     const tried = base + " " + suffix;
     if (!claimed.has(tried)) return claim(tried);

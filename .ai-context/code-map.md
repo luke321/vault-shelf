@@ -208,7 +208,7 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 3436 | `refresh` |
 | 3558 | `offBook` |
 
-## `scripts/smoke.mjs` — 5526 lines, 6 sections, 90 functions, 89 checks
+## `scripts/smoke.mjs` — 5528 lines, 6 sections, 90 functions, 89 checks
 
 ### Sections
 
@@ -216,10 +216,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 |---|---|
 | 127–142 | chrome |
 | 143–222 | the checks |
-| 223–4902 | the invariants |
-| 4903–5051 | which vault, and why |
-| 5052–5406 | one run |
-| 5407–5526 | main |
+| 223–4904 | the invariants |
+| 4905–5053 | which vault, and why |
+| 5054–5408 | one run |
+| 5409–5528 | main |
 
 ### Functions
 
@@ -307,14 +307,14 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 4327 | · `books` |
 | 4330 | · `holds` |
 | 4430 | · `press` |
-| 4928 | `resolveVaults` |
-| 5038 | `buildFor` |
-| 5054 | `runOne` |
-| 5250 | `tagged` |
-| 5256 | `capture` |
-| 5276 | · · `pick` |
-| 5365 | `killBrowser` |
-| 5409 | `main` |
+| 4930 | `resolveVaults` |
+| 5040 | `buildFor` |
+| 5056 | `runOne` |
+| 5252 | `tagged` |
+| 5258 | `capture` |
+| 5278 | · · `pick` |
+| 5367 | `killBrowser` |
+| 5411 | `main` |
 
 ### Checks
 
@@ -406,6 +406,6 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 4707 | every control the keyboard can reach has a name |
 | 4729 | nothing on the page reaches the network |
 | 4739 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
-| 4796 | a tag book's cover carries no hash, and every other place it is named keeps it |
-| 4846 | a spine lifts on hover and holds its size |
-| 4861 | the shelves are packed the way the golden snapshot says |
+| 4798 | a tag book's cover carries no hash, and every other place it is named keeps it |
+| 4848 | a spine lifts on hover and holds its size |
+| 4863 | the shelves are packed the way the golden snapshot says |

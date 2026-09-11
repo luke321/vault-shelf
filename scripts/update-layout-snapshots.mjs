@@ -90,6 +90,12 @@ async function measure(htmlPath) {
       if (Date.now() > ready) throw new Error("the library never rendered");
       await sleep(300);
     }
+    // github#35
+    await page.eval(`(function(){
+      var s = __vs.settings();
+      var shelf = s.shelves.filter(function (x) { return x.classifier === "pick"; })[0];
+      if (shelf && shelf.picks && shelf.picks.length) { shelf.picks = []; __vs.setFilters({}); }
+    })(); void 0`);
     await page.eval(`window.dispatchEvent(new Event("resize")); void 0`);
     await sleep(400);
     return JSON.parse(await page.eval(`JSON.stringify(${MEASURE})`));

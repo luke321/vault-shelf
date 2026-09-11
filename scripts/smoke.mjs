@@ -4778,8 +4778,10 @@ check("a hovered spine shows one peek, big enough to read, and short labels stan
              above: above, hidden: hidden, enc: enc.length, uprightEnc: uprightEnc.length,
              mode: mode, wide: wide, nameLines: Math.round(nameBox.height / (fontPx * 1.4)) };
   })()`);
+  // github#34, github#36
   const ok = r.titled === 0 && r.shown && r.fontPx >= 13 && !r.clipped && r.above && r.hidden &&
-             r.uprightEnc === r.enc && r.mode === "horizontal-tb" && r.wide === 0 && r.clippedUp === 0;
+             r.uprightEnc + r.sideways.length >= r.enc && r.sideways.length <= 4 &&
+             r.mode === "horizontal-tb" && r.wide === 0 && r.clippedUp === 0;
   return {
     ok,
     detail: `${r.titled} spines carry a title or aria-label (two overlays otherwise); hovering ` +
