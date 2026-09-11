@@ -128,6 +128,11 @@ centred, and the chrome stays full-bleed while its contents do not.
 
 `design/0009`
 
+### Putting the book down
+
+Click the desk around an open book to close it. The book is inset from the page so the desk is a
+real target rather than a sliver at the edges.
+
 ### Search inside the book from the index
 
 The strip of tabs down the right edge of an open book jumps to places in it. The first tab is a

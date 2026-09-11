@@ -462,12 +462,11 @@ function mountVaultShelf(root, data, options) {
     };
     on(rail, "dragover", function (e) {
       var de = /** @type {DragEvent} */ (e);
-      if (!dragging || overSpine(de)) return;
+      /* A rail with books on it is the row's business (`takesBooks`); this is the empty one. */
+      if (!dragging || overSpine(de) || rail.querySelector(".vs-spine")) return;
       de.preventDefault();
       if (de.dataTransfer) de.dataTransfer.dropEffect = "move";
-      var spines = rail.querySelectorAll(".vs-spine");
-      var last = spines.length ? /** @type {HTMLElement} */ (spines[spines.length - 1]) : null;
-      if (last) markDrop(last, "after"); else markLanding(rail);
+      markLanding(rail);
       var carried = carriedSpine();
       if (carried) carried.removeAttribute("data-leaving");
     });
@@ -477,7 +476,7 @@ function mountVaultShelf(root, data, options) {
     });
     on(rail, "drop", function (e) {
       var de = /** @type {DragEvent} */ (e);
-      if (!dragging || overSpine(de)) return;
+      if (!dragging || overSpine(de) || rail.querySelector(".vs-spine")) return;
       de.preventDefault();
       var sourceId = carriedInto(view.shelf);
       dragging = null;
@@ -690,7 +689,95 @@ function mountVaultShelf(root, data, options) {
      * none of their stylesheets has to know. `hand` is false in the builder's preview, which
      * is not a shelf anybody can rearrange. */
     if (hand) track.appendChild(gripOf(shelf));
+    if (hand && (shelf.direction === "manual" || isPick(shelf))) takesBooks(track, shelf);
     return track;
+  }
+
+  /**
+   * github#0 -- THE ROW DECIDES, NOT THE BOOK UNDER THE POINTER. Each spine used to answer
+   * `dragover` for itself, which is where the flake was: the gap a mark opens is the target's
+   * own margin, so the moment it opened the pointer was in the gap rather than on the book,
+   * the spine stopped hearing the drag, the mark cleared, the gap shut, and the pointer was
+   * back on the book. Twice a second. The row hears the whole drag instead and works out the
+   * place from geometry, so opening a gap cannot take the target away from the pointer.
+   * @param {HTMLElement} track @param {Shelf} shelf
+   */
+  function takesBooks(track, shelf) {
+    /** @returns {boolean} */
+    var takes = function () {
+      if (!dragging) return false;
+      if (dragging.shelfId === shelf.id) return true;
+      return isPick(shelf) && !onShelf(shelf, dragging.id);
+    };
+    on(track, "dragover", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      if (!takes() || (e.target instanceof Element && e.target.closest(".vs-floorgrip"))) return;
+      de.preventDefault();
+      if (de.dataTransfer) de.dataTransfer.dropEffect = "move";
+      var place = placeIn(track, de.clientX);
+      if (place.spine) markDrop(place.spine, place.side);
+      var carried = carriedSpine();
+      if (carried) carried.removeAttribute("data-leaving");
+    });
+    on(track, "dragleave", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      if (!(de.relatedTarget instanceof Node) || !track.contains(de.relatedTarget)) clearDrop();
+    });
+    on(track, "drop", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      if (!takes()) return;
+      de.preventDefault();
+      var place = placeIn(track, de.clientX);
+      var moved = carriedInto(shelf);
+      dragging = null;
+      clearDrop();
+      if (!moved) return;
+      var before = place.spine
+        ? (place.side === "before" ? keyOfSpine(place.spine) : afterKey(shelf, place.spine, moved))
+        : null;
+      if (before === moved) return;
+      arrangeBook(shelf, moved, before, core.bookId(shelf.id, moved));
+    });
+  }
+
+  /**
+   * Which gap in this row the pointer is in: the first book whose middle the pointer has not
+   * passed, or the last book's right-hand side. The book being carried is not a candidate --
+   * it is the one being taken out of the row.
+   * @param {HTMLElement} track @param {number} x
+   * @returns {{ spine: HTMLElement|null, side: "before"|"after" }}
+   */
+  function placeIn(track, x) {
+    /** @type {HTMLElement[]} */
+    var spines = [];
+    var all = track.querySelectorAll(".vs-spine");
+    for (var k = 0; k < all.length; k++) {
+      var sp = /** @type {HTMLElement} */ (all[k]);
+      if (sp.getAttribute("data-dragging") !== "1") spines.push(sp);
+    }
+    if (!spines.length) return { spine: null, side: "before" };
+    for (var i = 0; i < spines.length; i++) {
+      var box = spines[i].getBoundingClientRect();
+      if (x < box.left + box.width / 2) return { spine: spines[i], side: "before" };
+    }
+    return { spine: spines[spines.length - 1], side: "after" };
+  }
+
+  /** @param {HTMLElement} spine @returns {string} */
+  function keyOfSpine(spine) {
+    var book = bookIndex[spine.getAttribute("data-book") || ""];
+    return book ? book.key : "";
+  }
+
+  /** The key after this spine, off the shelf as drawn, with the carried book taken out. */
+  /** @param {Shelf} shelf @param {HTMLElement} spine @param {string} movedKey @returns {string|null} */
+  function afterKey(shelf, spine, movedKey) {
+    return neighbour(shelf, keyOfSpine(spine), "after", movedKey);
+  }
+
+  /** @param {Shelf} shelf @param {string} sourceId @returns {boolean} */
+  function onShelf(shelf, sourceId) {
+    return (shelf.picks || []).indexOf(sourceId) >= 0;
   }
 
   /* ---- a shelf carried by its floor ------------------------------------------
@@ -704,6 +791,39 @@ function mountVaultShelf(root, data, options) {
   var shelfDrag = null;
   /** @type {HTMLElement|null} */
   var shelfMark = null;
+
+  /** github#0 -- the space a carried shelf is making for itself. @type {HTMLElement|null} */
+  var shelfGhost = null;
+
+  /**
+   * github#0 -- "let me drag the whole shelf with preview and make space for it while
+   * dragging". A 3px bar in a tall room says nothing about where a shelf of eleven rows is
+   * going to sit. The shelf is lifted out of the room instead, and a box of its own height --
+   * named, and outlined -- is put in wherever it would land. The room really does make space:
+   * everything below the ghost is pushed down by the height of the thing being carried.
+   * @param {Shelf} shelf @param {HTMLElement} section
+   */
+  function liftShelf(shelf, section) {
+    var box = section.getBoundingClientRect();
+    var ghost = el("div", "vs-shelfghost");
+    ghost.style.height = Math.round(box.height) + "px";
+    var view = views.filter(function (v) { return v.shelf.id === shelf.id; })[0];
+    ghost.appendChild(el("span", "vs-ghostname", shelf.name));
+    if (view) {
+      ghost.appendChild(el("span", "vs-ghostmeta",
+        view.books.length + (view.books.length === 1 ? " book" : " books")));
+    }
+    section.parentNode.insertBefore(ghost, section);
+    section.setAttribute("data-carrying", "1");
+    shelfGhost = ghost;
+  }
+
+  function dropShelfGhost() {
+    if (shelfGhost && shelfGhost.parentNode) shelfGhost.parentNode.removeChild(shelfGhost);
+    shelfGhost = null;
+    var carried = $("shelves").querySelector("[data-carrying]");
+    if (carried) carried.removeAttribute("data-carrying");
+  }
 
   /** @param {Shelf} shelf @returns {HTMLElement} */
   function gripOf(shelf) {
@@ -719,13 +839,12 @@ function mountVaultShelf(root, data, options) {
         de.dataTransfer.setData("text/plain", shelf.id);
       }
       var section = sectionOf(shelf.id);
-      if (section) section.setAttribute("data-carrying", "1");
+      if (section) liftShelf(shelf, section);
     });
     on(grip, "dragend", function () {
-      var section = shelfDrag ? sectionOf(shelfDrag.id) : null;
-      if (section) section.removeAttribute("data-carrying");
       shelfDrag = null;
       clearShelfMark();
+      dropShelfGhost();
     });
     return grip;
   }
@@ -759,7 +878,7 @@ function mountVaultShelf(root, data, options) {
     var section = /** @type {HTMLElement|null} */ (e.target.closest("[data-shelf]"));
     if (!section) return null;
     var id = section.getAttribute("data-shelf") || "";
-    if (!id || id === "-reading" || !shelfDrag || id === shelfDrag.id) return null;
+    if (!id || id === "-reading" || !shelfDrag) return null;
     var box = section.getBoundingClientRect();
     return { section: section, id: id, side: e.clientY >= box.top + box.height / 2 ? "after" : "before" };
   }
@@ -789,20 +908,31 @@ function mountVaultShelf(root, data, options) {
     on(box, "dragover", function (e) {
       var de = /** @type {DragEvent} */ (e);
       var over = shelfUnder(de);
-      if (!over) return;
+      if (!over || !shelfGhost) return;
       de.preventDefault();
       if (de.dataTransfer) de.dataTransfer.dropEffect = "move";
+      /* The ghost IS the indicator: it moves to where the shelf would land and the room shifts
+       * around it, so there is nothing to read off a hairline. */
+      var at = over.side === "after" ? over.section.nextSibling : over.section;
+      if (at !== shelfGhost) box.insertBefore(shelfGhost, at);
       markShelf(over.section, over.side);
     });
     on(box, "drop", function (e) {
       var de = /** @type {DragEvent} */ (e);
-      var over = shelfUnder(de);
-      if (!over || !shelfDrag) return;
+      if (!shelfDrag || !shelfGhost) return;
       de.preventDefault();
       var id = shelfDrag.id;
+      /* Where the space was made is where it goes: the section after the ghost, or the end. */
+      var next = shelfGhost.nextElementSibling;
+      while (next && !next.getAttribute("data-shelf")) next = next.nextElementSibling;
+      var before = next ? next.getAttribute("data-shelf") : "";
+      var sections = box.querySelectorAll("[data-shelf]");
+      var last = sections.length ? sections[sections.length - 1].getAttribute("data-shelf") : "";
       shelfDrag = null;
       clearShelfMark();
-      moveShelf(id, over.id, over.side);
+      dropShelfGhost();
+      if (before && before !== id) moveShelf(id, before, "before");
+      else if (!before && last && last !== id) moveShelf(id, last, "after");
     });
   }
 
@@ -890,7 +1020,7 @@ function mountVaultShelf(root, data, options) {
    * book would land -- and a keyboard path that does the same move without a pointer.
    */
 
-  /** @type {{ shelfId: string, key: string, id: string }|null} */
+  /** @type {{ shelfId: string, key: string, id: string, width: number }|null} */
   var dragging = null;
   /** @type {HTMLElement|null} */
   var dropMark = null;
@@ -916,7 +1046,8 @@ function mountVaultShelf(root, data, options) {
     }
     on(b, "dragstart", function (e) {
       var de = /** @type {DragEvent} */ (e);
-      dragging = { shelfId: shelf.id, key: book.key, id: book.id };
+      dragging = { shelfId: shelf.id, key: book.key, id: book.id,
+                   width: Math.round(b.getBoundingClientRect().width) };
       if (de.dataTransfer) {
         de.dataTransfer.effectAllowed = "move";
         /* The payload is the address, not the label: the same thing a drop between two hosts
@@ -977,40 +1108,6 @@ function mountVaultShelf(root, data, options) {
     b.setAttribute("data-peek", b.getAttribute("data-peek") +
       "\n\nDrag to move it along the shelf; Alt+Left and Alt+Right do the " +
       "same from the keyboard.");
-    /* design/0019 -- a pick shelf takes a spine from ANY shelf; every other manual shelf takes
-     * only its own. */
-    var takes = function () {
-      if (!dragging) return false;
-      if (dragging.shelfId === shelf.id) return dragging.key !== book.key;
-      return isPick(shelf) && dragging.id !== book.key;
-    };
-    on(b, "dragover", function (e) {
-      if (!takes()) return;
-      var de = /** @type {DragEvent} */ (e);
-      de.preventDefault();
-      if (de.dataTransfer) de.dataTransfer.dropEffect = "move";
-      markDrop(b, sideOf(b, de.clientX));
-      var carried = carriedSpine();
-      if (carried) carried.removeAttribute("data-leaving");
-    });
-    on(b, "dragleave", function () { if (dropMark === b) clearDrop(); });
-    on(b, "drop", function (e) {
-      var de = /** @type {DragEvent} */ (e);
-      de.preventDefault();
-      if (!takes()) return;
-      var moved = carriedInto(shelf);
-      var side = sideOf(b, de.clientX);
-      dragging = null;
-      clearDrop();
-      arrangeBook(shelf, moved, neighbour(shelf, book.key, side, moved),
-                  core.bookId(shelf.id, moved));
-    });
-  }
-
-  /** @param {HTMLElement} b @param {number} x @returns {"before"|"after"} */
-  function sideOf(b, x) {
-    var box = b.getBoundingClientRect();
-    return x >= box.left + box.width / 2 ? "after" : "before";
   }
 
   /** @param {HTMLElement} b @param {"before"|"after"} side */
@@ -1018,6 +1115,9 @@ function mountVaultShelf(root, data, options) {
     if (dropMark === b && b.getAttribute("data-drop") === side) return;
     clearDrop();
     dropMark = b;
+    /* github#0 -- THE GAP IS THE SHAPE OF WHAT IS COMING. A fixed 18px said "something lands
+     * here"; the book's own width says WHICH something, and a thick book makes a thick hole. */
+    if (dragging) b.style.setProperty("--drop-w", dragging.width + "px");
     b.setAttribute("data-drop", side);
     var bar = el("span", "vs-drop");
     bar.setAttribute("data-side", side);
@@ -1027,6 +1127,7 @@ function mountVaultShelf(root, data, options) {
   function clearDrop() {
     if (dropMark) {
       dropMark.removeAttribute("data-drop");
+      dropMark.style.removeProperty("--drop-w");
       var bar = dropMark.querySelector(".vs-drop");
       if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
     }

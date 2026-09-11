@@ -319,11 +319,15 @@ absence of a second address for one book.
 `"the room parts where a thing will land, the twelve are offered, and a shelf goes from its own
 sheet"` measures four things a person asked for in one breath.
 
-**The room parts.** A 3px bar in a 3px gap is accurate and nearly invisible. The neighbour steps
+**The room parts, and the gap is the shape of what is coming.** The neighbour steps
 aside instead and the bar stands in the space that opens — the same parting the query does to the
 room. Because it is a CSS transition, it is read **after** it runs rather than in the same tick:
-a book's neighbour goes **0 → 18px** and back to 0, a shelf **0 → 34px** and back, and the bar is
-**3px** wide and clear of the spine's left edge.
+a book's neighbour opens to the carried book's own width — **53px for a 47px book** — and settles
+back to 0, with the **3px** bar standing in the gap. A **shelf** does not open a margin at all:
+it leaves the room while carried and a ghost of its height stands where it would land
+(**226px**, named *Years · 17 books*), with **0** ghosts and **0** carried marks left behind.
+The row, not the spine, hears the drag, because a gap opened on the target used to take the
+target out from under the pointer (`design/0018`).
 
 The shelf half of that has a condition worth knowing: a `.vs-shelf` off screen has
 `content-visibility: auto`, so its rendering is skipped and **the transition never runs** —
@@ -391,6 +395,13 @@ books.
 `"hiding every shelf offers a way back rather than an empty room"` hides all six and asserts a
 recovery card with a working button is on screen and zero spines are drawn, then restores.
 An empty room with no way out is the worst reachable state in this product.
+
+## The book sits on a desk you can hit
+
+`"a click off the book puts it down, and a click on it does not"` measures the desk beside the
+open book, which is what a click has to land on to close it. The spread is inset from the measure
+now — it was filling it — so the desk went from **42px** to **90px** on the demo vault. The book
+is the same book; there is simply somewhere to put it down.
 
 ## The reader
 

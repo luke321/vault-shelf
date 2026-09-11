@@ -83,6 +83,28 @@ focused spine rather than off a selection, so it can only ever move the book the
 standing on, and focus follows the book through the redraw. It is the accessibility path and
 it is also what makes the behaviour testable without a pointer.
 
+## The row hears the drag, not the book
+
+> "the dragging a book between 2 books is flakey, it should wide the gap according to the
+> outline of the new book coming in"
+
+Each spine used to answer `dragover` for itself. That is where the flake was, and it was built
+in: **the gap a mark opens is the target's own margin**, so the instant it opened, the pointer
+was standing in the gap rather than on the book. The spine stopped hearing the drag, the mark
+cleared, the gap shut, the pointer was back on the book, and the whole thing started again —
+twice a second, under the hand.
+
+The **row** hears the drag now (`takesBooks` on `.vs-track`) and works out the place from
+geometry: the first book whose middle the pointer has not passed, or the end of the row. Opening
+a gap cannot take the target away from the pointer, because the target is the row and the row
+does not move. The book being carried is not a candidate, so a shelf never offers to drop a book
+next to itself.
+
+**And the hole is the shape of what is coming.** `--drop-w` is the carried spine's own width,
+written on the neighbour while the drag is over the row: a fat book opens a fat gap and a thin
+one barely parts the shelf, so the space that opens is the space the book will fill. Measured:
+a **47px** book opens **53px** — its own width and the 6px the shelf gives every book.
+
 ## Rows, and what a plaque now means
 
 A shelf packs into full-width rows (`design/0014`) and every spine on it is draggable, so a

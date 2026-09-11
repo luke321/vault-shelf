@@ -631,10 +631,14 @@
  * steps aside instead -- the same parting the query already does to the room (design/0008) --
  * and the bar stands in the space that opens, so the gesture reads before the detail does.
  * The spine's own transition already covers margin, so nothing jumps. */
-.vault-shelf .vs-spine[data-drop="before"] { margin-left: 18px; }
-.vault-shelf .vs-spine[data-drop="after"] { margin-right: 18px; }
-.vault-shelf .vs-drop[data-side="before"] { left: -11px; }
-.vault-shelf .vs-drop[data-side="after"] { right: -11px; }
+/* github#0 -- THE HOLE IS THE SHAPE OF THE BOOK. `--drop-w` is the carried spine's own width,
+ * written on the neighbour while the drag is over the row, so a fat book opens a fat gap and a
+ * thin one barely parts the shelf. The fallback is the old fixed gap, for a drag that somehow
+ * arrives without one. */
+.vault-shelf .vs-spine[data-drop="before"] { margin-left: calc(var(--drop-w, 18px) + 6px); }
+.vault-shelf .vs-spine[data-drop="after"] { margin-right: calc(var(--drop-w, 18px) + 6px); }
+.vault-shelf .vs-drop[data-side="before"] { left: calc((var(--drop-w, 18px) + 6px) / -2 - 1px); }
+.vault-shelf .vs-drop[data-side="after"] { right: calc((var(--drop-w, 18px) + 6px) / -2 - 1px); }
 
 /* ---- BEGIN: favourites -------------------------------------------------------
  * design/0019 -- the one shelf that starts empty says what it is for, in the row where the
@@ -689,7 +693,31 @@
   background: color-mix(in srgb, var(--accent) 30%, transparent);
   border-radius: 2px;
 }
-.vault-shelf .vs-shelf[data-carrying="1"] { opacity: 0.45; }
+/* github#0 -- THE SHELF LEAVES THE ROOM WHILE IT IS BEING CARRIED, and a box of its own height
+ * stands wherever it would land. That is the indicator: not a line to read, but the space
+ * itself, with everything below it pushed down by exactly what is coming back. */
+.vault-shelf .vs-shelf[data-carrying="1"] { display: none; }
+
+.vault-shelf .vs-shelfghost {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 26px;
+  border: 2px dashed var(--accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  pointer-events: none;
+}
+.vault-shelf .vs-ghostname {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.vault-shelf .vs-ghostmeta { font-size: 11.5px; opacity: 0.8; }
 /* The shelf lands above or below the one it was dropped on, and the bar says which. */
 .vault-shelf .vs-shelf[data-shelfdrop] { position: relative; }
 .vault-shelf .vs-shelf[data-shelfdrop]::after {
@@ -707,11 +735,9 @@
 /* github#0 -- and a shelf makes room the same way, one axis along: the shelf under the pointer
  * steps down (or up) and the bar stands in the gap. Without it a shelf drag was a hairline
  * somewhere in a tall room and no sense that anything had moved. */
+/* The ghost is the space and the answer; the shelf either side of it does not also need to
+ * open a margin, which would be the same gap twice. */
 .vault-shelf .vs-shelf { transition: margin 160ms ease; }
-.vault-shelf .vs-shelf[data-shelfdrop="before"] { margin-top: 34px; }
-.vault-shelf .vs-shelf[data-shelfdrop="after"] { margin-bottom: 34px; }
-.vault-shelf .vs-shelf[data-shelfdrop="before"]::after { top: -19px; }
-.vault-shelf .vs-shelf[data-shelfdrop="after"]::after { bottom: -19px; }
 
 .vault-shelf .vs-delete[data-armed="1"] {
   color: #fff;
@@ -858,13 +884,19 @@
  *   the SETTING  the book's title and its contents are set in the reading face, because a
  *                book's index is printed in the same type as its text.
  */
+/* github#0 -- "make the open book a bit smaller, the clicking outside of it is fragile". The
+ * spread filled the measure and nearly the height, so the desk you click to put the book down
+ * was a few pixels at the edges -- and putting a book down is the commonest thing anybody does
+ * in the reader. It is inset now: a hand's width of desk on each side and a real gutter under
+ * it, which costs the page 96px of width it was not using for text anyway (the note is capped
+ * at 66ch by design/0010). */
 .vault-shelf .vs-spread {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
   width: 100%;
-  max-width: var(--measure);
-  margin: 0 auto 14px;
+  max-width: min(calc(var(--measure) - 96px), calc(100% - 96px));
+  margin: 0 auto 30px;
   display: grid;
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   position: relative;
@@ -1505,7 +1537,7 @@
   justify-content: flex-end;
   gap: 7px;
   width: 100%;
-  max-width: var(--measure);
+  max-width: min(calc(var(--measure) - 96px), calc(100% - 96px));
   margin: 0 auto;
   padding: 0 30px;
   /* THE ROW OWNS THE SPACE ABOVE THE BOOK, in every look, so that a ribbon comes out of the

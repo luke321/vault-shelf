@@ -1600,10 +1600,12 @@ check("the room parts where a thing will land, the twelve are offered, and a she
   await sleep(320);
   const parted = await p.j(`(function(){
     var P = window.__part;
+    P.carriedWidth = Math.round(P.from.getBoundingClientRect().width);
     var bar = P.target.querySelector(".vs-drop");
     var barBox = bar ? bar.getBoundingClientRect() : null;
     var spineBox = P.target.getBoundingClientRect();
     return { margin: Math.round(parseFloat(getComputedStyle(P.target).marginLeft)),
+             carried: P.carriedWidth,
              side: P.target.getAttribute("data-drop"),
              barWidth: barBox ? Math.round(barBox.width) : 0,
              inTheGap: barBox ? barBox.right <= spineBox.left + 1 : false };
@@ -1635,7 +1637,15 @@ check("the room parts where a thing will land, the twelve are offered, and a she
   await sleep(320);
   const shelfParted = await p.j(`(function(){
     var S = window.__sp;
-    return { margin: Math.round(parseFloat(getComputedStyle(S.section).marginTop)),
+    var ghost = document.querySelector("#vs-shelves .vs-shelfghost");
+    var carried = document.querySelector("#vs-shelves .vs-shelf[data-carrying]");
+    return { ghost: !!ghost,
+             ghostHeight: ghost ? Math.round(ghost.getBoundingClientRect().height) : 0,
+             ghostName: ghost ? ghost.textContent : "",
+             above: ghost && S.section
+               ? Math.round(ghost.getBoundingClientRect().top) <=
+                 Math.round(S.section.getBoundingClientRect().top) + 1 : false,
+             hidden: carried ? getComputedStyle(carried).display === "none" : false,
              side: S.section.getAttribute("data-shelfdrop") };
   })()`);
   await p.eval(`(function(){
@@ -1643,7 +1653,10 @@ check("the room parts where a thing will land, the twelve are offered, and a she
     S.grip.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: S.dt }));
   })(); void 0`);
   await sleep(320);
-  const shelfSettled = await p.j(`Math.round(parseFloat(getComputedStyle(window.__sp.section).marginTop))`);
+  const shelfSettled = await p.j(`(function(){
+    return { ghosts: document.querySelectorAll("#vs-shelves .vs-shelfghost").length,
+             carrying: document.querySelectorAll("#vs-shelves [data-carrying]").length };
+  })()`);
 
   /* 3. THE TWELVE ARE OFFERED, and 4. a shelf goes from the sheet it is edited in. */
   const rest = await p.j(`(function(){
@@ -1798,10 +1811,12 @@ check("the room parts where a thing will land, the twelve are offered, and a she
   }).length;
   const separated = pairs.filter((x) => Math.abs(x.a.l - x.b.l) > 0.18).length;
 
-  const ok = parted.margin >= resting + 12 && parted.side === "before" &&
+  const ok = parted.margin >= parted.carried && parted.side === "before" &&
              parted.barWidth === 3 && parted.inTheGap && settled === resting &&
-             shelfParted.margin >= shelfResting.margin + 20 && shelfParted.side === "before" &&
-             shelfSettled === shelfResting.margin && shelfResting.onScreen && shelfResting.grip &&
+             shelfParted.ghost && shelfParted.ghostHeight > 80 && shelfParted.hidden &&
+             shelfParted.above &&
+             shelfSettled.ghosts === 0 && shelfSettled.carrying === 0 &&
+             shelfResting.onScreen && shelfResting.grip &&
              rest.pick.shown && rest.pick.swatches === 12 && rest.pick.distinct >= 10 &&
              rest.pick.custom && rest.pick.took && rest.pick.saved === 12 &&
              rest.made && rest.binOnNew === false && rest.binOnEdit === true &&
@@ -1816,11 +1831,14 @@ check("the room parts where a thing will land, the twelve are offered, and a she
              rest.find.focused && rest.find.sameHeight;
   return {
     ok,
-    detail: `a book's neighbour parts ${resting} -> ${parted.margin}px with the ${parted.barWidth}px ` +
+    detail: `a book's neighbour parts ${resting} -> ${parted.margin}px for a ${parted.carried}px book, ` +
+            `with the ${parted.barWidth}px ` +
             `bar standing in the gap (${parted.inTheGap}), and settles back to ${settled}px; a shelf ` +
-            `parts ${shelfResting.margin} -> ${shelfParted.margin}px on its "${shelfParted.side}" side ` +
+            `leaves the room while carried (${shelfParted.hidden}) and a ${shelfParted.ghostHeight}px ghost ` +
+            `named "${shelfParted.ghostName}" stands where it would land (${shelfParted.above}); ` +
             `(on screen: ${shelfResting.onScreen}, grip: ${shelfResting.grip}) and ` +
-            `settles back to ${shelfSettled}px. The colour picker offers ${rest.pick.swatches} ` +
+            `Nothing left behind: ${shelfSettled.ghosts} ghosts, ${shelfSettled.carrying} carried. ` +
+            `The colour picker offers ${rest.pick.swatches} ` +
             `swatches, ${rest.pick.distinct} distinct, plus Custom; the seventh took ` +
             `(${rest.pick.took}) and saved ${rest.pick.saved}. Delete shows only when editing ` +
             `(new ${rest.binOnNew}, edit ${rest.binOnEdit}), reads "${rest.first}" then ` +

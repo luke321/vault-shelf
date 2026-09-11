@@ -66,6 +66,15 @@ in step forever. Instead there is one transparent `.vs-floorgrip` per row, sized
 `--board` so it grows with whatever the look paints, standing a few pixels proud of it so it can
 actually be hit, and lighting in the accent only while the pointer is on it.
 
+**A carried shelf leaves the room, and its space goes with it.** A hairline between two shelves
+said nothing about where a shelf of eleven rows was going to sit — *"shelf dragging has no
+indicator at all where the shelf will end"*. The section is taken out of the flow while it is
+being carried (`display: none`) and a **ghost of its own height**, named and outlined, is put
+wherever it would land. Everything below is pushed down by exactly what is coming back, so the
+indicator is not a line to read: it is the space itself. Measured on the demo vault: a **226px**
+ghost reading *Years · 17 books*, the shelf itself out of the room, and **0** ghosts and **0**
+carried marks left behind when the drag ends.
+
 **The board went from 3px to 5px** for that reason: at three it was a hairline, which is fine to
 look at and impossible to grab. Leather already painted its own at 10px and is unchanged. The
 plaque hangs `calc(var(--board) + 9px)` below the books, so it moved down with the board and

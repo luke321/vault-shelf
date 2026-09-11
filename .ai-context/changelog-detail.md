@@ -38,6 +38,24 @@ saturation lift and the lightness push stay, because the separation was never th
 keeps the one warm thread. Measured: **21/21** spines keep their board's hue, **21/21** a fifth of
 the lightness away.
 
+**The drag layer, reworked.** *"the dragging a book between 2 books is flakey"*, *"shelf dragging
+has no indicator at all where the shelf will end, let me drag the whole shelf with preview and
+make space for it"*, *"make the open book a bit smaller, the clicking outside of it is fragile"*.
+
+*A book.* The spine answered `dragover` for itself, and the gap a mark opens is the target's own
+margin — so the moment it opened, the pointer was in the gap rather than on the book, the mark
+cleared, the gap shut, and it started again twice a second. The **row** hears the drag now and
+picks the place by geometry, so opening a gap cannot take the target away from the pointer. The
+gap is the carried book's own width: **53px for a 47px book**.
+
+*A shelf.* It leaves the room while carried and a **ghost of its own height** — named, outlined —
+stands wherever it would land, pushing everything below it down by what is coming back. Measured:
+**226px**, *Years · 17 books*, and nothing left behind afterwards.
+
+*The book on the desk.* The spread filled the measure, so the desk you click to put a book down
+was a few pixels at the edges. It is inset by 96px: the desk beside it went **42px → 90px**, and
+the note is unaffected, being capped at 66ch anyway.
+
 **The look was painting over the thread.** The tonal rule was only half of it: leather hard-coded
 `#ad5447` on every `.vs-ribbon`, so no book's own thread ever reached the shelf in the look a
 fresh library opens in. Both looks paint `var(--ribbon)` under their own sheen now. The check
