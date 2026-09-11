@@ -1,5 +1,41 @@
 # Changelog detail
 
+## 2026-09-12 — Turning the page is under the book (github#36, design/0023)
+
+> "need an easy way to move to next or previous note in the book"
+
+`Previous` and `Next` moved out of the reader bar — where a flex spacer had banished them to the
+top-right corner of the window, beside two buttons that mean *leave this page* — into a footer
+directly under the spread, with the place between them.
+
+| | before | after |
+|---|---|---|
+| controls in the reader bar | 4 | **2** |
+| what says where you are in the book | nothing | **`14 of 303`** |
+| what names the arrow keys | nothing | **the glyph on the button that does it** |
+| `←` with the caret in *Find within this book* | turns the page | **moves the caret** |
+| controls in `every control is the same size in every look` | 37 on the vault (`invariants.md`) | **40**, 0 off by more than a pixel |
+| the footer's top under the spread's bottom | — | **16px**, left edge and width shared exactly |
+| look files changed | — | **none** |
+
+Measured after the change and not before it, so they stand on their own rather than as a delta:
+`a look moves nothing on the page` reads **4,298 elements in four states across three looks, 0
+moved, 0 resized, 0 present in one look and not another**; `every control the keyboard can reach
+has a name` reads **2,253 controls, all named**.
+
+The buttons kept their ids, so `"previous and next walk the book and stop at its ends"` reads
+identically on both sides of the change — it was the cheapest way to be sure the behaviour that
+already worked (disable at `0` and at `notes.length - 1`, `Alt+←` to the previous collection)
+survived the move. `.vs-spread`'s bottom margin went 30px → **16px**; that is the only geometry
+outside the footer that moved.
+
+`.vs-turn` and `#vs-place` are in the same-size check's `reading` list — `.vs-turn` for both
+dimensions, since it shares the spread's `max-width`, and `#vs-place` for height only, because a
+label's width along its own text is the face's (`design/0021`).
+
+`PageUp`, `PageDown`, `space`, `j` and `k` were considered and deliberately left alone;
+`design/0023` says why.
+
 ## 2026-09-11 — Re-measured against the one vault (github#44, decisions/0014)
 
 `develop` replaced the three fixtures with one generated vault while this branch was in flight.

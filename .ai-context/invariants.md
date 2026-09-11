@@ -724,6 +724,16 @@ is the same book; there is simply somewhere to put it down.
 
 ## The reader
 
+`"the turn sits under the spread, says the place, and yields to a caret"` opens the smallest book
+holding three notes or more and asserts the footer reads **`1 of 3`**, that clicking `Next` moves
+it to **`2 of 3`** and the reader to index **1**; that the footer's top is **16px** under the
+spread's bottom and shares its left edge and its width exactly (`.vs-turn` and `.vs-spread` carry
+the same `max-width`); that `←` dispatched with focus in `Find within this book` leaves the reader
+at **1**, and the same key dispatched on the reader itself turns back to **0**. The two buttons are
+`#vs-prevnote` and `#vs-nextnote` still — they moved out of the reader bar, they were not rebuilt —
+so `"previous and next walk the book and stop at its ends"` reads identically on both sides of the
+change. `github#36`, `design/0023`.
+
 `"a wikilink in a book goes to that note in this book, this shelf, or the nearest"` opens a
 Months book holding a note that links to a person's note but not the person's note itself,
 clicks the link, and asserts the reader is now on that note **in another Months book**; opens a
@@ -1126,7 +1136,9 @@ legislating a spine's thickness, which `design/0011` gives to the vault, so it s
 `"every control is the same size in every look"` (2026-09-11, "make sure all components
 buttons etc have the same size in all themes, some seem off") measures **37 controls** —
 the search box, the order button, the look selector, Manage, a shelf jump, the rail, New shelf,
-a shelf head, a plaque, a spine; the reader bar and its four buttons, the find-within box, an
+a shelf head, a plaque, a spine; the reader bar and its four buttons — two of which are in the
+turn's footer under the spread since `github#36`, along with the footer itself and the place it
+carries — the find-within box, an
 index tab, a contents row, the ribbon row, a ribbon and the stub, the spread, an also-in
 button; a Manage row and its button, the Shown and Vary switches' knobs, Done, a palette
 slot, a slot's reset mark, the ribbon slot and Reset colours; the builder's Name box, its
@@ -1136,7 +1148,9 @@ github#4 (2026-09-11) the palette slot is **36×28**, a ribbon swatch **22×30**
 table itself **92** wide, the builder's dropdown **31.5** high and the same in all three, and
 every dropdown is measured with its box taken back from the host. **38** are measured where the
 reader has index tabs and **37** on the vault, whose first book has none; the check's floor
-is 34.
+is 34. Since `github#36` the turn's footer and its place are in the list too, so the vault reads
+**40** — `.vs-turn` for both dimensions, since it shares the spread's `max-width`, and
+`#vs-place` for height only, because a label's width along its own text is the face's.
 
 The table is in that list because it caught three, all of them a look or a container quietly
 resizing a control:

@@ -2514,11 +2514,17 @@ function mountVaultShelf(root, data, options) {
       box.appendChild(el("p", "vs-hint", "This book has no notes under the current filters."));
       clear($("alsoin"));
       $("notemeta").textContent = "";
+      /* github#36 -- an empty book is still somewhere, and both ends of it */
+      $("place").textContent = "No notes";
+      field("prevnote").disabled = true;
+      field("nextnote").disabled = true;
       return;
     }
     reader.noteId = note.id;
     field("prevnote").disabled = reader.index <= 0;
     field("nextnote").disabled = reader.index >= reader.book.notes.length - 1;
+    /* github#36, design/0023 */
+    $("place").textContent = (reader.index + 1) + " of " + reader.book.notes.length;
 
     renderMeta(note);
     /* design/0010 -- A PER-RENDER HOST, and it is what makes the async renderer safe without
@@ -3888,6 +3894,20 @@ function mountVaultShelf(root, data, options) {
     renderContents();
   });
 
+  /**
+   * github#36, design/0023 -- where an arrow key belongs to the caret, not to the book
+   * @param {EventTarget|null} target
+   * @returns {boolean}
+   */
+  function typing(target) {
+    /* github#36 -- a popout has its own Element, so ask the node, not the class */
+    var el = /** @type {Element} */ (target);
+    if (!el || typeof el.tagName !== "string") return false;
+    var tag = el.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+    return !!el.closest("[contenteditable]:not([contenteditable=false])");
+  }
+
   /* Global keys go on the OWNING document, not `document`: in a popout window those are two
    * different objects, and check-scope refuses the second one for exactly that reason. */
   on(DOC, "keydown", function (e) {
@@ -3915,6 +3935,8 @@ function mountVaultShelf(root, data, options) {
       return;
     }
     if (e.altKey && e.key === "ArrowLeft") { previousCollection(); e.preventDefault(); return; }
+    /* github#36, design/0023 -- a caret in a field is not a page waiting to turn */
+    if (typing(e.target)) return;
     if (e.key === "ArrowLeft") { goTo(reader.index - 1); e.preventDefault(); }
     if (e.key === "ArrowRight") { goTo(reader.index + 1); e.preventDefault(); }
   });
