@@ -10,12 +10,12 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | issue | code sites | prose sites |
 |---|---|---|
 | #0 | src/page.js:1771, src/page.js:1946 | — |
-| #1 | — | .ai-context/changelog-detail.md:330, .ai-context/decisions/0009-the-docs-site-is-a-live-demo.md:85 |
-| #2 | src/cyber.css:47, src/cyber.css:248, src/leather.css:54, src/leather.css:124, src/leather.css:313, src/page.css:42, src/page.css:329, scripts/smoke.mjs:1337 | .ai-context/changelog-detail.md:287, .ai-context/invariants.md:461, .ai-context/invariants.md:499, .ai-context/design/0016-the-leather-look.md:151, .ai-context/design/0017-the-cyberpunk-look.md:175 |
-| #4 | src/page.css:1029, src/page.css:1079, src/page.css:1086, src/page.css:1205, src/page.css:1216, src/page.js:237, src/page.js:1978, src/page.js:2041, src/page.js:2106, src/page.js:2169, src/page.js:2374, scripts/smoke.mjs:465, scripts/smoke.mjs:1594 | .ai-context/changelog-detail.md:288, .ai-context/invariants.md:462, .ai-context/invariants.md:548 |
-| #5 | src/build-shelf.mjs:239, src/page.js:2334, plugin/main.js:9, plugin/main.js:389, plugin/main.js:395, plugin/main.js:404, scripts/check-data-escape.mjs:2, scripts/check-data-escape.mjs:21, scripts/check-data-escape.mjs:27, scripts/check-data-escape.mjs:29, scripts/check-data-escape.mjs:36, scripts/check-data-escape.mjs:258, scripts/close-issues.mjs:2, scripts/close-issues.mjs:19, scripts/layout-snapshots/measure.mjs:1, scripts/layout-snapshots/measure.mjs:5, scripts/layout-snapshots/measure.mjs:8, scripts/refresh-check.mjs:2, scripts/refresh-check.mjs:29, scripts/refresh-check.mjs:56, scripts/release.ps1:9, scripts/release.ps1:13, scripts/release.ps1:77, scripts/release.ps1:118, scripts/release.ps1:387, scripts/release.ps1:514, scripts/smoke.mjs:3, scripts/smoke.mjs:200, scripts/smoke.mjs:2829, scripts/smoke.mjs:2992, scripts/smoke.mjs:3441, scripts/suite-stamp.mjs:2, scripts/teardown-check.mjs:2, scripts/teardown-check.mjs:41, scripts/teardown-check.mjs:108, scripts/teardown-check.mjs:147, scripts/teardown-check.mjs:165, scripts/update-layout-snapshots.mjs:2, scripts/update-layout-snapshots.mjs:22 | .ai-context/changelog-detail.md:5, .ai-context/changelog-detail.md:142, .ai-context/invariants.md:677, .ai-context/invariants.md:702, .ai-context/invariants.md:734, .ai-context/invariants.md:739 |
-| #7 | — | .ai-context/changelog-detail.md:112 |
-| #8 | scripts/release.ps1:546, scripts/smoke.mjs:27, scripts/smoke.mjs:37, scripts/smoke.mjs:53, scripts/smoke.mjs:74, scripts/smoke.mjs:2922, scripts/smoke.mjs:2927, scripts/smoke.mjs:2954, scripts/smoke.mjs:2963, scripts/smoke.mjs:2972, scripts/smoke.mjs:3079, scripts/smoke.mjs:3204, scripts/smoke.mjs:3362 | .ai-context/changelog-detail.md:83, .ai-context/design/0006-the-harness.md:39, .ai-context/design/0006-the-harness.md:65 |
+| #1 | — | .ai-context/changelog-detail.md:416, .ai-context/decisions/0009-the-docs-site-is-a-live-demo.md:85 |
+| #2 | src/cyber.css:47, src/cyber.css:248, src/leather.css:54, src/leather.css:124, src/leather.css:313, src/page.css:42, src/page.css:329, scripts/smoke.mjs:1337 | .ai-context/changelog-detail.md:373, .ai-context/invariants.md:474, .ai-context/invariants.md:512, .ai-context/design/0016-the-leather-look.md:151, .ai-context/design/0017-the-cyberpunk-look.md:175 |
+| #4 | src/page.css:1029, src/page.css:1079, src/page.css:1086, src/page.css:1205, src/page.css:1216, src/page.js:237, src/page.js:1978, src/page.js:2041, src/page.js:2106, src/page.js:2169, src/page.js:2374, scripts/smoke.mjs:465, scripts/smoke.mjs:1594 | .ai-context/changelog-detail.md:374, .ai-context/invariants.md:475, .ai-context/invariants.md:561 |
+| #5 | src/build-shelf.mjs:239, src/page.js:2334, plugin/main.js:9, plugin/main.js:389, plugin/main.js:395, plugin/main.js:404, scripts/check-data-escape.mjs:2, scripts/check-data-escape.mjs:21, scripts/check-data-escape.mjs:27, scripts/check-data-escape.mjs:29, scripts/check-data-escape.mjs:36, scripts/check-data-escape.mjs:258, scripts/close-issues.mjs:2, scripts/close-issues.mjs:19, scripts/layout-snapshots/measure.mjs:1, scripts/layout-snapshots/measure.mjs:5, scripts/layout-snapshots/measure.mjs:8, scripts/refresh-check.mjs:2, scripts/refresh-check.mjs:29, scripts/refresh-check.mjs:56, scripts/release.ps1:9, scripts/release.ps1:13, scripts/release.ps1:77, scripts/release.ps1:118, scripts/release.ps1:387, scripts/release.ps1:514, scripts/smoke.mjs:3, scripts/smoke.mjs:200, scripts/smoke.mjs:2829, scripts/smoke.mjs:2992, scripts/smoke.mjs:3441, scripts/suite-stamp.mjs:2, scripts/teardown-check.mjs:2, scripts/teardown-check.mjs:41, scripts/teardown-check.mjs:108, scripts/teardown-check.mjs:147, scripts/teardown-check.mjs:165, scripts/update-layout-snapshots.mjs:2, scripts/update-layout-snapshots.mjs:22 | .ai-context/changelog-detail.md:91, .ai-context/changelog-detail.md:228, .ai-context/invariants.md:690, .ai-context/invariants.md:715, .ai-context/invariants.md:747, .ai-context/invariants.md:752 |
+| #7 | — | .ai-context/changelog-detail.md:5, .ai-context/changelog-detail.md:86, .ai-context/changelog-detail.md:198, .ai-context/invariants.md:13, .ai-context/invariants.md:311, .ai-context/invariants.md:826 |
+| #8 | scripts/release.ps1:546, scripts/smoke.mjs:27, scripts/smoke.mjs:37, scripts/smoke.mjs:53, scripts/smoke.mjs:74, scripts/smoke.mjs:2922, scripts/smoke.mjs:2927, scripts/smoke.mjs:2954, scripts/smoke.mjs:2963, scripts/smoke.mjs:2972, scripts/smoke.mjs:3079, scripts/smoke.mjs:3204, scripts/smoke.mjs:3362 | .ai-context/changelog-detail.md:169, .ai-context/design/0006-the-harness.md:39, .ai-context/design/0006-the-harness.md:65 |
 
 ## Decision and design records cited in code — 28
 
@@ -23,7 +23,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 |---|---|
 | `decisions/0001` | src/core/defaults.ts:89 |
 | `decisions/0002` | src/core/defaults.ts:30, src/core/defaults.ts:158, src/core/shelves.ts:6, src/core/shelves.ts:257, src/core/types.ts:7, src/core/types.ts:50, src/core/types.ts:61, src/core/types.ts:82, src/page.js:731 |
-| `decisions/0003` | src/build-shelf.mjs:26, src/build-shelf.mjs:58, src/build-shelf.mjs:135, src/build-shelf.mjs:169, src/core/dates.ts:23, src/core/dates.ts:44, src/core/defaults.ts:106, src/core/defaults.ts:114, src/core/defaults.ts:120, src/core/shelves.ts:75, src/core/shelves.ts:96, src/core/shelves.ts:101, plugin/main.js:73, plugin/main.js:104, scripts/make-demo-vault.mjs:99, scripts/make-demo-vault.mjs:105, scripts/make-library-vault.mjs:64, scripts/make-mirror-vault.mjs:198, scripts/make-sparse-vault.mjs:60 |
+| `decisions/0003` | src/build-shelf.mjs:26, src/build-shelf.mjs:58, src/build-shelf.mjs:135, src/build-shelf.mjs:169, src/core/dates.ts:23, src/core/dates.ts:44, src/core/defaults.ts:106, src/core/defaults.ts:114, src/core/defaults.ts:120, src/core/shelves.ts:75, src/core/shelves.ts:96, src/core/shelves.ts:101, plugin/main.js:73, plugin/main.js:104, scripts/make-demo-vault.mjs:151, scripts/make-demo-vault.mjs:267, scripts/make-demo-vault.mjs:273, scripts/make-demo-vault.mjs:500, scripts/make-demo-vault.mjs:535, scripts/make-demo-vault.mjs:745, scripts/make-library-vault.mjs:64, scripts/make-mirror-vault.mjs:198, scripts/make-sparse-vault.mjs:60 |
 | `decisions/0004` | src/build-shelf.mjs:37, scripts/check-build-order-determinism.mjs:2, scripts/check-generator-determinism.mjs:2, scripts/make-demo-vault.mjs:7, scripts/make-library-vault.mjs:3, scripts/make-mirror-vault.mjs:2, scripts/make-sparse-vault.mjs:3 |
 | `decisions/0005` | plugin/main.js:53, plugin/main.js:270, scripts/make-mirror-vault.mjs:359 |
 | `decisions/0006` | scripts/check-network.mjs:99 |
@@ -40,12 +40,12 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `design/0007` | scripts/record-demo.mjs:2, scripts/record-demo.mjs:23, scripts/record-demo.mjs:139, scripts/record-demo.mjs:172, scripts/record-demo.mjs:419, scripts/record-demo.mjs:442, scripts/record-demo.mjs:451, scripts/record-demo.mjs:582 |
 | `design/0008` | src/core/defaults.ts:99, src/core/defaults.ts:147, src/core/defaults.ts:414, src/core/shelves.ts:352, src/core/types.ts:94, src/core/types.ts:120, src/cyber.css:537, src/cyber.css:565, src/cyber.css:580, src/cyber.css:858, src/leather.css:333, src/page.css:117, src/page.css:630, src/page.css:658, src/page.css:683, src/page.css:1216, src/page.css:1367, src/page.js:83, src/page.js:208, src/page.js:316, src/page.js:647, src/page.js:654, src/page.js:921, src/page.js:1063, src/page.js:1115, src/page.js:1162, src/page.js:1688, src/page.js:2513, scripts/smoke.mjs:1452, scripts/smoke.mjs:1840, scripts/smoke.mjs:1891, scripts/smoke.mjs:1906, scripts/smoke.mjs:1959 |
 | `design/0009` | src/cyber.css:634, src/page.css:101, src/page.css:111, src/page.css:381, src/page.js:294, scripts/smoke.mjs:1028, scripts/smoke.mjs:1990 |
-| `design/0010` | src/page.css:873, src/page.css:882, src/page.css:910, src/page.js:55, src/page.js:1469, plugin/main.js:268, plugin/main.js:286, scripts/make-demo-vault.mjs:211 |
-| `design/0011` | src/cyber.css:18, src/leather.css:13, src/page.css:105, src/page.js:71, src/page.js:849, scripts/make-demo-vault.mjs:179, scripts/smoke.mjs:1202 |
+| `design/0010` | src/page.css:873, src/page.css:882, src/page.css:910, src/page.js:55, src/page.js:1469, plugin/main.js:268, plugin/main.js:286, scripts/make-demo-vault.mjs:365, scripts/make-demo-vault.mjs:371, scripts/make-demo-vault.mjs:392, scripts/make-demo-vault.mjs:771 |
+| `design/0011` | src/cyber.css:18, src/leather.css:13, src/page.css:105, src/page.js:71, src/page.js:849, scripts/make-demo-vault.mjs:109, scripts/make-demo-vault.mjs:449, scripts/smoke.mjs:1202 |
 | `design/0012` | src/cyber.css:601, src/cyber.css:693, src/page.css:742, src/page.js:1252 |
-| `design/0013` | src/build-shelf.mjs:124, src/core/dates.ts:60, src/core/shelves.ts:80, scripts/make-mirror-vault.mjs:2, scripts/make-mirror-vault.mjs:124, scripts/make-mirror-vault.mjs:197, scripts/make-mirror-vault.mjs:219, scripts/make-mirror-vault.mjs:444, scripts/make-sparse-vault.mjs:153, scripts/record-demo.mjs:77 |
+| `design/0013` | src/build-shelf.mjs:124, src/core/dates.ts:60, src/core/shelves.ts:80, scripts/make-demo-vault.mjs:15, scripts/make-demo-vault.mjs:285, scripts/make-demo-vault.mjs:760, scripts/make-mirror-vault.mjs:2, scripts/make-mirror-vault.mjs:124, scripts/make-mirror-vault.mjs:197, scripts/make-mirror-vault.mjs:219, scripts/make-mirror-vault.mjs:444, scripts/make-sparse-vault.mjs:153, scripts/record-demo.mjs:77 |
 | `design/0014` | src/core/defaults.ts:28, src/cyber.css:356, src/page.css:426, src/page.css:469, src/page.css:491, src/page.js:76, src/page.js:196, src/page.js:338, src/page.js:386, src/page.js:437, src/page.js:557, src/page.js:600, src/page.js:2511, scripts/smoke.mjs:2135 |
-| `design/0015` | src/core/defaults.ts:127, src/core/defaults.ts:196, src/core/shelves.ts:238, src/core/shelves.ts:302, src/page.css:991, src/page.js:1275, src/page.js:1289, src/page.js:1330, src/page.js:1373, src/page.js:1779, src/page.js:2266, scripts/smoke.mjs:337 |
+| `design/0015` | src/core/defaults.ts:127, src/core/defaults.ts:196, src/core/shelves.ts:238, src/core/shelves.ts:302, src/page.css:991, src/page.js:1275, src/page.js:1289, src/page.js:1330, src/page.js:1373, src/page.js:1779, src/page.js:2266, scripts/make-demo-vault.mjs:155, scripts/make-demo-vault.mjs:513, scripts/smoke.mjs:337 |
 | `design/0016` | src/build-shelf.mjs:233, src/build-shelf.mjs:248, src/core/defaults.ts:135, src/core/defaults.ts:163, src/core/defaults.ts:167, src/cyber.css:6, src/cyber.css:13, src/cyber.css:34, src/cyber.css:43, src/cyber.css:217, src/cyber.css:632, src/cyber.css:724, src/leather.css:1, src/leather.css:8, src/leather.css:74, src/page.css:241, src/page.css:281, src/page.css:334, src/page.css:607, src/page.css:1104, src/page.css:1209, src/page.js:2263, src/page.js:2286, src/page.js:2359, plugin/main.js:333, plugin/main.js:453, scripts/build-plugin.mjs:109, scripts/check-scope.mjs:16, scripts/record-demo.mjs:487, scripts/smoke.mjs:1063, scripts/smoke.mjs:1094, scripts/smoke.mjs:1121, scripts/smoke.mjs:1159, scripts/smoke.mjs:1231 |
 | `design/0017` | src/core/defaults.ts:175, src/cyber.css:6, src/cyber.css:250, src/page.css:335, src/page.js:2315, src/page.js:2485, scripts/smoke.mjs:1121, scripts/smoke.mjs:1162, scripts/smoke.mjs:1207, scripts/smoke.mjs:3139 |
 | `design/0018` | src/core/defaults.ts:318, src/core/shelves.ts:244, src/core/shelves.ts:256, src/core/shelves.ts:276, src/core/types.ts:57, src/core/types.ts:60, src/page.css:601, src/page.css:1337, src/page.js:605, src/page.js:707, src/page.js:809, src/page.js:1781, src/page.js:1913, src/page.js:2448, src/page.js:2577, scripts/smoke.mjs:197, scripts/smoke.mjs:747, scripts/smoke.mjs:860 |
@@ -54,46 +54,46 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 
 | invariant (line) | check (smoke.mjs line) |
 |---|---|
-| The library renders, and it renders quietly (16) | __vs is present and the library rendered (216); the page loads with no console errors (210) |
-| The six default shelves are the six default shelves (25) | the six default shelves are there, in order (222) |
-| A shelf's note count is unique notes, never the sum of its books (31) | a shelf's note count is unique notes, never the sum of its books (229) |
-| Every note has at least one address (43) | every note reachable from the vault is on at least one shelf (242) |
-| A book opens on its oldest note (51) | a book opens on its oldest note, and the top bar says which end (307) |
-| A note with no date of its own (62) | a note with no date of its own takes the earliest stamp the file has (359) |
-| Undated is a book, not a guess (76) | an undated note lands in Undated, not in a guessed year (255) |
-| The ISO week keeps its week-year (90) | an ISO week keeps its week-year across a January boundary (396) |
-| The Encyclopedia opens with 0-9 (99) | the Encyclopedia opens with a 0-9 volume, not ten one-note books (412) |
-| Plaques are date-only and asked for (106) | year plaques only appear on date classifiers, and only when asked for (423); a plaque sits under the books it names, in the same scroller (440); years group under decade plaques, and a run that wraps is named on both rows (577) |
-| A book is as thick as it is full (145) | a spine's thickness is its note count (681) |
-| An impossible date is not a date (159) | an impossible date is not a date, and never a fifteenth month (267) |
-| Book addresses are stable across a rebuild (176) | book addresses are stable across a rebuild (715) |
-| Filters change membership and nothing else (182) | a filter changes membership without moving a shelf (726) |
-| A shelf arranged by hand moves nothing but the sequence (192) | a shelf arranged by hand keeps every address and starts where it stood (750); Alt+Right moves a book one place, and it survives a rebuild and a reload (783); a drag and drop moves a book the same way a key does, across rows (824); the reading order in the top bar leaves an arranged shelf alone (888); a book nobody has arranged stands at the end of the shelf (923); a filter narrows an arranged shelf without shuffling it (951) |
-| Hiding a shelf hides it, and never deletes it (240) | a hidden shelf keeps its definition and its books (988); also shelved in moves to another book and keeps the note (2411); hiding every shelf offers a way back rather than an empty room (1006) |
-| The reader (252) | a wikilink in a book goes to that note in this book, this shelf, or the nearest (2351); a hovered spine shows one peek, big enough to read, and short labels stand upright (2772); the date index is layered: years over months over days, each only where it separates (2256); a click off the book puts it down, and a click on it does not (2461); a wide table scrolls inside the page and never widens the book (2195); clicking a spine opens a book on the note it names (2239); the index tabs cut the book the way the book is ordered (620); the reader's index tabs stay countable on the biggest book (2312); previous and next walk the book and stop at its ends (2326); also shelved in moves to another book and keeps the note (2411); previous collection walks back, and Alt+Left does the same (2442); escape closes the reader and leaves the shelf where it was (2505) |
-| The reading table survives (323) | a saved reading place re-resolves after its own book is gone (2560) |
-| The builder previews the truth (334) | the builder previews the shelf it would actually save (2575); a saved shelf gets a stable id and joins the library (2594) |
-| Metadata is declared, never inferred (345) | parent tag inclusion is a setting, and it changes the answer (2615); people come from the property alone, never from prose (2702) |
-| The palette is Vault Graph's, and the theme is the host's (358) | the twelve colour slots are Vault Graph's own (1057); the theme follows the host, and the slots are re-read when it changes (1092) |
-| Binding colors belong to stable books (371) | — no check named in the section |
-| A look is paint, and nothing else (391) | a look is opt-in, repaints everything and moves nothing (1129); every control is the same size in every look (1236); every dropdown paints itself, whatever the host says a select is (1341); one ribbon from an older schema becomes a ribbon on every colour (467) |
-| Whose colour a book wears (532) | a book's colour is the person's, then the shelf's, then the folder's (1453); a shelf can vary its books, and a chosen palette beats the look's (1516); colours and hidden shelves set in Manage persist through a reload (1596); a book with several ribbons in it shows them side by side (1778) |
-| The magic (570) | shelf wear is recorded and drawn, and survives a rebuild (1818); a ribbon hangs from every book that holds a marked note (1934); the shelf parts as you type, and no book leaves the room (1960) |
-| Scrolling stays smooth (589) | scrolling the library stays smooth in every look (2057) |
-| The room (604) | the room has a width, however wide the window is (2115); a narrower window grows rows, and a wide one centres the shelf (1993); the library is the whole surface, with no sidebar (1030) |
-| Accessibility and scale (637) | plain list mode keeps every book reachable (2723); every control the keyboard can reach has a name (2740) |
-| Nothing reaches the network (647) | nothing on the page reaches the network (2762) |
-| A spine holds its size (654) | a spine lifts on hover and holds its size (2815) |
-| Hidden means hidden (663) | the reader and the sheets are not painted until they are opened (2178) |
-| Vault data cannot break out of the data block (675) | — no check named in the section |
-| Mounting and unmounting leaves nothing behind (700) | — no check named in the section |
-| The library follows the vault (732) | — no check named in the section |
-| The packing has a golden (764) | the shelves are packed the way the golden snapshot says (2830) |
-| The plugin behaves inside a real Obsidian (797) | — no check named in the section |
-| No two suite runs, and no fixture pulled out from under one (840) | — no check named in the section |
-| A tree is gated once, and a partial run never claims to be a full one (877) | — no check named in the section |
-| Every release guard fires, and none of them writes a tag (913) | — no check named in the section |
-| Not covered here (928) | — no check named in the section |
+| The library renders, and it renders quietly (24) | __vs is present and the library rendered (216); the page loads with no console errors (210) |
+| The six default shelves are the six default shelves (33) | the six default shelves are there, in order (222) |
+| A shelf's note count is unique notes, never the sum of its books (39) | a shelf's note count is unique notes, never the sum of its books (229) |
+| Every note has at least one address (51) | every note reachable from the vault is on at least one shelf (242) |
+| A book opens on its oldest note (59) | a book opens on its oldest note, and the top bar says which end (307) |
+| A note with no date of its own (70) | a note with no date of its own takes the earliest stamp the file has (359) |
+| Undated is a book, not a guess (84) | an undated note lands in Undated, not in a guessed year (255) |
+| The ISO week keeps its week-year (98) | an ISO week keeps its week-year across a January boundary (396) |
+| The Encyclopedia opens with 0-9 (107) | the Encyclopedia opens with a 0-9 volume, not ten one-note books (412) |
+| Plaques are date-only and asked for (115) | year plaques only appear on date classifiers, and only when asked for (423); a plaque sits under the books it names, in the same scroller (440); years group under decade plaques, and a run that wraps is named on both rows (577) |
+| A book is as thick as it is full (154) | a spine's thickness is its note count (681) |
+| An impossible date is not a date (168) | an impossible date is not a date, and never a fifteenth month (267) |
+| Book addresses are stable across a rebuild (185) | book addresses are stable across a rebuild (715) |
+| Filters change membership and nothing else (191) | a filter changes membership without moving a shelf (726) |
+| A shelf arranged by hand moves nothing but the sequence (201) | a shelf arranged by hand keeps every address and starts where it stood (750); Alt+Right moves a book one place, and it survives a rebuild and a reload (783); a drag and drop moves a book the same way a key does, across rows (824); the reading order in the top bar leaves an arranged shelf alone (888); a book nobody has arranged stands at the end of the shelf (923); a filter narrows an arranged shelf without shuffling it (951) |
+| Hiding a shelf hides it, and never deletes it (249) | a hidden shelf keeps its definition and its books (988); also shelved in moves to another book and keeps the note (2411); hiding every shelf offers a way back rather than an empty room (1006) |
+| The reader (261) | a wikilink in a book goes to that note in this book, this shelf, or the nearest (2351); a hovered spine shows one peek, big enough to read, and short labels stand upright (2772); the date index is layered: years over months over days, each only where it separates (2256); a click off the book puts it down, and a click on it does not (2461); a wide table scrolls inside the page and never widens the book (2195); clicking a spine opens a book on the note it names (2239); the index tabs cut the book the way the book is ordered (620); the reader's index tabs stay countable on the biggest book (2312); previous and next walk the book and stop at its ends (2326); also shelved in moves to another book and keeps the note (2411); previous collection walks back, and Alt+Left does the same (2442); escape closes the reader and leaves the shelf where it was (2505) |
+| The reading table survives (335) | a saved reading place re-resolves after its own book is gone (2560) |
+| The builder previews the truth (346) | the builder previews the shelf it would actually save (2575); a saved shelf gets a stable id and joins the library (2594) |
+| Metadata is declared, never inferred (357) | parent tag inclusion is a setting, and it changes the answer (2615); people come from the property alone, never from prose (2702) |
+| The palette is Vault Graph's, and the theme is the host's (370) | the twelve colour slots are Vault Graph's own (1057); the theme follows the host, and the slots are re-read when it changes (1092) |
+| Binding colors belong to stable books (383) | — no check named in the section |
+| A look is paint, and nothing else (403) | a look is opt-in, repaints everything and moves nothing (1129); every control is the same size in every look (1236); every dropdown paints itself, whatever the host says a select is (1341); one ribbon from an older schema becomes a ribbon on every colour (467) |
+| Whose colour a book wears (545) | a book's colour is the person's, then the shelf's, then the folder's (1453); a shelf can vary its books, and a chosen palette beats the look's (1516); colours and hidden shelves set in Manage persist through a reload (1596); a book with several ribbons in it shows them side by side (1778) |
+| The magic (583) | shelf wear is recorded and drawn, and survives a rebuild (1818); a ribbon hangs from every book that holds a marked note (1934); the shelf parts as you type, and no book leaves the room (1960) |
+| Scrolling stays smooth (602) | scrolling the library stays smooth in every look (2057) |
+| The room (617) | the room has a width, however wide the window is (2115); a narrower window grows rows, and a wide one centres the shelf (1993); the library is the whole surface, with no sidebar (1030) |
+| Accessibility and scale (650) | plain list mode keeps every book reachable (2723); every control the keyboard can reach has a name (2740) |
+| Nothing reaches the network (660) | nothing on the page reaches the network (2762) |
+| A spine holds its size (667) | a spine lifts on hover and holds its size (2815) |
+| Hidden means hidden (676) | the reader and the sheets are not painted until they are opened (2178) |
+| Vault data cannot break out of the data block (688) | — no check named in the section |
+| Mounting and unmounting leaves nothing behind (713) | — no check named in the section |
+| The library follows the vault (745) | — no check named in the section |
+| The packing has a golden (777) | the shelves are packed the way the golden snapshot says (2830) |
+| The plugin behaves inside a real Obsidian (810) | — no check named in the section |
+| No two suite runs, and no fixture pulled out from under one (858) | — no check named in the section |
+| A tree is gated once, and a partial run never claims to be a full one (895) | — no check named in the section |
+| Every release guard fires, and none of them writes a tag (931) | — no check named in the section |
+| Not covered here (946) | — no check named in the section |
 
 ## `__vs.*` entry points → callers outside page.js — 21
 
