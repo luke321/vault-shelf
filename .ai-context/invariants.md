@@ -1169,10 +1169,10 @@ and both land inside the page. The vault's own `appearance.json` does not do it 
 written, it is copied, and Obsidian starts dark anyway. Measured under cyber with a light host:
 body `theme-light`, the app's ground `rgb(255,255,255)`, the page reading `data-theme="light"`
 under `data-look="cyber"`, note ink `rgb(232,245,255)`.
-## No two suite runs, and no fixture pulled out from under one
+## No two suite runs, no two windows on one screen, and no fixture pulled out from under one
 
 Not a check in `smoke.mjs` but a property of the harness, held by driving the runs themselves.
-`decisions/0011`, `design/0006`.
+`decisions/0011`, `decisions/0012`, `design/0006`.
 
 **The suite takes the `suite` lock itself**, at startup, and releases it on every way out. Until
 2026-09-11 it took no lock at all — `grep -n lock scripts/smoke.mjs` matched one unrelated
@@ -1189,6 +1189,52 @@ Measured by driving it:
 
 The owner string carries this process's pid and `lock.mjs` refuses a release by anyone else, so
 a late release cannot take a lock somebody has since acquired.
+
+### A lock names the display, and the display is claimed by whatever parks a window on it
+
+`github#37`, `decisions/0012`. Until 2026-09-11 the two repos shared one lock **root** and not
+one **vocabulary**: Vault Graph named a lock after a screen, Vault Shelf after an activity
+nothing here performs, and contention is by name. Measured by driving a real acquire from each
+repo, 6-second timeout, `record`/`screen-*` only:
+
+| holder | contender wants | before | after |
+|---|---|---|---|
+| VS `record` | VG `record` | BUSY | BUSY |
+| VS `screen-left` | VG `record` | BUSY *(their alias)* | BUSY |
+| VS `screen-left` | VG `screen-left` | BUSY | BUSY |
+| VS `screen-left` | VG `screen-right` | **ACQUIRED** | **ACQUIRED** |
+| VG `record` | VS `screen-left` | **ACQUIRED** — the hole | **BUSY** |
+| VG `screen-left` | VS `screen-left` | BUSY | BUSY |
+| VG `screen-right` | VS `screen-left` | ACQUIRED | ACQUIRED |
+| VG `suite` | VS `suite` | BUSY | BUSY |
+
+One row moves, and it is the one the issue is about: a sister-repo recording holding the left
+screen no longer lets a Vault Shelf harness open a window on top of it. Two rows deliberately do
+**not** move — `screen-left` against `screen-right`, in both directions — because a lock named
+after a display is what keeps a right-screen recording running beside a left-screen suite.
+
+**A harness that cannot have the display names the holder and gives up before it builds
+anything**: `teardown-check --lock-timeout-ms 8000` against a held `screen-left` printed
+`WAITING for screen-left -- held by vault-graph record-demo.ps1 -Monitor left for 0s`, then
+`BUSY`, and exited **1** with no page built and no window opened.
+
+**`leftWindowArgs()` without a claim throws** rather than answering, so a future harness cannot
+place a window and forget to claim the screen.
+
+### A hold says whether it is still alive
+
+`github#25`, `decisions/0012`. `lock.mjs` wrote `pid: process.pid` and exited, so the recorded
+pid was dead within a second and a crashed holder read exactly like a healthy one. Measured:
+
+| | before | after |
+|---|---|---|
+| a lock whose named holder process is gone (age 0s, stale window 1200s) | waited out the full window | `BREAKING dead screen-right lock (owner ..., pid 999999 is gone)` — **3 ms** |
+| a live in-process hold, read 35 s apart | `at` fixed at the acquire time, so the hold aged towards being broken | `at` moved **30,010 ms**, `since` moved **0**; a sister-repo acquire measures the hold at **5 s**, not 35 |
+| a hold taken from the command line | `pid` of a process that had already exited | no `pid` at all, `holder: "cli"`, and `status` prints `holder unverified` |
+
+The stale windows stay 30 minutes for `suite` and 20 for the rest. Liveness would allow minutes,
+but the sister repo's own holds do not heartbeat, and a shorter window here would break *their*
+live runs — the mirror image of the fault this fixes.
 
 **A fixture directory is never removed because a sibling appeared.** The store is shared by
 every worktree through git's common dir, and a fixture is named after the digest of the

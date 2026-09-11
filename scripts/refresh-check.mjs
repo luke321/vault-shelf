@@ -10,12 +10,16 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { attach } from "./cdp.mjs";
-import { leftWindowArgs } from "./screen.mjs";
+// github#37, decisions/0012
+import { takeLeftScreen } from "./screen.mjs";
+import { ownerTag } from "./lock.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
 const argv = process.argv.slice(2);
 const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
+// github#37 -- a blocked run names the holder and gives up
+const LOCK_TIMEOUT_MS = Number(arg("lock-timeout-ms", "2700000")) || 2700000;
 const ONLY_WIRING = argv.includes("--wiring-only");
 const BURST = Math.max(2, Number(arg("burst", "12")) || 12);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -183,6 +187,9 @@ function storeVault(name) {
 }
 
 async function pageHalf() {
+  // github#37 -- claimed before the page is built
+  const screen = await takeLeftScreen(ownerTag("refresh-check.mjs"),
+                                      { w: 1180, h: 900, timeoutMs: LOCK_TIMEOUT_MS });
   let url = arg("url", "");
   let scratch = "";
   if (!url) {
@@ -208,7 +215,7 @@ async function pageHalf() {
     "--disable-features=Translate,TranslateUI,CalculateNativeWinOcclusion",
     "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
     "--disable-background-timer-throttling",
-    ...leftWindowArgs(1180, 900), `--app=${url}`,
+    ...screen.args, `--app=${url}`,
   ], { stdio: ["ignore", "ignore", "ignore"] });
 
   let p = null;
@@ -307,6 +314,7 @@ async function pageHalf() {
     }
     rmSync(profile, { recursive: true, force: true });
     if (scratch) rmSync(scratch, { recursive: true, force: true });
+    screen.release();
   }
 }
 

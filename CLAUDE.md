@@ -96,10 +96,16 @@ of measuring it.** Build the page, drive it, read the numbers.
   claimed palette parity that nobody had ever verified. **Look at it.**
   `node scripts/smoke.mjs --only "<one check>" --shot out.png` writes the library and, beside
   it, `out-reader.png` of an open book — from the same Chrome the checks drive.
-- **Two things may not run twice at once, and `scripts/lock.mjs` is the mutex.** A **screen
-  recording** grabs a display region, so a second take captures the first one's window; **any
-  suite run** drives Chrome over CDP, so two runs fight for ports and a contended GPU, and each
-  blames the code.
+- **Two things may not run twice at once, and `scripts/lock.mjs` is the mutex.** **Any suite
+  run** drives Chrome over CDP, so two runs fight for a contended GPU and each blames the code;
+  and **any harness that places a window** takes over the leftmost display, so a second one —
+  here, or a `gdigrab` recording in the sister repo — lands on top of it.
+
+  **A lock names the resource, not the job** (`github#37`, `decisions/0012`): `suite`,
+  `screen-left`, `screen-right`, `screen-primary`. `record` is legacy and transitional, kept
+  only until the sister repo drops its own alias, and **nothing here takes it** — this repo
+  makes no screen recording at all (`design/0007`: the recorder asks the browser for each frame
+  over CDP and touches no desktop).
 
   **`smoke.mjs` takes the `suite` lock itself now** (`github#8`), at startup, and releases it on
   exit and on a signal — so *every* run is covered, including the `--only` iteration loop, which
@@ -115,11 +121,17 @@ of measuring it.** Build the page, drive it, read the numbers.
   outer lock's stale window expires. The sister repo hit that live, pushing a release
   (`vault-graph@f9a167a`). A plain `git push origin develop` is correctly gated on its own.
 
-  A **screen recording** is still wrapped by hand, and it is the only thing that is:
+  **And the screen is claimed by whatever parks a window on it** (`github#37`), which is every
+  one of `smoke.mjs`, `refresh-check.mjs`, `teardown-check.mjs`, `check-data-escape --browser`
+  and `update-layout-snapshots.mjs`. Four of the five took no lock at all until now, and the
+  fifth's `suite` lock was never about the display. The claim comes from the same call that
+  gives a harness its window position, so it cannot be forgotten; `--lock-timeout-ms` says how
+  long a blocked run waits before naming the holder and giving up. **There is nothing left to
+  wrap by hand.** Driving a window yourself is the one case:
 
   ```bash
-  node scripts/lock.mjs acquire record --owner "#12 plaques"   # blocks; exit 1 = give up
-  node scripts/lock.mjs release record --owner "#12 plaques"
+  node scripts/lock.mjs acquire screen-left --owner "#12 plaques"   # blocks; exit 1 = give up
+  node scripts/lock.mjs release screen-left --owner "#12 plaques"
   node scripts/lock.mjs status
   ```
 
@@ -127,7 +139,9 @@ of measuring it.** Build the page, drive it, read the numbers.
   `obsidian-vault-locks` — so a Vault Graph suite and a Vault Shelf suite block each other.
   They did not until 2026-09-10: each repo had its own directory, so each held a lock the
   other could not see and the two ran together anyway. A machine has one Chrome and one
-  screen no matter which repository the suite belongs to.
+  screen no matter which repository the suite belongs to. The root was never enough on its own:
+  contention is by **name**, so until `github#37` a Vault Graph recording on the left screen and
+  a Vault Shelf harness on the same screen asked for nothing the other held.
   `--shot` is part of a suite run, so it is inside the lock like everything else.
 - **The fixture store is shared and content-addressed, and nothing prunes a sibling.** Every
   worktree resolves the same `.fixtures` through git's common dir, so a fixture directory is
@@ -179,10 +193,11 @@ of measuring it.** Build the page, drive it, read the numbers.
   `check-pii`, `check-scope`, `check-network`, `check-comments`, `check-data-escape`,
   `refresh-check --wiring-only` and the two determinism checks gate every push and have no
   skip flag.
-- **Three gates drive a browser and are therefore suite-lock jobs**, run by hand rather than by
-  the hook: `check-data-escape --browser` (a vault whose metadata is markup), `teardown-check`
-  (twenty mount/unmount cycles, nothing left behind) and `refresh-check` (the library and an
-  open book follow a changed vault). The packing is a golden per fixture in
+- **Three gates drive a browser**, run by hand rather than by the hook: `check-data-escape
+  --browser` (a vault whose metadata is markup), `teardown-check` (twenty mount/unmount cycles,
+  nothing left behind) and `refresh-check` (the library and an open book follow a changed
+  vault). Each claims `screen-left` itself (`github#37`) — the documentation called them
+  lock jobs for months while they took no lock at all. The packing is a golden per fixture in
   `scripts/layout-snapshots/`, diffed by the suite and rewritten, deliberately, by
   `node scripts/update-layout-snapshots.mjs`.
 - Commit messages are sentences; `Closes #n` on its own line closes the issue when the work
