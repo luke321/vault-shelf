@@ -3015,10 +3015,7 @@ check("the furniture is one material", async (p) => {
   /* github#2, design/0019 -- room plates match the plaque, paper plates the sheet's */
   const plates = {
     library: { room: ["#vs-order", "#vs-manageopen"], paper: [] },
-    /* github#9, github#3 -- NOT THE GLASS TAB, and for the reason the primary button is not
-     * tracked either: an accent-lit control is a deliberate exception to the one material,
-     * not a plate that drifted. The find tab arrived at the head of the index after this
-     * check was written and its selector swept it up; it is lit the way the current tab is. */
+    /* github#9, github#3 -- the glass tab is accent-lit, like the primary button */
     reading: { room: ["#vs-back", "#vs-nextnote",
                       "#vs-tabs button:not([aria-current='true']):not(.vs-findtab)"],
                paper: [".vs-alsoin button"] },

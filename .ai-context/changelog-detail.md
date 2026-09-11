@@ -1,5 +1,30 @@
 # Changelog detail
 
+## 2026-09-11 — The glass tab is not a plate that drifted
+
+Merging #10 on top of #9 and #3 produced a failure neither branch could have seen alone, and
+#9's own check is what caught it. `"the furniture is one material"` reads every room plate
+against the plaque, and its selector for the index rail was
+`#vs-tabs button:not([aria-current="true"])`. #3 then put a **glass tab at the head of the
+index** — a `<button class="vs-findtab">` that opens the find-within box — and that selector
+swept it up: **4 off, one per room** (leather, modern, modern light, cyber), each reporting
+`none / rgb(255, 255, 255) is not the lit plaque's`.
+
+Nothing had drifted. A hovered glass tab is `background: var(--accent); color: #fff`,
+deliberately, exactly like the current tab beside it and the primary button — both of which
+this check already excludes, because **an accent-lit control is an exception to the one
+material rather than a plate that lost it**. The selector now reads
+`:not([aria-current="true"]):not(.vs-findtab)`.
+
+The alternative was to bend the CSS until the check passed, which would have made the find tab
+a plain plate and lost the thing that marks it as the way in. A check aimed at the wrong
+control is a bug in the check.
+
+After: **56 controls read against the plaque in 4 rooms**, rested, hovered and focused, lowest
+contrast **5.77:1** at leather's lit plate, **0 off** — and the suite **87/87 on all three
+shapes, exit 0**.
+
+
 ## 2026-09-11 — One material for the furniture
 
 > github#9: "make the buttons look like the plaques and vice versa".
