@@ -1916,3 +1916,49 @@ decades, **0 / 0**; Encyclopedia **29 / 23 / 27** of the same on the folder's dy
 `folder,year,decade` on Months (came up `year`), by folder **129 / 29 / 121** follow the folder,
 by decade **0** torn, saved `"decade"`; no select on Encyclopedia or People. One check, 88 in
 the suite. No schema bump: the field is optional and an older file comes up on the defaults.
+
+**Two Chromes, and a check says which shapes it needs** (github#39). *"look at the review of the
+smoke tests that landed on vault graph, modify ours as well to work like that, max 2 in parallel
+etc."* — ported from `vault-graph#110`/`#113`, and deliberately not their answer. `decisions/0012`.
+
+Measured on the reference machine, lock free, timed by the runner's own clock (printed after the
+lock, so waiting for another worktree's suite is not counted — the first pair taken for this
+ticket were both spoiled by exactly that, which is why the runner prints its own number now):
+
+| | before | after |
+|---|---|---|
+| wall | **78 s** | **41-43 s** (two runs) |
+| Chromes | 15 | **7** |
+| check runs | 267 (89 × 3) | **146** |
+| check time | 75.0 s | **34.1 s** |
+| shapes per check | all three | demo 89, sparse 28, library 29 |
+
+**The measurement that reframed the ticket**: 75 s of the before's 78 s was check time, spread
+over fifteen browser launches — so the win is browsers and redundant runs, not parallelism.
+**And the cap on its own is slower**: on the unchanged runner, lock free, `--jobs 4` is **78 s**
+and `--jobs 2` is **90 s**, so capping the lanes costs **+12 s** and buys safety rather than
+speed. The first pair taken for this ticket read the other way round because both runs had
+waited on another worktree's suite inside the timed window; the runner prints its own clock,
+started after the lock, so that reading is no longer available.
+
+`LANE_CAP = 2` is a ceiling — `--jobs` clamps to it and says so — not the sister repo's one,
+because our serial lane is 25 of 89 rather than the majority, our pages are lighter, and the
+machine-wide `suite` lock (github#8) already allows one suite at a time, which is the guard that
+was missing when four became dangerous. `check(name, fn, { on })` names the shapes a check's
+assertion depends on; **the default is all three**, the opposite of `vault-graph#113`, so a
+forgotten annotation costs time rather than coverage. 61 narrowed, 28 kept every shape, none
+deleted. Two of the 61 were asserting nothing on two shapes already — `a wide table scrolls
+inside the page` and `a wikilink in a book goes to that note` look for notes only the demo
+generator writes. A second lane opens only past `MIN_PER_LANE = 32` steady checks.
+
+**Serialising found the bug class it found next door** (`vault-graph#112`). The runner now asks
+the page, after every check, whether anything is in flight — `settleRoom`'s 60 ms timer
+(`__vs.room().pending`, added to the existing room diagnostic), a drag in the air, a reader or
+sheet left open — and **fails the check that left it** rather than the one that trips over it.
+Six leaks, all invisible at four lanes: `shelf wear is recorded and drawn` asserted an unworn
+library, true only of whichever shard ran it first (measured with `--jobs 1` over it and `a book
+with several ribbons in it`: **2 worn spines and a FAIL, against 1 and a pass alone**); and five
+checks returned with the reader painted over the library — `previous and next walk the book`,
+`also shelved in`, `previous collection walks back`, `clicking a spine opens a book`, and `the
+reader's index tabs stay countable`. All six fixed in their checks; no product change but the
+one diagnostic field. `--timings <file>` writes every check's ms per shape as JSON. 89 checks.

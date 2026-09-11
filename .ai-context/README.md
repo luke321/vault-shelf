@@ -31,6 +31,7 @@ changing what a shelf contains or how a book is addressed.
 | `0009-the-docs-site-is-a-live-demo` | Why `docs/` is a Pages site with a real export in it, why the export is built from the fixture rather than the mirror, and the one rule that bends |
 | `0010-a-tree-is-gated-once` | A green suite run stamps the tree it measured; what the stamp keys on, what it refuses to record, and what it actually saves here |
 | `0011-the-suite-holds-its-own-lock` | Why the mutex stopped being caller discipline, and why a fixture directory is never deleted because a sibling appeared |
+| `0012-two-chromes-and-a-check-says-what-it-needs` | Why the suite caps at two browsers where the sister repo went to one, why a check declares the shapes it needs, and why a check that leaves the page moving fails |
 
 ### DDRs — `design/`
 
