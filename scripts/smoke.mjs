@@ -4109,7 +4109,13 @@ check("the date index is layered: years over months over days, each only where i
       __vs.closeReader();
       return t;
     };
-    /* Press the cut with the most under it and count what appears beside it. */
+    /* github#32 -- PRESS IN, AND PRESS BACK OUT. The rail lists one level at a time, so what
+     * proves it draws the layered cut is that pressing the cut with the most under it leaves
+     * exactly that many on the list, with the cut kept above as a trail step -- and that
+     * pressing the trail step puts the top level back. */
+    var level = function (rail) {
+      return rail.querySelectorAll('button[data-step="0"]:not(.vs-findtab)').length;
+    };
     var unfolds = function (id, tabs) {
       __vs.openBook(id, null);
       var rail = document.getElementById("vs-tabs");
@@ -4120,17 +4126,22 @@ check("the date index is layered: years over months over days, each only where i
         at = t.at; n = 0;
       });
       if (at !== null && n > kids) { kids = n; best = at; }
-      var out = { pressed: null, kids: kids, shown: 0, beside: false };
+      var out = { pressed: null, kids: kids, shown: 0, stepped: false, tops: level(rail),
+                  back: -1, marked: 0 };
       var b = best === null ? null : rail.querySelector('[data-at="' + best + '"]');
       if (b) {
         out.pressed = b.textContent;
         b.click();
-        var open = rail.querySelector('[aria-expanded="true"]');
-        var lane = open && open.parentElement.querySelector(".vs-lane");
-        out.shown = lane ? lane.querySelectorAll("button").length : 0;
-        out.beside = !!lane && !!open &&
-          Math.round(open.getBoundingClientRect().right) <=
-            Math.round(lane.getBoundingClientRect().left) + 1;
+        out.shown = level(rail);
+        var trail = [].slice.call(rail.querySelectorAll('button[data-step]'))
+          .filter(function (t) { return t.getAttribute("data-step") !== "0"; });
+        var list = rail.querySelector('button[data-step="0"]:not(.vs-findtab)');
+        /* a trail step stands further IN from the fore-edge than the level it opened */
+        out.stepped = trail.length === 1 && !!list &&
+          trail[0].offsetLeft + trail[0].offsetWidth < list.offsetLeft + list.offsetWidth;
+        out.marked = trail.length && trail[0].getAttribute("data-kids") ? 1 : 0;
+        /* and pressing it again comes back out */
+        if (trail.length) { trail[0].click(); out.back = level(rail); }
       }
       __vs.closeReader();
       return out;
@@ -4175,7 +4186,8 @@ check("the date index is layered: years over months over days, each only where i
   /* github#32 -- and the rail has to actually unfold it: pressing the cut with the most under
    * it puts exactly that many beside it, to the right of the cut itself. */
   const unfolded = !r.tag || !r.fold.kids ||
-    (r.fold.shown === r.fold.kids && r.fold.beside);
+    (r.fold.shown === r.fold.kids && r.fold.stepped && r.fold.marked === 1 &&
+     r.fold.back === r.fold.tops);
   const ok = (!r.tag || (r.top === r.tagYears && r.yearsShown && r.monthsLook)) &&
              (!r.month || r.daysOnly) && (!r.small || r.smallTabs === 0) && r.tagTabs <= 180 &&
              unfolded;
@@ -4184,7 +4196,9 @@ check("the date index is layered: years over months over days, each only where i
     detail: (r.tag ? `#${r.tag} spans ${r.tagYears} years and gets ${r.top} year tabs ` +
                      `(${r.yearsShown}) with ${r.months} month tabs under them ` +
                      `(${r.monthsLook}), ${r.tagTabs} in all; pressing ${r.fold.pressed} ` +
-                     `unfolds ${r.fold.shown} of its ${r.fold.kids} beside it (${r.fold.beside}); `
+                     `(marked ${r.fold.marked}) leaves ${r.fold.shown} of its ${r.fold.kids} ` +
+                     `on the list under it as a trail step (${r.fold.stepped}), and pressing ` +
+                     `that puts the ${r.fold.back} top-level cuts back (of ${r.fold.tops}); `
                    : "no multi-year tag book here; ") +
             (r.month ? `${r.month} is one month, so only days: ${r.monthTabs.slice(0, 6).join(" ")}` +
                        `${r.monthTabs.length > 6 ? " ..." : ""} (${r.daysOnly}); ` : "") +
@@ -4204,16 +4218,15 @@ check("the reader's index tabs stay countable on the biggest book", async (p) =>
     __vs.openBook(biggest.id, null);
     var rail = document.getElementById("vs-tabs");
     return { book: biggest.id, notes: biggest.notes.length,
-             /* github#32 -- the column holds top-level cuts; the rest is in the fold */
-             top: rail.querySelectorAll(":scope > .vs-lane > button:not(.vs-findtab)").length +
-                  rail.querySelectorAll(":scope > .vs-lane > .vs-fold > button").length,
+             /* github#32 -- the rail lists ONE level; a book opens on its top one */
+             top: rail.querySelectorAll('button[data-step="0"]:not(.vs-findtab)').length,
              tabs: rail.querySelectorAll("button:not(.vs-findtab)").length,
-             folds: rail.querySelectorAll(".vs-fold").length };
+             opens: rail.querySelectorAll("[data-kids]").length };
   })()`);
   return { ok: r.tabs > 0 && r.tabs <= 180 && r.top <= 60,
            detail: `${r.book} holds ${r.notes} notes behind ${r.top} top-level cut(s), ` +
-                   `${r.tabs} tabs on show with ${r.folds} of them unfolded (ceiling 180 tabs, ` +
-                   `60 in the column; what the column holds is the window's)` };
+                   `${r.opens} of which open further; ${r.tabs} on show (ceiling 180 tabs, 60 ` +
+                   `on a level; what a level holds is the window's)` };
 });
 
 /* github#32 -- THE CHECK THAT WOULD HAVE CAUGHT IT. Every tab check counted tabs, and a tab
@@ -4237,24 +4250,48 @@ check("no index tab is clipped: the tabs fit the rail and the rail fits the spre
       var r = rail();
       var spread = document.querySelector(".vs-spread");
       var rb = r.getBoundingClientRect(), sb = spread.getBoundingClientRect();
-      var out = { outside: 0, w: Math.round(rb.width),
+      var out = { outside: 0, w: Math.round(rb.width), room: r.clientHeight,
                   share: Math.round(rb.width / spread.clientWidth * 100),
                   tabs: r.querySelectorAll("button").length,
                   lit: r.querySelectorAll('[aria-current="true"]').length,
                   open: r.querySelectorAll('[aria-expanded="true"]').length,
                   railIn: rb.top >= sb.top - 0.5 && rb.bottom <= sb.bottom + 0.5 &&
                           rb.right <= sb.right + 0.5 && rb.left >= sb.left - 0.5 };
-      [].slice.call(r.querySelectorAll("button")).forEach(function (t) {
-        var tb = t.getBoundingClientRect();
-        if (tb.top < rb.top - 0.5 || tb.bottom > rb.bottom + 0.5 ||
-            tb.left < rb.left - 0.5 || tb.right > rb.right + 0.5) out.outside++;
+      /* github#32 -- LAYOUT BOXES, NOT PAINTED ONES. The rail animates its cuts in when it
+       * changes level, and a rect read mid-animation carries the transform -- every tab looks
+       * 9px outside the rail for 150ms. Offsets are what the layout says. */
+      var kids = [].slice.call(r.querySelectorAll("button"));
+      out.why = [];
+      kids.forEach(function (t) {
+        /* a pixel of slack: offsets are integers rounded off a sub-pixel layout */
+        var why = t.offsetTop < -1 ? "above"
+                : t.offsetTop + t.offsetHeight > r.clientHeight + 1 ? "below"
+                : t.offsetLeft < -1 ? "left"
+                : t.offsetLeft + t.offsetWidth > r.clientWidth + 1 ? "right" : "";
+        if (!why) return;
+        out.outside++;
+        if (out.why.length < 3) {
+          out.why.push(t.textContent + " " + why + " (" + t.offsetLeft + "+" + t.offsetWidth +
+                       " of " + r.clientWidth + ", " + t.offsetTop + "+" + t.offsetHeight +
+                       " of " + r.clientHeight + ")");
+        }
       });
-      /* a cut that folds stands to the LEFT of what it opened, which is the whole shape */
-      var opened = r.querySelector('[aria-expanded="true"]');
-      if (opened) {
-        var lane = opened.parentElement.querySelector(".vs-lane");
-        out.leftOfLane = !!lane &&
-          Math.round(opened.getBoundingClientRect().right) <= Math.round(lane.getBoundingClientRect().left) + 1;
+      var end = kids.length ? kids[kids.length - 1] : null;
+      out.needs = end ? end.offsetTop + end.offsetHeight : 0;
+      out.spreadH = Math.round(sb.height);
+      /* THE STAIRCASE: every trail step stands further in from the fore-edge than the level
+       * it opened, and than the step under it. That is the whole shape. */
+      var steps = [].slice.call(r.querySelectorAll("button[data-step]"))
+        .filter(function (t) { return t.getAttribute("data-step") !== "0"; })
+        .sort(function (a, b) {
+          return Number(b.getAttribute("data-step")) - Number(a.getAttribute("data-step"));
+        });
+      var list = r.querySelector('button[data-step="0"]:not(.vs-findtab)');
+      out.trail = steps.length;
+      if (steps.length && list) {
+        var edges = steps.map(function (t) { return t.offsetLeft + t.offsetWidth; })
+          .concat([list.offsetLeft + list.offsetWidth]);
+        out.staircase = edges.every(function (e, i) { return i === 0 || e > edges[i - 1]; });
       }
       return out;
     };
@@ -4274,6 +4311,11 @@ check("no index tab is clipped: the tabs fit the rail and the rail fits the spre
        * contents every time, which on the 10k vault is minutes of the check measuring its own
        * cost; the rail is fitted to the tallest fold it can ever draw, so that is the one
        * worth opening -- read off __vs.indexTabs() rather than found by pressing. */
+      /* THE LEVEL THAT DRAWS THE MOST, and the top level. Pressing every cut in turn
+       * re-renders the contents every time, which on the 10k vault is minutes of the check
+       * measuring its own cost; the rail is fitted to the level that draws the most rows, so
+       * that is the one worth opening -- read off __vs.indexTabs() rather than found by
+       * pressing. Then down one more, wherever there is another level to go down to. */
       var sections = __vs.indexTabs() || [];
       var tops = sections.filter(function (t) { return !t.level; });
       worst.top = tops.length;
@@ -4284,17 +4326,26 @@ check("no index tab is clipped: the tabs fit the rail and the rail fits the spre
         at = t.at; n = 0;
       });
       if (at !== null && n > kids) widest = at;
-      var b = widest === null ? null : rail().querySelector('[data-at="' + widest + '"]');
-      if (b) {
-        b.click();
+      var down = function () {
         var m = measure();
-        if (m.open) worst.folded++;
-        if (m.leftOfLane === false) worst.misplaced++;
+        if (m.trail) worst.folded++;
+        if (m.staircase === false) worst.misplaced++;
         worst.outside += m.outside;
         if (m.w > worst.w) { worst.w = m.w; worst.share = m.share; }
         if (m.tabs > worst.tabs) worst.tabs = m.tabs;
         if (m.lit > worst.lit) worst.lit = m.lit;
         if (!m.railIn) worst.railIn = false;
+        if (m.trail > worst.deepest) worst.deepest = m.trail;
+        if (m.outside) { worst.room = m.room; worst.needs = m.needs; worst.spreadH = m.spreadH;
+                         worst.why = m.why; }
+      };
+      worst.deepest = 0;
+      var b = widest === null ? null : rail().querySelector('[data-at="' + widest + '"]');
+      if (b) {
+        b.click();
+        down();
+        var deeper = rail().querySelector('button[data-step="0"][data-kids]');
+        if (deeper) { deeper.click(); down(); }
       }
       out.push(worst);
       __vs.closeReader();
@@ -4308,18 +4359,23 @@ check("no index tab is clipped: the tabs fit the rail and the rail fits the spre
   const lit = r.filter((x) => x.lit > 1);
   const misplaced = r.filter((x) => x.misplaced > 0);
   const folds = r.reduce((n, x) => n + x.folded, 0);
+  const deep = r.filter((x) => x.deepest >= 2).length;
   const presses = r.reduce((n, x) => n + x.top, 0);
   const most = r.slice().sort((a, b) => b.tabs - a.tabs)[0];
   const widest = r.slice().sort((a, b) => b.w - a.w)[0];
   return {
     ok: clipped.length === 0 && loose.length === 0 && wide.length === 0 && lit.length === 0 &&
         misplaced.length === 0 && folds > 0 && r.length >= 10,
-    detail: `${r.length} books, ${presses} top-level cuts, the widest fold of each opened ` +
-            `(${folds} unfolded something); most on show ${most.tabs} tabs in ${most.id}; widest ` +
+    detail: `${r.length} books, ${presses} top-level cuts, the deepest level of each opened ` +
+            `(${folds} went down a level, ${deep} of them two); most on show ${most.tabs} tabs ` +
+            `in ${most.id}; widest ` +
             `rail ${widest.w}px (${widest.share}% of the spread) in ${widest.id}; ` +
+            (clipped.length ? `the first that clips (${clipped[0].id}) had ${clipped[0].room}px ` +
+              `of room for ${clipped[0].needs}px of cuts in a ${clipped[0].spreadH}px spread ` +
+              `[${(clipped[0].why || []).join("; ")}]; ` : "") +
             `${clipped.length} clipped, ${loose.length} rails outside the spread, ` +
             `${wide.length} over a fifth of the spread, ${lit.length} with more than one tab ` +
-            `lit, ${misplaced.length} with a fold on the wrong side of its cut` +
+            `lit, ${misplaced.length} whose trail is not a staircase` +
             (clipped.length ? ` -- ${clipped.map((x) => x.id + " loses " + x.outside).join("; ")}` : "")
   };
 });

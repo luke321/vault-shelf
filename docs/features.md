@@ -368,24 +368,30 @@ A tab is square and flush where the leaf is cut and arced on the inside, stacked
 neighbours into one cut edge rather than floating as a column of little plates. The open cut is
 the only one lit.
 
-**One rail, and the cut you are in folds out beside it.** Every level used to stand in the same
-column — a year, its months indented, their days indented again, for every year in the book —
-and the rail was `overflow: hidden`, so an index taller than the spread was simply cut off at
-the bottom with nothing to say so. The column holds top-level cuts only now, and the one the
-page is standing in unfolds its own lane to the **right** of itself, outward toward the
-fore-edge, so the deepest cut on show is always the one at the edge of the book and the cut it
-belongs to steps in behind it. Press a month and its days unfold the same way, three lanes deep.
-The rest of the index moves down to make room, which is what a stepped index does when you open
-one.
+**One rail, one level at a time, under the trail it came through.** Every level used to stand in
+the same column — a year, its months indented, their days indented again, for every year in the
+book — and the rail was `overflow: hidden`, so an index taller than the spread was simply cut off
+at the bottom with nothing to say so.
 
-There is no state to get wrong: the open cut is the one the page is in, so pressing a year both
-goes there and opens it, and paging with Next unfolds the year you arrive in. The rail is 46px
-closed and 94–96px at its widest fold — an edge of the book rather than a sidebar beside it.
+The rail lists one level: the top-level cuts, or — once a cut with something under it has been
+pressed — the cuts under *that*, with the cut itself kept above as a trail and its siblings
+folded away to make the room. A cut that opens further carries a small `›` in its margin,
+pointing out toward the fore-edge, which is the way it opens; a trail step carries `‹`, and
+pressing it comes back. Each step of the trail stands one notch further in from the fore-edge, so
+the list you are reading is always at the edge of the book and the staircase above says how you
+got there.
 
-What fits is measured rather than guessed, and it is fitted once to the deepest fold a book can
-ever show: the index is drawn and, while it does not fit, rebuilt one step shallower — the
-deepest layer gathered into spans (`Jan–Apr`), then dropped, then the column collapsed into
-ranges. A tab you cannot hit is decoration, and a tab you cannot see is worse.
+The state is one number — how deep the rail is — and every cut it shows is derived from where the
+page is, so paging with Next carries the trail with it and nothing can be left open over a book
+you are no longer reading. Pressing a cut still goes to it as well as opening it. The rail is
+51px at the top level and 84px two levels down: an edge of the book rather than a sidebar beside
+it, and nothing has to be dropped to make it fit — a book of 1,097 notes keeps all eleven of its
+years and all one hundred and twenty of its months.
+
+What fits is measured rather than guessed, and fitted once to the level that draws the most rows:
+the index is drawn and, while it does not fit, rebuilt one step shallower — the deepest layer
+gathered into spans (`Jan–Apr`), then dropped, then the level collapsed into ranges. A tab you
+cannot hit is decoration, and a tab you cannot see is worse.
 
 **The contents follow.** A tab, Previous, Next, the arrow keys, a ribbon or a followed link
 brings the current row into view on the left page — the smallest move that does it, the way a

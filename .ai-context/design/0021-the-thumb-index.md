@@ -50,58 +50,74 @@ would read as a cut more strongly still, and it would break "the furniture is on
 which reads a non-current tab against the plaque in four rooms and is the check that keeps this
 product looking like one object. Geometry was enough.
 
-## One rail, and the cut you are in folds out beside it
+## One rail, one level at a time, under the trail it came through
 
 > "go back to one rail but make it so that if I click a year the months fold out to the right
 > of it like a staggered index that is folded out"
+>
+> "first a index with sub index needs an indicator to show that, second when moving one level
+> down we can collapse the other top level index to make room for the sublevel like a trail,
+> also you can then stagger the sublevels to save space, going back a level is being achieved
+> by re clicking the top level index"
 
-Every level used to stand in the same column: a year, then its months indented by 8px, then its
-days by 16px, all the way down, for every year in the book. That is what ran off the bottom of
-the page — not the years, which are a dozen, but the hundred months underneath them.
+Every level used to stand in the same column: a year, its months indented by 8px, their days by
+16px, for *every* year in the book. That is what ran off the bottom of the page — not the dozen
+years, but the hundred months dragged down behind them.
 
-**The column holds top-level cuts only.** The one the page is standing in unfolds its own lane
-to the **right** of itself — outward, toward the fore-edge — so the deepest cut on show is
-always the one at the edge of the book and the cut it belongs to steps in behind it. Press a
-month and it unfolds its days the same way, three lanes deep. The rest of the index moves down
-to make room, which is what a stepped index does when you open one.
+**The rail lists one level.** The top-level cuts, or — once a cut with something under it has
+been pressed — the cuts under *that*, with the cuts it came through kept above as a trail and
+its siblings folded away to make the room. Four rules, and each one is load-bearing:
 
-Three things fall out of it, and they are the reason this is the shape rather than more columns:
+| | |
+|---|---|
+| the **indicator** | a cut that opens further carries `›` in its own left margin, pointing out toward the fore-edge, which is the way it opens. A trail step carries `‹`, pointing back. An index that opens further on some of its cuts and not others has to say which, and the glyph doubles as the affordance for coming back |
+| the **trail** | pressing a cut replaces the level with the cuts under it and keeps the cut itself above. Its siblings go: they are the room the sublevel is drawn in |
+| the **staircase** | each step of the trail stands one notch (13px) further in from the fore-edge than the one below it, so the list you are reading is always at the edge of the book and the staircase above says how you got there |
+| **back** | pressing a trail step returns to its level. There is no other way out and no other state: the rail is at a depth, and the cut shown at each step of it is whichever one the page is standing in |
 
-- **The rail is an edge again.** 46px closed, and 94–96px with the widest fold a shape has open
-  — measured across all three fixtures. Banks cost 158px and were open all the time.
-- **Nothing has to be thrown away.** The fit no longer trades months for room: the 10k library's
-  biggest book keeps a month tab for every one of its months, where the banked rail gathered
-  them into `Jan–Apr` spans to make them fit.
-- **There is no state to get wrong.** The open cut is the one the page is in, so pressing a year
-  both goes there and opens it — `a tab is a position` is untouched — and paging with Next
-  unfolds the year you arrive in. Nothing can be left open over a book you are no longer reading.
+**Depth, not a chosen cut.** The state is one number — how many levels down the rail is — and
+every cut it shows is derived from where the page is. So paging with Next through a year
+boundary carries the trail with it rather than leaving the index open over a year you have left,
+and nothing can be open over a book you are no longer reading. Pressing a cut still goes to it
+as well as opening it, so **a tab is a position** is untouched.
+
+### What it costs, and what it buys
+
+| | |
+|---|---|
+| the rail | **51px at the top level, 71px one down, 84px two down** — 8% of the spread at its widest. Two banks were 158px, all the time |
+| on show at once | **17 tabs** at the most, across all three fixtures. Banked, 71–133 |
+| the cut | **nothing is thrown away to make it fit.** The 10k library's `#archive` keeps 11 years and **120 months**, 131 cuts in all; the banked rail had to gather months into `Jan–Apr` spans |
+| going back | two presses to reach another year's months, where the side-by-side fold needed one. That is the trade the trail makes, and it is the one asked for |
 
 **Rejected: scrolling the rail.** A scrolling index is the same lie as a clipped one — what you
-cannot see, you do not know is there — and nothing in this product scrolls sideways or hides a
-run behind an edge.
+cannot see, you do not know is there.
 
-**Rejected: an indent instead of a lane.** It is what was there, and the level it encoded was
-illegible the moment the column was more than one deep.
+**Rejected: keeping the siblings.** It is what the first fold did (a second lane beside the
+column, both full height). It reads well and it is wider, and it shows every month of every year
+whether or not you are in that year. The trail is the smaller, quieter object.
 
-### Two wrong turns, kept here because a check saw neither
+### Three wrong turns, kept here because a check saw none of them
 
 **Three banks.** `flex-wrap: wrap-reverse` on the column, so a run too long for the room
 continued in the bank to its left — the bookcase law applied to the rail. It passed every check
-in the suite: nothing clipped, nothing outside the spread, both look-parity checks at zero. It
-looked like a heap of small plates beside the book rather than an edge of it. What no number
-saw: three columns of chips stop reading as one object, the layer step-in is illegible once
-three ragged left edges stand side by side, and the reading order — down the rightmost, then
-jump to the top of the middle — is unguessable.
+in the suite. It looked like a heap of small plates beside the book: three columns of chips stop
+reading as one object, the layer step-in is illegible once three ragged left edges stand side by
+side, and the reading order — down the rightmost, then jump to the top of the middle — is
+unguessable.
 
 **Two banks, made even.** The step moved inside the cut (`padding-right`) so each bank had one
-straight edge; the room was capped at the taller half so the banks came out level; and a bank
-opening inside a run repeated the run's label at its head, which is `design/0003`'s plaque law.
-Better, and still the wrong shape: it was 158px of the prose column all the time, it showed
-every month of every year whether or not you were in that year, and the second bank's reading
-order was still a jump.
+straight edge; the room was capped at the taller half so the banks came out level; a bank opening
+inside a run repeated the run's label at its head. Better, and still 158px of the prose column
+all the time.
 
-Both are in the history and in `changelog-detail.md`. *Look at it* is a law in this repo for
-exactly this, and the first two cuts of this record were written without doing it.
+**One fold, side by side.** The column of top-level cuts with the current one's children in a
+second lane beside it. This is the shape the record described before this section was rewritten,
+and it is genuinely good — but it keeps every sibling on screen next to a list it has nothing to
+do with, and it is 96px where the trail is 71.
+
+*Look at it* is a law in this repo for exactly this, and the first three cuts of this record were
+written without doing it.
 
 ## Fit is measured, not calculated
 
@@ -117,16 +133,26 @@ again:
 3. **then the column collapses into ranges**, halving each time, which is what a letter list
    over 26 always did.
 
-**Fitted to the fattest fold, not the one open now.** Which cut is unfolded follows the page, so
-fitting to it would re-fit on every turn and give one book two different indexes. `widestFold`
-finds the deepest fold the book can ever show and the rail is fitted once to that; every other
-fold is shorter by construction. The fitted list is held on `reader.tabs`, redrawn from on every
+**Fitted to the level that draws the most, not the one open now.** Which level the rail is at
+follows the page and the reader's own presses, so fitting to it would re-fit on every turn and
+give one book two different indexes. `deepest` finds the level that draws the most rows — the
+top level, or a trail step plus the longest list under it — and the rail is fitted once to that;
+every other level is shorter by construction. The fitted list is held on `reader.tabs`, redrawn from on every
 page turn, and thrown away on a resize or a rebuild.
 
 `RAW_TABS` (90, doubled inside `dateTabs`) only bounds the **first** draw, since a deep letter
 cut over a 10,000-note volume can run to hundreds of buttons.
 
-**A cut carries the position it opens**, in `data-at`. A fold rebuilds the rail under the press,
+**The last cut's own bottom, not `scrollHeight`.** The rail's overflow is visible by design — a
+clipped index is the bug this whole record is about — and a box that does not scroll does not
+reliably report a scrolling area, so `scrollHeight` answered that everything fits while six cuts
+hung off the end.
+
+**And the cuts are stretched to one box.** Left to themselves the labels measure to fractions of
+a pixel — `2011` came out 55px wide and `2020` 59 — and the rail grew a ragged left edge out of
+nothing but text metrics.
+
+**A cut carries the position it opens**, in `data-at`. A press rebuilds the rail under itself,
 so a cut cannot be addressed by where it stands in the DOM — not by the page, and not by a check
 walking the index. `__vs.indexTabs()` hands the fitted cut to a check so it can reason about the
 fold without driving the reader into it; pressing a cut re-renders the contents, and on a book
@@ -203,10 +229,10 @@ Measured 2026-09-11 on the three fixtures, before this work and after.
 |---|---|---|
 | demo, clipped tabs over the fattest books | **2 books, 4 tabs** | 0 |
 | sparse, clipped tabs | **1 book, 2 tabs** | 0 |
-| widest rail, all shapes | 51px | **46px closed, 94–96px with the widest fold open (9%)** |
-| most tabs on show at once | 29 (and 4 of them clipped) | **24–26** |
-| demo `encyclopedia/0-9` (168 notes) | 17 tabs, largest step **51** notes | 15 cuts in the column and 31 in all, step **28** inside the fold |
+| widest rail, all shapes | 51px | **51px at the top level, 84px two levels down (8%)** |
+| most tabs on show at once | 29 (and 4 of them clipped) | **17** |
+| demo `encyclopedia/0-9` (168 notes) | 17 tabs, largest step **51** notes | 15 cuts in the column and 65 in all, step **20** inside the fold |
 | sparse `encyclopedia/0-9` (109 notes) | 3 tabs (`0-9 1000 2024`), step **54** | 5 tabs (`0 1 2 3 4`), step **28** |
 | 10k `encyclopedia/0-9` (412 notes) | **1 tab**, step **412** | 9 tabs, step **58** |
-| 10k `people/-unfiled` (6,937 notes) | 11 tabs | 11 cuts in the column, every month kept in the fold |
+| 10k `#archive` (1,097 notes) | 11 tabs, months dropped to fit | 11 years and **120 months**, 131 cuts, none dropped |
 | tabs lit at the end of a book | up to **29 of 29** | **1** |

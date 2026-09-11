@@ -1954,3 +1954,48 @@ the DOM would count the months of whichever year the book happened to open on --
 the cut with the most under it and asserts exactly that many appear beside it (**5 of 5**,
 **10 of 10**, **6 of 6**); and the countable check's cap moved from a bank count to 60 top-level
 cuts in the column. 90 checks.
+
+
+**The index rail lists one level, under the trail it came through** (github#32). *"first a index
+with sub index needs an indicator to show that, second when moving one level down we can collapse
+the other top level index to make room for the sublevel like a trail, also you can then stagger
+the sublevels to save space, going back a level is being achieved by re clicking the top level
+index."* The fourth shape, and the first three are in `design/0021` because no check saw anything
+wrong with any of them.
+
+A cut that opens further carries `>` in its own left margin, pointing out toward the fore-edge,
+which is the way it opens; a trail step carries `<`, and pressing it comes back. Pressing a cut
+replaces the level with what is under it and keeps the cut above as a trail, its siblings folded
+away to make the room; each step of the trail stands 13px further in from the fore-edge, so the
+list being read is always at the edge of the book. The state is ONE NUMBER -- how deep the rail
+is -- and every cut it shows is derived from where the page is, so Next carries the trail with it
+and nothing is ever open over a book nobody is reading. Pressing a cut still goes to it, so
+`a tab is a position` is untouched.
+
+Measured: the rail is **51px at the top level, 71px one down, 84px two down -- 8% of the spread at
+its widest**, against 158px for two banks and 96px for the side-by-side fold. **17 cuts on show at
+the most**, against 71-133 banked. And nothing is dropped to make it fit any more: 10k `#archive`
+keeps **11 years and 120 months, 131 cuts**, where the banked rail gathered months into `Jan-Apr`
+spans. The demo `0-9` volume is 15 top-level cuts and **65 in all, largest step 20 notes** inside
+the level (53 in the top level alone). **0 clipped, 0 rails outside the spread, 0 over a fifth of
+the spread, 0 with more than one cut lit, 0 whose trail is not a staircase**, over 40 / 34 / 39
+books and 290 / 73 / 453 top-level cuts.
+
+Three real bugs came out of measuring rather than reasoning. `fits()` trusted `scrollHeight`,
+which a box with visible overflow does not reliably report -- it answered that everything fitted
+while six cuts hung off the end; it reads the last cut's own bottom now. The rail animated on the
+draw that OPENS a book, because `reader.drawn` started undefined and any change counted. And the
+cuts measured to fractions of a pixel -- `2011` 55px wide, `2020` 59 -- so the rail grew a ragged
+left edge out of nothing but text metrics; they are stretched to one box.
+
+`check-scope` read `from` and `to` inside `@keyframes` as bare element selectors and rejected
+every animation in the product on a ground that cannot be true: a keyframe styles nothing. It
+skips the stops and checks the animation's NAME instead, which shares one namespace with the host
+and must be prefixed `vs-`. Proved both ways.
+
+The checks learnt the shape: `no index tab is clipped` measures each book at its top level, at the
+level that draws the most, and one below that, reads **layout offsets rather than painted rects**
+(a rect read mid-animation carries the transform and puts every cut 9px outside the rail for
+150ms), and asserts the trail is a staircase; `the date index is layered` presses the cut with the
+most under it, asserts exactly that many are left on the list under a trail step, and asserts
+**pressing that step puts the top level back**. 90 checks.

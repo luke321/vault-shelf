@@ -1226,12 +1226,12 @@
   align-items: baseline;
 }
 
-/* github#32, design/0021 -- ONE RAIL, AND THE CUT YOU ARE IN FOLDS OUT BESIDE IT. Every level
- * used to stand in the same column, which is how the index ran off the bottom of the page and
- * why `overflow: hidden` was eating it in silence. The column holds top-level cuts only now,
- * and the one the page is standing in opens its own lane to the right of itself -- outward,
- * toward the fore-edge, so the deepest cut on show is always the one at the edge of the book
- * and the cut it belongs to steps in behind it. */
+/* github#32, design/0021 -- ONE RAIL, ONE LEVEL AT A TIME, UNDER THE TRAIL IT CAME THROUGH.
+ * Every level used to stand in the same column, which is how the index ran off the bottom of
+ * the page and why `overflow: hidden` was eating it in silence. The rail lists one level; the
+ * cuts it came through stand above it as a trail, each one notch further in from the fore-edge,
+ * so the list you are reading is always at the edge of the book and the staircase above says
+ * how you got there. */
 .vault-shelf .vs-tabs {
   position: absolute;
   top: 16px;
@@ -1239,39 +1239,50 @@
   z-index: 4;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  /* STRETCHED, so every cut on a level is one box. Left to themselves the labels measure to
+   * fractions of a pixel -- `2011` came out 55px wide and `2020` 59 -- and the rail grew a
+   * ragged left edge out of nothing but text metrics. */
+  align-items: stretch;
   /* the last cut is pulled 1px past its line by the collapse below; this is it */
   padding-bottom: 1px;
   max-height: calc(100% - 32px);
 }
 
-/* A run of cuts, stacked. The outermost one is the rail's own; a fold opens another. */
-.vault-shelf .vs-lane {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  min-width: 0;
-}
-.vault-shelf .vs-tabs > .vs-lane { align-items: flex-end; }
+/* THE STAIRCASE. A step is a notch in from the fore-edge, and it is a margin rather than an
+ * indent inside the cut, because these cuts are meant to be read as being further back in the
+ * book -- not as a narrower label. The list itself is always at step 0. */
+.vault-shelf .vs-tabs button[data-step="1"] { margin-right: 13px; }
+.vault-shelf .vs-tabs button[data-step="2"] { margin-right: 26px; }
 
-/* THE FOLD: the cut and what is under it, side by side, the cut at the top of the row so its
- * lane opens level with it. The rest of the index moves down to make room, which is what a
- * stepped index does when you open one. */
-.vault-shelf .vs-fold {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
+/* THE INDICATOR. An index that opens further on some of its cuts and not others has to say
+ * which, and the direction it points is the direction it opens: out toward the fore-edge to go
+ * in, back toward the page to come out again. It is drawn in the cut's own left margin so it
+ * cannot change the box the look checks measure. */
+/* EVERY cut keeps the gutter, not only the ones that have it filled, so a level whose cuts
+ * differ in whether they open further still has one straight edge. */
+.vault-shelf .vs-tabs button { position: relative; padding-left: 17px; }
+.vault-shelf .vs-tabs button[data-kids]::before {
+  content: "\203A";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.5;
+  pointer-events: none;
 }
+.vault-shelf .vs-tabs button[aria-expanded="true"]::before { content: "\2039"; opacity: 0.75; }
 
+/* github#32 -- IT ONLY MOVES WHEN IT CHANGES LEVEL. page.js sets `data-opening` on the draw
+ * that follows a press, and on no other, so a page turn redraws the same rail without a flinch.
+ * The cuts come in from the fore-edge, which is the way the hand went. */
 @media (prefers-reduced-motion: no-preference) {
-  .vault-shelf .vs-fold > .vs-lane {
-    animation: vs-unfold 140ms ease-out;
-    transform-origin: left center;
-  }
+  .vault-shelf .vs-tabs[data-opening] button { animation: vs-unfold 150ms ease-out; }
 }
 @keyframes vs-unfold {
-  from { opacity: 0; transform: scaleX(0.82); }
-  to { opacity: 1; transform: scaleX(1); }
+  from { opacity: 0; transform: translateX(9px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 /* design/0015, design/0021 -- THE LAYERS OF THE INDEX, and the lane is what says which is
@@ -1695,9 +1706,8 @@
   .vault-shelf .vs-page.vs-left { border-right: 0; border-bottom: 1px solid var(--border); }
   .vault-shelf .vs-page.vs-right { padding-right: 22px; }
   .vault-shelf .vs-tabs { flex-direction: row; position: static; padding: 0 18px 12px; flex-wrap: wrap; gap: 3px; align-items: flex-start; }
-  .vault-shelf .vs-tabs .vs-lane, .vault-shelf .vs-tabs .vs-fold {
-    flex-direction: row; flex-wrap: wrap; gap: 3px; align-items: flex-start;
-  }
+  .vault-shelf .vs-tabs button[data-step="1"],
+  .vault-shelf .vs-tabs button[data-step="2"] { margin-right: 0; }
   .vault-shelf .vs-tabs button { border-radius: 3px; border-right: 1px solid var(--border);
                                  margin-bottom: 0; }
   .vault-shelf .vs-tabs .vs-findtab { margin-bottom: 0; }

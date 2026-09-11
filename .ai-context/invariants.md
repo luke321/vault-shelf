@@ -554,16 +554,19 @@ had to stay sideways because it did not fit its spine (`map` on the demo vault).
 `"the date index is layered: years over months over days, each only where it separates"`
 opens a multi-year tag book and asserts one top-level cut per year, a month book and asserts only
 day cuts, and a book of three notes or fewer and asserts **0**. It reads the **cut** off
-`__vs.indexTabs()` rather than the DOM, because the rail unfolds only the year the page is in —
+`__vs.indexTabs()` rather than the DOM, because the rail lists only the level the page is in —
 counting the DOM would count the months of whichever year the book happened to open on, which is
-none at the first note of a thin year. Then it **presses the cut with the most under it** and
-asserts exactly that many appear beside it, to its right: that is what proves the rail draws the
-layered cut rather than merely holding it.
+none at the first note of a thin year.
+
+Then it **presses the cut with the most under it** and asserts exactly that many are left on the
+list, with the cut kept above as a trail step standing further in from the fore-edge — and that
+**pressing that step puts the top level back**, which is the only way out of a level and the
+whole of the rail's state.
 
 Measured 2026-09-11: demo `#area/health/running` spans 11 years, 11 year cuts, **7** months,
-18 in all, and pressing `2025` unfolds **5 of its 5** beside it; sparse `#archive` 4 years,
-**26** months, 30 in all, pressing `2021` unfolds 10 of 10; 10k `#archive` 11 years, **61**
-months, 72 in all, pressing `2017` unfolds 6 of 6. A month tab may be a **span** of months
+18 in all, pressing `2025` leaves **5 of its 5** and pressing back restores all 11; sparse
+`#archive` 4 years, **26** months, 30 in all, 10 of 10; 10k `#archive` 11 years, **120** months,
+**131 in all**, 12 of 12. A month tab may be a **span** of months
 (`Jan–Apr`) where the rail could not hold one per month, and the count ceiling here rose from
 **30 to 180** — thirty was what a single-column rail held when every level stood in that column.
 `design/0015`, `design/0021`, `github#32`.
@@ -601,30 +604,34 @@ cut that had gone wrong, which is why `github#7` gave the titles real first word
 
 `"the reader's index tabs stay countable on the biggest book"` finds the largest book in the
 vault and asserts its tab count is between 1 and **180** — the structural ceiling before
-geometry has looked at it — and that its **column** holds at most **60** top-level cuts. It
-asserted 26, which was the whole index a single-column rail could hold when every level stood in
-that column; the column holds top-level cuts only now and the rest is in the fold, so this only
-catches a runaway cut and `"no index tab is clipped"` is the real gate. Measured 2026-09-11:
-demo `people/-unfiled` **250 notes behind 16 top-level cuts, 16 tabs on show**; sparse
-`people/-unfiled` 501 notes behind **5**; 10k `people/-unfiled` 6,937 notes behind **11**.
-`design/0021`, `github#32`.
+geometry has looked at it — and that a **level** holds at most **60** cuts. It asserted 26, which
+was the whole index a single-column rail could hold when every level stood in that column; the
+rail lists one level now, so this only catches a runaway cut and `"no index tab is clipped"` is
+the real gate. Measured 2026-09-11: demo `people/-unfiled` **250 notes behind 16 top-level cuts,
+all 16 of which open further**; sparse `people/-unfiled` 501 notes behind **5**; 10k
+`people/-unfiled` 6,937 notes behind **11**. `design/0021`, `github#32`.
 
 `"no index tab is clipped: the tabs fit the rail and the rail fits the spread"` opens the twelve
-fattest books on the shape plus every Encyclopedia volume, and for each one measures the rail
-closed **and with its widest fold open** — the fold is what makes the index tall, and which cut
-is unfolded follows the page, so a rail that fits the one it happens to have opened proves
-nothing about the next. It asserts that **no tab's box falls outside the rail's**, that the
-rail's box is inside the spread's, that the rail is at most a **fifth of the spread**, that
-exactly one tab carries `aria-current`, and that an unfolded cut stands to the **left** of the
-lane it opened — the fold goes outward, toward the fore-edge.
+fattest books on the shape plus every Encyclopedia volume, and for each one measures the rail at
+its top level, at the level that draws the most rows, and one level below that wherever there is
+one — because which level the rail is at follows the page, so a rail that fits the level it
+happens to be at proves nothing about the next. It asserts that **no cut's box falls outside the
+rail's**, that the rail's box is inside the spread's, that the rail is at most a **fifth of the
+spread**, that exactly one cut carries `aria-current`, and that the trail is a **staircase** —
+every step further in from the fore-edge than the one below it and than the level it opened.
 
-The widest fold is read off `__vs.indexTabs()` rather than found by pressing: pressing a cut
-re-renders the contents, and on a book of seven thousand notes that is the whole cost of the
-check rather than the thing measured. Measured 2026-09-11: demo **40 books, 290 top-level cuts,
-most on show 26 tabs, widest rail 96px (9% of the spread)**; sparse 34 books, 73 cuts, 16 tabs,
-96px (9%); 10k 39 books, 453 cuts, 24 tabs, 94px (9%) — **0 clipped, 0 rails outside the spread,
-0 over a fifth, 0 with more than one tab lit, 0 with a fold on the wrong side of its cut** on
-all three.
+Boxes are read as **layout offsets, not painted rects**: the rail animates its cuts in when it
+changes level, and a rect read mid-animation carries the transform, which puts every cut 9px
+outside the rail for 150ms. A pixel of slack on each edge, because offsets are integers rounded
+off a sub-pixel layout.
+
+The level that draws the most is read off `__vs.indexTabs()` rather than found by pressing:
+pressing a cut re-renders the contents, and on a book of seven thousand notes that is the whole
+cost of the check rather than the thing measured. Measured 2026-09-11: demo **40 books, 290
+top-level cuts, 13 went down a level and 3 of those two, most on show 17 cuts, widest rail 84px
+(8% of the spread)**; sparse 34 books, 73 cuts; 10k 39 books, 453 cuts — **0 clipped, 0 rails
+outside the spread, 0 over a fifth, 0 with more than one cut lit, 0 whose trail is not a
+staircase** on all three.
 
 This check did not exist and is why `github#32` shipped: `.vs-tabs` was `overflow: hidden`, so
 a tab past the spread's height was painted outside the box and cut off in silence while every
@@ -636,12 +643,12 @@ the demo fixture lost **4 tabs across 2 books** and sparse **2 across 1**. `desi
 digits have been read as a year, and that **the largest step is at most a quarter of the book** —
 or, for a volume of plain numbers, that there are as many cuts as its titles admit at one digit,
 which is the data's limit rather than the code's. **The step is the number this check is about**,
-and it is the step *inside the fold*: the column holds top-level cuts and the one the page is in
-unfolds its own, so the gap a person crosses is the gap between two neighbouring cuts once they
-are in the right year. The step in the column alone is printed beside it.
+and it is the step *inside the level*: the rail lists top-level cuts and, one press in, the cuts
+under the one you chose, so the gap a person crosses is the gap between two neighbouring cuts
+once they are in the right year. The step in the top level alone is printed beside it.
 
-Measured 2026-09-11 — demo: 168 notes, 165 ISO-titled, **15 top-level cuts, 31 in all, step 28
-inside the fold and 53 in the column**; sparse: 109 notes, 1 ISO-titled, **5 cuts (`0 1 2 3 4`),
+Measured 2026-09-11 — demo: 168 notes, 165 ISO-titled, **15 top-level cuts, 65 in all, step 20
+inside the level and 53 in the top level**; sparse: 109 notes, 1 ISO-titled, **5 cuts (`0 1 2 3 4`),
 step 28**, 5 admitted; 10k: 412 notes, none ISO-titled, **9 cuts (`1`–`9`), step 58**, 9 admitted.
 Before `github#35` the same volumes read **17 tabs and a step of 51** (demo, labels
 `1000 2011 … 2026 0-9` — `1000` is `1000 Small Decisions — budget`, not a year), **3 tabs and a
