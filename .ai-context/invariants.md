@@ -1713,35 +1713,61 @@ in place. `decisions/0014` records the call.
 
 **github#39's win was arithmetic over three shapes, and it has to be re-measured rather than
 re-typed.** Narrowing 61 of 89 checks off two of three shapes took 267 check runs to 146. With
-one shape there are **90** runs and nothing to narrow: the same saving, reached by having one
-vault instead of by annotating three. What is left of #39 here is the lane cap, the settle
-check, and `--timings`.
+one shape there is exactly **one run per check** and nothing to narrow: the same saving, reached
+by having one vault instead of by annotating three. What is left of #39 here is the lane cap, the
+settle check, and `--timings`.
 
 **A check that returns with the page still moving FAILS, and says what it left.** After every
 check the runner asks the page whether anything is in flight — `settleRoom`'s coalescing 60 ms
 timer (`__vs.room().pending`), a drag still in the air, a reader or sheet left open — and fails
 *that* check, naming it, then settles the page so the next one starts clean.
 
-**Measured on this machine, 2026-09-11, lock free and timed by the runner's own clock**
-(printed after the lock, so a wait for another worktree's suite is not counted):
+**Measured on this machine, lock free and timed by the runner's own clock** (printed after the
+lock, so a wait for another worktree's suite is not counted):
 
-| | three shapes, before `decisions/0014` | one vault |
-|---|---|---|
-| wall, after the lock | **41-43 s** | **32 s** (two runs) |
-| Chromes | 7 | **3** |
-| check runs | 146 | **90** |
-| check time | 34.1 s | **30.3-30.5 s** |
-| checks | 89 | **90** |
+| | three shapes, before `decisions/0014` | one vault, 2026-09-11 | one vault, 2026-09-12 |
+|---|---|---|---|
+| wall, after the lock | **41-43 s** | **32 s** (two runs) | **38-39 s** (two runs) |
+| Chromes | 7 | **3** | **3** |
+| check runs | 146 | **90** | **94** |
+| check time | 34.1 s | **30.3-30.5 s** | **33.4-37.7 s** |
+| checks | 89 | **90** | **94** |
 
 **The run count fell by 38% and the check time by 11%, and the gap is the point.** A run costs
-**234 ms** on the three shapes and **338 ms** here, because `decisions/0014`'s vault is twelve
-times the demo fixture and most of a check's cost is the page it is driving. Narrowing 61
-checks off two small shapes removed cheap runs; one big vault makes every remaining run dearer.
-The saving is real and it is smaller than the run count suggests — which is why this table was
-re-measured rather than re-typed from github#39's.
+**234 ms** on the three shapes and **338 ms** on the 2026-09-11 column, because
+`decisions/0014`'s vault is twelve times the demo fixture and most of a check's cost is the page
+it is driving. Narrowing 61 checks off two small shapes removed cheap runs; one big vault makes
+every remaining run dearer. The saving is real and it is smaller than the run count suggests —
+which is why this table was re-measured rather than re-typed from github#39's.
 
-`--timings <file>` writes every check's milliseconds as JSON, which is how both columns were
-made.
+**Every column of it goes stale on its own, and the second one did.** The 2026-09-11 column was
+written at 90 checks and still said 90 when the suite ran 94. Three merges into `develop` moved
+the count and none of them touched this table: `de80843` (90 → 91), `cefdfc2` (91 → 93) and
+`38fb7ea` (93 → 94) — against this repo's own law that a changed constant moves `invariants.md`
+in the same commit. Nothing was wrong with the runner; the record simply drifted, which is the
+failure mode a measured table has and an asserted one does not. The third column is that
+re-measurement, and the prose above no longer repeats the count, so there is one place to change
+rather than two. **A column here is only ever true of the tree it names**; add a check and it owes
+a new one.
+
+**The four new checks are not what made it slower, and nothing here says what did.** They are
+`a short cover is stood upright by one face`, `a hovered swatch paints the room`, `a right-click
+dyes a book, a plate's run or a shelf` and `a spine's title never touches a line the binding
+draws`, and together they are **958 ms and 1,066 ms** across the two runs — every one of them
+*below* the 355-401 ms mean, about **1 s** of the **6-7 s** the wall moved. The remaining 5-6 s is
+unattributed: the 2026-09-11 column was taken without keeping its `--timings` JSON, so there is
+nothing to diff it against check by check.
+
+**Read that gap as a measurement, not a regression.** The same tree measured **33.4 s** and
+**37.7 s** of check time in two consecutive runs — a 4.2 s spread with nothing changing between
+them — and both were taken on a night when five other worktrees were driving the machine and
+queueing on the `suite` lock. A wall comparison across days is only worth as much as the load was
+alike, and these two days were not. **Keep the `--timings` JSON beside any column added here**;
+without it the next person inherits this same unanswerable gap. This column's is
+`.ai-context/timings-2026-09-12.json` — the 37.7 s run, 94 rows, one per check — so the next
+re-measurement has something to diff rather than a number to argue with.
+
+`--timings <file>` writes every check's milliseconds as JSON, which is how every column was made.
 
 ## Every release guard fires, and none of them writes a tag
 
