@@ -2,9 +2,18 @@ import { addIcon, ItemView, MarkdownRenderer, Plugin, PluginSettingTab, Setting,
 import { mountVaultShelf } from "../src/page.js";
 import * as core from "../src/core/index";
 import PAGE_HTML from "raw:../src/page.html";
+import WHATS_NEW from "raw:./whats-new.md";
+import RELEASES from "vs:releases";
+import { CHAIN_MAX, decideNote, minorOf, parseNote, releaseChain } from "./update-note.mjs";
 
 export const VIEW_TYPE = "vault-shelf-view";
 export const ICON_ID = "vault-shelf-books";
+
+// github#33, design/0023
+const RELEASE_URL = "https://github.com/luke321/vault-shelf/releases/tag/";
+const RELEASES_URL = "https://github.com/luke321/vault-shelf/releases";
+const GALLERY_URL = "https://luke321.github.io/vault-shelf/features.html";
+const NEW_CLASS = "vs-new";
 
 // github#5 -- how long a burst of changes may coalesce, in ms
 export const REBUILD_MS = 400;
@@ -229,6 +238,7 @@ export class ShelfView extends ItemView {
     const root = this.contentEl;
     root.empty();
     root.addClass("vault-shelf-view");
+    this.mountNote();
 
     // Parsed, not assigned: the markup is ours and static, and building it through innerHTML
     // would put a sink in the shipped bundle that a reviewer has to take on trust.
@@ -251,6 +261,62 @@ export class ShelfView extends ItemView {
       },
       renderNote: (into, note) => this.renderNote(into, note),
     });
+
+    this.markNew();
+  }
+
+  /* ------------------------------------------------- the update note (github#33) */
+
+  // github#33, design/0023 -- above the page root, so the library re-fits around it
+  mountNote() {
+    const note = this.plugin.pendingNote;
+    if (!note) return;
+    const strip = this.contentEl.createDiv({ cls: "vs-whatsnew", attr: { role: "status" } });
+    const head = strip.createDiv({ cls: "vs-whatsnew-head" });
+    head.createEl("strong", { text: "What's new in Vault Shelf " + minorOf(note.version) });
+    const links = { target: "_blank", rel: "noopener" };
+    // github#33 -- every release since the one last seen, oldest first
+    const chain = head.createSpan({ cls: "vs-whatsnew-chain" });
+    const all = this.plugin.pendingChain;
+    const shown = all.length > CHAIN_MAX ? all.slice(all.length - CHAIN_MAX) : all;
+    if (shown.length < all.length) {
+      chain.createEl("a", { text: "…", href: RELEASES_URL,
+                            attr: Object.assign({ title: (all.length - shown.length) + " earlier releases" }, links) });
+      chain.appendText(" – ");
+    }
+    shown.forEach((r, i) => {
+      if (i) chain.appendText(" – ");
+      chain.createEl("a", { text: r.version, href: RELEASE_URL + r.version,
+                            attr: r.name ? Object.assign({ title: r.name }, links) : links });
+    });
+    head.createEl("a", { text: "Feature gallery", href: GALLERY_URL, attr: links });
+    const list = strip.createEl("ul");
+    for (const line of note.lines) list.createEl("li", { text: line });
+    const ok = strip.createEl("button", { text: "Got it", cls: "vs-whatsnew-ok", attr: { type: "button" } });
+    this.registerDomEvent(ok, "click", () => { void this.dismissNote(strip); });
+  }
+
+  // github#33, design/0023 -- the controls the note points at, while it is up
+  markNew() {
+    const note = this.plugin.pendingNote;
+    if (!note || !this.page) return;
+    for (const id of note.points) {
+      const el = this.page.querySelector("#" + id);
+      if (el instanceof HTMLElement) el.addClass(NEW_CLASS);
+    }
+  }
+
+  // github#33 -- dismissing is the write that marks the version seen
+  /** @param {HTMLElement} strip */
+  async dismissNote(strip) {
+    strip.remove();
+    this.plugin.pendingNote = null;
+    // github#33 -- a second leaf has its own copy, and its own pulse
+    this.plugin.eachView((view) => {
+      view.contentEl.querySelectorAll(".vs-whatsnew").forEach((el) => el.remove());
+      view.contentEl.querySelectorAll("." + NEW_CLASS).forEach((el) => el.removeClass(NEW_CLASS));
+    });
+    await this.plugin.recordVersion();
   }
 
   /* design/0005 -- the library follows the app. Obsidian fires css-change when the theme or
@@ -362,10 +428,36 @@ export default class VaultShelfPlugin extends Plugin {
   /** @type {number} */
   rebuilds = 0;
 
+  // github#33 -- the note the next view mount shows, until it is dismissed
+  /** @type {import("./update-note.mjs").UpdateNote | null} */
+  pendingNote = null;
+
+  /** @type {import("./update-note.mjs").Release[]} */
+  pendingChain = [];
+
+  // github#33, design/0023 -- the marker cannot live in `config`
+  /** @type {string | undefined} */
+  lastSeenVersion = undefined;
+
   async onload() {
     /** @type {unknown} */
     const saved = await this.loadData();
     this.config = core.migrate(saved);
+    this.lastSeenVersion = versionSeenIn(saved);
+
+    // github#33, design/0023 -- decided once per load; a shown note is recorded on dismiss
+    const verdict = decideNote({
+      installed: this.manifest.version,
+      lastSeen: this.lastSeenVersion,
+      hadData: saved !== null && saved !== undefined,
+      note: parseNote(WHATS_NEW).note,
+    });
+    this.pendingNote = verdict.show;
+    this.pendingChain = verdict.show
+      ? releaseChain({ releases: RELEASES, lastSeen: this.lastSeenVersion,
+                       installed: this.manifest.version, note: verdict.show })
+      : [];
+    if (verdict.record) await this.recordVersion();
 
     this.registerView(VIEW_TYPE, (leaf) => new ShelfView(leaf, this));
 
@@ -438,8 +530,33 @@ export default class VaultShelfPlugin extends Plugin {
   /** @param {Persisted} next */
   async saveSettings(next) {
     this.config = core.migrate(next);
-    await this.saveData(this.config);
+    await this.saveData(this.persisted());
   }
+
+  // github#33, design/0023 -- config, with the host's marker put back
+  /** @returns {Record<string, unknown>} */
+  persisted() {
+    const out = /** @type {Record<string, unknown>} */ (Object.assign({}, this.config));
+    if (this.lastSeenVersion !== undefined) out.lastSeenVersion = this.lastSeenVersion;
+    return out;
+  }
+
+  // github#33, design/0023 -- the marker onto what is on disk, never onto nothing
+  async recordVersion() {
+    /** @type {unknown} */
+    const disk = await this.loadData();
+    const base = disk && typeof disk === "object" ? /** @type {Record<string, unknown>} */ (disk) : {};
+    this.lastSeenVersion = this.manifest.version;
+    await this.saveData(Object.assign({}, base, { lastSeenVersion: this.manifest.version }));
+  }
+}
+
+// github#33 -- what a data.json says it last saw, verbatim
+/** @param {unknown} saved @returns {string | undefined} */
+function versionSeenIn(saved) {
+  if (!saved || typeof saved !== "object") return undefined;
+  const v = /** @type {Record<string, unknown>} */ (saved).lastSeenVersion;
+  return v === undefined || v === null ? undefined : String(v);
 }
 
 /* ============================================================ the settings ==

@@ -288,6 +288,23 @@ EOF
   exit 1
 fi
 
+# THE UPDATE NOTE'S GRAMMAR AND DECISION TABLE NEXT -- pure Node, no Obsidian, no Chrome, and
+# well under a second. plugin/update-note.mjs decides whether the plugin announces a release
+# (github#33); a flipped comparison shows a stale note, or shows nothing at all on the one open
+# where it was the whole point, and neither fails anything else.
+echo "pre-push: checking the update note still decides the way it says..."
+if ! node "$root/scripts/update-note-selftest.mjs" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: the update-note selftest failed -- push blocked.
+
+Read the FAIL lines above. plugin/update-note.mjs and scripts/update-note-selftest.mjs must
+agree; .ai-context/design/0023-the-update-note.md has the table. There is no skip flag for
+this check.
+EOF
+  exit 1
+fi
+
 # THE GENERATED NAVIGATION FILES NEXT, same bar -- a read of the tree, well under a second.
 # .ai-context/code-map.md and code-index.md are written from the source by
 # scripts/code-map.mjs (decisions/0007) and are only worth having while they agree with it; a
