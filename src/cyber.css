@@ -326,6 +326,11 @@
   background: rgba(2, 5, 11, 0.82);
 }
 
+/* github#44, design/0022 -- the same scrim, thinned while the twelve are offered */
+.vault-shelf[data-look="cyber"] .vs-sheet[data-picking="1"] {
+  background: rgba(2, 5, 11, 0.4);
+}
+
 .vault-shelf[data-look="cyber"] .vs-sheetbody {
   --surface-1: #0d1728;
   --surface-2: #132038;

@@ -1,5 +1,68 @@
 # Changelog detail
 
+## 2026-09-11 — A swatch says what the library would look like (github#44)
+
+> "colors should live preview when the swatch is open and hovering"
+
+Hovering one of the twelve in the swatch popover now paints the library in it, live. Leaving
+without clicking — pointer out, focus out, Escape, a click outside — puts back exactly what was
+there when the popover opened. **A preview paints and nothing else**: it never writes
+`settings`, never reaches `persist()`, and never moves a box.
+
+| | before | after |
+|---|---|---|
+| finding out what slot 7 looks like | commit, look, change it back | hover it |
+| `settings.palette` written by a hover trail of 12 | — | **0** |
+| spine boxes / addresses / note counts across a preview | — | **identical** |
+| room visible beside the sheet body (demo / sparse / 10k) | 123 / 47 / 77 of 155 / 67 / 93 | unchanged — it was always there |
+| the scrim over it while choosing | **82%** | **40%** |
+| hover cost, demo (238 spines, 465 books) | — | **9.81 ms** (17.95 before `readTheme` was split) |
+| hover cost, sparse (77 / 194) | — | **3.76 ms** (6.40) |
+| hover cost, 10k (186 / 709) | — | **8.13 ms** (14.39) |
+| a full `refresh()` on the same three | 10.1 / 7.0 / 35.5 ms | unchanged |
+| `--shot-open` | `manage`, `builder` | `manage`, `builder`, **`swatch`** |
+| `smoke.mjs` | 89 checks | **90 checks** |
+| `check-comments` baseline | 1500 | 1500 |
+| named controls the keyboard reaches (demo) | 344 | 344 |
+
+**The room, not a sample in the popover.** The issue asked for a position: the Manage sheet is
+over the library, so a preview repainting books nobody can see would be theatre. Measured with
+Manage open at 1264×1353 — the sheet body is 760×711 and **123 of the 155 spines on screen lie
+entirely clear of it** (79%; 70% sparse, 83% on the 10k). The room is there. What was not there
+was the light: `.vs-sheet` laid an 82% scrim over the whole library, so a slot going from maroon
+to green read as a faint shift and the feature was invisible while working perfectly. The scrim
+thins to 40% while the popover is open — `data-picking="1"`, one colour-only rule per look, no
+geometry, no transition.
+
+**Paint, not refresh, and the reason is not the clock.** `repaint()` re-reads the twelve, re-dyes
+the bands they feed and re-sets three custom properties on every spine already standing. On the
+two small shapes that costs about what a full `refresh()` costs; it is 4× cheaper only on the
+10k. The reason to do it is that it touches **no geometry at all**, so "a preview moves nothing"
+is true by construction rather than by argument, and `renderLibrary()`'s settle pass cannot run
+under a pointer (`decisions/0013`).
+
+**`readTheme()` split, and it halved the hover.** Its first half reads the look's own twelve with
+the inline values lifted off — a second forced style flush plus twelve derived threads — and the
+look cannot change under a hover. A repaint calls only `readSlots()`: 17.95 → 9.81 ms on the
+demo, 14.39 → 8.13 on the 10k.
+
+**Two traps in reading boxes, both found by the check failing rather than by thinking.** In the
+parallel lane the first reading was **238 boxes of `0:0:0:0`** — the packing had not landed, and
+the check would have compared nothing to nothing; it waits for a spine to have a width now, and
+sits in the serial lane with every other box-reading check. And a shelf off screen carries
+`content-visibility: auto`, so its spines have no box until the browser gets to them: one that
+gains a box mid-check is the browser catching up, not a preview moving anything, so only boxes
+that were real in the first reading are compared.
+
+**Two things the harness could not see, found by looking.** The first: the preview worked from
+the first build and was nearly invisible under the scrim — every number was right and the
+screenshot said so. The second: a clip of the pointer crossing the twelve showed the room
+changing *before* the trail started, which read as a bug and was not — the popover had opened
+under a stationary pointer, so the swatch beneath it was genuinely hovered. What that chase did
+find is real: **Chrome delivers the focus `openSwatchPick()` takes on opening after the handlers
+are wired**, so "wired after the focus, so opening offers nothing" was false as written and is
+now a flag.
+
 ## 2026-09-11 — The lock names a job; what the two plugins share is a screen (github#37, github#25)
 
 > "only two places acquire a lock at all, nothing anywhere acquires `record`, and five

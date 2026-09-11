@@ -478,6 +478,76 @@ tabs excludes it. Every unchosen ribbon keeps its board's hue (**21/21** on the 
 sits more than a fifth of the lightness away from it (**21/21**), which is what makes it visible
 without making it a different colour.
 
+## A hovered swatch paints the room, and leaving puts it back
+
+`"a hovered swatch paints the room, and leaving puts it back"` (`github#44`, `design/0022`), on
+all three shapes. **A preview paints and nothing else.**
+
+While the swatch popover is open, hovering one of the twelve dyes the library in it, live; the
+next swatch follows; leaving without clicking puts back **exactly** what was there when the
+popover opened — not the look's own, and not the previous hover. The check drives the slot the
+room is actually wearing, found by reading every spine's `--spine-tint` rather than assuming slot
+1, because a shape where no book happens to wear it would otherwise pass by painting nothing.
+
+**Nothing is written.** `settings.palette` reads **0** through a whole hover trail. The trial
+twelve live in a `trial` object that `readSlots()` and `ribbonFor()` consult in place of
+`settings`, and `persist()` is not reachable from the preview path at all.
+
+**Nothing moves.** Every spine's box, every book address and every shelf's note count is read
+before the first hover, with the hover standing, and again once it is put back, and all three are
+identical. Boxes are compared **across a preview and never across a commit**: choosing a colour
+re-renders the library, which puts its scroll back to the top, and that is what committing has
+always done rather than anything a hover did.
+
+Two things about reading boxes here, both learned by failing. **The first packing has to have
+landed**, so the check waits for a spine to have a width rather than sleeping a fixed 250 ms --
+in the parallel lane it read **238 boxes of `0:0:0:0`** and would have compared nothing to
+nothing. And **a shelf off screen has `content-visibility: auto`**, so its spines have no box at
+all until the browser gets to them, and one that gains a box mid-check is the browser catching up
+rather than a preview moving anything: only boxes that were real in the first reading are
+compared. The check is in the serial lane for the same reason every other box-reading one is.
+
+**Every route out puts it back**: the pointer leaving the popover (the commonest), `Escape`, a
+click outside, a click that commits, and focus leaving. A slot already changed from the look's
+goes back to *its* value, not to the look's own — the check commits one of the twelve first, so
+"put it back" has something to be wrong about.
+
+**The ribbon column paints ribbons.** Hovering in the second column changes `--ribbon` and leaves
+every `--spine-tint` in the library byte-identical.
+
+**The keyboard offers the same thing.** Focus previews, and `ArrowRight` moves focus to the next
+of the twelve and previews as it goes; the twelve stay individually tabbable, so the **344**
+named controls the accessibility check reads on the demo vault do not move. The grid's column count is read back
+from the computed style, because `page.css` owns the geometry (`design/0016`).
+
+**The popover opens on the colour the slot is wearing, and offers nothing until the hand moves.**
+The first focus event on that swatch is swallowed: a room that changed the instant the popover
+opened would say a choice had been made before one was.
+
+What a preview costs, and what it replaces — `readTheme()` split so a hover re-reads the twelve
+without re-deriving the look's own:
+
+| fixture | spines | books | hover, before the split | hover | a full `refresh()` |
+|---|---|---|---|---|---|
+| demo | 238 | 465 | 17.95 ms | **9.81 ms** | 10.1 ms |
+| sparse | 77 | 194 | 6.40 ms | **3.76 ms** | 7.0 ms |
+| 10k library | 186 | 709 | 14.39 ms | **8.13 ms** | 35.5 ms |
+
+The reason to paint rather than refresh is not the clock: a repaint touches no geometry at all,
+so "a preview moves nothing" is true by construction, and nothing is left in flight when a check
+returns (`decisions/0013`).
+
+**The sheet gets out of the way.** With Manage open at 1264×1353 the sheet body is 760×711, and
+the spines on screen lying entirely clear of it are **123 of 155** (demo), **47 of 67** (sparse),
+**77 of 93** (10k) — so the room is there to repaint. What was not there was the light: the
+scrim over the library is 82%, and a slot changing read as a faint shift. It thins to **40%**
+while the popover is open (`data-picking="1"`, one colour-only rule per look, no geometry and no
+transition).
+
+**Custom previews nothing.** The OS picker is a native modal this page does not own and, on
+Windows, blocks the page while it is open. *Back to the look's own* does preview — it is one of
+the things being chosen between.
+
 ## A shelf can be deleted, placed and carried
 
 `"a shelf is deleted on the second press, made at the end the button is at, and carried by its

@@ -1327,6 +1327,11 @@
   background: color-mix(in srgb, var(--surface-0) 82%, transparent);
 }
 
+/* github#44, design/0022 -- while a colour is chosen, the room has to be legible */
+.vault-shelf .vs-sheet[data-picking="1"] {
+  background: color-mix(in srgb, var(--surface-0) 40%, transparent);
+}
+
 /* github#4 -- THE MANAGE SHEET IS WIDER THAN THE BUILDER, and only it. Twelve dyes and
  * their twelve threads are a table, and a table wants columns: at 620px it stood six rows
  * deep in two columns, at 860 it is three rows in four. The builder is a form, which reads

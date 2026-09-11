@@ -191,9 +191,10 @@ const LOOK = arg("look", "");
 /* `--shot-note "<title>"` opens that note for the reader picture instead of the first book,
  * which is how a rendering complaint about one particular note gets looked at. */
 const SHOT_NOTE = arg("shot-note", "");
-/* `--shot-open manage|builder` takes the library picture with that sheet open. Manage is shot
- * with one slot and the ribbon changed, because a colours block with nothing changed shows
- * none of the marks the block exists to show; both are put back before the sheet closes. */
+/* `--shot-open manage|builder|swatch` takes the library picture with that sheet open. Manage
+ * is shot with one slot and the ribbon changed, because a colours block with nothing changed
+ * shows none of the marks the block exists to show; both are put back before the sheet closes.
+ * github#44 -- `swatch` shoots a live preview with one of them hovered */
 const SHOT_OPEN = arg("shot-open", "");
 /* github#11 */
 const SHOT_BOOK = arg("shot-book", "");
@@ -246,6 +247,8 @@ const POINTER_DRIVEN = [
   "the room parts",
   /* github#14, design/0021 -- it walks every box on the page, four times, in every look. */
   "moves nothing",
+  /* github#44, design/0022 -- it reads every spine's box, before and after a hover. */
+  "hovered swatch",
   /* design/0020 -- a right-click and a drag off the rail read boxes. */
   "made on the shelf",
   "edited, emptied",
@@ -2766,6 +2769,176 @@ check("the twelve colour slots are Vault Graph's own", async (p) => {
                ? `the twelve match, but a spine is tinted "${r.painted}", which is not one of them`
                : `light ${r.light.slice(0, 3).join(",")} dark ${r.dark.slice(0, 3).join(",")}` };
 }, { on: "demo" });
+
+/* github#44, design/0022 -- a preview paints and nothing else */
+check("a hovered swatch paints the room, and leaving puts it back", async (p) => {
+  /* github#44 -- boxes are read, so the first packing has to have landed */
+  for (let wait = 0; wait < 20; wait++) {
+    const up = await p.j(`(function(){
+      var one = document.querySelector("#vs-shelves .vs-spine");
+      return one ? Math.round(one.getBoundingClientRect().width) : 0;
+    })()`);
+    if (up > 0) break;
+    await sleep(150);
+  }
+  const r = await p.j(`(function(){
+    var out = {};
+    var shelves = document.getElementById("vs-shelves");
+    var fire = function (el, type) {
+      el.dispatchEvent(new MouseEvent(type, { bubbles: false, cancelable: true }));
+    };
+    var read = function (prop) {
+      var parts = [], spines = shelves.querySelectorAll(".vs-spine");
+      for (var i = 0; i < spines.length; i++) {
+        parts.push(getComputedStyle(spines[i]).getPropertyValue(prop).trim());
+      }
+      return parts.join(",");
+    };
+    var room = function () { return read("--spine-tint") + "/" + read("--ribbon"); };
+    /* a shelf off screen has content-visibility: auto, so its spines have no box until the
+     * browser gets to them -- the packing that can be seen is the packing that is compared */
+    var furniture = function () {
+      var parts = [], spines = shelves.querySelectorAll(".vs-spine");
+      for (var i = 0; i < spines.length; i++) {
+        var b = spines[i].getBoundingClientRect();
+        parts.push(Math.round(b.left) + ":" + Math.round(b.top) + ":" +
+                   Math.round(b.width) + ":" + Math.round(b.height));
+      }
+      return parts;
+    };
+    var samePacking = function (was, now) {
+      if (was.length !== now.length) return false;
+      for (var i = 0; i < was.length; i++) {
+        if (was[i] !== "0:0:0:0" && was[i] !== now[i]) return false;
+      }
+      return true;
+    };
+    var books = function () {
+      return JSON.stringify(__vs.addresses()) + "#" +
+             JSON.stringify(__vs.views().map(function (v) { return v.noteCount; }));
+    };
+
+    /* github#44 -- driven on a slot the room is actually wearing */
+    var worn = {}, spines = shelves.querySelectorAll(".vs-spine");
+    for (var i = 0; i < spines.length; i++) {
+      var tint = getComputedStyle(spines[i]).getPropertyValue("--spine-tint").trim();
+      worn[tint] = (worn[tint] || 0) + 1;
+    }
+    var slots = __vs.slots(), row = 0, best = -1;
+    slots.forEach(function (hex, k) {
+      var n = worn[hex] || worn[hex.toLowerCase()] || 0;
+      if (n > best) { best = n; row = k; }
+    });
+    out.wearing = best;
+    var away = (row + 6) % 12;
+
+    var menu = document.getElementById("vs-swatchpick");
+    var slotSwatch = function (column) {
+      return document.querySelectorAll("#vs-mpalette .vs-dyerows tr")[row]
+               .querySelectorAll("td .vs-slot .vs-swatch")[column];
+    };
+    var offered = function (n) { return menu.querySelectorAll(".vs-swatches .vs-swatch")[n]; };
+    var escape = function () {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    };
+
+    document.getElementById("vs-manageopen").click();
+
+    /* github#44 -- 1. the room follows the pointer, and nothing else does */
+    slotSwatch(0).click();
+    var before = room(), geometry = furniture(), shelved = books();
+    out.laidOut = geometry.filter(function (b) { return b !== "0:0:0:0"; }).length > 0;
+    out.opened = !menu.hidden;
+    out.openedQuiet = room() === before;
+    fire(offered(away), "mouseenter");
+    var first = room();
+    out.painted = first !== before;
+    out.saved = __vs.settings().palette.length;
+    out.stillPacked = samePacking(geometry, furniture());
+    out.stillShelved = books() === shelved;
+    fire(offered((away + 3) % 12), "mouseenter");
+    var second = room();
+    out.followed = second !== first && second !== before;
+
+    /* github#44 -- 2. Escape puts it back, exactly rather than nearly */
+    escape();
+    out.escaped = room() === before && menu.hidden;
+    out.escapedClean = __vs.settings().palette.length === 0;
+    out.packedBack = samePacking(geometry, furniture());
+
+    /* github#44 -- 2b. the pointer leaving is the commonest route out */
+    slotSwatch(0).click();
+    fire(offered(away), "mouseenter");
+    out.paintedForLeave = room() !== before;
+    fire(menu, "mouseleave");
+    out.leftAlone = room() === before;
+    out.stillOpen = !menu.hidden;
+    escape();
+
+    /* github#44 -- 3. a click outside is the same route out */
+    slotSwatch(0).click();
+    fire(offered(away), "mouseenter");
+    out.paintedAgain = room() !== before;
+    document.querySelector("#vs-manage .vs-sheetbody")
+      .dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    out.clickedOff = room() === before && menu.hidden;
+
+    /* github#44 -- 4. focus previews and an arrow moves, so not mouse-only */
+    slotSwatch(0).click();
+    offered(away).focus();
+    var keyed = room();
+    out.focused = keyed !== before;
+    offered(away).dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    out.arrowMoved = document.activeElement === offered((away + 1) % 12);
+    out.arrowPainted = room() !== keyed && room() !== before;
+    escape();
+    out.keyboardPutBack = room() === before;
+
+    /* github#44 -- 5. the ribbon column paints ribbons, never boards */
+    var boards = read("--spine-tint");
+    slotSwatch(1).click();
+    fire(offered(away), "mouseenter");
+    out.threadOnly = room() !== before && read("--spine-tint") === boards;
+    escape();
+    out.threadPutBack = room() === before;
+
+    /* github#44 -- 6. it goes back to what it opened on, not the look's own */
+    slotSwatch(0).click();
+    offered(away).click();
+    var committed = room();
+    out.committed = committed !== before && __vs.settings().palette.length === 12;
+    slotSwatch(0).click();
+    fire(offered((away + 3) % 12), "mouseenter");
+    out.previewedOverCommitted = room() !== committed;
+    escape();
+    out.backToCommitted = room() === committed;
+
+    /* github#44, decisions/0013 -- 7. nothing is left open or in flight */
+    document.getElementById("vs-mpalettereset").click();
+    out.reset = room() === before;
+    out.finalShelved = books() === shelved;
+    document.getElementById("vs-mclose").click();
+    out.shut = menu.hidden && document.getElementById("vs-manage").hidden;
+    return out;
+  })()`);
+  const want = ["laidOut", "opened", "openedQuiet", "painted", "stillPacked", "stillShelved",
+                "followed", "escaped", "escapedClean", "packedBack", "paintedForLeave",
+                "leftAlone", "stillOpen", "paintedAgain", "clickedOff", "focused", "arrowMoved",
+                "arrowPainted", "keyboardPutBack", "threadOnly", "threadPutBack", "committed",
+                "previewedOverCommitted", "backToCommitted", "reset", "shut", "finalShelved"];
+  const bad = want.filter((k) => r[k] !== true);
+  const ok = !bad.length && r.saved === 0 && r.wearing > 0;
+  return { ok,
+           detail: ok
+             ? `the pointer, the keyboard, Escape and a click outside all paint ${r.wearing} ` +
+               "spines and put back exactly what was there; nothing was saved, the ribbon " +
+               "column paints only ribbons, and no box, address or count moved"
+             : bad.length
+               ? `${bad.join(", ")} -- not what a preview does`
+               : r.wearing > 0
+                 ? `a hover wrote ${r.saved} colours to settings; a preview saves nothing`
+                 : "no spine wears any of the twelve, so nothing was measured" };
+});
 
 check("the theme follows the host, and the slots are re-read when it changes", async (p) => {
   const r = await p.j(`(function(){
@@ -5434,6 +5607,29 @@ async function capture(page, out) {
       var sheet = ${JSON.stringify(SHOT_OPEN)};
       if (sheet === "builder") { document.getElementById("vs-newshelf").click(); return; }
       document.getElementById("vs-manageopen").click();
+      /* github#44 -- the popover open, one of the twelve under the pointer */
+      if (sheet === "swatch") {
+        var body = document.querySelector("#vs-manage .vs-sheetbody").getBoundingClientRect();
+        var worn = {}, spines = document.querySelectorAll("#vs-shelves .vs-spine");
+        for (var i = 0; i < spines.length; i++) {
+          var b = spines[i].getBoundingClientRect();
+          if (b.bottom < 0 || b.top > innerHeight || b.right < 0 || b.left > innerWidth) continue;
+          if (!(b.right <= body.left || b.left >= body.right ||
+                b.bottom <= body.top || b.top >= body.bottom)) continue;
+          var tint = getComputedStyle(spines[i]).getPropertyValue("--spine-tint").trim();
+          worn[tint] = (worn[tint] || 0) + 1;
+        }
+        var at = 0, best = -1;
+        __vs.slots().forEach(function (hex, k) {
+          var n = worn[hex] || worn[hex.toLowerCase()] || 0;
+          if (n > best) { best = n; at = k; }
+        });
+        document.querySelectorAll("#vs-mpalette .vs-dyerows tr")[at]
+          .querySelector(".vs-slot .vs-swatch").click();
+        var one = document.querySelectorAll("#vs-swatchpick .vs-swatches .vs-swatch")[(at + 6) % 12];
+        if (one) one.dispatchEvent(new MouseEvent("mouseenter", { bubbles: false }));
+        return;
+      }
       var pick = function (sel, value) {
         var input = document.querySelector(sel);
         if (!input) return;
@@ -5449,6 +5645,9 @@ async function capture(page, out) {
   if (SHOT_OPEN) {
     await page.eval(`(function(){
       if (${JSON.stringify(SHOT_OPEN)} === "builder") { document.getElementById("vs-bcancel").click(); return; }
+      if (${JSON.stringify(SHOT_OPEN)} === "swatch") {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      }
       document.getElementById("vs-mpalettereset").click();
       document.getElementById("vs-mclose").click();
     })(); void 0`);
