@@ -36,12 +36,46 @@ node scripts/lock.mjs release record --owner "who you are"   # always, even on f
 node scripts/lock.mjs status
 ```
 
+**`suite` is taken by the suite itself** (`github#8`). It was caller discipline until
+2026-09-11 — the docs told a person to wrap the run — and `smoke.mjs` contained no reference to
+`lock.mjs` at all, so the command the iteration loop is actually made of, `--only`, ran
+unguarded every time. Six worktrees were live when that was filed. Now the run acquires at
+startup, before the fixture store is touched and before any Chrome is launched, prints who
+holds it while it waits, and releases on exit, on a thrown error and on a signal — taking its
+browsers down first, since handing on the lock while our own Chromes still drive gives the next
+run the contended screen the lock exists to prevent. `--no-lock` is for a caller that already
+holds it and nothing else; wrapping a run by hand now waits for its own parent, and the refusal
+says so.
+
 A `mkdir` is the lock — atomic, and it survives a killed session as a **stale** entry rather
 than a permanent one. Stale windows are 20 minutes for `record` and 30 for `suite`; a run that
 exceeds them is a run somebody has to look at anyway.
 
 Screenshots need no lock: they go over CDP, so overlapping windows are harmless. Pass your own
-`--port`.
+`--port`. `--shot` is part of a suite run, so it is inside the suite's own lock anyway.
+
+## One fixture store, and nothing prunes a sibling
+
+`storeRoot` comes from `git rev-parse --git-common-dir`, so **every worktree of this repo
+resolves to the same `.fixtures`** — deliberately, so the gate sees one fixture set no matter
+where a push runs (`decisions/0004`). A fixture is named `<name>-<digest8>`, where the digest is
+sha256 over the three generator sources plus that fixture's args, which makes the directory
+content-addressed: editing a generator produces a *different* directory, not a changed one.
+
+Until `github#8` a miss deleted **every other digest of that fixture**, including the directory
+another worktree's Chrome had open. The digest moves on every save to a generator, so a worker
+editing one wiped the store for the other five on every run, and their next run regenerated and
+wiped it again. Two digests are allowed to coexist now — that is what naming a thing after its
+content is for — and a run collects only what is provably finished with: a fixture whose own
+stamp is older than `FIXTURE_MAX_AGE_DAYS`, and a `.building-` or `.retired-` scratch directory
+that is not this run's and is over an hour old.
+
+Publishing distinguishes the two ways the same digest can already be present. **Fresh** means
+another run published it while this one was building: keep theirs, drop ours, since the same
+digest is the same content. **Stale** means the weekly refresh — same digest, a stamp older than
+the window — and that directory is renamed aside, replaced, and then deleted, so nothing is ever
+removed out from under a path something may be reading, and nothing is renamed onto (on Windows
+that throws rather than replacing).
 
 ## Sharding, and what may not be sharded
 

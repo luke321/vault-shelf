@@ -74,14 +74,23 @@ of measuring it.** Build the page, drive it, read the numbers.
   claimed palette parity that nobody had ever verified. **Look at it.**
   `node scripts/smoke.mjs --only "<one check>" --shot out.png` writes the library and, beside
   it, `out-reader.png` of an open book — from the same Chrome the checks drive.
-- **Two things may not run twice at once, and `scripts/lock.mjs` is how you know.** A **screen
-  recording** grabs a display region, so a second take captures the first one's window; the
-  **full suite** drives Chrome over CDP, so two runs fight for ports and each blames the code.
-  Take the lock, do the thing, release it — always release, even on failure:
+- **Two things may not run twice at once, and `scripts/lock.mjs` is the mutex.** A **screen
+  recording** grabs a display region, so a second take captures the first one's window; **any
+  suite run** drives Chrome over CDP, so two runs fight for ports and a contended GPU, and each
+  blames the code.
+
+  **`smoke.mjs` takes the `suite` lock itself now** (`github#8`), at startup, and releases it on
+  exit and on a signal — so *every* run is covered, including the `--only` iteration loop, which
+  is the one nobody ever wrapped. **Do not wrap a suite run in `lock.mjs`**: it would wait for a
+  lock its own parent holds. A caller that legitimately holds the lock already — the pre-push
+  hook, `release.ps1` — passes `--no-lock`, and nothing else should. A blocked run names who is
+  holding it and gives up rather than starting.
+
+  A **screen recording** is still wrapped by hand, and it is the only thing that is:
 
   ```bash
-  node scripts/lock.mjs acquire suite --owner "#12 plaques"   # blocks; exit 1 = give up
-  node scripts/lock.mjs release suite --owner "#12 plaques"
+  node scripts/lock.mjs acquire record --owner "#12 plaques"   # blocks; exit 1 = give up
+  node scripts/lock.mjs release record --owner "#12 plaques"
   node scripts/lock.mjs status
   ```
 
@@ -91,6 +100,13 @@ of measuring it.** Build the page, drive it, read the numbers.
   other could not see and the two ran together anyway. A machine has one Chrome and one
   screen no matter which repository the suite belongs to.
   `--shot` is part of a suite run, so it is inside the lock like everything else.
+- **The fixture store is shared and content-addressed, and nothing prunes a sibling.** Every
+  worktree resolves the same `.fixtures` through git's common dir, so a fixture directory is
+  named after the digest of the generators that built it, and two digests coexist. A run
+  collects only what is provably finished with: a fixture older than the refresh window, and an
+  abandoned build directory. It used to delete every other digest of a fixture on a miss, which
+  pulled the vault out from under five other running suites every time somebody edited a
+  generator. `github#8`.
 - `git push` and merging into `develop` are separate asks, every time. `main` only ever
   receives `develop`.
 - **Only the orchestrator session pushes to `develop` or cuts a release.** A dispatched
@@ -108,7 +124,10 @@ of measuring it.** Build the page, drive it, read the numbers.
   section accounting for every merge since the last tag, every clip it embeds, every doc naming
   the version, the release body itself — is finished on `release/<version>` and read there
   before anything merges down. **Once the tag exists nothing changes**: a fix is the next patch
-  version. `.ai-context/releasing.md` opens with the commands that enumerate a range.
+  version. `.ai-context/releasing.md` opens with the commands that enumerate a range, and it is
+  the authority on the flow: every guard `release.ps1` refuses on and why, the dry run on the
+  release branch, the pull request to `main` (**the script never pushes the branch, only the
+  tag**), the release body's shape, and the `verification-<version>.md` every release owes.
 - Measure before and after; the numbers go into `.ai-context/changelog-detail.md`, which is
   the regression suite. A changed constant means `invariants.md` changes in the same commit.
 - Fixtures: three generated vaults (`scripts/make-*-vault.mjs`) in the shared store; never a
@@ -119,11 +138,20 @@ of measuring it.** Build the page, drive it, read the numbers.
   A fixture is even where a real vault is lopsided, and lopsided is the product. The generator
   refuses to finish if any real string reaches the output; that check has no skip flag either.
   `design/0013`.
+- **A tree is gated once.** A green full suite run stamps the git tree it measured
+  (`scripts/suite-stamp.mjs`, `decisions/0010`); the pre-push hook and `release.ps1` skip the
+  suite for a tree that already carries a stamp, and print the stamp they trust. `node
+  scripts/suite-stamp.mjs check` says what a push will do before you make it, `list` shows every
+  tree this machine has passed, and `release.ps1 -ForceSuite` re-earns one. A partial run
+  (`--only`, `--vault`, `--url`, `--look`) and a dirty tree never stamp, which is the point:
+  `SKIP_SMOKE=1` leaves no record of what was trusted, and a stamp cannot say "recently" — only
+  which tree, measured against which fixtures, and when.
 - `npm run lint` holds every finding at zero, and typechecks `src/core` under `strict` first.
   `check-pii`, `check-scope`, `check-network`, `check-comments` and the two determinism checks
   gate every push and have no skip flag.
 - Commit messages are sentences; `Closes #n` on its own line closes the issue when the work
-  reaches `main`.
+  reaches `develop` — `close-issues.yml` does it, since GitHub itself only resolves a keyword on
+  the default branch, which has to stay `main`.
 
 ## Where things are
 
@@ -135,6 +163,8 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
 | `scripts/smoke.mjs` | the invariant suite (Chrome over CDP), 66 checks over three vault shapes |
+| `scripts/release.ps1` | the local half of a release: the guards, the gates, the tag, the tag push. `-SelfTest` drives every refusal in a throwaway clone; `.ai-context/releasing.md` is the authority on the flow |
+| `scripts/suite-stamp.mjs` | which trees have passed the suite (`decisions/0010`), read by the pre-push hook and `release.ps1`. `--selftest` proves the hit and miss cases |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
 | `.ai-context/code-map.md` | **generated**: sections and functions of the two big files, with line numbers |
 | `.ai-context/code-index.md` | **generated**: issue → code sites, ADR/DDR → code sites, invariant → check, `__vs.*` → callers |

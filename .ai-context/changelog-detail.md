@@ -1,5 +1,165 @@
 # Changelog detail
 
+## 2026-09-11 — The suite takes its own lock, and stops deleting other worktrees' fixtures
+
+> github#8: "workers are not honoring our locks I think"
+
+Two faults with one symptom — parallel worktrees corrupting each other's measurements, and the
+failures looking like code bugs.
+
+**The mutex was never in the suite.** `scripts/lock.mjs` has existed since `design/0006` and two
+documents told a person to wrap a run in it, but `grep -n lock scripts/smoke.mjs` matched one
+unrelated comment line. The command the iteration loop is made of — `--only "<substring>"` — is
+the one nobody wraps. Six worktrees were live when this was filed.
+
+`smoke.mjs` acquires `suite` itself now, after the `--only` spelling is checked and before the
+store is touched or any Chrome starts, and releases on exit, on a throw and on a signal. Driven,
+not reasoned about:
+
+| run | result |
+|---|---|
+| `--only` while `vault-graph-86` held the lock, `--lock-timeout-ms 15000` | `WAITING ... held by vault-graph-86 for 13s`, `BUSY ... gave up after 15s`, exit 1, **no Chrome started** |
+| the same run, lock free | waited 54 s for the sister repo's suite, then `ACQUIRED`, ran, `RELEASED` |
+| a throw after acquiring (`--chrome C:/nope/chrome.exe`) | `ACQUIRED` → `RELEASED`, exit 1 |
+| `--no-lock` while `test-holder` held it | ran 1/1 × 3 shapes; `test-holder`'s lock still held afterwards |
+| `--only nothing-matches-this` | refused before the lock |
+
+The two callers that legitimately hold the lock already — the pre-push hook and `release.ps1` —
+pass `--no-lock`. Without that they would have waited for a lock their own parent held until the
+timeout ran out, so the refusal text names that case explicitly.
+
+**The store deleted the vault other runs were reading.** `storeRoot` is `git rev-parse
+--git-common-dir`, so all six worktrees share `C:\git-personal\vault-shelf\.fixtures`, and on a
+miss `gen()` removed every other `<name>-*` directory — including one another worktree's Chrome
+had open. The digest is sha256 over the three generator sources, so github#7, which is editing a
+generator, produced a new digest on every save and wiped the store for the other five on every
+run; their next runs regenerated and wiped it again.
+
+Nothing prunes by name now. Measured by seeding the shared store and forcing a miss (run twice,
+once against each version of the collection rule):
+
+| seeded | wanted | got |
+|---|---|---|
+| `demo-vault-deadbee1`, stamp dated today, with a marker file | survives | survived, marker intact |
+| `demo-vault-deadbee2`, stamp dated 30 days ago | collected | collected |
+| the real `demo-vault-5bd2a221`, stamp backdated 30 days, marker added | rebuilt | stamp day `2026-09-11`, marker gone |
+
+The third row is the trap: the first draft skipped the same-digest directory in the prune, which
+also made the **weekly refresh** unable to replace it — a fixture would have gone stale for ever
+while reporting itself fresh. Publishing now separates a fresh same-digest directory (another run
+published first: keep theirs, drop ours) from a stale one (rename aside, replace, delete), and
+never renames onto an existing path, which on Windows throws rather than replacing.
+
+### Gates
+
+| | Before | After |
+|---|---|---|
+| `grep -n lock scripts/smoke.mjs` | 1 unrelated comment | the suite takes and releases it |
+| `check-comments` baseline | 1096 | 1096 (new comments are bare pointers) |
+| `npm run lint` | 0 errors, 0 warnings | 0 errors, 0 warnings |
+| `smoke.mjs --only` one check, three shapes | 1/1 × 3 | 1/1 × 3 |
+
+## 2026-09-11 — A tree is gated once, and every release guard has been seen to fire
+
+> github#5, the first two groups: "Release guards and flow" and "Suite economics"
+
+### What a run actually costs here
+
+Measured under the `suite` lock on the reference machine, warm (no fixture regeneration),
+`smoke.mjs` exit 0, 66/66 on all three shapes:
+
+| | |
+|---|---|
+| full run, 198 checks (66 × 3 shapes) | **39.0 s** |
+| the same run cold, regenerating all three fixtures | 43 s |
+| the three builds | 7.7 s — demo 0.46 s, sparse 0.70 s, **10k 6.5 s** |
+| parallel lane: 12 shards of 53 checks over 4 Chromes | ~6 s of summed check time |
+| serial lane: 3 jobs of 13 layout-reading checks, one Chrome at a time | **22 s** (7 + 6 + 9) |
+| the six static gates + the code map | 2.95 s |
+| lint (`tsc --noEmit` over `src/core`, then typescript-eslint) | 4.0 s |
+| Chrome launches per run (one per job, `decisions/0008`) | 15 |
+
+**The serial lane is 79% of the check time**, the same shape as the sister repo's 76%, but the
+absolute total is 39 s against its 587 s: there is no WebGL cascade here to animate. So the
+stamp saves **about 78 s a release** (the three runs one tree was going to pay), not the twenty
+minutes it saves next door. The record says so rather than inheriting a number, and
+`decisions/0010` says why it was still worth doing: what it replaces is `SKIP_SMOKE=1`, which
+leaves no evidence of what was trusted.
+
+### The stamp, driven end to end
+
+The hook was run with the ref lines git hands a `pre-push` hook, which is the only way to
+measure the decision it actually makes:
+
+| push fed to the hook | what it did | wall |
+|---|---|---|
+| one stamped sha to `develop` | named the stamp — `tree 9bc801f ... (198 checks, commit 59cc4ae, fixtures demo-vault@2026-09-11 sparse-vault@2026-09-11 library-vault@2026-09-11)` — and skipped the suite | **7.5 s** |
+| one stamped sha to `develop` **and** one unstamped to `main` | named the hit, printed `no stamp for tree f884793` for the miss, took the lock, ran the suite (66/66 × 3), re-stamped | 201 s, of which **115 s waiting for the lock** |
+
+That second row is the lock earning its keep on its first outing: the `gates` worktree held it,
+and without it two suites would have driven Chrome at the same time — which is the failure that
+does not look like a failure, since each run then blames the code. The hook had no lock at all
+before this change. `suite-stamp --selftest`: **16/16**.
+
+### Every guard, and the tag count either side of it
+
+`release.ps1 -SelfTest`, ten cases, each against a throwaway bare `origin` plus a clone of it
+carrying the working tree's scripts. Every case asserts the tag count before and after:
+
+| case | guard that fired | tags |
+|---|---|---|
+| `v0.1.0` | `Drop the 'v': the tag must be bare semver (0.1.0)` | 0 → 0 |
+| `0.1` | `Version must look like 0.1.0` | 0 → 0 |
+| `9.9.9` | `manifest.json says 0.1.0, you asked for 9.9.9` | 0 → 0 |
+| the CHANGELOG section removed and committed | `CHANGELOG.md has no '## 0.1.0' section` | 0 → 0 |
+| on `not-main` | `On 'not-main', not main` | 0 → 0 |
+| `main` 1 commit ahead of `origin/main` | `main is 1 commit(s) ahead of origin/main` | 0 → 0 |
+| `main` 1 commit behind | `main is 1 commit(s) behind origin/main` | 0 → 0 |
+| detached on a commit `main` merged, with `-AllowAnyBranch` | `HEAD (a381916) is in origin/main's history but not on its first-parent line` | 0 → 0 |
+| a tracked file touched | `Working tree is dirty` | 0 → 0 |
+| nothing broken | reached `=== lint ===` | 0 → 0 |
+
+Three things the harness itself taught, all of them the same lesson as the code it tests.
+**The self-test must run the script on disk, not the one HEAD carries**: the first run reported
+ten failures that were all "the old script wants a mandatory `-Version`", because a clone is a
+clone of the last commit. **`origin` has to be the self-test's own**, because the guards fetch
+`origin/main` before measuring it, so a faked remote-tracking ref in a clone of the real
+repository is overwritten by the script under test. And **`@Args` splatted the automatic
+`$Args`** — empty — so every case ran with no version at all and gave the same refusal, ten
+identical failures that looked like a broken script and were a broken harness. That is the trap
+`Invoke-Native`'s own comment in this file records, met from the other side.
+
+### `close-issues`, rehearsed on real history and on a synthetic range
+
+`--dry-run` writes nothing; every row below is a dry run.
+
+| range | result |
+|---|---|
+| `4ff0cd4..10769c9` (the two docs-site commits) | 2 commits, **1 issue named**: `#1: would close` — attributed to `d58f582`, the *first* commit that named it, de-duplicating the second |
+| `1911284..4ff0cd4` | 2 commits, 0 issues named |
+| a synthetic 8-commit range over a **dotted tag range** `0.1.0..0.2.0` | 3 named: a subject-line `Fixes #7` de-duplicated against a later body `closes luke321/vault-shelf#7`; the issue-URL form; and a **mid-sentence** `this closes #14`, which is GitHub's own rule rather than this repo's own-line convention. Ignored, correctly: `fixed other/repo#9`, `Refs #11`, `fixe #12`, `prefix #12`, and `` `Closes #13` `` inside a backtick code span — so a commit *about* the convention closes nothing |
+| the same, against `luke321/vault-graph` | `#47: already closed, nothing to do`; `#95: is a pull request, skipped` — the two branches this repo's own history cannot exercise, since it has no closed issues and no pull requests yet |
+| a zero `before` | exit 1, `a new branch has no range to scan, nothing closed` |
+| an unreachable `before` | exit 1, names the sha |
+| a `before` that is not an ancestor of `after` (a force-push) | exit 1, `the branch was rewritten under this push` |
+| no `--range` | exit 2, usage |
+
+The dotted range matters because the documented rehearsal is a **tag** range, and the sister
+repo's first version of this script matched the range with a regex that forbade dots, so the one
+documented use printed usage. This one splits on the first `..` and lets `git cat-file`
+validate.
+
+### Gates
+
+| | Before | After |
+|---|---|---|
+| `check-comments` baseline | 1096 | 1096 (every new comment is a bare pointer; `.ps1` is not scanned) |
+| `npm run lint` | 0 errors, 0 warnings | 0 errors, 0 warnings |
+| `smoke.mjs` | 66/66 × 3 | 66/66 × 3, and now stamps the tree |
+| `release.ps1` | 292 lines, pushed the branch and the tag | **609** lines, pushes the tag alone |
+| `.githooks/pre-push` | 313 lines, no lock, suite every gated push | **377** lines, lock held, suite once per tree |
+| `.ai-context/releasing.md` | 125 lines | **295** (the sister repo's is 425; Sigma, the mobile harness and the per-feature doc gallery do not apply here) |
+
 ## 2026-09-11 — A ribbon per book colour, and the colours block became a table
 
 > "make it ribbons so you can choose a color per book color, so basically a table, use
