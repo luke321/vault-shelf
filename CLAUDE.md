@@ -144,6 +144,11 @@ of measuring it.** Build the page, drive it, read the numbers.
   generator. `github#8`.
 - `git push` and merging into `develop` are separate asks, every time. `main` only ever
   receives `develop`.
+- **Which session is the orchestrator is decided by where it stands.** A session opened in the
+  main checkout (`C:\git-personal\vault-shelf`, on `develop` or an integration branch) *is* the
+  orchestrator, and says so at the start rather than waiting to be told; a session opened in an
+  Orca worktree is a worker, and never becomes an orchestrator by finishing well. The checkout
+  is the role, so the answer never depends on who remembered to mention it.
 - **Only the orchestrator session pushes to `develop` or cuts a release.** A dispatched
   worktree — an Orca worktree of its own, never a child of the orchestrator's, one per piece of
   work — implements, runs its own gates, and stops at its own branch: it never pushes past that

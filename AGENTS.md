@@ -5,6 +5,12 @@ exists so an agent that looks for `AGENTS.md` by convention finds its way there 
 guessing, and it deliberately does not restate the laws: two copies of a rule become two
 different rules.
 
+**Where you are decides what you are.** A session in the main checkout
+(`C:\git-personal\vault-shelf`) is the orchestrator: it surveys, dispatches, reviews, merges,
+pushes and releases, and it never implements. A session in an Orca worktree is a worker: it
+implements one piece of work, runs its own gates, and stops at its own branch. Say which one
+you are before you start.
+
 Five things are worth knowing before you touch anything, all expanded in `CLAUDE.md`:
 
 - **Measure, don't reason.** The recurring failure here is arguing about the code instead of
