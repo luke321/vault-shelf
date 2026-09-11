@@ -1630,6 +1630,25 @@
 }
 .vault-shelf .vs-probe .vs-spine { --spine-h: 100px; }
 
+/* github#47, design/0021 -- THE PROBE IS MEASURED IN ONE FACE, AND IT IS NOBODY'S LOOK.
+ * Uprightness is an orientation, so it is geometry, and geometry is this file's. The probe
+ * hangs inside the element carrying `data-look`, so until now it inherited whichever face the
+ * page happened to be painted in and the same cover at the same width answered differently
+ * per look -- a `vertical-rl` title in one and a `horizontal-tb` one in the next.
+ * The stack is written out rather than taken from `var(--ui)` on purpose: `--ui` is a look's
+ * to redefine (leather does), and this face is pinned, so it moves only when someone decides
+ * it should. Specificity is 0-5-0 because a look's own title rule is 0-4-0 and its sheet is
+ * concatenated after this one. The glyphs a look draws may still be wider; the check says by
+ * how much. */
+.vault-shelf .vs-probe .vs-spine[data-upright="1"] .vs-title {
+  font: 600 13px/20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  letter-spacing: 0.04em;
+  word-spacing: normal;
+  text-transform: none;
+  font-feature-settings: normal;
+  font-variation-settings: normal;
+}
+
 /* A label of a letter or three stands upright: an Encyclopedia's A is read as A, not tilted. */
 .vault-shelf .vs-spine[data-upright="1"] .vs-title {
   writing-mode: horizontal-tb;
