@@ -253,6 +253,8 @@ const POINTER_DRIVEN = [
   "made on the shelf",
   "edited, emptied",
   "any shelf arranged by hand",
+  /* github#38 -- it overrides the viewport and reads every box in the rail. */
+  "scrolls sideways",
 ];
 const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
 
@@ -4616,6 +4618,71 @@ check("a narrower window grows rows, and a wide one centres the shelf", async (p
             `Worst overflow ${Math.max(wide.over, narrow.over, back.over)}px; the watcher saw ` +
             `${narrow.room.resizes} resizes, measured ${narrow.room.measured} times, last ` +
             `${narrow.room.last}px, packed for ${narrow.room.width}px`
+  };
+});
+
+/* github#38, design/0009 -- THE RAIL IS FIXED CONTROLS. `#vs-jump` was a nav of one chip per
+ * shelf with `flex: 1 1 auto` and `overflow-x: auto`, so it took whatever room was left and
+ * turned into a sideways strip inside a bar of fixed controls -- a second, worse copy of the
+ * library underneath it. Nothing in the rail scrolls sideways now, and this is what stops one
+ * growing back: it reads computed `overflow-x` as well as the boxes, because a strip that has
+ * not overflowed yet at this vault's shelf count still overflows at twenty. */
+check("the rail is fixed controls, and nothing in it scrolls sideways", async (p) => {
+  const at = async (width) => {
+    await p.send("Emulation.setDeviceMetricsOverride",
+                 { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+    /* design/0009 -- CDP resizes the viewport without telling the page. */
+    await p.j(`window.dispatchEvent(new Event("resize"))`);
+    await sleep(150);
+    return p.j(`(function(){
+      var rail = document.getElementById("vs-rail");
+      var inner = rail.querySelector(".vs-inner");
+      var kids = [].slice.call(inner.children).filter(function (k) {
+        return k.getClientRects().length > 0;
+      });
+      var scrollers = [];
+      [].slice.call(rail.querySelectorAll("*")).forEach(function (n) {
+        var ox = getComputedStyle(n).overflowX;
+        if (ox === "auto" || ox === "scroll") scrollers.push(n.id || n.className || n.tagName);
+      });
+      var over = [], rows = [], span = 0;
+      var name = function (k) { return k.id || (k.getAttribute("class") || k.tagName.toLowerCase()); };
+      kids.forEach(function (k) {
+        var b = k.getBoundingClientRect();
+        if (k.scrollWidth - k.clientWidth > 1) over.push(name(k) + " +" + (k.scrollWidth - k.clientWidth));
+        var mid = Math.round((b.top + b.bottom) / 2);
+        if (rows.indexOf(mid) < 0) rows.push(mid);
+        span += b.width;
+      });
+      var box = inner.getBoundingClientRect();
+      var gap = parseFloat(getComputedStyle(inner).gap) || 0;
+      return { width: width, rows: rows.length, scrollers: scrollers,
+               over: over, inner: Math.round(box.width),
+               railHigh: Math.round(rail.getBoundingClientRect().height),
+               free: Math.round(box.width - span - gap * Math.max(0, kids.length - 1)),
+               controls: kids.map(function (k) {
+                 return name(k) + " " + Math.round(k.getBoundingClientRect().width);
+               }) };
+    })()`);
+  };
+
+  const wide = await at(1180);
+  const narrow = await at(860);
+  await p.send("Emulation.clearDeviceMetricsOverride");
+  await sleep(250);
+
+  const ok = !wide.scrollers.length && !narrow.scrollers.length &&
+             !wide.over.length && !narrow.over.length && wide.rows === 1;
+  const say = (r) => `at ${r.width}px ${r.rows} row(s) ${r.railHigh}px high, ` +
+                     `${r.free}px free of ${r.inner}px (${r.controls.join(", ")})`;
+  return {
+    ok,
+    detail: `${say(wide)}; ${say(narrow)}; ` +
+            `${wide.scrollers.length + narrow.scrollers.length} sideways scroller(s)` +
+            (wide.scrollers.length || narrow.scrollers.length
+              ? `: ${wide.scrollers.concat(narrow.scrollers).join(", ")}` : "") +
+            (wide.over.length || narrow.over.length
+              ? `; overflowing: ${wide.over.concat(narrow.over).join(", ")}` : "")
   };
 });
 
