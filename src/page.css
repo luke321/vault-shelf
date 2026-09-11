@@ -1242,12 +1242,19 @@
   gap: 0;
   /* the last cut in a bank is pulled 1px past the line by the collapse below; this is it */
   padding-bottom: 1px;
-  max-height: calc(100% - 32px);
+  /* github#32 -- page.js writes `--vs-railcap` to the taller half of a banked index, so the
+   * banks come out the same height instead of one full one and a stub. */
+  max-height: var(--vs-railcap, calc(100% - 32px));
 }
 
-/* design/0015 -- THE LAYERS OF THE INDEX. A year tab is the widest and boldest, a month tab
- * steps in, a day tab steps in again: read down the edge and the shape says which is which
- * before the label does. */
+/* design/0015 -- THE LAYERS OF THE INDEX. A year tab is the boldest, a month tab steps in, a
+ * day tab steps in again: read down the edge and the shape says which is which before the
+ * label does. */
+/* github#32 -- THE STEP IS INSIDE THE CUT, not outside it. It was a margin, so every level
+ * had its own outer width and a bank had a ragged left edge -- which reads as hierarchy in
+ * one column and as a heap in two, side by side. As padding INSIDE the cut it is the same box
+ * every time, so the rail has one straight edge; and it is padding on the RIGHT, because the
+ * label is set against the fore-edge, so a deeper cut sits further in from it. */
 /* github#0 -- the glass tab is an index entry for the act of looking: same tab, same height,
  * and a wider glyph than a year so the eye finds it at the head of the strip. */
 .vault-shelf .vs-tabs .vs-findtab {
@@ -1269,8 +1276,8 @@
 }
 
 .vault-shelf .vs-tabs button[data-level="0"] { font-weight: 600; }
-.vault-shelf .vs-tabs button[data-level="1"] { margin-left: 8px; min-width: 36px; }
-.vault-shelf .vs-tabs button[data-level="2"] { margin-left: 16px; min-width: 30px; font-size: 10px; opacity: 0.85; }
+.vault-shelf .vs-tabs button[data-level="1"] { padding-right: 17px; }
+.vault-shelf .vs-tabs button[data-level="2"] { padding-right: 25px; font-size: 10px; opacity: 0.85; }
 
 /* github#32, design/0021 -- A CUT INTO THE PAGE, not a plate stuck to its edge. The radius
  * was on the OUTER corners with the inner border dropped, which is a button hanging off the
@@ -1282,11 +1289,22 @@
   border-radius: 3px 0 0 3px;
   border-right: 0;
   margin-bottom: -1px;
-  min-width: 42px;
+  /* github#32 -- ONE BOX FOR EVERY CUT: the levels step inside it, so a bank is as wide as
+   * its widest label and every cut in it is that width, which is one straight edge. */
+  min-width: 46px;
   text-align: right;
   font-variant-numeric: tabular-nums;
   /* github#9 */
   box-shadow: -1px 1px 2px color-mix(in srgb, #000 14%, transparent);
+}
+
+/* github#32, design/0003 -- A RUN IS NAMED ON EVERY BANK IT REACHES, the way a plaque names
+ * every row its books stand on. The repeat opens the same place as the original, so it is a
+ * tab and not a new kind of thing; it is quieter, because the reader is meant to read past it
+ * to the cuts under it. */
+.vault-shelf .vs-tabs button[data-head="1"] {
+  opacity: 0.72;
+  box-shadow: none;
 }
 
 /* github#32 -- ONE THUMB, not every cut you have passed. `aria-current` was set on every tab
@@ -1657,7 +1675,8 @@
   .vault-shelf .vs-page.vs-left { border-right: 0; border-bottom: 1px solid var(--border); }
   .vault-shelf .vs-page.vs-right { padding-right: 22px; }
   .vault-shelf .vs-tabs { flex-direction: row; position: static; padding: 0 18px 12px; flex-wrap: wrap; gap: 3px; }
-  .vault-shelf .vs-tabs button { border-radius: 3px; border-right: 1px solid var(--border); margin-bottom: 0; }
+  .vault-shelf .vs-tabs button { border-radius: 3px; border-right: 1px solid var(--border);
+                                 margin-bottom: 0; }
   .vault-shelf .vs-tabs .vs-findtab { margin-bottom: 0; }
   .vault-shelf button { min-height: 34px; }
 }

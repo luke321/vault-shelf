@@ -371,10 +371,13 @@ the widest, and it is the only one lit.
 **A run too long for the room continues in the bank to its left.** The rail was one column with
 `overflow: hidden`, so an index taller than the spread was simply cut off at the bottom and
 nothing said so. It wraps into banks now — the rightmost first, since that is the edge the
-thumb reaches — up to three of them and never more than a fifth of the spread, so the note's
-own prose keeps its column. What fits is measured rather than guessed: the index is drawn at
-full depth and, while it does not fit, rebuilt one step shallower — the deepest layer gathered
-into spans (`Jan–Apr`), then dropped, then the list collapsed into ranges. A tab you cannot hit
+thumb reaches — **two** of them at most and never more than a fifth of the spread, so the note's
+own prose keeps its column. Two banks are made to read as one object rather than as a column and
+a stub: the same box for every cut, so each bank has one straight edge; the same height for
+both, because the room is capped at the taller half; and a bank that opens inside a year repeats
+the year at its head, the way a plaque names every row its books stand on. What fits is measured
+rather than guessed: the index is drawn at full depth and, while it does not fit, rebuilt one
+step shallower — the deepest layer gathered into spans (`Jan–Apr`), then dropped, then the list collapsed into ranges. A tab you cannot hit
 is decoration, and a tab you cannot see is worse.
 
 **The contents follow.** A tab, Previous, Next, the arrow keys, a ribbon or a followed link

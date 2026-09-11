@@ -1843,13 +1843,26 @@ a tab past the spread's height was painted outside the box and clipped in silenc
 before the change on the fourteen fattest books per shape: demo **2 books losing 4 tabs**,
 sparse **1 losing 2**. Every tab check in the suite counted tabs and passed. It wraps into
 banks now (`flex-wrap: wrap-reverse`, so bank one is the right-hand edge the thumb reaches), up
-to **three** and never over **a fifth of the spread**; the right page's padding reads
+to **two** and never over **a fifth of the spread**; the right page's padding reads
 `calc(var(--vs-railw) + 5px)`, so one bank costs the 56px it always did and the prose pays only
 for the banks that exist. What fits is **measured, not calculated** -- the index is drawn at
 full depth, the banks are counted by their fore-edges, and while it does not fit it is rebuilt
 one step shallower: the deepest layer gathered into spans (`Jan–Apr`), then dropped, then the
 list collapsed into ranges. Once per book and once per resize, cached on `reader.tabs`, never
 per page turn.
+
+**Three banks was the first answer and a number could not see that it was wrong.** Every check
+passed on it -- nothing clipped, nothing outside the spread -- and it read as a heap of chips
+beside the book: three columns of small plates stop being one object, the layer step-in is
+illegible with three ragged edges side by side, and the reading order is unguessable. Two banks,
+and three things to make them one object: the level step moved from `margin-left` to
+`padding-right`, so every cut is one box and a bank has one straight edge; the room is capped at
+the taller half (`--vs-railcap`, off a measured pitch) so the banks come out level instead of
+one full and one stub; and a bank that opens inside a run repeats the run's label at its head,
+which is `design/0003`'s plaque law -- a **tab**, opening the same place as the original, marked
+`data-head` so it stays out of every count and out of the thumb. Placing a head costs a row and
+moves the split, so the split is solved with the heads in it rather than after them. Measured:
+**0 heads adrift** from a bank top on all three shapes; demo 2, sparse 0, 10k 12.
 
 **A tab is a cut, not a plate.** The radius was on the OUTER corners with the inner border
 dropped -- a button hanging off the fore-edge. Flipped: `border-radius: 3px 0 0 3px`,
@@ -1883,11 +1896,11 @@ Measured 2026-09-11, before / after, at 1600x1000 on the suite's own fixtures:
 
 | | before | after |
 |---|---|---|
-| demo `encyclopedia/0-9`, 168 notes | 17 tabs, largest step **51** | 65 tabs in 3 banks, step **20** |
+| demo `encyclopedia/0-9`, 168 notes | 17 tabs, largest step **51** | 42 tabs in 2 banks, step **20** |
 | sparse `encyclopedia/0-9`, 109 notes | 3 tabs (`0-9 1000 2024`), step **54** | 5 tabs (`0 1 2 3 4`), step **28** |
 | 10k `encyclopedia/0-9`, 412 notes | **1 tab**, step **412** | 9 tabs (`1`-`9`), step **58** |
 | 10k `people/-unfiled`, 6,937 notes | 11 tabs | 42 tabs in 2 banks |
-| widest rail, all shapes | 51px, 1 bank | 158px, 2 banks (15% of the spread) |
+| widest rail, all shapes | 51px, 1 bank | 158px, 2 banks (15%); most books still 1 bank |
 | clipped tabs | demo 4, sparse 2 | **0, 0, 0** |
 
 Two new checks: `no index tab is clipped` reads every tab's box against the rail's and the

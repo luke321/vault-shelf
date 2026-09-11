@@ -556,8 +556,9 @@ opens a multi-year tag book and asserts one level-0 tab per year, a month book a
 day tabs, and a book of three notes or fewer and asserts **0** tabs. Measured 2026-09-11:
 `#area/health/running` spans 11 years and gets 11 year tabs with **7** month tabs under them,
 18 in all; sparse `#archive` 4 years, **26** months, 30 in all; 10k `#archive` 11 years, **21**
-months, 32 in all. A month tab may now be a **span** of months (`Jan–Apr`) where the rail could
-not hold one per month, and the count ceiling here rose from **30 to 180** — thirty was what a
+months, 32 in all. A running head is not an entry and is excluded from every count here. A month
+tab may now be a **span** of months (`Jan–Apr`) where the rail could not hold one per month, and
+the count ceiling here rose from **30 to 180** — thirty was what a
 single-column rail held, and the rail runs in banks now, so what actually fits is measured by
 `"no index tab is clipped"` instead. `design/0015`, `design/0021`, `github#32`.
 
@@ -594,26 +595,27 @@ cut that had gone wrong, which is why `github#7` gave the titles real first word
 
 `"the reader's index tabs stay countable on the biggest book"` finds the largest book in the
 vault and asserts its tab count is between 1 and **180** — the structural ceiling before
-geometry has looked at it — and that it stands in at most **three banks**. It asserted 26,
+geometry has looked at it — and that it stands in at most **two banks**. It asserted 26,
 which was the whole index a single-column rail could hold; the rail wraps into banks now and
 what fits is the window's business, so this only catches a runaway cut and
 `"no index tab is clipped"` is the real gate. Measured 2026-09-11 in the suite's own windows:
-demo `people/-unfiled` **250 notes behind 124 tabs in 3 banks**, sparse `people/-unfiled` 501
-notes behind **33** in 1 bank, 10k `people/-unfiled` 6,937 notes behind **132** in 3 banks. The
-same books at 1600x1000 read 47, 33 and 42 — the count follows the window's height by design,
+demo `people/-unfiled` **250 notes behind 69 tabs in 2 banks**, sparse `people/-unfiled` 501
+notes behind **33** in 1 bank, 10k `people/-unfiled` 6,937 notes behind **72** in 2 banks. The
+same books at 1600x1000 read 47, 33 and 43 — the count follows the window's height by design,
 which is why the assertions are geometric and the counts are printed rather than asserted.
 `design/0021`, `github#32`.
 
 `"no index tab is clipped: the tabs fit the rail and the rail fits the spread"` opens the
 twelve fattest books on the shape plus every Encyclopedia volume and asserts, for each, that
 **no tab's box falls outside the rail's**, that the rail's box is inside the spread's, that
-there are at most **three banks**, that the rail is at most a **fifth of the spread**, and that
-exactly one tab carries `aria-current`. It prints the longest index, the widest rail and its
-share per shape. Measured 2026-09-11: demo **40 books, longest `encyclopedia/0-9` at 125 tabs
-over 250 notes in 3 banks, widest rail 151px (14%)**; sparse 34 books, longest 34 tabs in 1
-bank, 51px (5%); 10k 39 books, longest 133 tabs in 3 banks, 151px (14%) — **0 clipped, 0 rails
-outside the spread, 0 over three banks, 0 over a fifth, 0 with more than one tab lit** on all
-three.
+there are at most **two banks**, that the rail is at most a **fifth of the spread**, that
+exactly one tab carries `aria-current`, and that every running head stands at the **top of a
+bank** — one that drifted would be a duplicate entry rather than a repeat. It prints the longest
+index, the widest rail and its share per shape. Measured 2026-09-11: demo **40 books, longest
+`people/-unfiled` at 71 tabs over 250 notes in 2 banks, widest rail 158px (15%), 2 running
+heads**; sparse 34 books, longest 34 tabs in 1 bank, 51px (5%), 0 heads; 10k 39 books, longest
+74 tabs in 2 banks, 157px (14%), 12 heads — **0 clipped, 0 rails outside the spread, 0 over two
+banks, 0 over a fifth, 0 with more than one tab lit, 0 heads adrift** on all three.
 
 This check did not exist and is why `github#32` shipped: `.vs-tabs` was `overflow: hidden`, so
 a tab past the spread's height was painted outside the box and cut off in silence while every
@@ -628,7 +630,8 @@ that there are at least four of them, that no title's leading digits have been r
 and that **the largest step is at most a quarter of the book** — or, for a volume of plain
 numbers, that there are as many tabs as its titles admit at one digit, which is the data's
 limit rather than the code's. **The step is the number this check is about.** Measured
-2026-09-11 — demo: 168 notes, 165 ISO-titled, **31 tabs, largest step 28**; sparse: 109 notes,
+2026-09-11 — demo: 168 notes, 165 ISO-titled, **31 tabs, largest step 28** (42 tabs and a step
+of 20 at 1600x1000, where the rail is taller); sparse: 109 notes,
 1 ISO-titled, **5 tabs (`0 1 2 3 4`), step 28**, 5 admitted; 10k: 412 notes, none ISO-titled,
 **9 tabs (`1`–`9`), step 58**, 9 admitted.
 

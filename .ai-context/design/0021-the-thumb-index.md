@@ -31,13 +31,14 @@ the other way round: the leaf is cut, so the tab is square and flush where the p
 the arc is on the inside, where the knife went in. Flipping it is one line and it is the whole
 difference between a segmented control stuck to the side and a bite taken out of the book.
 
-Three things, and all of them geometry, so they live in `page.css` and are the same in all
-three looks (`design/0016` — a look is paint, and **it may not resize a control**):
+Four things, and all of them geometry, so they live in `page.css` and are the same in all three
+looks (`design/0016` — a look is paint, and **it may not resize a control**):
 
 | | |
 |---|---|
 | the **notch** | `border-radius: 3px 0 0 3px`, `border-right: 0`. Flush at the fore-edge, arced on the inside |
 | the **stack** | `gap: 3px → 0` with `margin-bottom: -1px`, so adjacent hairlines collapse into one rule. The strip reads as one cut edge divided into leaves rather than a column of floating plates. The rail carries 1px of bottom padding to pay back the last cut in each bank, which the collapse pulls one pixel past its line |
+| the **step** | a deeper level is set in from the fore-edge by `padding-right`, **inside** the cut. It was a `margin-left`, so every level had its own outer width; that reads as hierarchy down one column and as a heap in two side by side, because each bank then has its own ragged edge. As padding it is one box every time and the rail has one straight edge — and on the right, because the label is set against the fore-edge and a deeper cut sits further in from it |
 | the **thumb** | the accent fill, and nothing else. Pulling the open cut further out of the page was tried and dropped: a bank stretches its cuts to one width, so a wider tab widens the **bank**, and the bank it sits in changes as you read |
 
 The shadow follows the geometry: `1px 1px` (down and right, off a plate) became `-1px 1px`
@@ -59,22 +60,40 @@ rail is no different. `flex-wrap: wrap-reverse` on the column is what does it: a
 wraps into columns, and **reverse** puts line one at the right, which is the edge the thumb
 reaches. Bank one is rightmost, bank two to its left.
 
-**Three banks, and a fifth of the spread.** The rail stands over the right-hand page, so every
-bank is paid for out of the prose column. One bank is 51px (the right page's `padding-right`
+**Two banks, and a fifth of the spread.** The rail stands over the right-hand page, so every
+bank is paid for out of the prose column. One bank is 46–51px (the right page's `padding-right`
 has always been 56px, and now reads `calc(var(--vs-railw) + 5px)` so it pays only for the banks
-that exist). Three banks of year and month tabs measure **151–158px, about 14–15% of the
-spread**; three banks of `Sep–Oct` labels would be 235px, which is a sidebar, so the width is
-capped as well as the count. Measured widest across all three fixtures after the change: 158px.
+that exist); two are 101–158px, **9–15% of the spread**. The width is capped as well as the
+count, because three banks of `Sep–Oct` labels are 235px where three of `Sep` are 151px.
+
+**Three banks was the first answer and it was wrong.** It passed every check — nothing clipped,
+nothing outside the spread — and it looked like a heap of chips beside the book rather than an
+edge of it. What a number cannot see: three columns of small plates stop reading as one object,
+the layer step-in is illegible once three ragged edges stand side by side, and the reading order
+(down the rightmost, then jump to the top of the middle) is unguessable. *Look at it* is a law
+in this repo for exactly this, and the first cut of this record was written without doing it.
+
+### Two banks have to read as one object
+
+Flex fills the first line to the brim and dribbles the rest into the next, so the natural result
+is one full bank and a stub — two columns of different heights and different widths, the second
+opening halfway through a year with nothing to say which year. Three things fix it:
+
+- **The same box for every cut**, which is the `step` row above: one straight edge per bank.
+- **The same height for both banks.** The room is capped at the taller half rather than at
+  everything one bank could hold — `page.js` measures a cut's pitch off two neighbours and
+  writes `--vs-railcap`, so the banks come out level. The glass tab counts as a row of the
+  first bank, because it is one.
+- **A run is named on every bank it reaches**, which is `design/0003`'s plaque law: a plate says
+  what is under it. A bank that opens inside 2024 repeats `2024` at its head. The repeat is a
+  **tab**, opening the same place as the original, so it is not a new kind of thing; `data-head`
+  only makes it quieter and keeps it out of every count and out of the thumb. Placing one costs
+  a row, which moves the split, so the split is solved with the heads in it rather than after
+  them — widen by a row and re-place, until everything is inside the banks allowed.
 
 **Rejected: scrolling the rail.** A scrolling index is the same lie as a clipped one — what you
 cannot see, you do not know is there — and nothing in this product scrolls sideways or hides a
 run behind an edge.
-
-**The cost of banking, stated plainly:** a run that wraps loses its header. A bank that begins
-mid-2023 shows `Sep–Dec` at its top with `2023` at the bottom of the bank to its right.
-`design/0003`'s plaque law would repeat the label; a tab cannot, because a repeated tab would
-have to point at a position *behind* the one above it, and a printed index does not do that.
-The step-in geometry is what tells you it is a child of something above. Left as it is.
 
 ## Fit is measured, not calculated
 
@@ -90,8 +109,8 @@ fore-edges, and while it does not fit rebuilds it one step shallower and draws a
 3. **then the list collapses into ranges**, halving each time, which is what a letter list over
    26 always did.
 
-A handful of passes, once per book and once per resize, never per page turn: the fitted list is
-held on `reader.tabs` and `goTo` redraws from it. A rail that is not laid out yet — the reader
+A handful of passes, once per book and once per resize, never per page turn: the fitted list —
+running heads and all — is held on `reader.tabs` and `goTo` redraws from it. A rail that is not laid out yet — the reader
 still hidden — draws once and caches nothing. Under the 860px measure the rail is a wrapping
 row under the pages, where a bank is not a thing, and the fit step stands aside.
 
@@ -173,9 +192,10 @@ under years even where each holds one or two notes.
 |---|---|---|
 | demo, clipped tabs over the 14 fattest books | **2 books, 4 tabs** | 0 |
 | sparse, clipped tabs | **1 book, 2 tabs** | 0 |
-| demo `encyclopedia/0-9` (168 notes) | 17 tabs, largest step **51** notes | 65 tabs in 3 banks, step **20** |
+| demo `encyclopedia/0-9` (168 notes) | 17 tabs, largest step **51** notes | 42 tabs in 2 banks, step **20** |
 | sparse `encyclopedia/0-9` (109 notes) | 3 tabs (`0-9 1000 2024`), step **54** | 5 tabs (`0 1 2 3 4`), step **28** |
 | 10k `encyclopedia/0-9` (412 notes) | **1 tab**, step **412** | 9 tabs, step **58** |
-| 10k `people/-unfiled` (6,937 notes) | 11 tabs | 42 tabs in 2 banks |
+| 10k `people/-unfiled` (6,937 notes) | 11 tabs | 43 tabs in 2 banks |
 | widest rail, all shapes | 51px | 158px (15% of the spread) |
+| most books, all shapes | 51px, 1 bank | **still 1 bank** — two is what the long books need |
 | tabs lit at the end of a book | up to **29 of 29** | **1** |

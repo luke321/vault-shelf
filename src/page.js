@@ -2111,7 +2111,7 @@ function mountVaultShelf(root, data, options) {
    */
   /**
    * A place in the contents, and how deep the cut that names it is.
-   * @typedef {{ label: string, at: number, level?: number }} Section
+   * @typedef {{ label: string, at: number, level?: number, head?: boolean }} Section
    */
   /** @param {Book} book @returns {Section[]} */
   function indexSections(book) {
@@ -2361,11 +2361,11 @@ function mountVaultShelf(root, data, options) {
 
   /**
    * github#32 -- HOW FAR THE INDEX MAY GROW. The rail stands over the right-hand page, so
-   * every bank is paid for out of the prose column: three banks is where that stops being an
-   * edge, and a fifth of the spread is where it stops being one whatever the labels say --
-   * three banks of `Sep-Oct` are half again the width of three banks of `Sep`.
+   * every bank is paid for out of the prose column. TWO: three banks of small plates stop
+   * reading as an edge of the book and start reading as a heap beside it, which is what the
+   * first cut of this did. A fifth of the spread caps it whatever the labels say.
    */
-  var BANKS = 3;
+  var BANKS = 2;
   var RAIL_SHARE = 5;
 
   /**
@@ -2405,17 +2405,23 @@ function mountVaultShelf(root, data, options) {
    */
   function fitTabs(rail, sections) {
     var spread = rail.closest(".vs-spread");
+    rail.style.removeProperty("--vs-railcap");
     drawTabs(sections);
     /* Under the measure the rail is a wrapping ROW under the pages (page.css), where a bank
      * is not a thing and the room is the whole width; there is nothing to fit. */
     if (!(spread instanceof HTMLElement) ||
         WIN.getComputedStyle(rail).flexDirection !== "column") return sections;
-    for (var pass = 0; pass < 8 && rail.clientHeight >= 40 && !fits(rail, spread); pass++) {
+    var shown = sections;
+    for (var pass = 0; pass < 8; pass++) {
+      shown = evenBanks(rail, sections);
+      if (rail.clientHeight < 40 || fits(rail, spread)) break;
       var next = shallower(sections);
       if (!next) break;
       sections = next;
+      rail.style.removeProperty("--vs-railcap");
       drawTabs(sections);
     }
+    sections = shown;
     /* github#32 -- what the banks cost the prose, written where the padding can read it. A
      * rail with no width has not been laid out, and writing 0 here would put the tabs over
      * the text; the page.css default stands until it has. */
@@ -2445,6 +2451,96 @@ function mountVaultShelf(root, data, options) {
       edges[Math.round(kid.offsetLeft + kid.offsetWidth)] = true;
     }
     return Object.keys(edges).length;
+  }
+
+  /**
+   * github#32 -- TWO BANKS ARE ONE OBJECT OR THEY ARE A HEAP, and the first cut of this was a
+   * heap: flex fills one bank to the brim and dribbles the rest into a stub beside it, so the
+   * rail had two ragged columns of different heights, and the second one opened halfway
+   * through a year with nothing to say which year.
+   *
+   * So the room is capped at the taller half rather than at everything it could hold -- the
+   * banks come out the same height -- and a bank that opens inside a run repeats the run's
+   * label at its head, which is `design/0003`'s plaque law: a plate names every row its books
+   * stand on. The repeat is a tab and opens the same place as the original, so it is not a new
+   * kind of thing, and `data-head` only makes it quieter.
+   * @param {HTMLElement} rail @param {Section[]} sections @returns {Section[]}
+   */
+  function evenBanks(rail, sections) {
+    rail.style.removeProperty("--vs-railcap");
+    drawTabs(sections);
+    var banks = banksOf(rail);
+    if (banks < 2 || sections.length < 4) return sections;
+    var pitch = pitchOf(rail);
+    if (!pitch) return sections;
+    /* The glass tab stands at the head of the strip and takes a row of the first bank. A head
+     * takes a row of its own, so the split has to be solved WITH the heads in it: widen by a
+     * row and re-place them, until everything is inside the banks allowed. */
+    var rows = Math.ceil((sections.length + 1) / banks);
+    var out = withHeads(sections, rows);
+    while (out.length + 1 > rows * banks && rows < sections.length + 2) {
+      rows++;
+      out = withHeads(sections, rows);
+    }
+    rail.style.setProperty("--vs-railcap", (rows * pitch + 2) + "px");
+    drawTabs(out);
+    return out;
+  }
+
+  /**
+   * The list again, with a run's label repeated at the head of any bank that opens inside it.
+   * The bank a cut lands in is the slot it stands in, which is why this counts rather than
+   * measures: a head takes a slot of its own, so placing one moves everything after it.
+   * @param {Section[]} sections @param {number} rows @returns {Section[]}
+   */
+  function withHeads(sections, rows) {
+    /** @type {Section[]} */
+    var out = [];
+    /* the glass tab holds the first slot of the first bank */
+    var slot = 1;
+    sections.forEach(function (section, i) {
+      if (slot % rows === 0) {
+        var head = runHead(sections, i);
+        if (head) { out.push(head); slot++; }
+      }
+      out.push(section);
+      slot++;
+    });
+    return out;
+  }
+
+  /**
+   * The unit the cut at `at` stands under, as a tab of its own -- null when it stands under
+   * nothing, which is when it is a top-level cut and names itself.
+   * @param {Section[]} sections @param {number} at @returns {Section|null}
+   */
+  function runHead(sections, at) {
+    var mine = sections[at];
+    if (!mine || !mine.level) return null;
+    for (var i = at - 1; i >= 0; i--) {
+      if ((sections[i].level || 0) < mine.level) {
+        return { label: sections[i].label, at: sections[i].at,
+                 level: sections[i].level || 0, head: true };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * One cut's height plus what the stack collapses between them, read off two neighbours in
+   * the same bank rather than added up from the stylesheet.
+   * @param {HTMLElement} rail @returns {number}
+   */
+  function pitchOf(rail) {
+    var kids = rail.children;
+    for (var i = 2; i < kids.length; i++) {
+      var a = /** @type {HTMLElement} */ (kids[i - 1]);
+      var b = /** @type {HTMLElement} */ (kids[i]);
+      if (b.offsetLeft === a.offsetLeft && b.offsetTop > a.offsetTop) {
+        return b.offsetTop - a.offsetTop;
+      }
+    }
+    return 0;
   }
 
   /**
@@ -2522,11 +2618,14 @@ function mountVaultShelf(root, data, options) {
      * `aria-current`, so a book read to its end lit the whole rail and said nothing about
      * where you were; the open cut is the last one the page has reached. */
     var openAt = -1;
-    sections.forEach(function (section, i) { if (section.at <= reader.index) openAt = i; });
+    sections.forEach(function (section, i) {
+      if (section.at <= reader.index && !section.head) openAt = i;
+    });
     sections.forEach(function (section, i) {
       var b = el("button", "", section.label);
       b.type = "button";
       b.setAttribute("data-level", String(section.level || 0));
+      if (section.head) b.setAttribute("data-head", "1");
       if (i === openAt) b.setAttribute("aria-current", "true");
       on(b, "click", function () { goTo(section.at); });
       box.appendChild(b);

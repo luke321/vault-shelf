@@ -814,8 +814,9 @@ check("the index tabs cut the book the way the book is ordered", async (p) => {
   const r = await p.j(`(function(){
     function tabsFor(id) {
       __vs.openBook(id, null);
-      var out = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab)"))
-        .map(function (b) { return b.textContent; });
+      var out = [].slice.call(
+        document.querySelectorAll("#vs-tabs button:not(.vs-findtab):not([data-head])")
+      ).map(function (b) { return b.textContent; });
       var titles = [].slice.call(document.querySelectorAll("#vs-contents .vs-t"))
         .map(function (t) { return t.textContent; });
       __vs.closeReader();
@@ -856,7 +857,9 @@ check("the index tabs cut the book the way the book is ordered", async (p) => {
   const rising = r.tabs.every((t, i) => i === 0 || r.tabs[i - 1].toLowerCase() <= t.toLowerCase());
   const enough = r.tabs.length >= Math.min(4, r.possible);
   const deep = enough && rising && r.tabs.every((t) => t.indexOf(r.key) === 0);
-  const dateish = r.personTabs.every((t) => /^[0-9]|^[A-Z][a-z]{2}$/.test(t));
+  /* github#32 -- a month tab may be a span (`Oct-Nov`) where the rail could not hold one per
+   * month; it is still a date, which is all this asserts. */
+  const dateish = r.personTabs.every((t) => /^[0-9]|^[A-Z][a-z]{2}(\u2013[A-Z][a-z]{2})?$/.test(t));
   const ok = deep && r.ordered && (r.personTabs.length === 0 || dateish);
   return {
     ok,
@@ -4096,7 +4099,11 @@ check("the date index is layered: years over months over days, each only where i
   const r = await p.j(`(function(){
     var tabsOf = function (id) {
       __vs.openBook(id, null);
-      var t = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab)")).map(function (b) {
+      /* github#32 -- a running head repeats the run its bank opens inside, so it is not an
+       * entry and nothing that counts entries counts it. */
+      var t = [].slice.call(
+        document.querySelectorAll("#vs-tabs button:not(.vs-findtab):not([data-head])")
+      ).map(function (b) {
         return { label: b.textContent, level: Number(b.getAttribute("data-level") || 0) };
       });
       __vs.closeReader();
@@ -4121,6 +4128,7 @@ check("the date index is layered: years over months over days, each only where i
     var monthsLook = months.every(function (t) {
       return /^[A-Z][a-z]{2}(\\u2013[A-Z][a-z]{2})?$/.test(t.label);
     });
+    var tagHeads = document.querySelectorAll('#vs-tabs button[data-head]').length;
     /* A month book: one year, one month -- neither is drawn; days are, if there are more than three notes. */
     var month = pick("months", function (b) { return b.key !== "-undated" && b.notes.length > 3; });
     var monthTabs = month ? tabsOf(month.id) : [];
@@ -4167,11 +4175,13 @@ check("the reader's index tabs stay countable on the biggest book", async (p) =>
       edges[Math.round(b.offsetLeft + b.offsetWidth)] = true;
     });
     return { book: biggest.id, notes: biggest.notes.length, banks: Object.keys(edges).length,
-             tabs: rail.querySelectorAll("button:not(.vs-findtab)").length };
+             tabs: rail.querySelectorAll("button:not(.vs-findtab):not([data-head])").length,
+             heads: rail.querySelectorAll("button[data-head]").length };
   })()`);
-  return { ok: r.tabs > 0 && r.tabs <= 180 && r.banks <= 3,
+  return { ok: r.tabs > 0 && r.tabs <= 180 && r.banks <= 2,
            detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} tabs in ${r.banks} bank(s) ` +
-                   `(ceiling 180 tabs, 3 banks; what a bank holds is the window's)` };
+                   `and ${r.heads} running head(s) (ceiling 180 tabs, 2 banks; what a bank ` +
+                   `holds is the window's)` };
 });
 
 /* github#32 -- THE CHECK THAT WOULD HAVE CAUGHT IT. Every tab check counted tabs, and a tab
@@ -4212,7 +4222,13 @@ check("no index tab is clipped: the tabs fit the rail and the rail fits the spre
         railIn: rb.top >= sb.top - 0.5 && rb.bottom <= sb.bottom + 0.5 &&
                 rb.right <= sb.right + 0.5 && rb.left >= sb.left - 0.5,
         share: Math.round(rb.width / spread.clientWidth * 100),
-        current: rail.querySelectorAll('button[aria-current="true"]').length
+        current: rail.querySelectorAll('button[aria-current="true"]').length,
+        /* github#32 -- a running head names the run its bank opens inside, so it stands at the
+         * top of a bank and nowhere else; one that drifted would be a duplicate entry. */
+        heads: rail.querySelectorAll("button[data-head]").length,
+        strays: [].slice.call(rail.querySelectorAll("button[data-head]")).filter(function (h) {
+          return h.offsetTop !== rail.querySelector("button").offsetTop;
+        }).length
       });
       __vs.closeReader();
     });
@@ -4220,21 +4236,24 @@ check("no index tab is clipped: the tabs fit the rail and the rail fits the spre
   })()`);
   const clipped = r.filter((x) => x.outside > 0);
   const loose = r.filter((x) => !x.railIn);
-  const banked = r.filter((x) => x.banks > 3);
+  const banked = r.filter((x) => x.banks > 2);
   const wide = r.filter((x) => x.share > 20);
   /* github#32 -- and exactly one thumb: every tab at or before the page used to be lit. */
   const lit = r.filter((x) => x.current > 1);
+  const strays = r.filter((x) => x.strays > 0);
+  const heads = r.reduce((n, x) => n + x.heads, 0);
   const worst = r.slice().sort((a, b) => b.tabs - a.tabs)[0];
   const banks = r.slice().sort((a, b) => b.banks - a.banks)[0];
   return {
     ok: clipped.length === 0 && loose.length === 0 && banked.length === 0 && wide.length === 0 &&
-        lit.length === 0 && r.length >= 10,
+        lit.length === 0 && strays.length === 0 && r.length >= 10,
     detail: `${r.length} books opened; longest index ${worst.id} at ${worst.tabs} tabs over ` +
             `${worst.notes} notes in ${worst.banks} bank(s), rail ${worst.w}px; widest rail ` +
             `${banks.w}px in ${banks.banks} bank(s) (${banks.share}% of the spread); ` +
             `${clipped.length} clipped, ${loose.length} rails outside the spread, ` +
-            `${banked.length} over three banks, ${wide.length} over a fifth of the spread, ` +
-            `${lit.length} with more than one tab lit` +
+            `${banked.length} over two banks, ${wide.length} over a fifth of the spread, ` +
+            `${lit.length} with more than one tab lit; ${heads} running head(s), ` +
+            `${strays.length} of them not at the top of a bank` +
             (clipped.length ? ` -- ${clipped.map((x) => x.id + " loses " + x.outside).join("; ")}` : "")
   };
 });
@@ -4248,7 +4267,9 @@ check("a volume whose rows read as dates is indexed by date, not by year", async
     var vol = enc.books.filter(function (b) { return b.key === "0-9"; })[0];
     if (!vol) return { none: "no numeric volume here" };
     __vs.openBook(vol.id, null);
-    var tabs = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab)"));
+    var tabs = [].slice.call(
+      document.querySelectorAll("#vs-tabs button:not(.vs-findtab):not([data-head])")
+    );
     /* A tab is a position, so the step is read by pressing it and asking where it landed. */
     var ats = tabs.map(function (t) { t.click(); return __vs.reader().index; });
     var step = 0;
