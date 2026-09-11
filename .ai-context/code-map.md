@@ -4,7 +4,7 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 4169 lines, 23 sections, 181 functions
+## `src/page.js` — 4166 lines, 23 sections, 181 functions
 
 ### Sections
 
@@ -24,15 +24,15 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1630–1744 | the peek |
 | 1745–1859 | the dye menu |
 | 1860–1906 | the shelf parts as you type |
-| 1907–2929 | reader |
-| 2930–3182 | builder |
-| 3183–3480 | manage |
-| 3481–3627 | the twelve, offered |
-| 3628–3649 | filters |
-| 3650–3741 | refresh |
-| 3742–3895 | the wiring |
-| 3896–4129 | debug api — stripped from the plugin build |
-| 4130–4169 | the wiring (continued) |
+| 1907–2920 | reader |
+| 2921–3173 | builder |
+| 3174–3471 | manage |
+| 3472–3618 | the twelve, offered |
+| 3619–3640 | filters |
+| 3641–3732 | refresh |
+| 3733–3886 | the wiring |
+| 3887–4126 | debug api — stripped from the plugin build |
+| 4127–4166 | the wiring (continued) |
 
 ### Functions
 
@@ -144,83 +144,83 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1984 | `renderMarks` |
 | 2050 | `renderContents` |
 | 2081 | `revealCurrent` |
-| 2117 | `indexSections` |
-| 2151 | `rangesOf` |
-| 2159 | · `from` |
-| 2161 | · `to` |
-| 2179 | `cutBy` |
-| 2203 | `letterTabs` |
-| 2224 | `titlePrefix` |
-| 2245 | `titleDate` |
-| 2266 | `volumeTabs` |
-| 2296 | `dateTabs` |
-| 2347 | `runsOf` |
-| 2383 | `renderTabs` |
-| 2406 | `fitTabs` |
-| 2435 | `fits` |
-| 2445 | `banksOf` |
-| 2469 | `evenBanks` |
-| 2496 | `withHeads` |
-| 2517 | `runHead` |
-| 2534 | `pitchOf` |
-| 2553 | `shallower` |
-| 2573 | `thinned` |
-| 2579 | · `flush` |
-| 2600 | `drawTabs` |
-| 2641 | `findInBook` |
-| 2649 | `renderNote` |
-| 2704 | `renderMeta` |
-| 2723 | `linked` |
-| 2748 | `renderMarkdownInto` |
-| 2799 | `goTo` |
-| 2828 | `openNote` |
-| 2860 | `noteByLink` |
-| 2873 | `shelfById` |
-| 2881 | `isBookmarked` |
-| 2890 | `toggleBookmark` |
-| 2905 | `previousCollection` |
-| 2918 | `findBook` |
-| 2942 | `openBuilder` |
-| 2968 | `closeBuilder` |
-| 2974 | `writeBuilderFields` |
-| 3021 | `readBuilderFields` |
-| 3052 | `fillSourceValues` |
-| 3061 | `fillValuesInto` |
-| 3077 | `fillProperties` |
-| 3096 | `fillRecipes` |
-| 3115 | `previewBuilder` |
-| 3133 | `saveBuilder` |
-| 3166 | `seedOrder` |
-| 3177 | `uniqueId` |
-| 3185 | `openManage` |
-| 3194 | `newShelfFromManage` |
-| 3210 | `deleteShelf` |
-| 3233 | `renderManage` |
-| 3371 | `renderColours` |
-| 3400 | `colourRow` |
-| 3427 | `anyRibbon` |
-| 3442 | `slotControl` |
-| 3492 | `openSwatchPick` |
-| 3531 | `closeSwatchPick` |
-| 3541 | `inkOn` |
-| 3543 | · `lin` |
-| 3552 | `pickSlot` |
-| 3560 | `resetSlot` |
-| 3573 | `setPalette` |
-| 3587 | `setRibbon` |
-| 3600 | `toHex` |
-| 3609 | · `hex` |
-| 3614 | `reorder` |
-| 3630 | `renderActiveFilters` |
-| 3643 | `clearFilters` |
-| 3663 | `paintOrder` |
-| 3681 | `fillLooks` |
-| 3693 | `toggleOrder` |
-| 3702 | `applyLook` |
-| 3711 | `refresh` |
-| 3836 | `offBook` |
+| 2121 | `indexSections` |
+| 2155 | `rangesOf` |
+| 2163 | · `from` |
+| 2165 | · `to` |
+| 2183 | `cutBy` |
+| 2207 | `letterTabs` |
+| 2228 | `titlePrefix` |
+| 2249 | `titleDate` |
+| 2270 | `volumeTabs` |
+| 2300 | `dateTabs` |
+| 2351 | `runsOf` |
+| 2384 | `renderTabs` |
+| 2407 | `fitTabs` |
+| 2428 | `fits` |
+| 2439 | `laneTree` |
+| 2458 | `widestFold` |
+| 2481 | `shallower` |
+| 2501 | `thinned` |
+| 2507 | · `flush` |
+| 2533 | `openIn` |
+| 2552 | `drawTabs` |
+| 2575 | · `cut` |
+| 2592 | · `unfold` |
+| 2632 | `findInBook` |
+| 2640 | `renderNote` |
+| 2695 | `renderMeta` |
+| 2714 | `linked` |
+| 2739 | `renderMarkdownInto` |
+| 2790 | `goTo` |
+| 2819 | `openNote` |
+| 2851 | `noteByLink` |
+| 2864 | `shelfById` |
+| 2872 | `isBookmarked` |
+| 2881 | `toggleBookmark` |
+| 2896 | `previousCollection` |
+| 2909 | `findBook` |
+| 2933 | `openBuilder` |
+| 2959 | `closeBuilder` |
+| 2965 | `writeBuilderFields` |
+| 3012 | `readBuilderFields` |
+| 3043 | `fillSourceValues` |
+| 3052 | `fillValuesInto` |
+| 3068 | `fillProperties` |
+| 3087 | `fillRecipes` |
+| 3106 | `previewBuilder` |
+| 3124 | `saveBuilder` |
+| 3157 | `seedOrder` |
+| 3168 | `uniqueId` |
+| 3176 | `openManage` |
+| 3185 | `newShelfFromManage` |
+| 3201 | `deleteShelf` |
+| 3224 | `renderManage` |
+| 3362 | `renderColours` |
+| 3391 | `colourRow` |
+| 3418 | `anyRibbon` |
+| 3433 | `slotControl` |
+| 3483 | `openSwatchPick` |
+| 3522 | `closeSwatchPick` |
+| 3532 | `inkOn` |
+| 3534 | · `lin` |
+| 3543 | `pickSlot` |
+| 3551 | `resetSlot` |
+| 3564 | `setPalette` |
+| 3578 | `setRibbon` |
+| 3591 | `toHex` |
+| 3600 | · `hex` |
+| 3605 | `reorder` |
+| 3621 | `renderActiveFilters` |
+| 3634 | `clearFilters` |
+| 3654 | `paintOrder` |
+| 3672 | `fillLooks` |
+| 3684 | `toggleOrder` |
+| 3693 | `applyLook` |
+| 3702 | `refresh` |
+| 3827 | `offBook` |
 
-## `scripts/smoke.mjs` — 5624 lines, 6 sections, 89 functions, 90 checks
+## `scripts/smoke.mjs` — 5706 lines, 6 sections, 92 functions, 90 checks
 
 ### Sections
 
@@ -228,10 +228,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 |---|---|
 | 127–142 | chrome |
 | 143–222 | the checks |
-| 223–4990 | the invariants |
-| 4991–5149 | which vaults, and why |
-| 5150–5504 | one run |
-| 5505–5624 | main |
+| 223–5072 | the invariants |
+| 5073–5231 | which vaults, and why |
+| 5232–5586 | one run |
+| 5587–5706 | main |
 
 ### Functions
 
@@ -312,20 +312,23 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 3685 | · `row` |
 | 3915 | · · · `step` |
 | 3960 | · `box` |
-| 4100 | · `tabsOf` |
-| 4112 | · `pick` |
-| 4116 | · `years` |
-| 4426 | · `books` |
-| 4429 | · `holds` |
-| 4529 | · `press` |
-| 5023 | `resolveVaults` |
-| 5136 | `buildFor` |
-| 5152 | `runOne` |
-| 5348 | `tagged` |
-| 5354 | `capture` |
-| 5374 | · · `pick` |
-| 5463 | `killBrowser` |
-| 5507 | `main` |
+| 4104 | · `tabsOf` |
+| 4113 | · `unfolds` |
+| 4138 | · `pick` |
+| 4142 | · `years` |
+| 4235 | · `rail` |
+| 4236 | · `measure` |
+| 4508 | · `books` |
+| 4511 | · `holds` |
+| 4611 | · `press` |
+| 5105 | `resolveVaults` |
+| 5218 | `buildFor` |
+| 5234 | `runOne` |
+| 5430 | `tagged` |
+| 5436 | `capture` |
+| 5456 | · · `pick` |
+| 5545 | `killBrowser` |
+| 5589 | `main` |
 
 ### Checks
 
@@ -396,28 +399,28 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 4033 | a wide table scrolls inside the page and never widens the book |
 | 4077 | clicking a spine opens a book on the note it names |
 | 4097 | the date index is layered: years over months over days, each only where it separates |
-| 4165 | the reader's index tabs stay countable on the biggest book |
-| 4190 | no index tab is clipped: the tabs fit the rail and the rail fits the spread |
-| 4263 | a volume whose rows read as dates is indexed by date, not by year |
-| 4312 | the contents scroll to the current row after a tab, Previous and a ribbon |
-| 4392 | previous and next walk the book and stop at its ends |
-| 4417 | a wikilink in a book goes to that note in this book, this shelf, or the nearest |
-| 4477 | also shelved in moves to another book and keeps the note |
-| 4508 | previous collection walks back, and Alt+Left does the same |
-| 4527 | a click off the book puts it down, and a click on it does not |
-| 4571 | escape closes the reader and leaves the shelf where it was |
-| 4590 | the reading shelf survives its own shelf being hidden |
-| 4626 | a saved reading place re-resolves after its own book is gone |
-| 4641 | the builder previews the shelf it would actually save |
-| 4660 | a saved shelf gets a stable id and joins the library |
-| 4681 | parent tag inclusion is a setting, and it changes the answer |
-| 4701 | a person is read from every people property, and out of a wikilink |
-| 4735 | a link to a person's note names that person, once, by the note's name |
-| 4768 | people come from the property alone, never from prose |
-| 4789 | plain list mode keeps every book reachable |
-| 4806 | every control the keyboard can reach has a name |
-| 4828 | nothing on the page reaches the network |
-| 4838 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
-| 4895 | a tag book's cover carries no hash, and every other place it is named keeps it |
-| 4945 | a spine lifts on hover and holds its size |
-| 4960 | the shelves are packed the way the golden snapshot says |
+| 4198 | the reader's index tabs stay countable on the biggest book |
+| 4223 | no index tab is clipped: the tabs fit the rail and the rail fits the spread |
+| 4329 | a volume whose rows read as dates is indexed by date, not by year |
+| 4394 | the contents scroll to the current row after a tab, Previous and a ribbon |
+| 4474 | previous and next walk the book and stop at its ends |
+| 4499 | a wikilink in a book goes to that note in this book, this shelf, or the nearest |
+| 4559 | also shelved in moves to another book and keeps the note |
+| 4590 | previous collection walks back, and Alt+Left does the same |
+| 4609 | a click off the book puts it down, and a click on it does not |
+| 4653 | escape closes the reader and leaves the shelf where it was |
+| 4672 | the reading shelf survives its own shelf being hidden |
+| 4708 | a saved reading place re-resolves after its own book is gone |
+| 4723 | the builder previews the shelf it would actually save |
+| 4742 | a saved shelf gets a stable id and joins the library |
+| 4763 | parent tag inclusion is a setting, and it changes the answer |
+| 4783 | a person is read from every people property, and out of a wikilink |
+| 4817 | a link to a person's note names that person, once, by the note's name |
+| 4850 | people come from the property alone, never from prose |
+| 4871 | plain list mode keeps every book reachable |
+| 4888 | every control the keyboard can reach has a name |
+| 4910 | nothing on the page reaches the network |
+| 4920 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
+| 4977 | a tag book's cover carries no hash, and every other place it is named keeps it |
+| 5027 | a spine lifts on hover and holds its size |
+| 5042 | the shelves are packed the way the golden snapshot says |

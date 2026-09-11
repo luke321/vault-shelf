@@ -2111,7 +2111,11 @@ function mountVaultShelf(root, data, options) {
    */
   /**
    * A place in the contents, and how deep the cut that names it is.
-   * @typedef {{ label: string, at: number, level?: number, head?: boolean }} Section
+   * @typedef {{ label: string, at: number, level?: number }} Section
+   */
+  /**
+   * A top-level cut and the cuts under it, which is what the rail folds out.
+   * @typedef {{ tab: Section, kids: Fold[] }} Fold
    */
   /** @param {Book} book @returns {Section[]} */
   function indexSections(book) {
@@ -2360,17 +2364,14 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * github#32 -- HOW FAR THE INDEX MAY GROW. The rail stands over the right-hand page, so
-   * every bank is paid for out of the prose column. TWO: three banks of small plates stop
-   * reading as an edge of the book and start reading as a heap beside it, which is what the
-   * first cut of this did. A fifth of the spread caps it whatever the labels say.
+   * github#32 -- HOW WIDE THE FOLDED-OUT INDEX MAY GET. The rail stands over the right-hand
+   * page, so every lane it unfolds is paid for out of the prose column.
    */
-  var BANKS = 2;
   var RAIL_SHARE = 5;
 
   /**
-   * github#32 -- the ceiling on the first draw, before geometry has had a look. Comfortably
-   * over what three banks hold, so it is the rail that decides and not this number.
+   * github#32 -- the ceiling on the first draw, before geometry has had a look. It only keeps
+   * the first draw bounded, since a deep letter cut can run to hundreds of buttons.
    */
   var RAW_TABS = 90;
 
@@ -2383,172 +2384,99 @@ function mountVaultShelf(root, data, options) {
   function renderTabs() {
     var rail = $("tabs");
     if (!reader.tabs) {
-      /* `fitTabs` leaves what it settled on drawn, so there is nothing to draw again here. */
       var fitted = fitTabs(rail, indexSections(reader.book));
-      /* A rail that is not laid out -- the reader still hidden -- measures one bank whatever
-       * is in it, so that answer is drawn and not kept, and the next draw tries again. */
+      /* A rail that is not laid out -- the reader still hidden -- fits anything, so that
+       * answer is drawn and not kept, and the next draw tries again. */
       if (rail.clientHeight >= 40) reader.tabs = fitted;
+      drawTabs(fitted, null);
       return;
     }
-    drawTabs(reader.tabs);
+    drawTabs(reader.tabs, null);
   }
 
   /**
-   * github#32 -- MEASURED, NOT CALCULATED. How many tabs a bank holds is a tab's height and
-   * its border against the spread's, in whichever look and at whatever font the host has --
-   * five numbers this file does not own. So the index is drawn at full depth, the banks are
-   * counted, and while there are too many it is rebuilt one step shallower and drawn again.
-   * A handful of passes, once per book and once per resize, never per page turn.
-   * @param {HTMLElement} rail
-   * @param {{ label: string, at: number, level?: number }[]} sections
-   * @returns {{ label: string, at: number, level?: number }[]}
+   * github#32, design/0021 -- THE FATTEST FOLD, not the one open now. Which cut is unfolded
+   * follows the page, so fitting the rail to it would re-fit on every turn and give one book
+   * two different indexes; it is fitted once to the deepest fold it will ever have to show,
+   * and every other fold is shorter than that one by construction.
+   *
+   * MEASURED, NOT CALCULATED: a cut's height against the spread's, in whichever look and at
+   * whatever font the host has, is not a number this file owns.
+   * @param {HTMLElement} rail @param {Section[]} sections @returns {Section[]}
    */
   function fitTabs(rail, sections) {
     var spread = rail.closest(".vs-spread");
-    rail.style.removeProperty("--vs-railcap");
-    drawTabs(sections);
-    /* Under the measure the rail is a wrapping ROW under the pages (page.css), where a bank
+    drawTabs(sections, widestFold(sections));
+    /* Under the measure the rail is a wrapping ROW under the pages (page.css), where a lane
      * is not a thing and the room is the whole width; there is nothing to fit. */
     if (!(spread instanceof HTMLElement) ||
         WIN.getComputedStyle(rail).flexDirection !== "column") return sections;
-    var shown = sections;
-    for (var pass = 0; pass < 8; pass++) {
-      shown = evenBanks(rail, sections);
-      if (rail.clientHeight < 40 || fits(rail, spread)) break;
+    for (var pass = 0; pass < 8 && rail.clientHeight >= 40 && !fits(rail, spread); pass++) {
       var next = shallower(sections);
       if (!next) break;
       sections = next;
-      rail.style.removeProperty("--vs-railcap");
-      drawTabs(sections);
+      drawTabs(sections, widestFold(sections));
     }
-    sections = shown;
-    /* github#32 -- what the banks cost the prose, written where the padding can read it. A
+    /* github#32 -- what the fold costs the prose, written where the padding can read it. A
      * rail with no width has not been laid out, and writing 0 here would put the tabs over
      * the text; the page.css default stands until it has. */
     if (rail.offsetWidth > 0) spread.style.setProperty("--vs-railw", rail.offsetWidth + "px");
     return sections;
   }
 
-  /**
-   * @param {HTMLElement} rail @param {HTMLElement} spread @returns {boolean}
-   */
+  /** @param {HTMLElement} rail @param {HTMLElement} spread @returns {boolean} */
   function fits(rail, spread) {
-    return banksOf(rail) <= BANKS && rail.offsetWidth * RAIL_SHARE <= spread.clientWidth;
+    return rail.scrollHeight <= rail.clientHeight + 1 &&
+           rail.offsetWidth * RAIL_SHARE <= spread.clientWidth;
   }
 
   /**
-   * One bank per distinct fore-edge. The RIGHT edge, not `offsetLeft`: a deeper level steps in
-   * from the left by design, so its left edge says which layer it is and nothing about which
-   * bank it landed in.
-   * @param {HTMLElement} rail @returns {number}
+   * design/0021 -- THE CUT IS A SHAPE, NOT A COLUMN OF INDENTS. The rail draws one lane of
+   * top-level cuts and folds the rest out beside the one the page is in, so the levels have to
+   * be read as a tree before anything is drawn.
+   * @param {Section[]} sections @returns {Fold[]}
    */
-  function banksOf(rail) {
-    /** @type {Record<number, boolean>} */
-    var edges = {};
-    var kids = rail.children;
-    for (var i = 0; i < kids.length; i++) {
-      var kid = /** @type {HTMLElement} */ (kids[i]);
-      edges[Math.round(kid.offsetLeft + kid.offsetWidth)] = true;
-    }
-    return Object.keys(edges).length;
-  }
-
-  /**
-   * github#32 -- TWO BANKS ARE ONE OBJECT OR THEY ARE A HEAP, and the first cut of this was a
-   * heap: flex fills one bank to the brim and dribbles the rest into a stub beside it, so the
-   * rail had two ragged columns of different heights, and the second one opened halfway
-   * through a year with nothing to say which year.
-   *
-   * So the room is capped at the taller half rather than at everything it could hold -- the
-   * banks come out the same height -- and a bank that opens inside a run repeats the run's
-   * label at its head, which is `design/0003`'s plaque law: a plate names every row its books
-   * stand on. The repeat is a tab and opens the same place as the original, so it is not a new
-   * kind of thing, and `data-head` only makes it quieter.
-   * @param {HTMLElement} rail @param {Section[]} sections @returns {Section[]}
-   */
-  function evenBanks(rail, sections) {
-    rail.style.removeProperty("--vs-railcap");
-    drawTabs(sections);
-    var banks = banksOf(rail);
-    if (banks < 2 || sections.length < 4) return sections;
-    var pitch = pitchOf(rail);
-    if (!pitch) return sections;
-    /* The glass tab stands at the head of the strip and takes a row of the first bank. A head
-     * takes a row of its own, so the split has to be solved WITH the heads in it: widen by a
-     * row and re-place them, until everything is inside the banks allowed. */
-    var rows = Math.ceil((sections.length + 1) / banks);
-    var out = withHeads(sections, rows);
-    while (out.length + 1 > rows * banks && rows < sections.length + 2) {
-      rows++;
-      out = withHeads(sections, rows);
-    }
-    rail.style.setProperty("--vs-railcap", (rows * pitch + 2) + "px");
-    drawTabs(out);
-    return out;
-  }
-
-  /**
-   * The list again, with a run's label repeated at the head of any bank that opens inside it.
-   * The bank a cut lands in is the slot it stands in, which is why this counts rather than
-   * measures: a head takes a slot of its own, so placing one moves everything after it.
-   * @param {Section[]} sections @param {number} rows @returns {Section[]}
-   */
-  function withHeads(sections, rows) {
-    /** @type {Section[]} */
-    var out = [];
-    /* the glass tab holds the first slot of the first bank */
-    var slot = 1;
-    sections.forEach(function (section, i) {
-      if (slot % rows === 0) {
-        var head = runHead(sections, i);
-        if (head) { out.push(head); slot++; }
-      }
-      out.push(section);
-      slot++;
+  function laneTree(sections) {
+    /** @type {Fold[]} */
+    var roots = [];
+    sections.forEach(function (section) {
+      var level = section.level || 0;
+      var parent = roots[roots.length - 1];
+      if (level === 0 || !parent) { roots.push({ tab: section, kids: [] }); return; }
+      if (level === 1) { parent.kids.push({ tab: section, kids: [] }); return; }
+      var mid = parent.kids[parent.kids.length - 1];
+      (mid || parent).kids.push({ tab: section, kids: [] });
     });
-    return out;
+    return roots;
   }
 
   /**
-   * The unit the cut at `at` stands under, as a tab of its own -- null when it stands under
-   * nothing, which is when it is a top-level cut and names itself.
-   * @param {Section[]} sections @param {number} at @returns {Section|null}
+   * The cut whose fold is the tallest the rail will ever draw, as the pair of places that
+   * opens it. Null when nothing folds out at all.
+   * @param {Section[]} sections @returns {{ root: number, kid: number }|null}
    */
-  function runHead(sections, at) {
-    var mine = sections[at];
-    if (!mine || !mine.level) return null;
-    for (var i = at - 1; i >= 0; i--) {
-      if ((sections[i].level || 0) < mine.level) {
-        return { label: sections[i].label, at: sections[i].at,
-                 level: sections[i].level || 0, head: true };
-      }
-    }
-    return null;
+  function widestFold(sections) {
+    var roots = laneTree(sections);
+    /** @type {{ root: number, kid: number }|null} */
+    var best = null;
+    var tallest = 0;
+    roots.forEach(function (root) {
+      var deepest = 0;
+      var deepestAt = -1;
+      root.kids.forEach(function (kid) {
+        if (kid.kids.length > deepest) { deepest = kid.kids.length; deepestAt = kid.tab.at; }
+      });
+      var rows = root.kids.length + deepest;
+      if (rows > tallest) { tallest = rows; best = { root: root.tab.at, kid: deepestAt }; }
+    });
+    return best;
   }
 
   /**
-   * One cut's height plus what the stack collapses between them, read off two neighbours in
-   * the same bank rather than added up from the stylesheet.
-   * @param {HTMLElement} rail @returns {number}
-   */
-  function pitchOf(rail) {
-    var kids = rail.children;
-    for (var i = 2; i < kids.length; i++) {
-      var a = /** @type {HTMLElement} */ (kids[i - 1]);
-      var b = /** @type {HTMLElement} */ (kids[i]);
-      if (b.offsetLeft === a.offsetLeft && b.offsetTop > a.offsetTop) {
-        return b.offsetTop - a.offsetTop;
-      }
-    }
-    return 0;
-  }
-
-  /**
-   * github#32 -- ONE STEP SHALLOWER. The deepest layer of the date cut goes first, the way the
-   * count cap has always dropped days before months; with no layers left the list collapses
+   * github#32 -- ONE STEP SHALLOWER. The deepest layer goes first, the way the count cap has
+   * always dropped days before months; with no layers left the list of top-level cuts collapses
    * into ranges, halving each time. Null when there is nothing left to give up.
-   * @param {{ label: string, at: number, level?: number }[]} sections
-   * @returns {{ label: string, at: number, level?: number }[]|null}
+   * @param {Section[]} sections @returns {Section[]|null}
    */
   function shallower(sections) {
     var deepest = sections.reduce(function (max, t) { return Math.max(max, t.level || 0); }, 0);
@@ -2563,11 +2491,11 @@ function mountVaultShelf(root, data, options) {
   /**
    * github#32, github#35 -- HALVE THE DEEPEST LAYER BEFORE THROWING IT AWAY. A book of several
    * thousand notes over fifteen years carries a month tab for every one of a hundred and
-   * thirty months, which no rail holds -- and dropping the layer outright leaves the years
-   * alone, which is the step of hundreds of notes github#35 is about. Each run of deepest tabs
-   * standing under one parent is gathered into half as many, naming the span it opens the way
-   * an over-long letter list already does: `Jan-Apr`. Null once every run is a single tab and
-   * there is nothing left to gather, which is when the layer really has to go.
+   * thirty months, and dropping the layer outright leaves the years alone, which is the step of
+   * hundreds of notes github#35 is about. Each run of deepest tabs standing under one parent is
+   * gathered into half as many, naming the span it opens the way an over-long letter list
+   * already does: `Jan-Apr`. Null once every run is a single tab and there is nothing left to
+   * gather, which is when the layer really has to go.
    * @param {Section[]} sections @param {number} level @returns {Section[]|null}
    */
   function thinned(sections, level) {
@@ -2596,10 +2524,36 @@ function mountVaultShelf(root, data, options) {
     return gathered ? out : null;
   }
 
-  /** @param {{ label: string, at: number, level?: number }[]} sections */
-  function drawTabs(sections) {
+  /**
+   * Which of these cuts the page is standing in: the last one at or before it, or the one a
+   * measuring draw has asked for by name.
+   * @param {Fold[]} nodes @param {{ root: number, kid: number }|null} force @param {string} which
+   * @returns {number}
+   */
+  function openIn(nodes, force, which) {
+    var want = force ? (which === "root" ? force.root : force.kid) : -1;
+    var at = -1;
+    nodes.forEach(function (node, i) {
+      if (force ? node.tab.at === want : node.tab.at <= reader.index) at = i;
+    });
+    return at;
+  }
+
+  /**
+   * github#32, design/0021 -- ONE RAIL, AND THE CUT YOU ARE IN FOLDS OUT BESIDE IT. The index
+   * used to put every level in the same column, which is how it ran off the bottom of the page;
+   * the column holds top-level cuts only, and the one the page is standing in opens its own
+   * lane to the right of itself -- the way a stepped index folds out. Nothing is hidden that
+   * you could have reached: the fold follows the page, so pressing a year both goes there and
+   * opens it.
+   * @param {Section[]} sections
+   * @param {{ root: number, kid: number }|null} force a measuring draw, opening a named cut
+   */
+  function drawTabs(sections, force) {
     var box = $("tabs");
     clear(box);
+    var lane = el("div", "vs-lane");
+    box.appendChild(lane);
     /* github#0 -- THE FIRST TAB IS THE ONE THAT FINDS. The index down the right edge jumps to a
      * place in the book; the box that searches inside the book is at the top of the left page,
      * which is where a person is not looking when they are reading the right one. A tab in the
@@ -2613,23 +2567,60 @@ function mountVaultShelf(root, data, options) {
     find.title = "Search inside this book";
     find.setAttribute("aria-label", "Search inside this book");
     on(find, "click", findInBook);
-    box.appendChild(find);
-    /* github#32 -- THE THUMB IS IN ONE CUT. Every tab at or before the page carried
-     * `aria-current`, so a book read to its end lit the whole rail and said nothing about
-     * where you were; the open cut is the last one the page has reached. */
-    var openAt = -1;
-    sections.forEach(function (section, i) {
-      if (section.at <= reader.index && !section.head) openAt = i;
-    });
-    sections.forEach(function (section, i) {
+    lane.appendChild(find);
+
+    /** @type {{ section: Section, button: HTMLElement }[]} */
+    var drawn = [];
+    /** @param {Section} section @param {boolean} open @returns {HTMLElement} */
+    var cut = function (section, open) {
       var b = el("button", "", section.label);
       b.type = "button";
       b.setAttribute("data-level", String(section.level || 0));
-      if (section.head) b.setAttribute("data-head", "1");
-      if (i === openAt) b.setAttribute("aria-current", "true");
+      /* github#32 -- A TAB IS A POSITION, so it carries the one it opens. A fold rebuilds the
+       * rail under the press, so a cut cannot be addressed by where it stands in the DOM --
+       * not by the page, and not by a check walking the index. */
+      b.setAttribute("data-at", String(section.at));
+      if (open) b.setAttribute("aria-expanded", "true");
       on(b, "click", function () { goTo(section.at); });
-      box.appendChild(b);
+      drawn.push({ section: section, button: b });
+      return b;
+    };
+    /* THE CUT BEFORE WHAT IS UNDER IT, always: `drawn` is what decides the thumb, and a cut
+     * that folds has to be recorded ahead of its own lane or the year would take the mark from
+     * the month the page is actually in. */
+    /** @param {Fold} node @param {HTMLElement} into @param {function(HTMLElement): void} fill */
+    var unfold = function (node, into, fill) {
+      var fold = el("div", "vs-fold");
+      fold.appendChild(cut(node.tab, true));
+      var kids = el("div", "vs-lane");
+      fill(kids);
+      fold.appendChild(kids);
+      into.appendChild(fold);
+    };
+
+    var roots = laneTree(sections);
+    var openRoot = openIn(roots, force, "root");
+    roots.forEach(function (root, i) {
+      if (i !== openRoot || !root.kids.length) { lane.appendChild(cut(root.tab, false)); return; }
+      unfold(root, lane, function (months) {
+        var openKid = openIn(root.kids, force, "kid");
+        root.kids.forEach(function (kid, k) {
+          if (k !== openKid || !kid.kids.length) { months.appendChild(cut(kid.tab, false)); return; }
+          unfold(kid, months, function (days) {
+            kid.kids.forEach(function (day) { days.appendChild(cut(day.tab, false)); });
+          });
+        });
+      });
     });
+
+    /* github#32 -- THE THUMB IS IN ONE CUT. Every tab at or before the page carried
+     * `aria-current`, so a book read to its end lit the whole rail and said nothing about
+     * where you were. The drawn cuts stand in the order of the rows they open, fold and all,
+     * so the open one is the last of them the page has reached -- the deepest, since a cut
+     * that folds is followed by what is under it. */
+    var thumb = -1;
+    drawn.forEach(function (d, i) { if (d.section.at <= reader.index) thumb = i; });
+    if (thumb >= 0) drawn[thumb].button.setAttribute("aria-current", "true");
   }
 
   /**
@@ -3901,6 +3892,12 @@ function mountVaultShelf(root, data, options) {
     settings: function () { return settings; },
     filters: function () { return filters; },
     reader: function () { return reader ? { book: reader.book.id, index: reader.index, note: reader.noteId } : null; },
+    /**
+     * github#32 -- THE INDEX AS IT WAS FITTED, so a check can reason about the fold without
+     * driving the reader into it. Pressing a cut re-renders the contents, and on a book of
+     * seven thousand notes that is the whole cost of the check rather than the thing measured.
+     */
+    indexTabs: function () { return reader && reader.tabs ? core.clone(reader.tabs) : null; },
     /** @param {Partial<import("./core/index").Filters>} next */
     setFilters: function (next) { filters = Object.assign(filters, next); refresh(); },
     /** @param {string} bookId @param {string} [noteId] */

@@ -21,7 +21,7 @@ const sheets = STYLESHEETS.map((name) => ({ name, text: readFileSync(join(SRC, n
 let rules = 0;
 
 for (const sheet of sheets) {
-  let depth = 0, inComment = false;
+  let depth = 0, inComment = false, inFrames = -1;
   sheet.text.split("\n").forEach((line, i) => {
     let scan = line, code = "";
     while (scan.length) {
@@ -37,7 +37,21 @@ for (const sheet of sheets) {
     const opens = (code.match(/\{/g) || []).length;
     const closes = (code.match(/\}/g) || []).length;
 
-    if (opens > 0 && (depth === 0 || depth === 1) && !/^\s*@/.test(code)) {
+    /* github#32 -- A KEYFRAME IS NOT A SELECTOR. `from` and `to` inside `@keyframes` are stops
+     * on a timeline and cannot style anything, so scoping them is meaningless -- but they read
+     * as bare element selectors, and this check rejected every animation in the product on that
+     * ground. What DOES need scoping is the animation's NAME, which shares one namespace with
+     * the host's. */
+    if (inFrames >= 0 && depth < inFrames) inFrames = -1;
+    const frames = /^\s*@keyframes\s+([\w-]+)/.exec(code);
+    if (frames && opens > 0) {
+      inFrames = depth + opens - closes;
+      if (!frames[1].startsWith("vs-")) {
+        problems.push(`${sheet.name}:${i + 1}  unprefixed animation: @keyframes ${frames[1]}`);
+      }
+    }
+
+    if (opens > 0 && inFrames < 0 && (depth === 0 || depth === 1) && !/^\s*@/.test(code)) {
       rules++;
       const sel = code.slice(0, code.indexOf("{")).trim();
       for (const part of sel.split(",").map((s) => s.trim()).filter(Boolean)) {

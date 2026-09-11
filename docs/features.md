@@ -366,19 +366,26 @@ drawn at all, which is how a month book keeps the only index it can have.
 
 A tab is square and flush where the leaf is cut and arced on the inside, stacked with its
 neighbours into one cut edge rather than floating as a column of little plates. The open cut is
-the widest, and it is the only one lit.
+the only one lit.
 
-**A run too long for the room continues in the bank to its left.** The rail was one column with
-`overflow: hidden`, so an index taller than the spread was simply cut off at the bottom and
-nothing said so. It wraps into banks now — the rightmost first, since that is the edge the
-thumb reaches — **two** of them at most and never more than a fifth of the spread, so the note's
-own prose keeps its column. Two banks are made to read as one object rather than as a column and
-a stub: the same box for every cut, so each bank has one straight edge; the same height for
-both, because the room is capped at the taller half; and a bank that opens inside a year repeats
-the year at its head, the way a plaque names every row its books stand on. What fits is measured
-rather than guessed: the index is drawn at full depth and, while it does not fit, rebuilt one
-step shallower — the deepest layer gathered into spans (`Jan–Apr`), then dropped, then the list collapsed into ranges. A tab you cannot hit
-is decoration, and a tab you cannot see is worse.
+**One rail, and the cut you are in folds out beside it.** Every level used to stand in the same
+column — a year, its months indented, their days indented again, for every year in the book —
+and the rail was `overflow: hidden`, so an index taller than the spread was simply cut off at
+the bottom with nothing to say so. The column holds top-level cuts only now, and the one the
+page is standing in unfolds its own lane to the **right** of itself, outward toward the
+fore-edge, so the deepest cut on show is always the one at the edge of the book and the cut it
+belongs to steps in behind it. Press a month and its days unfold the same way, three lanes deep.
+The rest of the index moves down to make room, which is what a stepped index does when you open
+one.
+
+There is no state to get wrong: the open cut is the one the page is in, so pressing a year both
+goes there and opens it, and paging with Next unfolds the year you arrive in. The rail is 46px
+closed and 94–96px at its widest fold — an edge of the book rather than a sidebar beside it.
+
+What fits is measured rather than guessed, and it is fitted once to the deepest fold a book can
+ever show: the index is drawn and, while it does not fit, rebuilt one step shallower — the
+deepest layer gathered into spans (`Jan–Apr`), then dropped, then the column collapsed into
+ranges. A tab you cannot hit is decoration, and a tab you cannot see is worse.
 
 **The contents follow.** A tab, Previous, Next, the arrow keys, a ribbon or a followed link
 brings the current row into view on the left page — the smallest move that does it, the way a

@@ -4097,17 +4097,43 @@ check("clicking a spine opens a book on the note it names", async (p) => {
 check("the date index is layered: years over months over days, each only where it separates",
       async (p) => {
   const r = await p.j(`(function(){
+    /* github#32 -- THE CUT, NOT WHAT IS ON SHOW. The rail draws top-level cuts and unfolds
+     * only the one the page is standing in, so counting the DOM would count the months of
+     * whichever year the book happened to open on -- none, at the first note of a thin year.
+     * The layered cut is the model; unfolds below is what proves the rail draws it. */
     var tabsOf = function (id) {
       __vs.openBook(id, null);
-      /* github#32 -- a running head repeats the run its bank opens inside, so it is not an
-       * entry and nothing that counts entries counts it. */
-      var t = [].slice.call(
-        document.querySelectorAll("#vs-tabs button:not(.vs-findtab):not([data-head])")
-      ).map(function (b) {
-        return { label: b.textContent, level: Number(b.getAttribute("data-level") || 0) };
+      var t = (__vs.indexTabs() || []).map(function (x) {
+        return { label: x.label, level: x.level || 0, at: x.at };
       });
       __vs.closeReader();
       return t;
+    };
+    /* Press the cut with the most under it and count what appears beside it. */
+    var unfolds = function (id, tabs) {
+      __vs.openBook(id, null);
+      var rail = document.getElementById("vs-tabs");
+      var best = null, kids = 0, at = null, n = 0;
+      tabs.forEach(function (t) {
+        if (t.level) { n++; return; }
+        if (at !== null && n > kids) { kids = n; best = at; }
+        at = t.at; n = 0;
+      });
+      if (at !== null && n > kids) { kids = n; best = at; }
+      var out = { pressed: null, kids: kids, shown: 0, beside: false };
+      var b = best === null ? null : rail.querySelector('[data-at="' + best + '"]');
+      if (b) {
+        out.pressed = b.textContent;
+        b.click();
+        var open = rail.querySelector('[aria-expanded="true"]');
+        var lane = open && open.parentElement.querySelector(".vs-lane");
+        out.shown = lane ? lane.querySelectorAll("button").length : 0;
+        out.beside = !!lane && !!open &&
+          Math.round(open.getBoundingClientRect().right) <=
+            Math.round(lane.getBoundingClientRect().left) + 1;
+      }
+      __vs.closeReader();
+      return out;
     };
     var pick = function (shelfId, test) {
       var v = __vs.views().filter(function (v) { return v.shelf.id === shelfId; })[0];
@@ -4128,7 +4154,7 @@ check("the date index is layered: years over months over days, each only where i
     var monthsLook = months.every(function (t) {
       return /^[A-Z][a-z]{2}(\\u2013[A-Z][a-z]{2})?$/.test(t.label);
     });
-    var tagHeads = document.querySelectorAll('#vs-tabs button[data-head]').length;
+    var fold = tag ? unfolds(tag.id, tagTabs) : { pressed: null, kids: 0, shown: 0, beside: false };
     /* A month book: one year, one month -- neither is drawn; days are, if there are more than three notes. */
     var month = pick("months", function (b) { return b.key !== "-undated" && b.notes.length > 3; });
     var monthTabs = month ? tabsOf(month.id) : [];
@@ -4144,15 +4170,22 @@ check("the date index is layered: years over months over days, each only where i
              top: top.length, yearsShown: yearsShown, months: months.length, monthsLook: monthsLook,
              month: month ? month.key : null, monthTabs: monthTabs.map(function (t) { return t.label; }),
              daysOnly: daysOnly, small: small ? small.key : null,
-             smallTabs: smallTabs ? smallTabs.length : -1 };
+             smallTabs: smallTabs ? smallTabs.length : -1, fold: fold };
   })()`);
+  /* github#32 -- and the rail has to actually unfold it: pressing the cut with the most under
+   * it puts exactly that many beside it, to the right of the cut itself. */
+  const unfolded = !r.tag || !r.fold.kids ||
+    (r.fold.shown === r.fold.kids && r.fold.beside);
   const ok = (!r.tag || (r.top === r.tagYears && r.yearsShown && r.monthsLook)) &&
-             (!r.month || r.daysOnly) && (!r.small || r.smallTabs === 0) && r.tagTabs <= 180;
+             (!r.month || r.daysOnly) && (!r.small || r.smallTabs === 0) && r.tagTabs <= 180 &&
+             unfolded;
   return {
     ok,
     detail: (r.tag ? `#${r.tag} spans ${r.tagYears} years and gets ${r.top} year tabs ` +
-                     `(${r.yearsShown}) with ${r.months} month tabs stepped in under them ` +
-                     `(${r.monthsLook}), ${r.tagTabs} in all; ` : "no multi-year tag book here; ") +
+                     `(${r.yearsShown}) with ${r.months} month tabs under them ` +
+                     `(${r.monthsLook}), ${r.tagTabs} in all; pressing ${r.fold.pressed} ` +
+                     `unfolds ${r.fold.shown} of its ${r.fold.kids} beside it (${r.fold.beside}); `
+                   : "no multi-year tag book here; ") +
             (r.month ? `${r.month} is one month, so only days: ${r.monthTabs.slice(0, 6).join(" ")}` +
                        `${r.monthTabs.length > 6 ? " ..." : ""} (${r.daysOnly}); ` : "") +
             (r.small ? `${r.small} holds three notes or fewer and has ${r.smallTabs} tabs` : "")
@@ -4170,23 +4203,23 @@ check("the reader's index tabs stay countable on the biggest book", async (p) =>
     });
     __vs.openBook(biggest.id, null);
     var rail = document.getElementById("vs-tabs");
-    var edges = {};
-    [].slice.call(rail.querySelectorAll("button")).forEach(function (b) {
-      edges[Math.round(b.offsetLeft + b.offsetWidth)] = true;
-    });
-    return { book: biggest.id, notes: biggest.notes.length, banks: Object.keys(edges).length,
-             tabs: rail.querySelectorAll("button:not(.vs-findtab):not([data-head])").length,
-             heads: rail.querySelectorAll("button[data-head]").length };
+    return { book: biggest.id, notes: biggest.notes.length,
+             /* github#32 -- the column holds top-level cuts; the rest is in the fold */
+             top: rail.querySelectorAll(":scope > .vs-lane > button:not(.vs-findtab)").length +
+                  rail.querySelectorAll(":scope > .vs-lane > .vs-fold > button").length,
+             tabs: rail.querySelectorAll("button:not(.vs-findtab)").length,
+             folds: rail.querySelectorAll(".vs-fold").length };
   })()`);
-  return { ok: r.tabs > 0 && r.tabs <= 180 && r.banks <= 2,
-           detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} tabs in ${r.banks} bank(s) ` +
-                   `and ${r.heads} running head(s) (ceiling 180 tabs, 2 banks; what a bank ` +
-                   `holds is the window's)` };
+  return { ok: r.tabs > 0 && r.tabs <= 180 && r.top <= 60,
+           detail: `${r.book} holds ${r.notes} notes behind ${r.top} top-level cut(s), ` +
+                   `${r.tabs} tabs on show with ${r.folds} of them unfolded (ceiling 180 tabs, ` +
+                   `60 in the column; what the column holds is the window's)` };
 });
 
 /* github#32 -- THE CHECK THAT WOULD HAVE CAUGHT IT. Every tab check counted tabs, and a tab
  * clipped off the bottom of an `overflow: hidden` rail counts exactly like one you can reach.
- * This one reads boxes: no tab outside the rail, no rail outside the spread. */
+ * This one reads boxes -- no tab outside the rail, no rail outside the spread -- and it reads
+ * them with EVERY fold open in turn, because a fold is what makes the index tall. */
 check("no index tab is clipped: the tabs fit the rail and the rail fits the spread", async (p) => {
   const r = await p.j(`(function(){
     var books = [];
@@ -4199,61 +4232,94 @@ check("no index tab is clipped: the tabs fit the rail and the rail fits the spre
     var seen = {};
     var picks = books.slice(0, 12);
     books.forEach(function (x) { if (x.shelf === "encyclopedia") picks.push(x); });
+    var rail = function () { return document.getElementById("vs-tabs"); };
+    var measure = function () {
+      var r = rail();
+      var spread = document.querySelector(".vs-spread");
+      var rb = r.getBoundingClientRect(), sb = spread.getBoundingClientRect();
+      var out = { outside: 0, w: Math.round(rb.width),
+                  share: Math.round(rb.width / spread.clientWidth * 100),
+                  tabs: r.querySelectorAll("button").length,
+                  lit: r.querySelectorAll('[aria-current="true"]').length,
+                  open: r.querySelectorAll('[aria-expanded="true"]').length,
+                  railIn: rb.top >= sb.top - 0.5 && rb.bottom <= sb.bottom + 0.5 &&
+                          rb.right <= sb.right + 0.5 && rb.left >= sb.left - 0.5 };
+      [].slice.call(r.querySelectorAll("button")).forEach(function (t) {
+        var tb = t.getBoundingClientRect();
+        if (tb.top < rb.top - 0.5 || tb.bottom > rb.bottom + 0.5 ||
+            tb.left < rb.left - 0.5 || tb.right > rb.right + 0.5) out.outside++;
+      });
+      /* a cut that folds stands to the LEFT of what it opened, which is the whole shape */
+      var opened = r.querySelector('[aria-expanded="true"]');
+      if (opened) {
+        var lane = opened.parentElement.querySelector(".vs-lane");
+        out.leftOfLane = !!lane &&
+          Math.round(opened.getBoundingClientRect().right) <= Math.round(lane.getBoundingClientRect().left) + 1;
+      }
+      return out;
+    };
     var out = [];
     picks.forEach(function (x) {
       if (seen[x.book.id]) return;
       seen[x.book.id] = true;
       __vs.openBook(x.book.id, null);
-      var rail = document.getElementById("vs-tabs");
-      var spread = document.querySelector(".vs-spread");
-      var rb = rail.getBoundingClientRect(), sb = spread.getBoundingClientRect();
-      var tabs = [].slice.call(rail.querySelectorAll("button"));
-      var edges = {};
-      var outside = 0;
-      tabs.forEach(function (t) {
-        var tb = t.getBoundingClientRect();
-        edges[Math.round(t.offsetLeft + t.offsetWidth)] = true;
-        if (tb.top < rb.top - 0.5 || tb.bottom > rb.bottom + 0.5 ||
-            tb.left < rb.left - 0.5 || tb.right > rb.right + 0.5) outside++;
+      var worst = measure();
+      worst.id = x.book.id;
+      worst.notes = x.book.notes.length;
+      worst.folded = 0;
+      worst.misplaced = 0;
+      /* EVERY FOLD IN TURN. Which cut is open follows the page, so a rail that fits the one
+       * it happens to have opened proves nothing about the next one. */
+      /* THE WIDEST FOLD, and the closed rail. Pressing every cut in turn re-renders the
+       * contents every time, which on the 10k vault is minutes of the check measuring its own
+       * cost; the rail is fitted to the tallest fold it can ever draw, so that is the one
+       * worth opening -- read off __vs.indexTabs() rather than found by pressing. */
+      var sections = __vs.indexTabs() || [];
+      var tops = sections.filter(function (t) { return !t.level; });
+      worst.top = tops.length;
+      var widest = null, kids = -1, at = null, n = 0;
+      sections.forEach(function (t) {
+        if (t.level) { n++; return; }
+        if (at !== null && n > kids) { kids = n; widest = at; }
+        at = t.at; n = 0;
       });
-      out.push({
-        id: x.book.id, notes: x.book.notes.length, tabs: tabs.length,
-        banks: Object.keys(edges).length, w: Math.round(rb.width), outside: outside,
-        railIn: rb.top >= sb.top - 0.5 && rb.bottom <= sb.bottom + 0.5 &&
-                rb.right <= sb.right + 0.5 && rb.left >= sb.left - 0.5,
-        share: Math.round(rb.width / spread.clientWidth * 100),
-        current: rail.querySelectorAll('button[aria-current="true"]').length,
-        /* github#32 -- a running head names the run its bank opens inside, so it stands at the
-         * top of a bank and nowhere else; one that drifted would be a duplicate entry. */
-        heads: rail.querySelectorAll("button[data-head]").length,
-        strays: [].slice.call(rail.querySelectorAll("button[data-head]")).filter(function (h) {
-          return h.offsetTop !== rail.querySelector("button").offsetTop;
-        }).length
-      });
+      if (at !== null && n > kids) widest = at;
+      var b = widest === null ? null : rail().querySelector('[data-at="' + widest + '"]');
+      if (b) {
+        b.click();
+        var m = measure();
+        if (m.open) worst.folded++;
+        if (m.leftOfLane === false) worst.misplaced++;
+        worst.outside += m.outside;
+        if (m.w > worst.w) { worst.w = m.w; worst.share = m.share; }
+        if (m.tabs > worst.tabs) worst.tabs = m.tabs;
+        if (m.lit > worst.lit) worst.lit = m.lit;
+        if (!m.railIn) worst.railIn = false;
+      }
+      out.push(worst);
       __vs.closeReader();
     });
     return out;
   })()`);
   const clipped = r.filter((x) => x.outside > 0);
   const loose = r.filter((x) => !x.railIn);
-  const banked = r.filter((x) => x.banks > 2);
   const wide = r.filter((x) => x.share > 20);
   /* github#32 -- and exactly one thumb: every tab at or before the page used to be lit. */
-  const lit = r.filter((x) => x.current > 1);
-  const strays = r.filter((x) => x.strays > 0);
-  const heads = r.reduce((n, x) => n + x.heads, 0);
-  const worst = r.slice().sort((a, b) => b.tabs - a.tabs)[0];
-  const banks = r.slice().sort((a, b) => b.banks - a.banks)[0];
+  const lit = r.filter((x) => x.lit > 1);
+  const misplaced = r.filter((x) => x.misplaced > 0);
+  const folds = r.reduce((n, x) => n + x.folded, 0);
+  const presses = r.reduce((n, x) => n + x.top, 0);
+  const most = r.slice().sort((a, b) => b.tabs - a.tabs)[0];
+  const widest = r.slice().sort((a, b) => b.w - a.w)[0];
   return {
-    ok: clipped.length === 0 && loose.length === 0 && banked.length === 0 && wide.length === 0 &&
-        lit.length === 0 && strays.length === 0 && r.length >= 10,
-    detail: `${r.length} books opened; longest index ${worst.id} at ${worst.tabs} tabs over ` +
-            `${worst.notes} notes in ${worst.banks} bank(s), rail ${worst.w}px; widest rail ` +
-            `${banks.w}px in ${banks.banks} bank(s) (${banks.share}% of the spread); ` +
+    ok: clipped.length === 0 && loose.length === 0 && wide.length === 0 && lit.length === 0 &&
+        misplaced.length === 0 && folds > 0 && r.length >= 10,
+    detail: `${r.length} books, ${presses} top-level cuts, the widest fold of each opened ` +
+            `(${folds} unfolded something); most on show ${most.tabs} tabs in ${most.id}; widest ` +
+            `rail ${widest.w}px (${widest.share}% of the spread) in ${widest.id}; ` +
             `${clipped.length} clipped, ${loose.length} rails outside the spread, ` +
-            `${banked.length} over two banks, ${wide.length} over a fifth of the spread, ` +
-            `${lit.length} with more than one tab lit; ${heads} running head(s), ` +
-            `${strays.length} of them not at the top of a bank` +
+            `${wide.length} over a fifth of the spread, ${lit.length} with more than one tab ` +
+            `lit, ${misplaced.length} with a fold on the wrong side of its cut` +
             (clipped.length ? ` -- ${clipped.map((x) => x.id + " loses " + x.outside).join("; ")}` : "")
   };
 });
@@ -4267,19 +4333,33 @@ check("a volume whose rows read as dates is indexed by date, not by year", async
     var vol = enc.books.filter(function (b) { return b.key === "0-9"; })[0];
     if (!vol) return { none: "no numeric volume here" };
     __vs.openBook(vol.id, null);
-    var tabs = [].slice.call(
-      document.querySelectorAll("#vs-tabs button:not(.vs-findtab):not([data-head])")
-    );
-    /* A tab is a position, so the step is read by pressing it and asking where it landed. */
-    var ats = tabs.map(function (t) { t.click(); return __vs.reader().index; });
+    var rail = document.getElementById("vs-tabs");
+    /* github#32 -- THE STEP IS INSIDE THE FOLD. The column holds top-level cuts and the one
+     * the page is in unfolds its own; so the gap a person actually crosses is the gap between
+     * two neighbouring cuts once they are in the right year, which is every cut the fitted
+     * index holds -- read off __vs.indexTabs() rather than by pressing 15 of them and
+     * re-rendering the contents 15 times. */
+    var sections = __vs.indexTabs() || [];
+    var tops = sections.filter(function (t) { return !t.level; });
+    var ats = sections.map(function (t) { return t.at; })
+      .sort(function (a, b) { return a - b; });
     var step = 0;
     ats.forEach(function (at, i) {
       step = Math.max(step, (i + 1 < ats.length ? ats[i + 1] : vol.notes.length) - at);
     });
+    /* and the widest step in the column alone, which is as far as one press ever leaves you */
+    var topAts = tops.map(function (t) { return t.at; });
+    var topStep = 0;
+    topAts.forEach(function (at, i) {
+      topStep = Math.max(topStep, (i + 1 < topAts.length ? topAts[i + 1] : vol.notes.length) - at);
+    });
     var dated = vol.notes.filter(function (n) { return /^\\d{4}-\\d{2}/.test(n.title); }).length;
-    var labels = tabs.map(function (t) { return t.textContent; });
+    var tabs = ats;
+    var labels = [].slice.call(rail.querySelectorAll("button:not(.vs-findtab)"))
+      .map(function (t) { return t.textContent; });
     __vs.closeReader();
     return { key: vol.key, notes: vol.notes.length, dated: dated, tabs: tabs.length,
+             tops: tops.length, topStep: topStep,
              step: step, first: ats[0], rising: ats.every(function (a, i) { return i === 0 || ats[i - 1] <= a; }),
              labels: labels.slice(0, 10),
              /* HOW MANY TABS THE TITLES ADMIT, the way the volume check already asks it: a
@@ -4301,9 +4381,11 @@ check("a volume whose rows read as dates is indexed by date, not by year", async
   const fine = r.step * 4 <= r.notes || (!dateish && r.tabs >= r.possible);
   return {
     ok: r.tabs >= 4 && r.rising && !r.wrongYear && fine,
-    detail: `${r.key}: ${r.notes} notes, ${r.dated} of them ISO-titled, behind ${r.tabs} tabs ` +
+    detail: `${r.key}: ${r.notes} notes, ${r.dated} of them ISO-titled, behind ${r.tops} ` +
+            `top-level cut(s) and ${r.tabs} cuts in all ` +
             `(${r.labels.join(" ")}${r.tabs > 10 ? " ..." : ""}); largest step ${r.step} notes ` +
-            `of ${r.notes} (the titles admit ${r.possible} at one digit); ` +
+            `of ${r.notes} inside the fold, ${r.topStep} in the column alone ` +
+            `(the titles admit ${r.possible} at one digit); ` +
             `${r.yearish} bare-year tabs; ${r.wrongYear ? "a title's leading digits are still read as a year" : "no invented year"}`
   };
 });

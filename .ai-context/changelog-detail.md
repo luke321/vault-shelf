@@ -1911,3 +1911,46 @@ number github#35 is about. `the reader's index tabs stay countable` moved from a
 the structural ceiling of 180 plus three banks, and the layered check's cap from 30 to 180 --
 thirty was what one column held. Reverting the rail's CSS alone fails the new check with **6
 demo books clipped, `people/-unfiled` losing 83 of 111 tabs**. 90 checks.
+
+
+**One rail, and the cut you are in folds out beside it** (github#32). *"go back to one rail but
+make it so that if I click a year the months fold out to the right of it like a staggered index
+that is folded out."* Two banked answers were rejected on sight first, and both had passed every
+check in the suite -- three banks read as a heap of chips beside the book, and two even banks
+still cost 158px of the prose all the time and still showed every month of every year. What was
+actually wrong was never the number of columns: every LEVEL stood in one column, so a dozen years
+dragged a hundred months down the page behind them.
+
+The column holds top-level cuts only now. The one the page is standing in unfolds its own lane
+to the **right** of itself -- outward, toward the fore-edge -- so the deepest cut on show is the
+one at the edge of the book and the cut it belongs to steps in behind it; press a month and its
+days unfold the same way, three lanes deep. The level indent is gone with the columns: the lane
+is what says which level a cut is. There is no open/closed state to get wrong, because the open
+cut is the one the page is in -- pressing a year both goes there and opens it, which leaves
+`a tab is a position` untouched, and Next unfolds the year you arrive in.
+
+Measured across the three fixtures: the rail is **46px closed and 94-96px with the widest fold
+open, 9% of the spread**, against 158px for two banks and 51px-with-four-tabs-clipped before any
+of this. Most on show at once **24-26 tabs**, against 71-133 banked. **0 clipped, 0 rails outside
+the spread, 0 over a fifth of the spread, 0 with more than one tab lit, 0 with a fold on the
+wrong side of its cut**, over 40 / 34 / 39 books and 290 / 73 / 453 top-level cuts.
+
+Nothing has to be thrown away to fit any more: the 10k library's biggest book keeps a month cut
+for every one of its months in the fold, where the banked rail gathered them into `Jan-Apr`
+spans. The demo `0-9` volume is **15 cuts in the column and 31 in all, largest step 28 notes
+inside the fold** (53 in the column alone), against 17 tabs and a step of 51 before github#35.
+
+`fitTabs` fits the rail to the **fattest fold a book can show**, not the one open now, so a page
+turn cannot re-fit the index and give one book two shapes. A cut carries the position it opens
+(`data-at`), because a fold rebuilds the rail under the press and a cut cannot be addressed by
+where it stands in the DOM. `__vs.indexTabs()` hands the fitted cut to a check so it can reason
+about the fold without pressing into it -- on a 6,937-note book, pressing re-renders the contents
+and that becomes the whole cost of the check.
+
+The checks learnt the shape: `no index tab is clipped` now measures each book closed **and with
+its widest fold open** and asserts an unfolded cut stands to the left of the lane it opened;
+`the date index is layered` reads the cut off `__vs.indexTabs()` rather than the DOM -- counting
+the DOM would count the months of whichever year the book happened to open on -- and then presses
+the cut with the most under it and asserts exactly that many appear beside it (**5 of 5**,
+**10 of 10**, **6 of 6**); and the countable check's cap moved from a bank count to 60 top-level
+cuts in the column. 90 checks.
