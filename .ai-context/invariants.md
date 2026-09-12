@@ -1873,6 +1873,45 @@ followed), but the drop that would follow it in a real browser was never deliver
 handler is covered by a synthetic drop, the acceptance by `defaultPrevented`, and **the join
 between them by hand**.
 
+**A drag that reaches the edge scrolls the room** (`github#34`, `design/0024`). `#vs-library`
+is the scroller and a drag used to reach only what was on screen when it started. The pointer
+inside a **64px band** at the top or bottom now scrolls it, **3px/tick at the inner lip to
+20px/tick at the edge, on a 16ms timer** — a timer and not an animation frame, because a Chrome
+window that is not painting gets no frames and `watchRoom` already paid for that once.
+
+Measured, with the pointer dispatched **once** and then never moved again — what keeps the room
+moving is the loop, not the events:
+
+| | |
+|---|---|
+| 6px from the bottom edge | **18.4px/tick** |
+| 2px from the top edge | **−19.3px/tick** |
+| a book drag, still pointer | **500 → 662 → 1694** over 7 steps |
+| the landing rail's start | **301px below the fold** |
+| the distance it took to clear it | **1,194px**, because shelves rendering underneath kept pushing it down |
+| at the foot | clamps **1694/1694** and stays there, loop still running |
+| the drop that followed | **1 pick, 0 marks left** |
+| a shelf carried by its floor | **0 → 324** in 300ms |
+| Escape, mid-scroll | **0 ghosts, 0 `[data-carrying]`, 0 marks, no loop**, and the room did not move again (563 → 563) |
+
+**Increments, never a target**, which is why `content-visibility: auto` needs no settle dance
+here: `github#21`'s `settleOn` re-measures because it seeks a computed offset, and this loop
+computes none — a height that firms up mid-scroll just extends the runway. The 1,194px above is
+that happening.
+
+**The mark is recomputed from geometry as the room moves.** A tick that moved the room replays
+one `dragover` at the last real pointer position, so `placeIn`, `shelfUnder` and `leaving` all
+re-read rather than the page trusting a mark cached from an event that is now pointing at the
+wrong book.
+
+**And a loop that outlives its drag is a check failure, for every check in the suite.**
+`atRest()` reports `an edge scroll still running`, so the check that leaks one fails rather
+than the one that trips over a library scrolling by itself.
+
+`prefers-reduced-motion` deliberately changes nothing — the scroll is already stepwise
+(`scrollTop +=`, never `behavior: "smooth"`) and it is the gesture's reach rather than
+decoration. `design/0024` carries the argument.
+
 ## Not covered here
 
 - **Anything about how it looks.** Every check above asserts a number; none of them can see

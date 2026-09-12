@@ -2583,3 +2583,52 @@ checks returned with the reader painted over the library — `previous and next 
 `also shelved in`, `previous collection walks back`, `clicking a spine opens a book`, and `the
 reader's index tabs stay countable`. All six fixed in their checks; no product change but the
 one diagnostic field. `--timings <file>` writes every check's ms per shape as JSON. 89 checks.
+
+## 2026-09-12 — a drag that reaches the edge scrolls the room (`github#34`, `design/0024`)
+
+`#vs-library` is the scroller and a drag could only reach what was on screen when it started,
+so a book could not be carried to a Favourites shelf that had scrolled out of view and a shelf
+could not be carried past the ones around it. A 64px band at the top and bottom of the library
+now scrolls it while a drag is in the air.
+
+| | before | after |
+|---|---|---|
+| a drag's reach | **one screen** | the whole library |
+| scroll with a still pointer | none | **500 → 662 → 1694** over 7 steps |
+| speed, 6px from the bottom edge | — | **18.4px/tick** (~1,150px/s) |
+| speed, 2px from the top edge | — | **−19.3px/tick** |
+| band depth | — | **64px**, ramped 3 → 20px/tick, 16ms timer |
+| a shelf carried by its floor | none | **0 → 324** in 300ms |
+| checks | 96 | **98** |
+
+**The pointer is dispatched once and then never moves again**, in both checks. That is the
+measurement: what keeps the room moving is the loop, not the events, and a check that kept
+nudging the pointer would prove nothing about the thing the ticket is.
+
+**The rail kept moving away while the room scrolled into it.** The landing rail started 301px
+below the fold and the room travelled **1,194px** to clear it, because every shelf that rendered
+on the way added its real height underneath — `content-visibility: auto` makes an off-screen
+shelf's height a guess until it renders (`github#21`). The loop does not care: it scrolls by
+increments and never computes a target, so a height that firms up mid-scroll extends the runway
+rather than invalidating anything. `settleOn` re-measures because it seeks an offset; this does
+not. The first version of the check *did* assert against a fixed 500ms wait and failed exactly
+there — the check was racing the thing the ticket had warned about, and the fix was to wait for
+the loop to win rather than to slow the loop down.
+
+**Three bugs found, all in the check and none in the product.** The landing rail was parked
+300px above the fold instead of below it (a sign, plus a viewport rect mixed with `scrollTop`);
+the source spine was the library's first, which stands on Favourites, so the drag was a
+reference onto a second pick shelf and resolved to nothing (0 picks landed while the drag itself
+worked); and the fixed wait above. Worth recording because all three *looked* like feature
+failures in the FAIL line.
+
+**A timer, not an animation frame**, on the precedent `watchRoom` already set: a Chrome window
+that is not painting gets no frames, and an auto-scroll that stalls when the window is not being
+drawn is the same stall this ticket exists to remove.
+
+**A leaked loop is now a suite-wide failure.** `atRest()` reports `an edge scroll still
+running`, so the check that leaves one running fails rather than whichever check later trips
+over a library scrolling by itself. `settlePage()` dispatches a `dragend` on the way out.
+
+Comment budget unchanged at **1500/1500** — every new comment is pointer-shaped, and the
+reasoning is in `design/0024`.

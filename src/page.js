@@ -3780,9 +3780,114 @@ function mountVaultShelf(root, data, options) {
     }
   }
 
+  /* ---- a drag that reaches the edge ------------------------------------------
+   * github#34, design/0024 -- a drag can only reach what is on screen
+   * github#34, design/0024 -- so the room scrolls when the pointer nears an edge
+   * github#34, design/0024 -- VERTICAL ONLY, and never horizontal: design/0014
+   */
+
+  /* github#34 -- the band at each edge, and the speed across it */
+  var EDGE_ZONE = 64, EDGE_MIN = 3, EDGE_MAX = 20, EDGE_TICK = 16;
+
+  /** github#34 -- the running loop, 0 when nothing is scrolling @type {number} */
+  var edgeTimer = 0;
+  /** github#34 -- px per tick, signed; 0 outside the two bands @type {number} */
+  var edgeSpeed = 0;
+  /**
+   * github#34 -- where the pointer last really was
+   * @type {{ x: number, y: number }|null}
+   */
+  var edgeAt = null;
+  /** github#34, design/0024 -- true while the tick replays a dragover */
+  var edgeReplaying = false;
+
+  /**
+   * github#34, design/0024 -- px per tick at this height, signed
+   * @param {DOMRect} box @param {number} y @returns {number}
+   */
+  function edgeSpeedAt(box, y) {
+    var above = y - box.top, below = box.bottom - y;
+    var k = 0, dir = 0;
+    if (above < EDGE_ZONE) { k = (EDGE_ZONE - above) / EDGE_ZONE; dir = -1; }
+    else if (below < EDGE_ZONE) { k = (EDGE_ZONE - below) / EDGE_ZONE; dir = 1; }
+    if (!dir) return 0;
+    if (k > 1) k = 1;
+    return dir * (EDGE_MIN + (EDGE_MAX - EDGE_MIN) * k);
+  }
+
+  /** github#34 -- every exit path lands here, teardown included */
+  function edgeStop() {
+    if (edgeTimer) WIN.clearInterval(edgeTimer);
+    edgeTimer = 0;
+    edgeSpeed = 0;
+    edgeAt = null;
+  }
+
+  /**
+   * github#34, design/0024 -- THE MARK IS GEOMETRY, NOT THE LAST EVENT
+   * github#34, design/0024 -- the room moves under a still pointer, so replay
+   * github#34, design/0024 -- one dragover where it is and let the rows re-read
+   * @param {HTMLElement} lib
+   */
+  function edgeReplay(lib) {
+    if (!edgeAt || typeof WIN.DragEvent !== "function") return;
+    var under = DOC.elementFromPoint(edgeAt.x, edgeAt.y);
+    if (!under || !lib.contains(under)) return;
+    edgeReplaying = true;
+    attempt(function () {
+      under.dispatchEvent(new WIN.DragEvent("dragover", {
+        bubbles: true, cancelable: true, clientX: edgeAt.x, clientY: edgeAt.y
+      }));
+    });
+    edgeReplaying = false;
+  }
+
+  /**
+   * github#34, design/0024 -- INCREMENTS, NOT A TARGET: a height that firms up
+   * github#34, design/0024 -- mid-scroll extends the runway, so no settle dance
+   * @param {HTMLElement} lib
+   */
+  function edgeTick(lib) {
+    if (!edgeSpeed || (!dragging && !shelfDrag)) { edgeStop(); return; }
+    var was = lib.scrollTop;
+    var max = Math.max(0, lib.scrollHeight - lib.clientHeight);
+    var next = was + edgeSpeed;
+    if (next < 0) next = 0;
+    if (next > max) next = max;
+    lib.scrollTop = next;
+    if (lib.scrollTop !== was) edgeReplay(lib);
+  }
+
+  /**
+   * github#34, design/0024 -- only while the page itself carries something
+   * github#34, design/0024 -- a file dragged in from the desktop moves nothing
+   * @param {HTMLElement} lib
+   */
+  function edgeScroll(lib) {
+    on(lib, "dragover", function (e) {
+      if (edgeReplaying) return;
+      var de = /** @type {DragEvent} */ (e);
+      var speed = (dragging || shelfDrag)
+        ? edgeSpeedAt(lib.getBoundingClientRect(), de.clientY) : 0;
+      if (!speed) { edgeStop(); return; }
+      edgeAt = { x: de.clientX, y: de.clientY };
+      edgeSpeed = speed;
+      if (!edgeTimer) edgeTimer = WIN.setInterval(function () { edgeTick(lib); }, EDGE_TICK);
+    });
+    on(lib, "dragleave", function (e) {
+      var de = /** @type {DragEvent} */ (e);
+      if (!(de.relatedTarget instanceof Node) || !lib.contains(de.relatedTarget)) edgeStop();
+    });
+    /* github#34 -- ESCAPE, A DROP, A DROP OUTSIDE THE WINDOW: all end here */
+    on(DOC, "drop", edgeStop, true);
+    on(DOC, "dragend", edgeStop, true);
+    onDestroy.push(edgeStop);
+  }
+
   /* ============================================================ the wiring == */
 
   watchRoom();
+  edgeScroll($("library"));
   takeOffZone($("shelves"));
   shelfDropZone($("shelves"));
   paintOrder();
@@ -3995,6 +4100,16 @@ function mountVaultShelf(root, data, options) {
     slots: function () { return SLOTS.slice(); },
     /** design/0014 -- the room as packed, and what the resize watcher has seen. */
     room: function () { return { width: roomWidth, resizes: roomLog.resizes, measured: roomLog.measured, last: roomLog.last, pending: roomLog.pending }; },
+    /** github#34, design/0024 -- the edge scroll, and where the room stands */
+    edgeScroll: function () {
+      var lib = $("library");
+      return {
+        running: !!edgeTimer,
+        speed: edgeSpeed,
+        top: lib ? lib.scrollTop : 0,
+        max: lib ? Math.max(0, lib.scrollHeight - lib.clientHeight) : 0
+      };
+    },
     /** design/0008 -- what the room currently looks like it has been used for. */
     magic: function () {
       var worn = {};

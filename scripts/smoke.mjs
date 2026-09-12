@@ -240,6 +240,9 @@ const POINTER_DRIVEN = [
   "second favourites shelf",
   /* github#0 -- it reads boxes: a drop on the lower half of a shelf, and a floor grip. */
   "carried by its floor",
+  /* github#34 -- it scrolls the room under a drag and reads where it got to. */
+  "reaches the edge",
+  "a carried shelf scrolls",
   /* github#0 -- it reads margins while a drag is in the air. */
   "the room parts",
   /* github#14, design/0021 -- it walks every box on the page, four times, in every look. */
@@ -2278,6 +2281,221 @@ check("a book is made on any shelf arranged by hand, and a plus stands where the
             `deleted: spine ${r.gone.spine}, in order ${r.gone.inOrder}, defined ${r.gone.defined}; migrate ` +
             `round-trips made ${r.roundtrip.made} and order ${r.roundtrip.order}; back to automatic it sorts last ` +
             `${r.auto.last} (after Undated ${r.auto.afterUndated}) with ${r.auto.plus} plus; ${r.left} left`
+  };
+});
+
+/* github#34, design/0024 -- the pointer is dispatched ONCE
+ * github#34, design/0024 -- what moves the room is the loop, not the events
+ */
+check("a drag that reaches the edge scrolls the room, and stops at the ends", async (p) => {
+  const set = await p.j(`(function(){
+    var lib = document.getElementById("vs-library");
+    __vs.addShelf({ id: "edge-landing", name: "Edge landing", source: { kind: "all" },
+                    classifier: "pick", direction: "manual", hidden: false,
+                    plaques: false, picks: [] });
+    var offsetOf = function () {
+      var r = document.querySelector('[data-shelf="edge-landing"] .vs-track')
+                      .getBoundingClientRect();
+      return r.top - lib.getBoundingClientRect().top + lib.scrollTop;
+    };
+    /* Park the landing rail 300px BELOW the fold: off screen when the drag begins, and
+     * reachable only because the room scrolls under it. github#21 -- scroll, re-measure,
+     * scroll, because content-visibility makes an off-screen shelf's height a guess. */
+    for (var i = 0; i < 3; i++) {
+      lib.scrollTop = Math.max(0, offsetOf() - lib.clientHeight - 300);
+    }
+    var lb = lib.getBoundingClientRect();
+    var after = document.querySelector('[data-shelf="edge-landing"] .vs-track')
+                        .getBoundingClientRect();
+    return { offScreen: after.top > lb.bottom, gap: Math.round(after.top - lb.bottom),
+             top: lib.scrollTop, max: Math.max(0, lib.scrollHeight - lib.clientHeight) };
+  })()`);
+  const lift = await p.j(`(function(){
+    var lib = document.getElementById("vs-library");
+    var lb = lib.getBoundingClientRect();
+    /* design/0019 -- OFF AN ORDINARY SHELF, not off Favourites. The library's first spine is
+     * a pick, and a reference dropped onto a second pick shelf resolves to nothing: the drag
+     * under test is a book's, not a reference to a reference. */
+    var picks = __vs.picks().map(function (s) { return s.id; });
+    var spine = [].filter.call(document.querySelectorAll("#vs-shelves .vs-spine"),
+      function (s) {
+        var sec = s.closest("[data-shelf]");
+        return sec && picks.indexOf(sec.getAttribute("data-shelf")) < 0;
+      })[0];
+    var dt = new DataTransfer();
+    spine.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+    window.__vsEdge = { dt: dt, from: spine, id: spine.getAttribute("data-book"),
+                        x: Math.round(lb.left + lb.width / 2) };
+    var y = Math.round(lb.bottom - 6);
+    var under = document.elementFromPoint(window.__vsEdge.x, y) || lib;
+    under.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true,
+      dataTransfer: dt, clientX: window.__vsEdge.x, clientY: y }));
+    var e = __vs.edgeScroll();
+    return { lifted: spine.getAttribute("data-dragging"), running: e.running,
+             speed: Math.round(e.speed * 10) / 10, top: e.top };
+  })()`);
+  /* github#34 -- THE POINTER IS NOW STILL from here on
+   * github#21 -- and the rail keeps MOVING AWAY as shelves render under it
+   * github#34 -- so wait for the loop to win rather than a fixed sleep
+   */
+  const seen = [lift.top];
+  let reach = null;
+  for (let i = 0; i < 24 && !reach; i++) {
+    await sleep(150);
+    const now = await p.j(`(function(){
+      var lib = document.getElementById("vs-library");
+      var rail = document.querySelector('[data-shelf="edge-landing"] .vs-track');
+      var r = rail.getBoundingClientRect(), lb = lib.getBoundingClientRect();
+      var e = __vs.edgeScroll();
+      return { top: e.top, running: e.running, max: e.max,
+               clear: r.top + r.height / 2 < lb.bottom - 64 };
+    })()`);
+    seen.push(now.top);
+    if (now.clear) reach = now;
+  }
+  const a = seen[1];
+  const b = { top: seen[seen.length - 1], reached: !!reach };
+  /* github#34 -- move to the rail the scroll brought into reach */
+  const landed = await p.j(`(function(){
+    var rail = document.querySelector('[data-shelf="edge-landing"] .vs-track');
+    var rb = rail.getBoundingClientRect();
+    var at = { bubbles: true, cancelable: true, dataTransfer: window.__vsEdge.dt,
+               clientX: Math.round(rb.left + rb.width / 2),
+               clientY: Math.round(rb.top + rb.height / 2) };
+    rail.dispatchEvent(new DragEvent("dragover", at));
+    var stoppedOnLeaving = !__vs.edgeScroll().running;
+    rail.dispatchEvent(new DragEvent("drop", at));
+    window.__vsEdge.from.dispatchEvent(new DragEvent("dragend",
+      { bubbles: true, dataTransfer: window.__vsEdge.dt }));
+    var shelf = __vs.picks().filter(function (s) { return s.id === "edge-landing"; })[0];
+    return { stoppedOnLeaving: stoppedOnLeaving, holds: shelf ? shelf.picks.slice() : [],
+             wanted: window.__vsEdge.id, running: __vs.edgeScroll().running,
+             marksLeft: document.querySelectorAll(
+               "#vs-shelves [data-drop], #vs-shelves [data-dragging]").length };
+  })()`);
+  /* github#34 -- both ends: it clamps at the foot, and goes back up */
+  await p.j(`(function(){
+    var lib = document.getElementById("vs-library");
+    var lb = lib.getBoundingClientRect();
+    var spine = document.querySelector("#vs-shelves .vs-spine");
+    var dt = new DataTransfer();
+    spine.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+    window.__vsEdge = { dt: dt, from: spine, x: Math.round(lb.left + lb.width / 2) };
+    /* github#21 -- the foot moves as content-visibility firms up; take it twice. */
+    lib.scrollTop = Math.max(0, lib.scrollHeight - lib.clientHeight - 40);
+    lib.scrollTop = Math.max(0, lib.scrollHeight - lib.clientHeight - 40);
+    var y = Math.round(lb.bottom - 2);
+    var under = document.elementFromPoint(window.__vsEdge.x, y) || lib;
+    under.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true,
+      dataTransfer: dt, clientX: window.__vsEdge.x, clientY: y }));
+    return { max: Math.max(0, lib.scrollHeight - lib.clientHeight) };
+  })()`);
+  await sleep(250);
+  const foot = await p.j(`(function(){ var e = __vs.edgeScroll();
+    return { top: e.top, max: e.max, running: e.running }; })()`);
+  await sleep(200);
+  const stillFoot = await p.j(`__vs.edgeScroll().top`);
+  const head = await p.j(`(function(){
+    var lib = document.getElementById("vs-library");
+    var lb = lib.getBoundingClientRect();
+    var y = Math.round(lb.top + 2);
+    var under = document.elementFromPoint(window.__vsEdge.x, y) || lib;
+    under.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true,
+      dataTransfer: window.__vsEdge.dt, clientX: window.__vsEdge.x, clientY: y }));
+    return { speed: Math.round(__vs.edgeScroll().speed * 10) / 10, top: __vs.edgeScroll().top };
+  })()`);
+  await sleep(250);
+  const up = await p.j(`__vs.edgeScroll().top`);
+  const clean = await p.j(`(function(){
+    window.__vsEdge.from.dispatchEvent(new DragEvent("dragend",
+      { bubbles: true, dataTransfer: window.__vsEdge.dt }));
+    var running = __vs.edgeScroll().running;
+    __vs.deleteShelf("edge-landing");
+    __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })
+      .forEach(function (s) { s.picks = []; });
+    document.getElementById("vs-library").scrollTop = 0;
+    window.__vsEdge = null;
+    __vs.setFilters({});
+    return { running: running };
+  })()`);
+  const ok = set.offScreen && lift.lifted === "1" && lift.running && lift.speed > 0 &&
+             a > lift.top && b.top > a && b.reached &&
+             landed.stoppedOnLeaving && landed.holds.indexOf(landed.wanted) >= 0 &&
+             !landed.running && landed.marksLeft === 0 &&
+             foot.top === foot.max && stillFoot === foot.max && foot.running &&
+             head.speed < 0 && up < head.top && !clean.running;
+  return {
+    ok,
+    detail: `the landing rail began ${set.gap}px below the fold; one dragover in the bottom ` +
+            `band at ${lift.speed}px/tick and then a STILL pointer took the room from ` +
+            `${lift.top} to ${a} to ${b.top} over ${seen.length - 1} step(s) until the rail ` +
+            `was clear of the band (reached: ${b.reached}), the drop landed the ` +
+            `book on it (${landed.holds.length} pick(s), ${landed.marksLeft} mark(s) left) and ` +
+            `leaving the band stopped the loop (${landed.stoppedOnLeaving}); at the foot it ` +
+            `clamped at ${foot.top}/${foot.max} and stayed (${stillFoot}), the top band ran ` +
+            `${head.speed}px/tick back to ${up}, and dragend left nothing running ` +
+            `(${!clean.running})`
+  };
+});
+
+/* github#34, design/0024 -- a carried shelf scrolls the same way
+ * github#34, design/0024 -- and Escape is the exit path that leaks a loop
+ */
+check("a carried shelf scrolls the room, and Escape leaves nothing behind", async (p) => {
+  const lift = await p.j(`(function(){
+    var lib = document.getElementById("vs-library");
+    lib.scrollTop = 0;
+    var grip = document.querySelector("#vs-shelves .vs-floorgrip");
+    var id = grip.getAttribute("data-grip");
+    var dt = new DataTransfer();
+    grip.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+    var lb = lib.getBoundingClientRect();
+    var x = Math.round(lb.left + lb.width / 2), y = Math.round(lb.bottom - 6);
+    var under = document.elementFromPoint(x, y) || lib;
+    under.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true,
+      dataTransfer: dt, clientX: x, clientY: y }));
+    window.__vsEdge = { dt: dt, from: grip, id: id };
+    var e = __vs.edgeScroll();
+    return { id: id, running: e.running, speed: Math.round(e.speed * 10) / 10, top: e.top };
+  })()`);
+  await sleep(300);
+  const mid = await p.j(`(function(){
+    var e = __vs.edgeScroll();
+    return { top: e.top, running: e.running,
+             ghosts: document.querySelectorAll("#vs-shelves .vs-shelfghost").length,
+             carrying: document.querySelectorAll("#vs-shelves [data-carrying]").length };
+  })()`);
+  /* github#34 -- ESCAPE. A cancelled drag ends with dragend and no drop. */
+  const after = await p.j(`(function(){
+    window.__vsEdge.from.dispatchEvent(new DragEvent("dragend",
+      { bubbles: true, dataTransfer: window.__vsEdge.dt }));
+    var e = __vs.edgeScroll();
+    return { top: e.top, running: e.running,
+             ghosts: document.querySelectorAll("#vs-shelves .vs-shelfghost").length,
+             carrying: document.querySelectorAll("#vs-shelves [data-carrying]").length,
+             marks: document.querySelectorAll("#vs-shelves [data-shelfdrop]").length };
+  })()`);
+  await sleep(250);
+  const rest = await p.j(`(function(){
+    var e = __vs.edgeScroll();
+    var order = __vs.views().map(function (v) { return v.shelf.id; });
+    window.__vsEdge = null;
+    document.getElementById("vs-library").scrollTop = 0;
+    return { top: e.top, running: e.running, first: order[0] };
+  })()`);
+  const ok = lift.running && lift.speed > 0 && mid.top > lift.top && mid.running &&
+             mid.ghosts === 1 && mid.carrying === 1 &&
+             !after.running && after.ghosts === 0 && after.carrying === 0 &&
+             after.marks === 0 && rest.top === after.top && !rest.running &&
+             rest.first === lift.id;
+  return {
+    ok,
+    detail: `carrying "${lift.id}" by its floor at ${lift.speed}px/tick took the room from ` +
+            `${lift.top} to ${mid.top} with the pointer still (ghost: ${mid.ghosts}, ` +
+            `carrying: ${mid.carrying}); Escape stopped the loop (${!after.running}), left ` +
+            `${after.ghosts} ghost, ${after.carrying} carried and ${after.marks} mark(s), the ` +
+            `room did not move again (${after.top} -> ${rest.top}) and the shelf order is ` +
+            `unchanged (${rest.first} still first)`
   };
 });
 
@@ -6112,6 +6330,9 @@ async function atRest(page) {
     var out = [];
     var room = __vs.room();
     if (room.pending) out.push("a pending room measure (settleRoom's 60ms timer)");
+    /* github#34 -- a loop left running scrolls the library on its own. */
+    var edge = __vs.edgeScroll ? __vs.edgeScroll() : null;
+    if (edge && edge.running) out.push("an edge scroll still running (github#34)");
     var mid = document.querySelectorAll(
       "#vs-app [data-dragging], #vs-app [data-carrying], #vs-app [data-leaving], " +
       "#vs-app [data-drop], #vs-app [data-shelfdrop]");
@@ -6132,6 +6353,8 @@ async function settlePage(page) {
      * already got caught by once: the sheets are laid out by a class that outranks it, so the
      * attribute would read shut while the sheet was still painted over the library. */
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    /* github#34 -- the exit path a cancelled drag takes, so no loop outlives a check. */
+    document.dispatchEvent(new Event("dragend", { bubbles: true }));
     ["mclose", "bcancel", "mbcancel"].forEach(function (id) {
       var b = document.getElementById("vs-" + id);
       if (b && b.offsetParent !== null) b.click();
