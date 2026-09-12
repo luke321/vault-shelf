@@ -4986,6 +4986,227 @@ check("the shelf parts as you type, and no book leaves the room", async (p) => {
                    `(hits read "${r.hits}")` };
 });
 
+/* github#41, design/0026 -- WHAT THE VAULT SPELLS. The box knows the vocabulary now. */
+check("the search box offers what the vault spells, and says what kind each one is", async (p) => {
+  const r = await p.j(`(function(){
+    /* THE STEM COMES FROM THE VAULT, not from a word somebody remembered. */
+    var tags = {};
+    __vs.data().notes.forEach(function (n) {
+      n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+    });
+    var biggest = Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] || "";
+    var stem = biggest.slice(0, Math.max(2, Math.min(4, biggest.length)));
+    __vs.typeQuery(stem);
+    var shown = __vs.suggest();
+    var vocab = __vs.vocabulary();
+    var kinds = {};
+    vocab.forEach(function (t) {
+      t.kinds.forEach(function (k) { kinds[k] = (kinds[k] || 0) + 1; });
+    });
+    /* github#41 -- ONE ROW PER SPELLING: a term is never offered twice. */
+    var texts = shown.rows.map(function (x) { return x.text.toLowerCase(); });
+    var twice = texts.filter(function (t, i) { return texts.indexOf(t) !== i; });
+    var several = vocab.filter(function (t) { return t.kinds.length > 1; }).length;
+    var titlesShown = shown.rows.filter(function (x) {
+      return x.kinds.length === 1 && x.kinds[0] === "note";
+    }).length;
+    __vs.setQuery("");
+    __vs.closeSuggest();
+    return { stem: stem, open: shown.open, rows: shown.rows.length, twice: twice.length,
+             terms: vocab.length, kinds: kinds, several: several, titlesShown: titlesShown,
+             labelled: shown.rows.filter(function (x) { return x.kinds.length > 0; }).length,
+             counted: shown.rows.filter(function (x) { return x.notes > 0; }).length };
+  })()`);
+  const everyKind = ["person", "tag", "folder", "book", "note"].every((k) => r.kinds[k] > 0);
+  return { ok: r.open && r.rows > 0 && r.rows <= 8 && r.twice === 0 && everyKind &&
+               r.labelled === r.rows && r.counted === r.rows && r.titlesShown <= 3,
+           detail: r.twice
+             ? `"${r.stem}" offered ${r.twice} spelling(s) twice; it is one row per term`
+             : !everyKind
+               ? `the vocabulary is missing a kind: ${JSON.stringify(r.kinds)}`
+               : `${r.terms} terms (${JSON.stringify(r.kinds)}), ${r.several} spelled by more ` +
+                 `than one kind; "${r.stem}" offered ${r.rows} row(s), every one labelled and ` +
+                 `counted, ${r.titlesShown} of them bare titles` };
+});
+
+/* github#41, design/0026 -- THE HONESTY INVARIANT: the box never offers a dead end. */
+check("every suggestion the box offers marks at least one note when it is picked", async (p) => {
+  const r = await p.j(`(function(){
+    var probes = ["a", "e", "o", "s", "no", "pro"];
+    __vs.data().notes.slice(0, 3).forEach(function (n) { probes.push(n.title.slice(0, 3)); });
+    var tags = {};
+    __vs.data().notes.forEach(function (n) { n.tags.forEach(function (t) { tags[t] = 1; }); });
+    Object.keys(tags).slice(0, 4).forEach(function (t) { probes.push(t.slice(0, 3)); });
+    var tried = 0, bad = [];
+    probes.forEach(function (probe) {
+      __vs.typeQuery(probe);
+      __vs.suggest().rows.forEach(function (row) {
+        tried++;
+        __vs.setQuery(row.text);
+        var n = parseInt(document.getElementById("vs-hits").textContent, 10);
+        if (!(n > 0)) bad.push(row.text);
+      });
+    });
+    __vs.setQuery("");
+    __vs.closeSuggest();
+    return { tried: tried, bad: bad.slice(0, 5), bads: bad.length, probes: probes.length };
+  })()`);
+  return { ok: r.tried > 0 && r.bads === 0,
+           detail: r.bads
+             ? `${r.bads} of ${r.tried} suggestions marked nothing: ${r.bad.join(", ")}`
+             : `${r.tried} suggestions over ${r.probes} probes, every one marks at least one note` };
+});
+
+/* github#41, design/0026 -- the case the whole feature exists for. */
+check("a typo that spells nothing says so, and offers nothing to pick", async (p) => {
+  const r = await p.j(`(function(){
+    __vs.typeQuery("qzxwvkjyh");
+    var list = document.getElementById("vs-suggest");
+    var shown = __vs.suggest();
+    var empty = list.querySelector(".vs-sugempty");
+    var options = list.querySelectorAll('[role="option"]').length;
+    var said = empty ? empty.textContent.trim() : "";
+    var hits = document.getElementById("vs-hits").textContent;
+    __vs.setQuery("");
+    __vs.closeSuggest();
+    return { open: shown.open, rows: shown.rows.length, options: options, said: said,
+             hits: hits, listHidden: list.hidden, shut: __vs.suggest().open };
+  })()`);
+  return { ok: r.open && r.rows === 0 && r.options === 0 && r.said.length > 0 &&
+               !r.listHidden && r.shut === false,
+           detail: r.said
+             ? `the list stays open with 0 pickable rows and says "${r.said}" while the room ` +
+               `says "${r.hits}"; clearing the box shuts it`
+             : "a query that spells nothing showed no row saying so" };
+});
+
+/* github#41, design/0026 -- a combobox, or it is an accessibility bug */
+check("the suggestion list is a combobox the keyboard can drive", async (p) => {
+  const r = await p.j(`(function(){
+    var box = document.getElementById("vs-q");
+    var list = document.getElementById("vs-suggest");
+    var lib = document.getElementById("vs-library");
+    var out = {};
+    out.role = box.getAttribute("role");
+    out.autocomplete = box.getAttribute("aria-autocomplete");
+    out.controls = box.getAttribute("aria-controls") === "vs-suggest";
+    out.listRole = list.getAttribute("role");
+    out.shutAtRest = box.getAttribute("aria-expanded") === "false" && list.hidden;
+
+    var tags = {};
+    __vs.data().notes.forEach(function (n) {
+      n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+    });
+    var biggest = Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] || "no";
+    var stem = biggest.slice(0, 3);
+
+    box.focus();
+    __vs.typeQuery(stem);
+    out.expanded = box.getAttribute("aria-expanded") === "true";
+    out.noneActiveYet = !box.getAttribute("aria-activedescendant");
+
+    var top = lib.scrollTop;
+    var key = function (k) {
+      var e = new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true });
+      box.dispatchEvent(e);
+      return e.defaultPrevented;
+    };
+    out.downTaken = key("ArrowDown");
+    out.activeFirst = box.getAttribute("aria-activedescendant") === "vs-sug-0";
+    out.selectedOne = list.querySelectorAll('[aria-selected="true"]').length === 1;
+    key("ArrowDown");
+    out.activeSecond = box.getAttribute("aria-activedescendant") === "vs-sug-1";
+    key("ArrowUp");
+    out.activeBack = box.getAttribute("aria-activedescendant") === "vs-sug-0";
+    /* github#41 -- THE ROOM MUST NOT MOVE while the arrows walk the list. */
+    out.roomStill = lib.scrollTop === top;
+
+    var first = __vs.suggest().rows[0];
+    out.enterTaken = key("Enter");
+    out.completed = document.getElementById("vs-q").value === (first ? first.text : null);
+    out.shutAfterEnter = list.hidden && box.getAttribute("aria-expanded") === "false";
+    out.focusKept = document.activeElement === box;
+    out.marked = parseInt(document.getElementById("vs-hits").textContent, 10) > 0;
+
+    __vs.typeQuery(stem);
+    out.reopened = !list.hidden;
+    out.escapeTaken = key("Escape");
+    out.shutAfterEscape = list.hidden && box.getAttribute("aria-expanded") === "false";
+    out.focusKeptAfterEscape = document.activeElement === box;
+    /* github#41 -- the reader is not what Escape reached, so it is still shut. */
+    out.readerUntouched = document.getElementById("vs-reader").hidden;
+
+    __vs.setQuery("");
+    __vs.closeSuggest();
+    return out;
+  })()`);
+  const want = ["controls", "shutAtRest", "expanded", "noneActiveYet", "downTaken", "activeFirst",
+                "selectedOne", "activeSecond", "activeBack", "roomStill", "enterTaken",
+                "completed", "shutAfterEnter", "focusKept", "marked", "reopened", "escapeTaken",
+                "shutAfterEscape", "focusKeptAfterEscape", "readerUntouched"];
+  const bad = want.filter((k) => r[k] !== true);
+  const ok = !bad.length && r.role === "combobox" && r.listRole === "listbox" &&
+             r.autocomplete === "list";
+  return { ok,
+           detail: ok
+             ? "combobox over a listbox; the arrows walk on aria-activedescendant without " +
+               "scrolling the room, Enter completes the box and marks, Escape shuts the list " +
+               "and keeps the focus"
+             : bad.length
+               ? `${bad.join(", ")} -- not what a combobox does`
+               : `role=${r.role}, list role=${r.listRole}, aria-autocomplete=${r.autocomplete}` };
+});
+
+/* github#41, design/0026 -- not everything is Latin, and toLowerCase is a no-op on CJK. */
+check("a vocabulary that is not Latin is still offered", async (p) => {
+  const r = await p.j(`(function(){
+    var vocab = __vs.vocabulary();
+    var wide = vocab.filter(function (t) {
+      return /[^\\u0000-\\u00ff]/.test(t.text) && t.kinds.indexOf("note") < 0;
+    });
+    if (!wide.length) return { none: true };
+    var term = wide[0];
+    var one = Array.from(term.text)[0];
+    __vs.typeQuery(one);
+    var rows = __vs.suggest().rows;
+    var found = rows.some(function (x) { return x.text === term.text; });
+    __vs.setQuery(term.text);
+    var marked = parseInt(document.getElementById("vs-hits").textContent, 10);
+    __vs.setQuery("");
+    __vs.closeSuggest();
+    return { term: term.text, one: one, rows: rows.length, found: found, marked: marked,
+             wide: wide.length };
+  })()`);
+  if (r.none) {
+    return { ok: true, detail: "nothing to assert: this vault spells nothing outside Latin-1" };
+  }
+  return { ok: r.found && r.marked > 0,
+           detail: r.found
+             ? `"${r.one}" offers "${r.term}" among ${r.rows} row(s), and it marks ${r.marked} notes`
+             : `"${r.one}" did not offer "${r.term}" (${r.wide} non-Latin term(s) in the vocabulary)` };
+});
+
+/* github#41, design/0026 -- a vault with nothing to suggest, asked of core itself. */
+check("a vault with no vocabulary offers nothing", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var empty = core.buildVocabulary([], []);
+    var offered = core.suggest(empty, "garden");
+    var one = core.buildVocabulary([], [
+      { id: "n1", path: "a/b.md", title: "Beans", folder: "a", date: null,
+        people: [], tags: [], props: {}, excerpt: "", body: "" }]);
+    var forBeans = core.suggest(one, "bea");
+    return { terms: empty.length, offered: offered.length, oneTerms: one.length,
+             oneOffered: forBeans.length, oneText: forBeans.length ? forBeans[0].text : "",
+             oneKinds: forBeans.length ? forBeans[0].kinds.join(",") : "" };
+  })()`);
+  return { ok: r.terms === 0 && r.offered === 0 && r.oneOffered === 1 && r.oneText === "Beans",
+           detail: r.terms === 0 && r.offered === 0
+             ? `an empty vault spells ${r.terms} terms and offers ${r.offered}; one note spells ` +
+               `${r.oneTerms} and offers "${r.oneText}" [${r.oneKinds}]`
+             : `an empty vault spelled ${r.terms} terms and offered ${r.offered}` };
+});
+
 /* design/0009 -- A ROOM HAS A WIDTH. Measured by overriding the viewport rather than by
  * resizing a window, so the number is the same on a laptop and on the WQHD screen this was
  * reported from. */
@@ -6481,7 +6702,9 @@ async function atRest(page) {
       "#vs-app [data-dragging], #vs-app [data-carrying], #vs-app [data-leaving], " +
       "#vs-app [data-drop], #vs-app [data-shelfdrop]");
     if (mid.length) out.push(mid.length + " element(s) still mid-drag");
-    var open = ["reader", "builder", "manage", "madebook", "dye", "railmenu"].filter(function (id) {
+    /* github#41 -- an open suggestion list is the page in flight too. */
+    var open = ["reader", "builder", "manage", "madebook", "dye", "railmenu",
+                "suggest"].filter(function (id) {
       var n = document.getElementById("vs-" + id);
       return n && !n.hidden;
     });
@@ -6504,6 +6727,8 @@ async function settlePage(page) {
       if (b && b.offsetParent !== null) b.click();
     });
     try { __vs.closeReader(); } catch (e) {}
+    /* github#41 -- and the list, through the page's own way out. */
+    try { __vs.closeSuggest(); } catch (e) {}
     [].slice.call(document.querySelectorAll(
       "#vs-app [data-dragging], #vs-app [data-carrying], #vs-app [data-leaving], " +
       "#vs-app [data-drop], #vs-app [data-shelfdrop]")).forEach(function (el) {
