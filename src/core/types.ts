@@ -18,6 +18,13 @@ export interface Note {
   body: string;
 }
 
+/* github#13, github#58, design/0027 -- one surface the needle was found in. */
+export interface MatchReason {
+  field: "title" | "tag" | "person" | "folder" | "cover";
+  /** github#13 -- what to show. A cover shows the name printed on the spine. */
+  value: string;
+}
+
 export interface FolderInfo {
   path: string;
   count: number;

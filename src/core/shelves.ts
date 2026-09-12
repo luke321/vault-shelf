@@ -1,4 +1,4 @@
-import type { Book, ClassifierKind, ColorRule, Filters, Note, Shelf, ShelfView, Source } from "./types";
+import type { Book, ClassifierKind, ColorRule, Filters, MatchReason, Note, Shelf, ShelfView, Source } from "./types";
 import { isoWeekOf, monthLabel, monthOf, weekLabel, yearOf } from "./dates";
 import type { NoteOrder } from "./defaults";
 
@@ -527,7 +527,6 @@ export function applyFilters(notes: Note[], filters: Filters): Note[] {
  * design/0008
  */
 
-/** One note against one already-lowercased needle. Title, path, tags, people, then body. */
 /** github#21 -- a shelf whose keys begin with a year. */
 export function datedClassifier(classifier: string): boolean {
   return classifier === "year" || classifier === "month" || classifier === "week";
@@ -602,8 +601,14 @@ export function searchableBook(shelf: Shelf, book: Book): boolean {
   return book.notes.length > 0 && (book.cover || "").trim().length > 0;
 }
 
-/** github#58 -- note id to what that note is searchable by, folded. */
-export type SearchIndex = Map<string, string>;
+/* github#58, github#13 -- the folded haystack, the spines unfolded */
+export interface SearchEntry {
+  text: string;
+  covers: string[];
+}
+
+/** github#58 -- note id to what that note is searchable by. */
+export type SearchIndex = Map<string, SearchEntry>;
 
 /**
  * github#58, design/0008 -- built ONCE, where the books are, never per keystroke.
@@ -615,7 +620,7 @@ export function buildSearchIndex(views: ShelfView[], notes: Note[]): SearchIndex
     if (view.shelf.hidden) continue;
     for (const book of view.books) {
       if (!searchableBook(view.shelf, book)) continue;
-      const cover = fold(book.cover.trim());
+      const cover = book.cover.trim();
       for (const note of book.notes) {
         const mine = covers.get(note.id);
         if (!mine) covers.set(note.id, [cover]);
@@ -626,8 +631,11 @@ export function buildSearchIndex(views: ShelfView[], notes: Note[]): SearchIndex
   const index: SearchIndex = new Map();
   for (const note of notes) {
     const own = noteText(note);
-    const mine = covers.get(note.id);
-    index.set(note.id, mine ? own + "\n" + mine.join("\n") : own);
+    const mine = covers.get(note.id) || [];
+    index.set(note.id, {
+      text: mine.length ? own + "\n" + fold(mine.join("\n")) : own,
+      covers: mine
+    });
   }
   return index;
 }
@@ -636,8 +644,34 @@ export function buildSearchIndex(views: ShelfView[], notes: Note[]): SearchIndex
 export function matchesQuery(note: Note, needle: string,
                              index?: SearchIndex | null): boolean {
   if (!needle) return false;
-  const text = index ? index.get(note.id) : undefined;
-  return (text === undefined ? noteText(note) : text).indexOf(needle) >= 0;
+  const entry = index ? index.get(note.id) : undefined;
+  return (entry === undefined ? noteText(note) : entry.text).indexOf(needle) >= 0;
+}
+
+/* github#13, github#58, design/0027 -- the same rule, said out loud instead of answered yes or no */
+export function matchReasons(note: Note, needle: string,
+                             index?: SearchIndex | null): MatchReason[] {
+  const out: MatchReason[] = [];
+  if (!needle) return out;
+  if (note.title.toLowerCase().indexOf(needle) >= 0) out.push({ field: "title", value: note.title });
+  for (const t of note.tags) {
+    if (t.toLowerCase().indexOf(needle) >= 0) out.push({ field: "tag", value: t });
+  }
+  for (const p of note.people) {
+    if (p.toLowerCase().indexOf(needle) >= 0) out.push({ field: "person", value: p });
+  }
+  /* github#13, design/0027 -- the folder is the part of a path a reader can see */
+  if (note.folder && note.folder.toLowerCase().indexOf(needle) >= 0) {
+    out.push({ field: "folder", value: note.folder });
+  }
+  /* github#58, design/0027 -- the one reason that is not written on the note */
+  const entry = index ? index.get(note.id) : undefined;
+  if (entry) {
+    for (const cover of entry.covers) {
+      if (fold(cover).indexOf(needle) >= 0) out.push({ field: "cover", value: cover });
+    }
+  }
+  return out;
 }
 
 /**

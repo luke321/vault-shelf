@@ -956,7 +956,10 @@ a re-render for the find-within box never moves a list somebody has scrolled by 
 **Moving the marker moves the marker.** A turn within one book changes nothing about the contents
 list, so the list is not rebuilt for it: `aria-current` moves between the rows already standing
 there and the page keeps the scroll the reader left it at. `renderContents` rebuilds only on the
-two paths whose contents really change — opening a book, and *find within this book*; every other
+three paths whose contents really change — opening a book, *find within this book*, and
+(`github#13`, `design/0027`) the library query moving under an already-open book, which
+`applyQuery` detects by comparing the needle against the one `renderReader` recorded and ignores
+when it has not changed; every other
 turn goes through `markContents`, and `goTo` is one of them. `revealCurrent` is unchanged and
 still nudges a row that is genuinely out of view, which is what a tab jump or an arrow key needs.
 
@@ -1578,6 +1581,51 @@ label form more than replaces it, and both directions are in `changelog-detail.m
 Encyclopedia volume `A` is a real cover and every note behind it matches. Left as it is on purpose:
 `"a vocabulary that is not Latin is still offered"` types one character (`学`) and must still find
 its term.
+
+## Why this book is lit
+
+`design/0027`, `github#13`. The other half of `design/0008`: the shelf says *which* books match,
+and the reader has to say *why*.
+
+**One rule, not two.** *Find within this book* narrows by `core.matchesQuery`, the same function
+the library's `applyQuery` calls, so a book can no longer deny the shelf behind it.
+`"every book the shelf draws forward finds the same needle in its own find box"` takes a needle
+from the vault, opens the first **40** books the shelf drew forward and types it into each one's
+own box, asserting none answers 0 rows or prints *"Nothing in this book matches."* Measured:
+`project/website-migration` drew **475** books forward, **40 of 40** found it again. Before this
+branch the `Encyclopedia I` volume answered **0 rows** against **6** matching notes.
+
+**The query marks in the reader and narrows nothing.**
+`"a book the search drew forward says which of its notes matched"` asserts the `data-match="1"`
+row count equals the book's match count, that **every** note is still in the index, that the head
+reads `N of M match`, and that clearing the box leaves **0** marked with the index intact.
+Measured on `favourites/years/2026`: **304 of 1,755** rows marked against **304** matching notes,
+all **1,755** still there; cleared, **0** marked and **1,755** rows.
+
+**A reason exists exactly when there is a match.** `core.matchReasons` mirrors `matchesQuery`
+rather than implementing it — the boolean stays a fast early return on a path that runs millions
+of times per keystroke — so `"a note has a reason to be marked exactly when it is marked"` is what
+holds the two in step. Measured over **4,938 notes × 6 needles**: **4,140** marked, **4,140** with
+a reason, **0** disagreements, across `tag` 876, `cover` **3,946**, `person` 620, `title` 43 and
+`folder` 192. The check also asserts **no `body` and no `path` reason exists at all**, because
+`github#58` stopped the search reading either.
+
+**And the sixth needle is a cover, which is what makes the pair worth checking.** A term the
+vocabulary spells as a book and as *nothing else* — `No one named`, on **2,450** notes and in the
+text of none — is marked only through the index. `"a book lit only by the name on its spine finds
+that name inside it, and says so"` types one, takes the **612** books it draws forward, opens
+**20**, and for each one clicks a marked row: every one names the spine in its detail line, and
+every one finds the same needle again in its own find box. Read the second half twice — it is
+fault 3 of `design/0027` in the one costume it can still wear, since a cover is the only surface
+that is not written on the note. **Both halves fail if a single reader-side call is left without
+the `SearchIndex`**, and a textual merge of the two branches leaves five of them exactly so.
+
+**A searched book still opens on its oldest note**, and the find box is never pre-filled from the
+library query. Both would have turned a mark into a filter or moved where a book opens, and
+`design/0008`'s split and the opening law are untouched by this. A book opening on its oldest note
+is also why the reason is read off **a marked row** rather than off whichever note the book opens
+on: a book is drawn forward by some of its notes, not all, and the note you land on need not be
+one of them.
 
 ## What the vault spells
 

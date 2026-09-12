@@ -1162,6 +1162,25 @@
 }
 
 .vault-shelf .vs-contents button:hover { color: var(--text-1); background: color-mix(in srgb, var(--text-1) 5%, transparent); }
+/* github#13, design/0027 -- a row the library's query marked, in the shelf's own
+ * vocabulary: the accent, as a matching spine wears it. Colour only, so a marked row is
+ * the same box as an unmarked one and nothing in the index shifts under the query. It
+ * sits ABOVE aria-current on purpose -- the row you are reading keeps its own mark. */
+.vault-shelf .vs-contents button[data-match="1"] {
+  color: var(--text-1);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.vault-shelf .vs-contents button[data-match="1"] .vs-t { color: var(--accent); font-weight: 600; }
+.vault-shelf .vs-contents button[data-match="1"] .vs-when { color: var(--text-2); }
+
+/* github#13, design/0027 -- the needle where it sits, and the reason in words */
+.vault-shelf .vs-hit {
+  background: color-mix(in srgb, var(--accent) 34%, transparent);
+  color: var(--text-1);
+  border-radius: 2px;
+}
+.vault-shelf .vs-why { color: var(--accent); font-weight: 600; }
+
 /* github#11, design/0015 */
 .vault-shelf .vs-contents button[aria-current="true"] {
   color: var(--text-1);

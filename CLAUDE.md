@@ -44,6 +44,14 @@ of measuring it.** Build the page, drive it, read the numbers.
   string, built once in `rebuild()` beside the vocabulary and never per keystroke; the box offers
   a book by that same cover, so **the vocabulary and the search are one set** and every suggestion
   marks a note by identity rather than by a pass that checks it. `design/0008`, `design/0026`.
+- **A marked book says why, and its own find box never denies it.** The head reads *N of M
+  match*, the matching rows wear the accent, and the note names the surface the needle sits in —
+  `core.matchReasons` mirrors `matchesQuery` rather than reimplementing it, and a check over the
+  vault asserts a reason exists **exactly** when there is a match. *Find within this book* narrows
+  by that same `matchesQuery`, so a book can never contradict the shelf it stands on. **Every one
+  of these reads the same `SearchIndex` the library builds**: a cover is the one reason not
+  written on the note, so a reader-side call without the index marks a note it cannot explain and
+  a find box without it denies the very word that lit the book. `design/0027`, `design/0008`.
 - **A filter changes membership and nothing else.** Shelf order and book addresses do not move.
 - **A hidden shelf keeps its definition and its books.** Hiding never deletes; hiding
   everything still offers a way back.
