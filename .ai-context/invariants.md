@@ -1732,26 +1732,47 @@ pid was dead within a second and a crashed holder read exactly like a healthy on
 | a live in-process hold, read 35 s apart | `at` fixed at the acquire time, so the hold aged towards being broken | `at` moved **30,010 ms**, `since` moved **0**; a sister-repo acquire measures the hold at **5 s**, not 35 |
 | a hold taken from the command line | `pid` of a process that had already exited | no `pid` at all, `holder: "cli"`, and `status` prints `holder unverified` |
 
-### The window is asked of the hold, not of the name
+### The windows stay at 30 and 20, and a live holder is never broken by the clock
 
-`github#25`, `decisions/0012` (amended 2026-09-12). The windows above stayed 30 and 20 because
-the sister repo's holds do not heartbeat and a shorter window would have broken *their* live
-runs. Asking the **hold** rather than the **name** shortens it exactly where liveness exists and
-nowhere else. Measured by `node scripts/lock.mjs --selftest`, **19 cases in 0.7 s** against a
-throwaway root (`VAULT_LOCKS_HOME`), never the live mutex — the pre-push hook runs it:
+`github#25`, `decisions/0012` (revisited 2026-09-12). Shortening was asked for and **measured
+breaking a live holder**, so it is not here. A shorter window was built first — staleness asked
+of the hold rather than the name, 5 minutes for a hold declaring `holder: "process"` and the
+name's own window for everything else — and within the hour a `--only` run printed
+`BREAKING stale screen-left lock (age 301s, owner github#41 drive (after))`: a hold naming a
+**live** process (the dead-pid branch prints something else and runs first), broken while its
+worktree was still using the screen.
 
-| a contender meets | before | after |
+The cause is structural, not bad luck: `smoke.mjs` generates fixtures and builds the page with
+`spawnSync`, which blocks its own event loop and therefore its own beat for as long as the child
+runs. **A live holder is not always a talking one**, so any window short enough to be worth
+shortening is short enough to break a busy run.
+
+Liveness replaces the question the window stood in for rather than shrinking it. Held by
+`node scripts/lock.mjs --selftest`, **24 cases in 0.7 s** against a throwaway root
+(`VAULT_LOCKS_HOME`), never the live mutex — the pre-push hook runs it:
+
+| a contender meets | what happens |
+|---|---|
+| a **beating** hold (`holder: "process"`, live pid) last seen 6 min ago | waits — its name's window |
+| a **live** holder blocked for 25 min, held for 40 | waits — never broken by the clock |
+| a **CLI** hold (`holder: "cli"`, no pid) last seen 6 min ago | waits — 30 minutes for `suite` |
+| a hold in the **sister's shape** (`owner` and `at` alone) at 6 min | waits — 30 minutes |
+| a **CLI** hold past its 30-minute window | `BREAKING stale suite lock (age 1860s)` — the backstop |
+| a hold whose named process is **gone**, at any age | `BREAKING dead ... pid 999999 is gone` |
+
+### A hold driven by hand is refreshed, not aged out
+
+`github#25`. The case the issue was filed about is an agent claiming `screen-left` to drive a
+window itself, across screenshots and reruns, with no run under it to beat. `lock.mjs refresh
+<name> --owner <id>` is the issue's own "a heartbeat the holder refreshes", and `status` now
+says how long each hold has left, so there is something to act on before it matters:
+
+| | before | after |
 |---|---|---|
-| a **beating** hold (`holder: "process"`, live pid) last seen 6 min ago | waited — 30-minute window | `BREAKING stale suite lock (age 360s)` |
-| a **beating** hold last seen 1 min ago, held for 40 min | waited | waits — a live hold is never broken, however long it has held |
-| a **CLI** hold (`holder: "cli"`, no pid) last seen 6 min ago | waited | waits — 30 minutes, unchanged |
-| a hold in the **sister's shape** (`owner` and `at` alone) last seen 6 min ago | waited | waits — 30 minutes, unchanged |
-| a hold whose named process is **gone** | broken at once | broken at once |
-
-Five minutes, not two: the beat is a 30-second interval on an unref'd timer, so a long
-synchronous stretch inside a run can legitimately delay it. Ten missed beats is the margin, and
-a dead holder is already broken in milliseconds by the pid check, so this window only ever
-catches a **wedged** holder.
+| a 19-minute-old `screen-left` hold, refreshed by its owner | no such command | `REFRESHED screen-left by #12 plaques -- stale in 1200s`, `since` unmoved |
+| the same, asked for by anyone else | — | `REFUSED`, exit **3**, the clock untouched |
+| refreshing a lock nobody holds | — | `NOT HELD`, exit **3** |
+| `status` on a hold inside its window | `seen=360s ago` | `... holder unverified  stale in 1440s` |
 
 ### A CLI hold beats while a run is under it
 

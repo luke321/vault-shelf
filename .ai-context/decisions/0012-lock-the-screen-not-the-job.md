@@ -82,8 +82,8 @@ age `Infinity` — stale, and therefore breakable. Two consequences that shaped 
   window during screenshot work and the sister's `pre-push develop` broke it mid-run.
 - **The stale windows stay 20 and 30 minutes.** Liveness would allow minutes, but the sister's
   own holds do not heartbeat, so a shorter window here would break *their* live runs. Shortening
-  waits on both sides heartbeating. *(Amended 2026-09-12 — see below. The window is now asked of
-  the hold rather than of the name, which needed nothing from the sister at all.)*
+  waits on both sides heartbeating. *(Revisited 2026-09-12 — see below. The windows stay, and
+  the sister is no longer the reason: shortening them breaks live holders here too.)*
 
 `vault-graph#87` merged into their `develop` (`a3e49e7`) while this was being planned, which is
 why the first shape of this change is not the shape that landed — see the alternatives.
@@ -113,54 +113,88 @@ why the first shape of this change is not the shape that landed — see the alte
 - The alias and the legacy `record` name are **transitional**. Delete both when the sister repo
   drops its own alias; nothing else in this repo refers to `record`.
 
-## Amendment, 2026-09-12 — the hold follows the run, and the window follows the hold
 
-`github#25` asked for three things. Two landed above. The third — *"reconsider the 30-minute
-window once liveness exists"* — was deferred to a sister repo that still, read today, has no
-heartbeat at all. And the half of the first ask that the issue's title is actually about was
-left standing: **a hold taken from the command line has no liveness of any kind**, and the two
-runs that take it that way are the *gated* ones. `.githooks/pre-push` and `release.ps1` both
-acquire `suite` from the command line and then run `smoke.mjs --no-lock`, so for the length of
-the run whose numbers stamp a tree, the hold's age was frozen at the acquire time and nothing
-would have noticed it being broken.
+## Amendment, 2026-09-12 — the hold follows the run, and the window is left where it is
 
-**A CLI hold beats while a run is under it.** `--no-lock` no longer means *ignore the lock*; it
-means *adopt the caller's hold*. The run rewrites the meta to name its own live pid, beats it
-under **the caller's own owner** — so the parent's `release` still matches — and on the way out
-puts `holder: "cli"` back and leaves the directory standing, because the caller still owns the
-release. A `--no-lock` run with nothing holding the lock now refuses to start rather than
-measuring on an unguarded machine.
+`github#25` asked for three things. Two landed above. What was left is the half the issue's
+title is actually about, and the third ask.
 
-This keeps the table above intact: a *bare* CLI hold, with no run under it, still gets no
-liveness, for exactly the reasons the detached-heartbeat row gives. What changed is that the
-case that actually bites always has a live process available — it just was not being asked.
+### A CLI hold beats while a run is under it
 
-**Staleness becomes a property of the hold rather than of the name.** A hold that declares
-`holder: "process"` is stale after **5 minutes**; anything that does not — a bare CLI hold, and
-every hold the sister repo writes — keeps its name's 30 or 20. So the window shortens where
-liveness exists and nowhere else, and nothing the sister writes is ever measured against a
-window it did not agree to. That is what made the deferral unnecessary: the answer needed
-nothing from them.
+The decision above gives a hold taken from the command line no liveness at all, on the
+reasoning in the detached-heartbeat row — an agent's per-command shell dies immediately, so
+there is no parent to beat for. That reasoning holds. What it missed is that **the two gated
+runs are CLI holds with a live process sitting under them**: `.githooks/pre-push` and
+`release.ps1` both acquire `suite` from the command line and then run `smoke.mjs --no-lock`. So
+for the length of the run whose numbers stamp a tree, the hold's age was frozen at the acquire
+and nothing would have noticed it being broken — the two faults the issue names, on the one path
+where the numbers matter most.
 
-**Five minutes, not two.** The beat is a 30-second `setInterval` on an unref'd timer, so a long
-synchronous stretch inside a run can legitimately delay it. Ten missed beats is a wide margin
-and still six times better than half an hour. A *dead* holder is already broken in milliseconds
-by the pid check, so this window only ever catches a **wedged** one, which is rare and cheap to
-wait five minutes for.
+`--no-lock` no longer means *ignore the lock*; it means **adopt the caller's hold**. The run
+rewrites the meta to name its own live pid, beats it under **the caller's own owner** — so the
+parent's `release` still matches — and on the way out puts `holder: "cli"` back and leaves the
+directory standing, because the caller still owns the release. A `--no-lock` run with nothing
+holding the lock now refuses to start rather than measuring on an unguarded machine.
 
-**A harness that loses the display says so.** `takeLeftScreen` passed no `onLost`, so each of
-the five harnesses that park a window could lose `screen-left` mid-run and finish as though
-nothing had happened — the same fault the suite already guarded against for `suite`. It now
-names who took it and stops.
+A *bare* CLI hold, with no run under it, still gets no beat. What it gets instead is a way to
+say it is still there: `node scripts/lock.mjs refresh <name> --owner <id>` — the issue's own "a
+heartbeat the holder refreshes" — and `status` now prints how long every hold has left. That is
+the case the issue was actually filed about: an agent claiming `screen-left` to drive a window
+by hand across screenshots and reruns, whose hold aged past the window while it was still
+working.
 
-**And the lock has a selftest.** Until now its behaviour was hand-measured into a table in
-`invariants.md`, which is not a thing that can fail on a push. `node scripts/lock.mjs --selftest`
-is 19 cases against a throwaway root (`VAULT_LOCKS_HOME`), never the live mutex, and the
-pre-push hook runs it beside the update-note one.
+### The stale windows stay at 30 and 20, and that is an answer
+
+The third ask was to reconsider the 30-minute window "once liveness exists: with a heartbeat,
+staleness can be minutes instead of half an hour, and a live holder is never broken." Both
+halves of that sentence were taken seriously and they turn out to point in opposite directions.
+
+A shorter window was built first, and carefully: staleness asked of the **hold** rather than of
+the **name**, so a hold declaring `holder: "process"` went stale after 5 minutes while a bare
+CLI hold and everything the sister repo writes kept their 30 and 20. Nothing the sister wrote
+would ever have been measured against a window it did not agree to, which is what made the
+original deferral look unnecessary.
+
+**It broke a live holder within the hour, and the measurement is the reason it is not here.**
+Verifying this ticket, a `--only` run printed
+`BREAKING stale screen-left lock (age 301s, owner github#41 drive (after))` — a hold naming a
+**live** process (the dead-pid branch prints something else and runs first), broken by the
+five-minute window while its worktree was still using the screen. That is precisely the fault
+the issue reports, reintroduced by the fix for it.
+
+The cause is not a wedge and not bad luck. **A live holder is not always a talking one.**
+`smoke.mjs` generates its fixtures and builds its page with `spawnSync`, which blocks its own
+event loop — and therefore its own beat — for as long as the child runs. A weekly fixture
+regeneration is minutes of that. Any window short enough to be worth calling short is short
+enough to break those runs.
+
+So liveness **replaces** the question the window was standing in for rather than shrinking it:
+
+- a **dead** holder is broken in milliseconds by the pid check, not waited out — which is the
+  whole of what the 30 minutes was ever protecting against in practice;
+- a **live** holder is never broken by the clock, however long it has held and however long it
+  has been silent — which is the issue's own second half, met exactly;
+- the window stays as the **backstop** for what liveness cannot see: a wedged process, a
+  recycled pid, a hold in the sister's shape that nobody can vouch for.
+
+### A harness that loses the display says so
+
+`takeLeftScreen` passed no `onLost`, so each of the five harnesses that park a window could lose
+`screen-left` mid-run and finish as though nothing had happened — the same fault the suite
+already guarded against for `suite`. It now names who took it and stops.
+
+### And the lock has a check that can fail
+
+Its behaviour was a hand-measured table in `invariants.md`, which is not a thing that fails on a
+push. `node scripts/lock.mjs --selftest` is **24 cases against a throwaway root**
+(`VAULT_LOCKS_HOME`, so never the live mutex), and the pre-push hook runs it beside the
+update-note selftest — 0.7 s.
 
 | Option | Why not |
 |---|---|
-| **Shorten `STALE_MS` outright** | It is the mirror image of the bug being fixed: the sister's holds do not beat, so every one of their live runs becomes breakable at five minutes. The deferral in the original decision was right about this. |
-| **Beat an adopted hold under the adopter's own owner** | `releaseNamed` refuses an owner that does not match, so the hook's own `release` would print `REFUSED` and the lock would stay held for its whole stale window — a leak introduced by the fix for a leak. |
+| **Shorten the stale windows, per name** | Breaks the sister's live holds, which do not beat. The original deferral was right about this and it has not changed: read today, `vault-graph`'s `lock.mjs` still has no heartbeat. |
+| **Shorten them per hold, for holds that declare they beat** | Built, then measured breaking a live in-process holder at 301 s, because `spawnSync` blocks the beat. Reverted. A window that only fires on a holder nobody can hear is a window that fires on a holder who is busy. |
+| **Beat an adopted hold under the adopter's own owner** | `releaseNamed` refuses an owner that does not match, so the parent's own `release` would print `REFUSED` and the lock would stay held for its whole window — a leak introduced by the fix for a leak. |
 | **Have the hook acquire in-process instead** | It is a shell script; the acquire has to outlive the command that makes it. That is what `holder: "cli"` is for. |
+| **A worker thread to beat through a blocked event loop** | It would make a short window safe, at the price of a thread inside the one mutex six worktrees depend on, and it buys only the wedged-holder case that the backstop already covers. Worth revisiting if a wedge is ever actually seen. |
 | **Leave `--no-lock` alone and document the gap** | It is the arrangement that produced the issue. The gap is invisible from inside the run, which is the only place anyone would look. |

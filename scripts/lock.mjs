@@ -32,8 +32,6 @@ const DEFAULT_TIMEOUT = 45 * 60 * 1000;
 const POLL_MS = 5000;
 // github#25 -- a hold is refreshed far inside the shortest stale window
 const BEAT_MS = Number(process.env.VAULT_LOCKS_BEAT_MS) || 30 * 1000;
-// github#25 -- ten missed beats, not half an hour
-const BEAT_STALE_MS = 5 * 60 * 1000;
 
 // github#37 -- a holder names itself, so a blocked run can say who
 /** @param {string} what @returns {string} */
@@ -68,12 +66,6 @@ function ageOf(meta) {
   return meta && meta.at ? Date.now() - meta.at : Infinity;
 }
 
-// github#25 -- a beating hold goes stale in minutes, not half an hour
-/** @param {string} n @param {Record<string, any> | null} meta @returns {number} */
-function staleFor(n, meta) {
-  return meta && meta.holder === "process" ? BEAT_STALE_MS : staleWindow(n);
-}
-
 // github#25 -- only a hold naming a live process can be asked
 /** @param {Record<string, any> | null} meta @returns {boolean} */
 function holderGone(meta) {
@@ -89,7 +81,7 @@ function legacyHold(n) {
       try { return JSON.parse(readFileSync(join(root, n + ".lock", "owner.json"), "utf8")); }
       catch { return null; }
     })();
-    if (meta && meta.at && Date.now() - meta.at <= staleFor(n, meta)) return { root, meta };
+    if (meta && meta.at && Date.now() - meta.at <= staleWindow(n)) return { root, meta };
   }
   return null;
 }
@@ -101,7 +93,7 @@ function aliasHold(n) {
     const legacy = legacyHold(a);
     if (legacy) return { name: a, root: legacy.root, meta: legacy.meta };
     const meta = readMeta(a);
-    if (meta && !holderGone(meta) && ageOf(meta) <= staleFor(a, meta)) {
+    if (meta && !holderGone(meta) && ageOf(meta) <= staleWindow(a)) {
       return { name: a, root: ROOT, meta: meta };
     }
   }
@@ -199,7 +191,7 @@ export async function acquire(name, opts) {
       continue;
     }
 
-    if (age > staleFor(name, meta)) {
+    if (age > staleWindow(name)) {
       say("BREAKING stale " + name + " lock (age " + Math.round(age / 1000) + "s, owner " +
           ((meta && meta.owner) || "unknown") + ")");
       try { rmSync(dir, { recursive: true, force: true }); } catch { void 0; }
@@ -292,6 +284,22 @@ export function heldBy(name, owner) {
   return !!meta && meta.owner === owner;
 }
 
+// github#25 -- a hold driven by hand is kept alive, not aged out
+/** @param {string} name @param {string} owner @param {(line: string) => void} [say] @returns {number} */
+export function refreshNamed(name, owner, say) {
+  const line = say || ((l) => console.log(l));
+  const meta = readMeta(name);
+  if (!meta) { console.error("NOT HELD " + name + " -- nothing to refresh"); return 3; }
+  if (meta.owner !== owner) {
+    console.error("REFUSED -- " + name + " is held by " + meta.owner + ", not " + owner);
+    return 3;
+  }
+  writeMeta(name, { ...meta, at: Date.now() });
+  line("REFRESHED " + name + " by " + owner + " -- stale in " +
+       Math.round(staleWindow(name) / 1000) + "s");
+  return 0;
+}
+
 /** @param {string} name @param {string} owner @param {(line: string) => void} [say] */
 export function releaseNamed(name, owner, say) {
   const line = say || ((l) => console.log(l));
@@ -310,7 +318,7 @@ export function releaseNamed(name, owner, say) {
 }
 
 function usage(code) {
-  console.error("usage: node scripts/lock.mjs <acquire|release|status> <name> --owner <id>");
+  console.error("usage: node scripts/lock.mjs <acquire|refresh|release|status> <name> --owner <id>");
   console.error("       node scripts/lock.mjs --selftest");
   console.error("  names: " + NAMES.join(" | ") + " (record is legacy, github#37)");
   process.exit(code);
@@ -338,7 +346,8 @@ function status() {
     const since = meta && meta.since ? "  held=" + Math.round((Date.now() - meta.since) / 1000) + "s" : "";
     console.log(n + "  owner=" + ((meta && meta.owner) || "unknown") +
                 "  seen=" + Math.round(ageOf(meta) / 1000) + "s ago" + since + live +
-                (ageOf(meta) > staleFor(n, meta) ? "  STALE" : ""));
+                (ageOf(meta) > staleWindow(n) ? "  STALE"
+                  : "  stale in " + Math.round((staleWindow(n) - ageOf(meta)) / 1000) + "s"));
   }
 }
 
@@ -372,9 +381,20 @@ async function selftest() {
   const cli = (...args) => spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...args],
                                      { encoding: "utf8" });
 
-  console.log("a hold that cannot beat keeps its name's window");
-  seed("suite", { owner: "a hook", at: ago(6 * MIN), since: ago(6 * MIN), holder: "cli" });
+  console.log("a live holder is never broken, whatever the clock says");
+  seed("suite", { owner: "a run", at: ago(6 * MIN), since: ago(6 * MIN),
+                  pid: process.pid, holder: "process" });
   let r = await ask("suite", "contender");
+  check("a beating hold last seen 6 minutes ago keeps its name's window", !r.got,
+        r.lines.join(" / "));
+  clear("suite");
+  seed("suite", { owner: "a run", at: ago(25 * MIN), since: ago(40 * MIN),
+                  pid: process.pid, holder: "process" });
+  r = await ask("suite", "contender");
+  check("a live holder blocked for 25 minutes is still not broken", !r.got, r.lines.join(" / "));
+  clear("suite");
+  seed("suite", { owner: "a hook", at: ago(6 * MIN), since: ago(6 * MIN), holder: "cli" });
+  r = await ask("suite", "contender");
   check("a CLI hold on suite seen 6 minutes ago is not stale", !r.got, r.lines.join(" / "));
   clear("suite");
   seed("suite", { owner: "the sister", at: ago(6 * MIN) });
@@ -383,39 +403,51 @@ async function selftest() {
         r.lines.join(" / "));
   clear("suite");
 
-  console.log("a hold that beats goes stale in minutes");
-  seed("suite", { owner: "a run", at: ago(6 * MIN), since: ago(6 * MIN),
-                  pid: process.pid, holder: "process" });
+  console.log("the backstop and the pid check still break what nobody is holding");
+  seed("suite", { owner: "a dead hook", at: ago(31 * MIN), since: ago(31 * MIN), holder: "cli" });
   r = await ask("suite", "contender");
-  check("a beating hold last seen 6 minutes ago is broken",
+  check("a CLI hold past its 30-minute window is broken",
         r.got && r.lines.some((l) => l.startsWith("BREAKING stale")), r.lines.join(" / "));
   if (r.hold) r.hold.release();
-  clear("suite");
-  seed("suite", { owner: "a run", at: ago(1 * MIN), since: ago(40 * MIN),
-                  pid: process.pid, holder: "process" });
-  r = await ask("suite", "contender");
-  check("a beating hold seen a minute ago is never broken, however long it has held", !r.got,
-        r.lines.join(" / "));
   clear("suite");
   seed("screen-left", { owner: "a dead run", at: Date.now(), since: Date.now(),
                         pid: 999999, holder: "process" });
   r = await ask("screen-left", "contender");
-  check("a hold whose named process is gone is still broken at once",
+  check("a hold whose named process is gone is broken at once, at any age",
         r.got && r.lines.some((l) => l.startsWith("BREAKING dead")), r.lines.join(" / "));
   if (r.hold) r.hold.release();
   clear("screen-left");
 
-  console.log("status says which window it is applying");
-  seed("suite", { owner: "a run", at: ago(6 * MIN), since: ago(6 * MIN),
-                  pid: process.pid, holder: "process" });
-  let out = (cli("status").stdout || "").trim();
-  check("a beating hold seen 6 minutes ago prints STALE", /STALE/.test(out), out);
-  clear("suite");
+  console.log("status says how long a hold has left");
   seed("suite", { owner: "a hook", at: ago(6 * MIN), since: ago(6 * MIN), holder: "cli" });
-  out = (cli("status").stdout || "").trim();
-  check("a CLI hold of the same age does not, and says holder unverified",
-        /holder unverified/.test(out) && !/STALE/.test(out), out);
+  let out = (cli("status").stdout || "").trim();
+  check("a CLI hold says holder unverified and when it goes stale",
+        /holder unverified/.test(out) && /stale in 14\d\ds/.test(out), out);
   clear("suite");
+  seed("suite", { owner: "a hook", at: ago(31 * MIN), since: ago(31 * MIN), holder: "cli" });
+  out = (cli("status").stdout || "").trim();
+  check("one past its window says STALE instead", /STALE/.test(out), out);
+  clear("suite");
+
+  console.log("a hold driven by hand can be kept alive");
+  let acqScreen = cli("acquire", "screen-left", "--owner", "#12 plaques");
+  check("the command line takes the screen", acqScreen.status === 0,
+        (acqScreen.stdout || "").trim());
+  const taken = readMeta("screen-left");
+  writeMeta("screen-left", { ...taken, at: ago(19 * MIN) });
+  const denied = cli("refresh", "screen-left", "--owner", "somebody else");
+  check("refresh refuses an owner that does not match",
+        denied.status === 3 && ageOf(readMeta("screen-left")) > 18 * MIN,
+        (denied.stderr || "").trim());
+  const kept = cli("refresh", "screen-left", "--owner", "#12 plaques");
+  const fresh = readMeta("screen-left");
+  check("refresh puts a 19-minute-old hold back to nothing",
+        kept.status === 0 && ageOf(fresh) < 5000 && !!taken && fresh.since === taken.since,
+        (kept.stdout || "").trim());
+  cli("release", "screen-left", "--owner", "#12 plaques");
+  check("refreshing a lock nobody holds answers 3",
+        cli("refresh", "screen-left", "--owner", "#12 plaques").status === 3);
+  clear("screen-left");
 
   console.log("a CLI hold beats while a run is under it");
   const acq = cli("acquire", "suite", "--owner", "pre-push develop");
@@ -498,6 +530,9 @@ if (RUN_DIRECTLY) {
       if (e.code === "BUSY") { console.log(e.message); process.exit(1); }
       throw e;
     }
+  } else if (cmd === "refresh") {
+    if (!name || !owner) usage(2);
+    process.exit(refreshNamed(name, owner));
   } else if (cmd === "release") {
     if (!name || !owner) usage(2);
     process.exit(releaseNamed(name, owner));

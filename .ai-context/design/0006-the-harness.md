@@ -68,10 +68,8 @@ holds it and nothing else; wrapping a run by hand now waits for its own parent, 
 says so.
 
 A `mkdir` is the lock — atomic, and it survives a killed session as a **stale** entry rather
-than a permanent one. **How long it survives is a property of the hold, not of the name**: a
-hold that declares it beats is stale after 5 minutes, and one that cannot — a hold taken from
-the command line with nothing running under it, and every hold the sister repo writes — keeps
-30 minutes for `suite` and 20 for everything else.
+than a permanent one. Stale windows are 30 minutes for `suite` and 20 for everything else, and
+`github#25` **reconsidered shortening them and deliberately did not** — see below.
 
 **A hold says whether it is still alive** (`github#25`, `decisions/0012`). An in-process holder
 writes its own pid and refreshes the timestamp every 30 seconds, so a dead holder's lock is
@@ -92,7 +90,24 @@ it, and hands the caller's own shape back on the way out without removing the di
 display: a harness that loses `screen-left` mid-run says who took it and stops, rather than
 finishing on a shared screen.
 
-`node scripts/lock.mjs --selftest` holds all of this — **19 cases against a throwaway root**
+**A hold driven by hand is refreshed, not aged out.** An agent that claims `screen-left` to
+drive a window itself has no run under it to beat, and the case `github#25` was filed about is
+exactly that: a hold aged past its window during screenshot work and the sister repo's
+`pre-push develop` broke it mid-run. `node scripts/lock.mjs refresh <name> --owner <id>` puts
+the clock back — the issue's own "a heartbeat the holder refreshes" — and `status` now says how
+long each hold has left, so there is something to act on before it matters.
+
+**The stale windows stay 30 and 20, and that is the answer rather than a deferral.** Shortening
+them can only break holders that are alive, and a live holder is not always a talking one: this
+harness generates its fixtures and builds its page with `spawnSync`, which blocks its own beat
+for as long as the child runs. Measured while this was being written — a five-minute window
+broke a live in-process holder in another worktree at 301 s, which is the fault `github#25`
+reports, reintroduced by the fix for it. Liveness **replaces** the question the window was
+standing in for rather than shrinking it: a dead holder is broken in milliseconds by the pid
+check, a live one is never broken by the clock, and the window is left as the backstop for what
+liveness cannot see — a wedged process, a recycled pid, a hold nobody can vouch for.
+
+`node scripts/lock.mjs --selftest` holds all of this — **24 cases against a throwaway root**
 (`VAULT_LOCKS_HOME`), never the live mutex — and the pre-push hook runs it.
 
 Screenshots need no lock *of their own*: they go over CDP, so overlapping windows are harmless.
