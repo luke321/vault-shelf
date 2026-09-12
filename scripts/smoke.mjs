@@ -6041,6 +6041,279 @@ check("a hovered spine shows one peek, big enough to read, and short labels stan
   };
 });
 
+/* github#51, design/0021 -- NUMBERS CANNOT SEE THIS ONE, so it reads pixels.
+ * The track contains its paint and had no room above a spine, so every lift was painted outside
+ * the box and sliced flat. getBoundingClientRect reports the lifted spine at the same place
+ * clipped or not -- it was measured at y=160 in both -- so geometry alone cannot tell the two
+ * apart, and this check compares what was actually drawn.
+ *
+ * IT MEASURES THE CLIP, BECAUSE THE CLIP IS THE BUG, and it measures it with a lift far taller
+ * than any the product spends: how far above its track may a spine paint? Two answers come out
+ * of one over-lift -- the room the clip GRANTS, which must be the room page.css declares, and
+ * whether the clip is still biting at all, which a clip merely switched off would not be. Every
+ * real lift then follows from the ladder the sibling check walks: no rung is taller than the
+ * room, and the room is granted.
+ *
+ * Driving each state with a real hover and real wear was the first form of this, and it flaked.
+ * The two worn-at-rest states are a one and two pixel shift over a textured, sub-pixel aligned
+ * ground, and one build came back 0/0/94/96 on one run and 104/104/101/176 on the next. A 20px
+ * over-lift moves a hundred units either way, and the one real state kept below -- a search
+ * match, the ladder's top rung, lifted by the query rather than by the pointer, so there is no
+ * hover to race -- is the end-to-end reading a synthetic lift cannot give.
+ *
+ * REFERENCE-FREE, because the ground under a spine is textured and dithers by a unit: capture
+ * the rows above the track with the spine there, capture them again with it hidden, and a row
+ * that differs is a row the spine was allowed to paint in. Differencing against the spine put
+ * back DOWN was the other wrong turn: shifting a steep gilt head by a pixel moves those pixels
+ * by more than any threshold whether the head was clipped or not. */
+check("a lifted spine is painted whole, in every look", async (p) => {
+  await p.j(`(function(){
+    var s = document.createElement("style");
+    s.id = "vs-probe-51";
+    document.head.appendChild(s);
+    return 1;
+  })()`);
+
+  /* PAST A PAINT, not past a style change: changing the sheet and capturing in the same breath
+   * caught the first measurement of a run mid-frame, and both captures came back identical. */
+  const sheet = (text) => p.eval(`(async function(){
+    document.getElementById("vs-probe-51").textContent = ${JSON.stringify(text)};
+    await new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); });
+    return 1;
+  })()`);
+
+  /* The whole width of the spine, never one column down its middle: a look's top hairline can sit
+   * within a unit or two of the ground it stands on, and across the full width the rounded
+   * corner, the side rules and the closing border are all in the row. */
+  const band = async (x, y, w, rows) => {
+    const shot = await p.send("Page.captureScreenshot",
+      { format: "png", captureBeyondViewport: false,
+        clip: { x, y, width: w, height: rows, scale: 1 } });
+    return p.eval(`(async function(){
+      var img = new Image();
+      img.src = "data:image/png;base64," + ${JSON.stringify(shot.data)};
+      await img.decode();
+      var c = document.createElement("canvas");
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      var g = c.getContext("2d");
+      g.drawImage(img, 0, 0);
+      var d = g.getImageData(0, 0, c.width, c.height).data, out = [];
+      for (var y = 0; y < c.height; y++) {
+        var row = [];
+        for (var x = 0; x < c.width; x++) {
+          var i = (y * c.width + x) * 4;
+          row.push(d[i], d[i + 1], d[i + 2]);
+        }
+        out.push(row);
+      }
+      return out;
+    })()`);
+  };
+
+  /* Marks one spine and reports its box and its track's clip. Never the first shelf: the rows
+   * this check reads sit above a track, and the top bar is what is above that one. */
+  const pick = (sel) => p.j(`(function(){
+    [].slice.call(document.querySelectorAll("#vs-app [data-probe51]"))
+      .forEach(function (el) { el.removeAttribute("data-probe51"); });
+    var shelves = document.querySelectorAll("#vs-shelves .vs-shelf");
+    var sp = null;
+    for (var i = 1; i < shelves.length && !sp; i++) sp = shelves[i].querySelector(${JSON.stringify(sel)});
+    if (!sp) return null;
+    sp.setAttribute("data-probe51", "1");
+    var track = sp.closest(".vs-track");
+    var r = sp.getBoundingClientRect(), t = track.getBoundingClientRect();
+    var cs = getComputedStyle(track);
+    return { left: r.left, w: r.width, top: r.top, trackTop: t.top,
+             contain: cs.contain, declared: parseFloat(cs.overflowClipMargin) || 0 };
+  })()`);
+
+  /* A textured ground dithers by a unit or two; a spine's edge arriving in a row moves some pixel
+   * in it by tens. Six is well clear of the dither and nowhere near the signal. */
+  const MOVED = 6;
+  /* Read this far up from the track's edge, so the answer is a height rather than a yes or no and
+   * a room wider than asked for is as visible as a room that is missing. */
+  const REACH = 26;
+
+  /** How far above its track a spine is actually PAINTED. */
+  const paintedAbove = async (g) => {
+    const x = Math.round(g.left);
+    const w = Math.max(2, Math.round(g.w));
+    const y = Math.floor(g.trackTop) - REACH;
+    const there = await band(x, y, w, REACH);
+    await sheet(" #vs-app [data-probe51] { visibility: hidden !important; }");
+    const bare = await band(x, y, w, REACH);
+    await sheet("");
+    const moves = there.map((row, i) =>
+      row.reduce((most, v, k) => Math.max(most, Math.abs(v - bare[i][k])), 0));
+    const first = moves.findIndex((m) => m > MOVED);
+    return { above: first < 0 ? 0 : REACH - first,
+             moves: moves.slice(Math.max(0, (first < 0 ? REACH : first) - 1)).join("/") };
+  };
+
+  const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
+  const was = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
+  /* Far past any rung, so what comes back is the clip's answer and not the lift's. */
+  const OVER = 20;
+  const granted = [];
+  const matched = [];
+
+  for (const look of looks) {
+    await p.j(`(__vs.setLook(${JSON.stringify(look)}), 1)`);
+    await sleep(140);
+    const name = look || "modern";
+
+    /* 1. THE ROOM THE CLIP GRANTS, against the room page.css declares. */
+    await sheet("");
+    if (!(await pick(".vs-spine"))) {
+      granted.push({ look: name, declared: null, got: null, contain: null, moves: "" });
+      matched.push({ look: name, needle: "", lift: null, painted: null, moves: "" });
+      continue;
+    }
+    await sheet(` #vs-app [data-probe51] { transform: translateY(-${OVER}px) !important; }`);
+    const over = await pick(".vs-spine");
+    const r = await paintedAbove(over);
+    await sheet("");
+    granted.push({ look: name, declared: over.declared, got: r.above, contain: over.contain,
+                   moves: r.moves });
+
+    /* 2. AND ONE REAL STATE, end to end: a search match is lifted the ladder's top rung while a
+     * query is live. The law says the query MARKS -- a book draws forward. Forward with its head
+     * off is not what that promises. The needle comes from the vault, never typed in: a
+     * hard-coded one matches nothing the day the generator changes, and the check then proves
+     * nothing while still passing. */
+    const needle = await p.j(`(function(){
+      var tags = {};
+      __vs.data().notes.forEach(function (n) {
+        n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+      });
+      var n = Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] ||
+              __vs.data().notes[0].title.slice(0, 4);
+      __vs.setQuery(n);
+      return n;
+    })()`);
+    await sleep(260);
+    const m = await pick('.vs-spine[data-match="1"]');
+    if (m) {
+      const lift = +(m.trackTop - m.top).toFixed(1);
+      const mr = await paintedAbove(m);
+      matched.push({ look: name, needle, lift, painted: mr.above, moves: mr.moves });
+    } else {
+      matched.push({ look: name, needle, lift: null, painted: null, moves: "" });
+    }
+    await p.j(`(__vs.setQuery(""), 1)`);
+    await sleep(220);
+  }
+
+  await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
+  await sleep(140);
+  await p.j(`(function(){
+    [].slice.call(document.querySelectorAll("#vs-app [data-probe51]"))
+      .forEach(function (el) { el.removeAttribute("data-probe51"); });
+    var s = document.getElementById("vs-probe-51");
+    if (s) s.remove();
+    return 1;
+  })()`);
+
+  /* The clip GRANTS what page.css declares -- not less, which cuts a head, and not more, which
+   * would mean the declaration is not the thing in force. */
+  const wrongRoom = granted.filter((x) => x.got !== x.declared);
+  /* And it is still a clip: a 20px lift under a 7px room paints 7, never 20. */
+  const notClipping = granted.filter((x) => x.got >= OVER);
+  const loose = granted.filter((x) => (x.contain || "").indexOf("paint") < 0);
+  /* And the real state draws to its own top edge: painted as high as it is lifted. */
+  const cutShort = matched.filter((x) => x.painted === null || x.lift === null ||
+                                         x.painted < x.lift);
+  const ok = wrongRoom.length === 0 && notClipping.length === 0 && loose.length === 0 &&
+             cutShort.length === 0 && granted.length === looks.length &&
+             matched.length === looks.length && granted.every((x) => x.declared > 0);
+  return {
+    ok,
+    detail: `a spine lifted ${OVER}px paints this far above its track, against the room page.css ` +
+            `declares -- ` +
+            granted.map((x) => `${x.look} ${x.got}px of ${x.declared}px` +
+              ((x.contain || "").indexOf("paint") < 0 ? " (CONTAINMENT OFF)" : "")).join(", ") +
+            `; and a real search match, lifted by the query rather than the pointer, is painted ` +
+            `to its own top edge -- ` +
+            matched.map((x) => `${x.look} "${x.needle}" lifted ${x.lift}px, painted ${x.painted}px`)
+              .join(", ") +
+            (wrongRoom.length
+              ? ` -- ROOM NOT GRANTED: ` + wrongRoom.map((x) =>
+                  `${x.look} declares ${x.declared}px and paints ${x.got}px ` +
+                  `(rows moved by ${x.moves})`).join(", ")
+              : "") +
+            (notClipping.length
+              ? ` -- THE CLIP STOPPED CLIPPING in ${notClipping.map((x) => x.look).join(", ")}: ` +
+                `a ${OVER}px lift painted all ${OVER}px`
+              : "") +
+            (cutShort.length
+              ? ` -- HEAD CUT: ` + cutShort.map((x) =>
+                  `${x.look} lifted ${x.lift}px but painted only ${x.painted}px ` +
+                  `(rows moved by ${x.moves})`).join(", ")
+              : "")
+  };
+});
+
+/* github#51, design/0021 -- AND THE ARITHMETIC, which the pixels cannot state and which is
+ * what stops the next lift from silently re-cutting the heads: the room the track's clip edge
+ * allows is the largest rung of the ladder, in every look. A number, so it costs milliseconds
+ * and names the offender the moment someone raises a lift past the room. */
+check("the room above a spine is the largest lift, in every look", async (p) => {
+  const r = await p.eval(`(async function(){
+    var root = document.getElementById("vs-app");
+    var core = window.VaultShelfCore;
+    var looks = core.LOOKS.map(function (l) { return l.value; });
+    var was = root.getAttribute("data-look") || "";
+    var px = function (v) { return parseFloat(v) || 0; };
+    var out = [];
+    for (var i = 0; i < looks.length; i++) {
+      __vs.setLook(looks[i]);
+      await new Promise(function (r) { setTimeout(r, 120); });
+      /* RE-QUERY INSIDE THE LOOP. setLook rebuilds the library, so a node looked up before it
+       * is detached, and a detached element's computed style is empty -- which reads as
+       * "containment dropped, every rung 0" rather than as a stale handle. */
+      var track = document.querySelector("#vs-shelves .vs-track");
+      var spine = document.querySelector("#vs-shelves .vs-spine");
+      var cs = getComputedStyle(track);
+      var rungs = ["--spine-lift-worn", "--spine-lift-worn-more", "--spine-lift-worn-hover",
+                   "--spine-lift-hover", "--spine-lift-match"].map(function (n) {
+        return { name: n.replace("--spine-lift-", ""), px: px(cs.getPropertyValue(n)) };
+      });
+      var tallest = rungs.reduce(function (a, b) { return b.px > a.px ? b : a; });
+      /* The room the track actually allows, read off the track rather than off the token: a
+       * look could set the margin itself and this is what would catch it. */
+      var room = px(cs.overflowClipMargin);
+      /* And that the containment is still ON -- the fix is a clip margin, not a dropped clip. */
+      var contains = (cs.contain || "").indexOf("paint") >= 0;
+      /* The slack the box has above a spine, which is what made the clip bite: still zero. */
+      var above = +(track.getBoundingClientRect().top - spine.getBoundingClientRect().top).toFixed(1);
+      out.push({ look: looks[i] || "modern", room: room, tallest: tallest.px,
+                 by: tallest.name, contains: contains, slackAbove: -above,
+                 rungs: rungs.map(function (x) { return x.name + " " + x.px; }).join("/") });
+    }
+    __vs.setLook(was);
+    await new Promise(function (r) { setTimeout(r, 120); });
+    return out;
+  })()`);
+  const short = r.filter((x) => x.room < x.tallest);
+  const loose = r.filter((x) => !x.contains);
+  /* The room IS the tallest rung, not merely at least it: a room larger than any lift means the
+   * two drifted apart, which is the state this check exists to make impossible. */
+  const adrift = r.filter((x) => x.room !== x.tallest);
+  const ok = short.length === 0 && loose.length === 0 && adrift.length === 0 && r.length >= 3 &&
+             r.every((x) => x.tallest > 0 && x.slackAbove === 0);
+  return {
+    ok,
+    detail: r.map((x) => `${x.look}: room ${x.room}px for a tallest lift of ${x.tallest}px ` +
+                         `(${x.by}), containment ${x.contains ? "on" : "OFF"}, ` +
+                         `${x.slackAbove}px of box above a spine`).join("; ") +
+            ` -- rungs ${r[0].rungs}` +
+            (short.length ? ` -- SHORT: ${short.map((x) => `${x.look} by ${x.tallest - x.room}px`).join(", ")}` : "") +
+            (adrift.length && !short.length
+              ? ` -- ADRIFT: ${adrift.map((x) => `${x.look} allows ${x.room}px for ${x.tallest}px`).join(", ")}` : "") +
+            (loose.length ? ` -- CONTAINMENT DROPPED in ${loose.map((x) => x.look).join(", ")}` : "")
+  };
+});
+
 /* github#47, design/0021 -- one face decides it, and it walks core.LOOKS. */
 check("a short cover is stood upright by one face, not the look's", async (p) => {
   const r = await p.j(`(function(){

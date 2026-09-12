@@ -120,21 +120,27 @@
   --spine-rule-side: 4px;
   --spine-rule: 1px;
   --spine-clear: 3px;
-  /* github#51, design/0021 -- HOW FAR A SPINE RISES, DECLARED, and the room above it derived
-   * from the ladder rather than typed in beside it. Five states lift, and two of them are not
-   * hover states at all: a worn book never goes back flush, and a search match is drawn
-   * forward. The track contains its paint, so whatever the tallest rung is, that is the room
-   * the clip edge has to allow -- and reading it with max() is what makes a lift changed later
-   * move the room with it instead of silently re-cutting the heads. A look that spends a
-   * different lift sets its rung here, not a transform of its own (github#14). */
+  /* github#51, design/0021 -- HOW FAR A SPINE RISES, DECLARED AS A LADDER, shortest rung
+   * first. Five states lift, and two of them are not hover states at all: a worn book never
+   * goes back quite flush, and a search match is drawn forward while a query is live. The
+   * track contains its paint and has no room above a spine, so the tallest rung is exactly the
+   * room its clip edge has to allow -- and the two are ONE VALUE here rather than two that can
+   * drift apart. A look that spends a different lift moves its rung (cyber does), never a
+   * transform of its own, so the room follows the look (github#14).
+   *
+   * NOT max() OVER THE RUNGS, which is what this wanted to be: measured in this Chrome,
+   * `overflow-clip-margin` takes a bare length and rejects every math function -- `max(1px,
+   * 7px)`, `calc(max(1px, 7px))` and a var() holding either all compute to 0px, silently, and
+   * the clip goes back to biting. Only an @property registration makes a max() compute down to
+   * a length, and that registration is document-global where every rule here is scoped under
+   * .vault-shelf. So the top rung is the room by identity, and `the room above a spine is the
+   * largest lift, in every look` is the check that catches a LESSER rung raised past it. */
   --spine-lift-worn: 1px;
   --spine-lift-worn-more: 2px;
   --spine-lift-worn-hover: 5px;
   --spine-lift-hover: 6px;
-  --spine-lift-match: 7px;
-  --spine-lift-max: max(var(--spine-lift-worn), var(--spine-lift-worn-more),
-                        var(--spine-lift-worn-hover), var(--spine-lift-hover),
-                        var(--spine-lift-match));
+  --spine-lift-max: 7px;
+  --spine-lift-match: var(--spine-lift-max);
   /* github#0 -- THICKER, because it is a handle now: at 3px the floor was a hairline to paint
    * and an impossible thing to grab.
    * github#14, design/0021 -- and ONE PLANK, in every look: each sheet used to declare its own
@@ -1515,7 +1521,7 @@
 /* The reset is one button at the end of the row, not a bar across it: three classes deep to
  * outrank the wide row rule that stretches every other sheet button. */
 .vault-shelf .vs-mini.vs-colourrow button { flex: 0 0 auto; }
-/* The mark on a changed slot IS its reset: one small × in the corner says "not the look's
+/* The mark on a changed slot IS its reset: one small Ã— in the corner says "not the look's
  * own" and puts it back. A right-click was the other choice, and it is what a spine has;
  * a swatch has a corner to put a badge in and a spine does not, and a badge is found by
  * looking where a right-click has to be known about. Inside Obsidian a right-click on a
