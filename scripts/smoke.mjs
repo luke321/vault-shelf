@@ -1,4 +1,6 @@
 import { attach, json } from "./cdp.mjs";
+// github#50
+import { HEADED, findChrome, harnessChromeArgs } from "./chrome.mjs";
 import { leftmostScreen, leftWindowPos, takeLeftScreen, dropLeftScreen } from "./screen.mjs";
 // github#25, github#37, decisions/0012
 import { acquire, adopt, heldBy, ownerTag } from "./lock.mjs";
@@ -123,10 +125,10 @@ for (const sig of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {
 }
 
 const PINNED_PORT = arg("port", "") ? Number(arg("port", "")) : 0;
-/* Kept as the flag that says "leave the window where I can see it"; the position is now the
- * left screen either way (design/0006), so this only reads as documentation of intent. */
-const HEADED = argv.includes("--headed");
-if (HEADED) process.env.VS_HEADED = "1";
+/* github#50 -- `--headed` lives in chrome.mjs now and finally does something: it is what stops
+ * the run being headless. It was parsed here and never read, and the VS_HEADED it wrote was
+ * read by nothing -- a switch that reads as the control for the foreground theft and was inert,
+ * which is worse than no switch at all. */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function freePorts(k) {
@@ -154,22 +156,6 @@ function freePort() {
       srv.close(() => resolve(port));
     });
   });
-}
-
-/* ------------------------------------------------------------------ chrome */
-
-function findChrome() {
-  const named = arg("chrome", "");
-  if (named) return named;
-  const guesses = [
-    process.env.PROGRAMFILES + "\\Google\\Chrome\\Application\\chrome.exe",
-    process.env["PROGRAMFILES(X86)"] + "\\Google\\Chrome\\Application\\chrome.exe",
-    process.env.LOCALAPPDATA + "\\Google\\Chrome\\Application\\chrome.exe",
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/usr/bin/google-chrome", "/usr/bin/chromium"
-  ];
-  for (const g of guesses) if (g && existsSync(g)) return g;
-  throw new Error("Chrome not found; pass --chrome <path>");
 }
 
 /* -------------------------------------------------------------- the checks */
@@ -6574,24 +6560,17 @@ async function runOne(vault, work) {
   }
 
   const profile = mkdtempSync(join(tmpdir(), "vs-smoke-"));
-  const chrome = spawn(findChrome(), [
-    `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`,
-    "--no-first-run", "--no-default-browser-check",
-    "--disable-extensions", "--disable-component-update", "--disable-client-side-phishing-detection",
-    "--disable-sync", "--no-service-autorun", "--disable-domain-reliability",
-    "--metrics-recording-only", "--no-pings", "--mute-audio",
-    "--disable-breakpad", "--disable-crash-reporter",
-    "--disable-features=Translate,TranslateUI,CalculateNativeWinOcclusion",
-    "--disable-backgrounding-occluded-windows",
-    "--disable-renderer-backgrounding",
-    "--disable-background-timer-throttling",
-    /* design/0006 -- ON THE LEFT SCREEN, headed or not. A headless window is invisible and a
-     * headed one is not: leaving Chrome to place itself put a test window on top of whatever
-     * the person is actually doing. There is one machine here and it has a monitor the
-     * harness is allowed to use. */
-    ...(slot ? [`--window-position=${slot.x},${slot.y}`] : [leftWindowPos()]),
-    slot ? `--window-size=${slot.w},${slot.h}` : "--window-size=1600,1000", `--app=${url}`
-  ], { stdio: ["ignore", "ignore", "pipe"], detached: false });
+  const chrome = spawn(findChrome(), harnessChromeArgs({
+    port: PORT, profile, url,
+    /* design/0006 -- ON THE LEFT SCREEN when there is a window to place. github#50: there
+     * usually is not any more, and the size still decides the layout, so both are passed in
+     * either mode and Chrome ignores the position it cannot use. Placement was only ever half
+     * of this: a window put politely on the left screen still takes the keyboard. */
+    window: [
+      ...(slot ? [`--window-position=${slot.x},${slot.y}`] : [leftWindowPos()]),
+      slot ? `--window-size=${slot.w},${slot.h}` : "--window-size=1600,1000",
+    ],
+  }), { stdio: ["ignore", "ignore", "pipe"], detached: false });
   // github#8
   liveBrowsers.add(chrome);
 
@@ -7055,8 +7034,29 @@ async function main() {
   // github#5, decisions/0010
   // github#27
   const lost = FIXTURE_NAMES.filter((n) => !vaults.some((v) => v.fixture && v.fixture.name === n));
-  const partial = ONLY.length ? "--only" : argAll("vault").length ? "--vault"
-                : arg("url", "") ? "--url" : LOOK ? "--look"
+  /* github#50, decisions/0010 -- THE RUN SHAPE, and any delta from it suppresses the stamp.
+   * A changed shape invalidates the measurement, so a stamp that names the tree and the
+   * fixtures but not the shape would quietly start lying the moment a flag changed what was
+   * measured -- which is exactly what wiring --headed did. Naming the shape once is why the
+   * next such flag is covered without anyone remembering to extend a list.
+   *
+   * Fail-closed rather than truthful: a stamp that recorded its shape would only help if every
+   * consumer remembered to compare it, and here that is the pre-push hook, release.ps1 and
+   * whatever reads it next. A run with a delta writes no stamp, so they find none and run the
+   * suite.
+   *
+   * What is deliberately NOT shape: --jobs (CLAUDE.md prescribes `--jobs 1` as the quiet run
+   * beside a recording -- a full suite, and it must still stamp), --no-lock (every gated push
+   * passes it), --port, --chrome and --shot. None of them changes what is measured. */
+  const SHAPE = {
+    "--only": [ONLY.join(","), ""],
+    "--vault": [argAll("vault").join(","), ""],
+    "--url": [arg("url", ""), ""],
+    "--look": [LOOK || "", ""],
+    "--headed": [HEADED, false],
+  };
+  const shifted = Object.keys(SHAPE).filter((k) => SHAPE[k][0] !== SHAPE[k][1]);
+  const partial = shifted.length ? shifted.join(" and ")
                 : vaults.some((v) => !v.fixture) ? "an unstamped fixture"
                 : lost.length ? `a run without ${lost.join(" and ")} (the generator failed)` : "";
   // github#25 -- the stamp is a measurement, so the hold is checked again

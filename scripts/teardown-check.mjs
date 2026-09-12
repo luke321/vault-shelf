@@ -4,11 +4,13 @@
 import { spawn, spawnSync } from "node:child_process";
 import { currentFixture } from "./fixture-store.mjs";
 import { createServer } from "node:net";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { attach } from "./cdp.mjs";
+// github#50
+import { findChrome, harnessChromeArgs } from "./chrome.mjs";
 // github#37, decisions/0012
 import { takeLeftScreen } from "./screen.mjs";
 import { ownerTag } from "./lock.mjs";
@@ -22,20 +24,6 @@ const LOCK_TIMEOUT_MS = Number(arg("lock-timeout-ms", "2700000")) || 2700000;
 const CYCLES = Math.max(2, Number(arg("cycles", "20")) || 20);
 const MARKUP = readFileSync(join(ROOT, "src", "page.html"), "utf8");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-function findChrome() {
-  const named = arg("chrome", "");
-  if (named) return named;
-  const guesses = [
-    process.env.PROGRAMFILES + "\\Google\\Chrome\\Application\\chrome.exe",
-    process.env["PROGRAMFILES(X86)"] + "\\Google\\Chrome\\Application\\chrome.exe",
-    process.env.LOCALAPPDATA + "\\Google\\Chrome\\Application\\chrome.exe",
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/usr/bin/google-chrome", "/usr/bin/chromium",
-  ];
-  for (const g of guesses) if (g && existsSync(g)) return g;
-  throw new Error("Chrome not found; pass --chrome <path>");
-}
 
 const freePort = () => new Promise((res, rej) => {
   const s = createServer();
@@ -73,17 +61,9 @@ const screen = await takeLeftScreen(ownerTag("teardown-check.mjs"),
 const { url, scratch } = buildPage();
 const PORT = await freePort();
 const profile = mkdtempSync(join(tmpdir(), "vs-teardown-"));
-const chrome = spawn(findChrome(), [
-  `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`,
-  "--no-first-run", "--no-default-browser-check", "--disable-extensions",
-  "--disable-component-update", "--disable-sync", "--no-service-autorun",
-  "--metrics-recording-only", "--no-pings", "--mute-audio", "--disable-breakpad",
-  "--disable-crash-reporter",
-  "--disable-features=Translate,TranslateUI,CalculateNativeWinOcclusion",
-  "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
-  "--disable-background-timer-throttling",
-  ...screen.args, `--app=${url}`,
-], { stdio: ["ignore", "ignore", "ignore"] });
+const chrome = spawn(findChrome(), harnessChromeArgs({
+  port: PORT, profile, url, window: screen.args,
+}), { stdio: ["ignore", "ignore", "ignore"] });
 
 let p = null;
 for (let i = 0; i < 80 && !p; i++) {

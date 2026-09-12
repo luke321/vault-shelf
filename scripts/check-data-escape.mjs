@@ -8,6 +8,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { attach } from "./cdp.mjs";
+// github#50
+import { findChrome, harnessChromeArgs } from "./chrome.mjs";
 // github#37, decisions/0012
 import { takeLeftScreen } from "./screen.mjs";
 import { ownerTag } from "./lock.mjs";
@@ -95,20 +97,6 @@ function freePort() {
   });
 }
 
-function findChrome() {
-  const named = arg("chrome", "");
-  if (named) return named;
-  const guesses = [
-    process.env.PROGRAMFILES + "\\Google\\Chrome\\Application\\chrome.exe",
-    process.env["PROGRAMFILES(X86)"] + "\\Google\\Chrome\\Application\\chrome.exe",
-    process.env.LOCALAPPDATA + "\\Google\\Chrome\\Application\\chrome.exe",
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/usr/bin/google-chrome", "/usr/bin/chromium",
-  ];
-  for (const g of guesses) if (g && existsSync(g)) return g;
-  throw new Error("Chrome not found; pass --chrome <path>");
-}
-
 /** @param {string} htmlPath @param {Record<string, unknown>} data @returns {Promise<string[]>} */
 async function inABrowser(htmlPath, data, tags) {
   const problems = [];
@@ -118,17 +106,9 @@ async function inABrowser(htmlPath, data, tags) {
                                       { w: 1180, h: 900, timeoutMs: LOCK_TIMEOUT_MS });
   const profile = mkdtempSync(join(tmpdir(), "vs-escape-profile-"));
   const url = pathToFileURL(htmlPath).href;
-  const chrome = spawn(findChrome(), [
-    `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-    "--no-first-run", "--no-default-browser-check", "--disable-extensions",
-    "--disable-component-update", "--disable-sync", "--no-service-autorun",
-    "--metrics-recording-only", "--no-pings", "--mute-audio",
-    "--disable-breakpad", "--disable-crash-reporter",
-    "--disable-features=Translate,TranslateUI,CalculateNativeWinOcclusion",
-    "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
-    "--disable-background-timer-throttling",
-    ...screen.args, `--app=${url}`,
-  ], { stdio: "ignore" });
+  const chrome = spawn(findChrome(), harnessChromeArgs({
+    port, profile, url, window: screen.args,
+  }), { stdio: "ignore" });
 
   let page = null;
   try {

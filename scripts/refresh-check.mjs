@@ -10,6 +10,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { attach } from "./cdp.mjs";
+// github#50
+import { findChrome, harnessChromeArgs } from "./chrome.mjs";
 // github#37, decisions/0012
 import { takeLeftScreen } from "./screen.mjs";
 import { ownerTag } from "./lock.mjs";
@@ -161,20 +163,6 @@ async function wiringHalf() {
 
 /* ---------------------------------------------- the page, driven for real -- */
 
-function findChrome() {
-  const named = arg("chrome", "");
-  if (named) return named;
-  const guesses = [
-    process.env.PROGRAMFILES + "\\Google\\Chrome\\Application\\chrome.exe",
-    process.env["PROGRAMFILES(X86)"] + "\\Google\\Chrome\\Application\\chrome.exe",
-    process.env.LOCALAPPDATA + "\\Google\\Chrome\\Application\\chrome.exe",
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/usr/bin/google-chrome", "/usr/bin/chromium",
-  ];
-  for (const g of guesses) if (g && existsSync(g)) return g;
-  throw new Error("Chrome not found; pass --chrome <path>");
-}
-
 const freePort = () => new Promise((res, rej) => {
   const s = createServer();
   s.on("error", rej);
@@ -206,17 +194,9 @@ async function pageHalf() {
 
   const port = await freePort();
   const profile = mkdtempSync(join(tmpdir(), "vs-refresh-"));
-  const chrome = spawn(findChrome(), [
-    `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-    "--no-first-run", "--no-default-browser-check", "--disable-extensions",
-    "--disable-component-update", "--disable-sync", "--no-service-autorun",
-    "--metrics-recording-only", "--no-pings", "--mute-audio", "--disable-breakpad",
-    "--disable-crash-reporter",
-    "--disable-features=Translate,TranslateUI,CalculateNativeWinOcclusion",
-    "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
-    "--disable-background-timer-throttling",
-    ...screen.args, `--app=${url}`,
-  ], { stdio: ["ignore", "ignore", "ignore"] });
+  const chrome = spawn(findChrome(), harnessChromeArgs({
+    port, profile, url, window: screen.args,
+  }), { stdio: ["ignore", "ignore", "ignore"] });
 
   let p = null;
   try {
