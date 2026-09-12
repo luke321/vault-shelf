@@ -72,7 +72,7 @@ added is the one thing HTML5 DnD does not do: say **where** the book will land.
   a highlight says "this one", and the answer to "where" is "here".
 - It is a real `<span class="vs-drop">`, **not a pseudo-element**. `.vs-spine::before` and
   `::after` are already the gilt bands of the leather binding and the neon edge of the
-  cyberpunk one (`design/0016`, `design/0017`), at a specificity `page.css` cannot reach and in
+  cyber one (`design/0016`, `design/0017`), at a specificity `page.css` cannot reach and in
   two stylesheets this feature is not allowed to touch. A mark drawn on either is invisible in
   two looks out of three. It paints in `--accent`, so each look gives it its own colour.
 - `dataTransfer` carries the book's address as `text/plain`. Nothing reads it back — a

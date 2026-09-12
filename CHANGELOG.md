@@ -90,7 +90,7 @@ book. A book nobody has placed stands at the end.
 **Leather** — walnut shelves, brass labels, ivory pages inside an oxblood cover, and what a
 fresh library opens in. **Modern** — painted from Vault Graph: the same twelve colour slots,
 surfaces and text ramp, read from the cascade rather than copied, following Obsidian's light or
-dark theme and re-reading it when it changes. **Cyberpunk** is shelved until its redesign: it
+dark theme and re-reading it when it changes. **Cyber** is shelved until its redesign: it
 still ships and is still measured, but the selector does not offer it. A look is paint: it may
 repaint anything and move nothing — a spine is the same size in all three, every control the
 same height, so switching does not move the furniture. And a button and a plaque are made of

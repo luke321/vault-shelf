@@ -1,5 +1,38 @@
 # Changelog detail
 
+## 2026-09-12 — The shelved look is called Cyber (github#56)
+
+> "disable cyberpunk for now, call it cyber aswell"
+
+**One string, and the measurement is that nothing else moved.** `core.LOOKS` carried
+`name: "Cyberpunk"` against `value: "cyber"` since `design/0017`; the name now matches the value.
+
+The issue asked for a migration assertion as well, and measuring first is what showed there was
+nothing to add. Three of its claims were wrong on `develop` `6c99c60`:
+
+| the issue said | measured |
+|---|---|
+| nothing asserts a settings file naming `cyber` resolves | `smoke.mjs:798` already requires `shelvedLook === "leather"`, printed at `:808`, and `invariants.md` already documented it |
+| …resolves to **cyber** rather than falling back | it resolves to **leather**, deliberately — `isOffered("cyber")` is `false` for a shelved look (`defaults.ts:271-273`) |
+| the look check's output carries the name | it carries the **value** — `shelved: cyber` — so its output is byte-identical after the rename |
+
+| | before | after |
+|---|---|---|
+| `core.LOOKS` entry | `{ value: "cyber", name: "Cyberpunk", shelved: true }` | `{ value: "cyber", name: "Cyber", shelved: true }` |
+| hosts that can render that name | **0** — `offeredLooks()` filters shelved, and `fillLooks()` builds the selector from it | **0**, unchanged |
+| the look check's report | `offers 2 of 3 looks (leather, default; shelved: cyber)` | **identical** |
+| the migration check | `{ schema: 8, look: "cyber" } → "leather"` | **identical**, prose only |
+| assertions added | — | **0**, and that is the finding |
+| `check-comments` total | 1500 / baseline 1500 | **1500**, by swapping the word without rewrapping |
+| book addresses, counts, spine geometry | — | untouched; no look was repainted |
+
+`design/0017` is now `0017-the-cyber-look.md`, keeping its number — `code-map.mjs` scans the
+directory, so `code-index.md` followed on its own. The genre keeps its own word inside the record
+(*"Cyberpunk as a library, not as a poster"* is what the look was briefed as, not what it is
+called), and both quoted asks stay verbatim. `docs/demo/index.html` still carries the old name at
+`:4190`: it is a committed export refreshed when the demo goes stale (`decisions/0009`), and its
+`--end` defaults to today, so rebuilding it for an unrenderable label would be ~1.4 MB of churn.
+
 ## 2026-09-12 — A plate dyes its whole run, from either copy of it (github#29)
 
 > "right click on a plaque enables to set the color for all books under the plaque"

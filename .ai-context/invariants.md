@@ -927,10 +927,10 @@ variation on/off preserves all addresses and counts.
 ## A look is paint, and nothing else
 
 `design/0016`, `design/0017`. There are **three** looks — the default, the leather binding
-(`src/leather.css`) and the cyberpunk archive (`src/cyber.css`) — each one a stylesheet and a
+(`src/leather.css`) and the cyber archive (`src/cyber.css`) — each one a stylesheet and a
 value of one setting. A look may repaint anything and it may move nothing.
 
-**One of them is shelved.** Since 2026-09-11 `core.LOOKS` marks cyberpunk `shelved: true`
+**One of them is shelved.** Since 2026-09-11 `core.LOOKS` marks cyber `shelved: true`
 (`design/0017`, addendum): `core.offeredLooks()` is what the selector lists — leather and
 modern — and `core.isOffered()` is what `migrate` accepts, so a settings file naming `cyber`
 comes up in leather (**schema 9**). The stylesheet still ships, `check-scope` and
@@ -938,6 +938,11 @@ comes up in leather (**schema 9**). The stylesheet still ships, `check-scope` an
 `__vs.setLook()`, so a change to what the looks share reaches it and is measured there.
 The migration check asserts `{ schema: 8, look: "cyber" } → "leather"` and
 `{ schema: 8, look: "" } → ""`.
+
+**Its name is `Cyber`**, from `github#56` (2026-09-12), matching the value. A name is only ever
+rendered through `core.offeredLooks()`, which filters shelved looks, so a shelved look's name
+reaches no host and no check reads one — which is why renaming it moved no number and no address
+(`design/0017`, addendum).
 
 `"a look is opt-in, repaints everything and moves nothing"` drives the top bar's
 `<select id="vs-look">` rather than poking the attribute, because that selector is now the
@@ -1212,7 +1217,7 @@ tab **27.3**, ribbon **30**, swatch **25.5** wide.
 
 `"the furniture is one material"` (2026-09-11, github#9, "make the buttons look like the
 plaques and vice versa") reads **56** controls against the plaque, as computed style through CDP,
-in **4** rooms — leather, modern dark, modern light and the shelved cyberpunk — rested, hovered
+in **4** rooms — leather, modern dark, modern light and the shelved cyber — rested, hovered
 and focused (`CSS.forcePseudoState`; a synthetic event cannot put an element into `:hover`).
 The Order button, Manage, Back, Next and an index tab must resolve to the plaque's
 `background-image`, `color`, `border-bottom-color` and `text-shadow`; *Also shelved in*, a Manage
@@ -1335,10 +1340,10 @@ twenty is where a scroll starts to read as jerky. The median hides a stutter and
 frame is the one-off paint of a shelf entering view, so neither is the number.
 
 Measured before, p50/p95/worst in ms: modern **16.7/16.8/17**, leather **50/117/150**,
-cyberpunk **83/400/400** — the looks paint a spine as several layers of gradient and texture,
+cyber **83/400/400** — the looks paint a spine as several layers of gradient and texture,
 and every visible one was rasterised again per scroll step. After `content-visibility` on a
 shelf, `contain: layout paint` on a row and a compositor layer under the library: leather
-**17.6/18.7/105**, cyberpunk **17.6/18.5/35**, modern unchanged. The worst frame is now the
+**17.6/18.7/105**, cyber **17.6/18.5/35**, modern unchanged. The worst frame is now the
 first paint of a shelf as it enters, which is once per shelf rather than once per step.
 
 ## The room

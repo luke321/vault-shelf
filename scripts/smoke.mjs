@@ -805,7 +805,7 @@ check("a settings file from an older schema comes up with the newer defaults", a
             `one at 3 keeps its stamp fallback off: ${r.keptStampOff === false}; the Weeks ` +
             `shelf comes up hidden (${r.weeksHidden}) unless the file already says 4 ` +
             `(${r.keptShown}); a People shelf written before schema 6 comes up with the ` +
-            `alphabet on its plaques (${r.lettered}); a file naming the shelved cyberpunk ` +
+            `alphabet on its plaques (${r.lettered}); a file naming the shelved cyber ` +
             `look comes up in ${r.shelvedLook}, one naming modern keeps it ("${r.keptLook}")`
   };
 });

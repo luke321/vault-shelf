@@ -492,7 +492,7 @@ standing when you want to change the room.
 |---|---|
 | **Leather** | what a fresh library opens in: bindings, gilt stamping, raised bands, walnut boards, brass plaques and an open book on ivory pages. It has its own colours, its own light and its own furniture, and it ignores the theme on purpose |
 | **Modern** | the library belongs to your Obsidian: it reads the host's theme and repaints when the theme changes |
-| **Cyberpunk** *(shelved until its redesign)* | a rain-lit archive at 3am — anodised spines with a tube of the folder's colour down the leading edge, one lit seam per board, the reader as two sheets of dark glass. It ships, every check still paints it, and the selector does not offer it yet |
+| **Cyber** *(shelved until its redesign)* | a rain-lit archive at 3am — anodised spines with a tube of the folder's colour down the leading edge, one lit seam per board, the reader as two sheets of dark glass. It ships, every check still paints it, and the selector does not offer it yet |
 
 A look **may repaint anything and move nothing**: not a shelf's order, not a book's address,
 not a count. That is a check rather than an intention — it drives the switch the way a person

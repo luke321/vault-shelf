@@ -130,7 +130,7 @@ on the demo vault: **49×132 in a 1180px room under all three**.
 ## The order they are offered in, and the one you get
 
 `LOOKS` is ordered for a person rather than alphabetically or historically: **leather, modern,
-cyberpunk**. Leather is what a fresh library opens in, from settings schema 6 — a shelf of
+cyber**. Leather is what a fresh library opens in, from settings schema 6 — a shelf of
 bound books is what this product is a picture of, and the modern look is the one that follows
 your Obsidian theme when you would rather it did.
 

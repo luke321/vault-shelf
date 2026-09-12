@@ -362,7 +362,7 @@
  * host theme. Every one of those a rule here leaves unset lands on our dropdowns inside the
  * plugin and not in the standalone, which is how the Manage sheet's dropdowns came up dark on
  * leather's paper (design/0016's lesson that the standalone is not a preview of the plugin,
- * for the fourth time; the cyberpunk look had solved it for #vs-look alone, design/0017).
+ * for the fourth time; the cyber look had solved it for #vs-look alone, design/0017).
  * So every property the host sets is set here: the box is ours, the arrow is drawn, and each
  * look supplies the field and the stroke through --vs-field and --vs-chevron. */
 .vault-shelf select {
@@ -470,7 +470,7 @@
 
 /* design/0014 -- PAINT ONLY WHAT IS ON SCREEN. Measured before this, scrolling the whole
  * library: the modern look at a flat 16.7ms a frame, leather at 117ms at the 95th percentile,
- * cyberpunk at 400ms -- a look paints a spine as several layers of gradient and texture, and
+ * cyber at 400ms -- a look paints a spine as several layers of gradient and texture, and
  * without containment every one of them, on every shelf, is rasterised again on every scroll
  * step. `content-visibility` skips the shelves that are not in view, `contain` keeps a row's
  * paint from invalidating its neighbours, and the intrinsic size is a row of books plus its
@@ -688,7 +688,7 @@
  * highlight on the neighbour would say "this one" instead of "here".
  *
  * AN ELEMENT, NOT A PSEUDO-ELEMENT. `.vs-spine::before` and `::after` are already the gilt
- * bands of the leather binding and the neon edge of the cyberpunk one (design/0016, 0017), at
+ * bands of the leather binding and the neon edge of the cyber one (design/0016, 0017), at
  * a specificity this file cannot reach and in stylesheets this feature is not allowed to touch.
  * A drop mark drawn on either of them is invisible in two looks out of three.
  */
