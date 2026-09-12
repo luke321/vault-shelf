@@ -2291,12 +2291,18 @@ check("a drag that reaches the edge scrolls the room, and stops at the ends", as
     __vs.addShelf({ id: "edge-landing", name: "Edge landing", source: { kind: "all" },
                     classifier: "pick", direction: "manual", hidden: false,
                     plaques: false, picks: [] });
-    var rail = document.querySelector('[data-shelf="edge-landing"] .vs-track');
-    var lb = lib.getBoundingClientRect();
+    var offsetOf = function () {
+      var r = document.querySelector('[data-shelf="edge-landing"] .vs-track')
+                      .getBoundingClientRect();
+      return r.top - lib.getBoundingClientRect().top + lib.scrollTop;
+    };
     /* Park the landing rail 300px BELOW the fold: off screen when the drag begins, and
-     * reachable only because the room scrolls under it. */
-    lib.scrollTop = Math.max(0, rail.getBoundingClientRect().top + lib.scrollTop -
-                                lb.top - lib.clientHeight + 300);
+     * reachable only because the room scrolls under it. github#21 -- scroll, re-measure,
+     * scroll, because content-visibility makes an off-screen shelf's height a guess. */
+    for (var i = 0; i < 3; i++) {
+      lib.scrollTop = Math.max(0, offsetOf() - lib.clientHeight - 300);
+    }
+    var lb = lib.getBoundingClientRect();
     var after = document.querySelector('[data-shelf="edge-landing"] .vs-track')
                         .getBoundingClientRect();
     return { offScreen: after.top > lb.bottom, gap: Math.round(after.top - lb.bottom),
@@ -2305,7 +2311,15 @@ check("a drag that reaches the edge scrolls the room, and stops at the ends", as
   const lift = await p.j(`(function(){
     var lib = document.getElementById("vs-library");
     var lb = lib.getBoundingClientRect();
-    var spine = document.querySelector("#vs-shelves .vs-spine");
+    /* design/0019 -- OFF AN ORDINARY SHELF, not off Favourites. The library's first spine is
+     * a pick, and a reference dropped onto a second pick shelf resolves to nothing: the drag
+     * under test is a book's, not a reference to a reference. */
+    var picks = __vs.picks().map(function (s) { return s.id; });
+    var spine = [].filter.call(document.querySelectorAll("#vs-shelves .vs-spine"),
+      function (s) {
+        var sec = s.closest("[data-shelf]");
+        return sec && picks.indexOf(sec.getAttribute("data-shelf")) < 0;
+      })[0];
     var dt = new DataTransfer();
     spine.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
     window.__vsEdge = { dt: dt, from: spine, id: spine.getAttribute("data-book"),
@@ -2318,16 +2332,27 @@ check("a drag that reaches the edge scrolls the room, and stops at the ends", as
     return { lifted: spine.getAttribute("data-dragging"), running: e.running,
              speed: Math.round(e.speed * 10) / 10, top: e.top };
   })()`);
-  /* THE POINTER IS NOW STILL. Everything below happens with no further event. */
-  await sleep(250);
-  const a = await p.j(`__vs.edgeScroll().top`);
-  await sleep(250);
-  const b = await p.j(`(function(){
-    var lib = document.getElementById("vs-library");
-    var rail = document.querySelector('[data-shelf="edge-landing"] .vs-track');
-    var r = rail.getBoundingClientRect(), lb = lib.getBoundingClientRect();
-    return { top: __vs.edgeScroll().top, reached: r.top < lb.bottom };
-  })()`);
+  /* THE POINTER IS NOW STILL. Everything below happens with no further event.
+   * github#21 -- and the rail keeps MOVING AWAY while it does: an off-screen shelf's height
+   * is a guess until it renders, so the gap grows as the room scrolls into it. A fixed wait
+   * would be racing that; the loop is what is under test, so wait for it to win. */
+  const seen = [lift.top];
+  let reach = null;
+  for (let i = 0; i < 24 && !reach; i++) {
+    await sleep(150);
+    const now = await p.j(`(function(){
+      var lib = document.getElementById("vs-library");
+      var rail = document.querySelector('[data-shelf="edge-landing"] .vs-track');
+      var r = rail.getBoundingClientRect(), lb = lib.getBoundingClientRect();
+      var e = __vs.edgeScroll();
+      return { top: e.top, running: e.running, max: e.max,
+               clear: r.top + r.height / 2 < lb.bottom - 64 };
+    })()`);
+    seen.push(now.top);
+    if (now.clear) reach = now;
+  }
+  const a = seen[1];
+  const b = { top: seen[seen.length - 1], reached: !!reach };
   /* Now move to the rail that the scroll brought into reach, and drop on it. */
   const landed = await p.j(`(function(){
     var rail = document.querySelector('[data-shelf="edge-landing"] .vs-track');
@@ -2354,6 +2379,8 @@ check("a drag that reaches the edge scrolls the room, and stops at the ends", as
     var dt = new DataTransfer();
     spine.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
     window.__vsEdge = { dt: dt, from: spine, x: Math.round(lb.left + lb.width / 2) };
+    /* github#21 -- the foot moves as content-visibility firms up; take it twice. */
+    lib.scrollTop = Math.max(0, lib.scrollHeight - lib.clientHeight - 40);
     lib.scrollTop = Math.max(0, lib.scrollHeight - lib.clientHeight - 40);
     var y = Math.round(lb.bottom - 2);
     var under = document.elementFromPoint(window.__vsEdge.x, y) || lib;
@@ -2399,7 +2426,8 @@ check("a drag that reaches the edge scrolls the room, and stops at the ends", as
     ok,
     detail: `the landing rail began ${set.gap}px below the fold; one dragover in the bottom ` +
             `band at ${lift.speed}px/tick and then a STILL pointer took the room from ` +
-            `${lift.top} to ${a} to ${b.top} (reached: ${b.reached}), the drop landed the ` +
+            `${lift.top} to ${a} to ${b.top} over ${seen.length - 1} step(s) until the rail ` +
+            `was clear of the band (reached: ${b.reached}), the drop landed the ` +
             `book on it (${landed.holds.length} pick(s), ${landed.marksLeft} mark(s) left) and ` +
             `leaving the band stopped the loop (${landed.stoppedOnLeaving}); at the foot it ` +
             `clamped at ${foot.top}/${foot.max} and stayed (${stillFoot}), the top band ran ` +
