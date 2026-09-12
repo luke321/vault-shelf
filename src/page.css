@@ -1729,8 +1729,9 @@
   .vault-shelf #vs-rail { flex-wrap: wrap; }
   .vault-shelf #vs-rail .vs-inner { flex-wrap: wrap; gap: 8px; }
   /* github#38 -- the gap is what the rail can afford to lose down here, so the search box
-   * takes the room the spacer was holding rather than the rail taking a second row. */
-  .vault-shelf .vs-inner .vs-spacer { display: none; }
+   * takes the room the spacer was holding rather than the rail taking a second row.
+   * github#38 -- #vs-rail only: the reader bar has a .vs-inner and a spacer of its own. */
+  .vault-shelf #vs-rail .vs-spacer { display: none; }
   .vault-shelf #vs-q { order: 2; flex: 1 1 140px; width: auto; min-width: 100px; }
   .vault-shelf #vs-manageopen { order: 3; }
   .vault-shelf #vs-hits:empty { display: none; }

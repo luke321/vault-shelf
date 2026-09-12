@@ -3094,8 +3094,10 @@ function mountVaultShelf(root, data, options) {
       go.title = shelf.hidden ? "Hidden: switch Shown on to put it back in the library"
                               : "Go to this shelf";
       go.setAttribute("aria-label", "Go to " + shelf.name);
+      /* github#38 -- focus goes where Done and Escape put it */
       on(go, "click", function () {
         $("manage").hidden = true;
+        node("library").focus();
         scrollToShelf(shelf.id);
       });
       row.appendChild(go);

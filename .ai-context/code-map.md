@@ -4,7 +4,7 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 4199 lines, 23 sections, 185 functions
+## `src/page.js` — 4201 lines, 23 sections, 185 functions
 
 ### Sections
 
@@ -26,13 +26,13 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 2036–2082 | the shelf parts as you type |
 | 2083–2777 | reader |
 | 2778–3030 | builder |
-| 3031–3346 | manage |
-| 3347–3638 | the twelve, offered |
-| 3639–3660 | filters |
-| 3661–3759 | refresh |
-| 3760–3926 | the wiring |
-| 3927–4159 | debug api — stripped from the plugin build |
-| 4160–4199 | the wiring (continued) |
+| 3031–3348 | manage |
+| 3349–3640 | the twelve, offered |
+| 3641–3662 | filters |
+| 3663–3761 | refresh |
+| 3762–3928 | the wiring |
+| 3929–4161 | debug api — stripped from the plugin build |
+| 4162–4201 | the wiring (continued) |
 
 ### Functions
 
@@ -190,39 +190,39 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 3042 | `newShelfFromManage` |
 | 3058 | `deleteShelf` |
 | 3081 | `renderManage` |
-| 3234 | `renderColours` |
-| 3263 | `colourRow` |
-| 3292 | `anyRibbon` |
-| 3308 | `slotControl` |
-| 3362 | `prunePainted` |
-| 3370 | `repaint` |
-| 3386 | `previewSlot` |
-| 3397 | `previewRibbon` |
-| 3408 | `previewColors` |
-| 3418 | `endPreview` |
-| 3429 | `openSwatchPick` |
-| 3493 | `offerPreviews` |
-| 3504 | `holdFocus` |
-| 3514 | `walkSwatches` |
-| 3538 | `closeSwatchPick` |
-| 3552 | `inkOn` |
-| 3554 | · `lin` |
-| 3563 | `pickSlot` |
-| 3571 | `resetSlot` |
-| 3584 | `setPalette` |
-| 3598 | `setRibbon` |
-| 3611 | `toHex` |
-| 3620 | · `hex` |
-| 3625 | `reorder` |
-| 3641 | `renderActiveFilters` |
-| 3654 | `clearFilters` |
-| 3674 | `paintOrder` |
-| 3692 | `fillLooks` |
-| 3704 | `toggleOrder` |
-| 3713 | `applyLook` |
-| 3723 | `seedFavourites` |
-| 3732 | `refresh` |
-| 3866 | `offBook` |
+| 3236 | `renderColours` |
+| 3265 | `colourRow` |
+| 3294 | `anyRibbon` |
+| 3310 | `slotControl` |
+| 3364 | `prunePainted` |
+| 3372 | `repaint` |
+| 3388 | `previewSlot` |
+| 3399 | `previewRibbon` |
+| 3410 | `previewColors` |
+| 3420 | `endPreview` |
+| 3431 | `openSwatchPick` |
+| 3495 | `offerPreviews` |
+| 3506 | `holdFocus` |
+| 3516 | `walkSwatches` |
+| 3540 | `closeSwatchPick` |
+| 3554 | `inkOn` |
+| 3556 | · `lin` |
+| 3565 | `pickSlot` |
+| 3573 | `resetSlot` |
+| 3586 | `setPalette` |
+| 3600 | `setRibbon` |
+| 3613 | `toHex` |
+| 3622 | · `hex` |
+| 3627 | `reorder` |
+| 3643 | `renderActiveFilters` |
+| 3656 | `clearFilters` |
+| 3676 | `paintOrder` |
+| 3694 | `fillLooks` |
+| 3706 | `toggleOrder` |
+| 3715 | `applyLook` |
+| 3725 | `seedFavourites` |
+| 3734 | `refresh` |
+| 3868 | `offBook` |
 
 ## `scripts/smoke.mjs` — 6604 lines, 7 sections, 128 functions, 95 checks
 
