@@ -443,6 +443,82 @@ nobody has spotted, which is exactly this case. Stamps written under the old law
 field, read as 0, and are demoted rather than grandfathered. `decisions/0010` amended,
 `decisions/0015` new.
 
+## 2026-09-12 — The docs site was built by Jekyll for the first time (github#22)
+
+> github#22: "the docs site is the one thing in this repo **nobody has rendered properly**"
+
+`github#1` shipped the Pages theme and closed without a review page, and it had rendered the
+site by hand: no Ruby on the machine, so the theme's `_sass` was compiled with dart-sass and the
+markdown put through `marked` into a copy of the layout with the Liquid resolved by eye. This
+entry is that build done for real — Ruby 3.2.11 and the **`github-pages` gem set (232)**, which
+is by construction the version set Pages runs: `jekyll 3.10.0`, `jekyll-theme-midnight 0.2.0`,
+`kramdown 2.4.0`, `jekyll-sass-converter 1.5.2`. Nothing in `docs/` changed; only what is known
+about it did.
+
+**The approximation held.** Every figure `github#1` recorded, re-measured on the real build:
+
+| | github#1 claimed | measured on the Jekyll build |
+|---|---|---|
+| body text `--text-2` `#c3c2b7` | 9.72:1 | **9.72:1** |
+| `--text-3` `#8d8c84` | 5.16:1 | **5.16:1** |
+| links `--accent` `#3987e5` | 4.79:1 | **4.79:1** |
+| theme fonts fetched | 8 → 0 | **3 → 0** (32 files shipped) |
+| theme images fetched | 2 → 0 | **2 → 0** (3 shipped) |
+
+The two figures that were quoted from the sister project rather than taken here are now taken
+here, and three the sheet never had: link `:hover` `--accent-hi` `#6aa6f0` **6.91:1**, inline
+code on `--surface-2` **15.73:1**, the header control **8.78:1**. The served stylesheet declares
+**149 rules and the browser keeps 149** — none dropped — of which **23** resolve one of our
+tokens. The "→ 0" half of the old entry is the part that matters and it is exactly right, on a
+measurement it never had: the **same site built twice**, once with the sheet and once with
+`style.scss` cut back to the bare `@import`. Stock midnight fetches **3 font files and 2
+images**; with the sheet, **0 and 0**, and the page drops from **10 requests to 5**. The images
+match the old entry exactly; its **8** fonts do not, and that is because the figure was the
+sister project's, taken on the sister project's pages — how many faces a page pulls depends on
+what its prose sets in bold and italic. The theme *ships* 32 font files and 3 images either way.
+
+**"Vault Graph's sheet, rule for rule" is exact, and now has a number.** Strip the comments from
+both files and they are the same **2,673 bytes**, byte for byte. The whole textual difference
+between them is the two issue pointers in the comments (3 insertions, 2 deletions) and a
+byte-order mark this repo's copy does not carry. `docs/_includes/head-custom.html` differs only
+in its comment likewise.
+
+**And the tokens really are `page.css`'s.** Nine of nine colour tokens match the
+`[data-theme="dark"]` block value for value, zero differ. The sheet adds **three** of its own,
+where its comment claims one: `--accent-hi` (declared), plus `--font` and `--mono`, which are
+font stacks and exist nowhere in `page.css` as tokens — and `--mono` here carries `Consolas`,
+which the product's own code stack does not.
+
+**The 480px breakpoint, which `github#1` recorded as unexercised, works.** Shot at 480 and at
+375: the title block stacks, the credits centre, the column reflows, nothing overflows
+sideways. The header's only control disappears under 480px — that is the theme's own
+`nav { display: none }`, untouched by our sheet, and the in-page nav row carries the same four
+links anyway.
+
+**What the pictures changed.** The landing page's hero is **broken**:
+`index.md` fetches `assets/demo.webp` from `raw.githubusercontent.com/luke321/vault-shelf/main`,
+the file is on `main`, and raw refuses it **404** unauthenticated because the repository is
+private. It would begin working on the day the repo is made public, which is the same day Pages
+can be switched on — so it is a defect that cannot be seen and cannot be fixed separately from
+the decision above it. Nothing else was wrong to look at.
+
+**Two third-party requests leave the published page**, and no gate covers them:
+`code.jquery.com/jquery-1.12.4.min.js` on every page, which is the midnight theme's own, and the
+`raw.githubusercontent.com` hero on the index. `check-network.mjs` scans `src/` and the built
+page, not `docs/`, so the law that nothing shipped reaches the network has never applied here.
+
+**Still not live.** `has_pages: false`, `private: true`, read from the API — not POSTed to.
+Enabling Pages needs the repository public (`decisions/0009`), which is the owner's call.
+
+**What this build still is not.** It is Pages' *software*, not Pages: the site was built from a
+copy of `docs/` with a `Gemfile` beside it, `PAGES_REPO_NWO` supplied by hand, and no API token,
+so `jekyll-github-metadata` filled what it could and left the rest — the stylesheet is linked as
+`style.css?v=` where Pages appends a build SHA, and the title block's repository fields come from
+the config rather than the API. It was served over `http://127.0.0.1` rather than
+`luke321.github.io`, so nothing here exercises a `baseurl`, a custom domain, or Pages' own
+caching; `file://` is not a substitute either — root-absolute asset paths mean the sheet does not
+load at all that way, which is worth knowing before the next person tries it. What remains
+genuinely unverified is the hosting, not the rendering.
 
 ## 2026-09-12 — A plate dyes its whole run, from either copy of it (github#29)
 
@@ -2083,6 +2159,10 @@ on `--surface-2` with a `--border` hairline, blocks on `--surface-0`; the header
 bordered control; table heads `--text-3` in spaced capitals; no image bullets, no image rule,
 no shadows. Layout untouched (the theme's 650px column and fixed header). One static dark
 theme, by the issue's own scope.
+
+**Built for real later**, in `github#22` (2026-09-12, top of this file): the
+Jekyll build below was never run at the time, and when it was run every figure in this
+paragraph held.
 
 **Looked at, not built.** No Ruby on this machine, so Pages was reproduced without it: the
 theme's `_sass`, layout, fonts and images fetched from `pages-themes/midnight`, the sheet
