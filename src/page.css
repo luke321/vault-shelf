@@ -1778,7 +1778,11 @@
   cursor: pointer;
 }
 
-.vault-shelf .vs-sugrow[aria-selected="true"] { background: var(--surface-0); color: var(--accent); }
+/* github#41 -- a LIT row, not a recessed one: --surface-0 is darker than the list in
+ * leather, so the active row read as disabled rather than as selected. */
+.vault-shelf .vs-sugrow[aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
 
 .vault-shelf .vs-sugtext {
   flex: 1 1 auto;
