@@ -19,17 +19,20 @@ about it did.
 | body text `--text-2` `#c3c2b7` | 9.72:1 | **9.72:1** |
 | `--text-3` `#8d8c84` | 5.16:1 | **5.16:1** |
 | links `--accent` `#3987e5` | 4.79:1 | **4.79:1** |
-| theme fonts fetched | 8 → 0 | **32 files on disk → 0 fetched** |
-| theme images fetched | 2 → 0 | **3 on disk → 0 fetched** |
+| theme fonts fetched | 8 → 0 | **3 → 0** (32 files shipped) |
+| theme images fetched | 2 → 0 | **2 → 0** (3 shipped) |
 
 The two figures that were quoted from the sister project rather than taken here are now taken
 here, and three the sheet never had: link `:hover` `--accent-hi` `#6aa6f0` **6.91:1**, inline
 code on `--surface-2` **15.73:1**, the header control **8.78:1**. The served stylesheet declares
 **149 rules and the browser keeps 149** — none dropped — of which **23** resolve one of our
-tokens. One count in the old entry was low: the theme ships **three** images, not two — the
-list bullet, the rule under a heading, and the header's tiling background. Its "8 fonts" was
-right if read as families; that is eight OpenSans faces in four formats, 32 files on disk.
-None of the 35 is requested.
+tokens. The "→ 0" half of the old entry is the part that matters and it is exactly right, on a
+measurement it never had: the **same site built twice**, once with the sheet and once with
+`style.scss` cut back to the bare `@import`. Stock midnight fetches **3 font files and 2
+images**; with the sheet, **0 and 0**, and the page drops from **10 requests to 5**. The images
+match the old entry exactly; its **8** fonts do not, and that is because the figure was the
+sister project's, taken on the sister project's pages — how many faces a page pulls depends on
+what its prose sets in bold and italic. The theme *ships* 32 font files and 3 images either way.
 
 **"Vault Graph's sheet, rule for rule" is exact, and now has a number.** Strip the comments from
 both files and they are the same **2,673 bytes**, byte for byte. The whole textual difference
