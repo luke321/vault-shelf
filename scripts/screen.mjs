@@ -24,7 +24,7 @@ function mustHold(what) {
 // github#37 -- the claim and the position come from one call
 /** @typedef {{ name: string, args: string[], release: () => void }} Claim */
 
-// github#25 -- a harness that loses the display says so rather than finishing on it
+// github#25 -- a harness that loses the display says so and stops
 /** @param {string} who */
 function lostLeftScreen(who) {
   console.error("\nscreen: the left screen was taken by " + who + " while this run was using " +
@@ -45,7 +45,7 @@ export async function takeLeftScreen(owner, opts = {}) {
     try {
       const lock = await acquire(LEFT_SCREEN_LOCK, {
         owner: owner, timeoutMs: opts.timeoutMs,
-        // the hold is gone, so drop it before anyone tries to release it
+        // github#25 -- drop the hold before anyone releases it
         onLost: (who) => { held = null; (opts.onLost || lostLeftScreen)(who); }
       });
       held = lock;

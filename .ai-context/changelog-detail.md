@@ -1,5 +1,53 @@
 # Changelog detail
 
+## 2026-09-12 — The hold follows the run, and the window follows the hold (github#25)
+
+> "a crashed worktree's abandoned lock and a healthy five-minute run are byte-for-byte
+> indistinguishable, and the only discriminator left is age."
+
+`github#37` landed two of this issue's three asks: an in-process holder writes its own live pid,
+beats every 30 s, and the suite aborts rather than publishing numbers measured after it lost the
+lock. What stayed open was the half the title is about — **a hold taken from the command line
+has no liveness of any kind** — and that is not a corner: `.githooks/pre-push` and `release.ps1`
+both acquire `suite` from the command line and then run `smoke.mjs --no-lock`, so the one hold
+whose numbers stamp a tree was the one hold nothing kept alive and nothing checked.
+
+**`--no-lock` now adopts the caller's hold instead of ignoring it.** The run beats it under the
+caller's own owner — so the parent's `release` still matches — and hands the caller's own shape
+back on the way out without removing the directory. A `--no-lock` run with nothing holding the
+lock refuses at startup rather than measuring on an unguarded machine. A bare CLI hold with no
+run under it still gets no liveness, for the reasons `decisions/0012`'s detached-heartbeat row
+already gives; what changed is that the case that bites always had a live process available and
+was simply not being asked.
+
+**Staleness stopped being a property of the name.** A hold that declares `holder: "process"` is
+stale after 5 minutes; a bare CLI hold and everything the sister repo writes keep their name's
+30 or 20. That is what made the third ask answerable without waiting on `vault-graph` to grow a
+heartbeat of its own — read today, it still has none.
+
+| a contender meets | before | after |
+|---|---|---|
+| a beating hold last seen 6 min ago | waited out 30 minutes | `BREAKING stale suite lock (age 360s)` |
+| a beating hold last seen 1 min ago, held 40 min | waited | waits — a live hold is never broken |
+| a CLI hold last seen 6 min ago | waited | waits — 30 minutes, unchanged |
+| the sister's shape (`owner` + `at`) at 6 min | waited | waits — 30 minutes, unchanged |
+
+| a gated run | before | after |
+|---|---|---|
+| the hold's `at` while it lasts | frozen at the acquire | refreshed every 30 s, `since` unmoved |
+| the hold's shape afterwards | — | `holder: "cli"`, no `pid`, owner and `since` kept |
+| losing the lock mid-run | noticed at the eventual `release`, numbers already written | the beat names who took it and the run stops |
+| `--no-lock` with nothing held | ran the whole suite unguarded | refuses, exit 1, before a fixture is touched |
+
+A harness that loses `screen-left` mid-run now says who took it and stops, too — `takeLeftScreen`
+passed no `onLost`, so all five of them could finish on a shared display as though nothing had
+happened.
+
+And the lock has a check that can fail on a push: `node scripts/lock.mjs --selftest`, **19 cases
+in 0.7 s** against a throwaway root (`VAULT_LOCKS_HOME`), never the live mutex, run by the
+pre-push hook beside the update-note selftest. Until now its behaviour was a hand-measured table
+in `invariants.md`, which is not a thing that fails.
+
 ## 2026-09-12 — A plate dyes its whole run, from either copy of it (github#29)
 
 > "right click on a plaque enables to set the color for all books under the plaque"

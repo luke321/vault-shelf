@@ -68,7 +68,7 @@ function ageOf(meta) {
   return meta && meta.at ? Date.now() - meta.at : Infinity;
 }
 
-// github#25 -- a hold that beats goes stale in minutes; one that cannot keeps its name's window
+// github#25 -- a beating hold goes stale in minutes, not half an hour
 /** @param {string} n @param {Record<string, any> | null} meta @returns {number} */
 function staleFor(n, meta) {
   return meta && meta.holder === "process" ? BEAT_STALE_MS : staleWindow(n);
@@ -273,7 +273,7 @@ export function adopt(name, opts = {}) {
   return {
     name: name,
     owner: meta.owner,
-    // the caller still owns the release, so put its own shape back
+    // github#25 -- the caller owns the release; hand its shape back
     release: () => {
       stop();
       const now = readMeta(name);
@@ -342,7 +342,7 @@ function status() {
   }
 }
 
-// github#25 -- the one mutex six worktrees share, checked rather than hand-measured
+// github#25 -- the shared mutex, checked rather than hand-measured
 /** @returns {Promise<number>} */
 async function selftest() {
   let failed = 0;

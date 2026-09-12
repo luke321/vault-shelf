@@ -68,7 +68,10 @@ holds it and nothing else; wrapping a run by hand now waits for its own parent, 
 says so.
 
 A `mkdir` is the lock — atomic, and it survives a killed session as a **stale** entry rather
-than a permanent one. Stale windows are 30 minutes for `suite` and 20 for everything else.
+than a permanent one. **How long it survives is a property of the hold, not of the name**: a
+hold that declares it beats is stale after 5 minutes, and one that cannot — a hold taken from
+the command line with nothing running under it, and every hold the sister repo writes — keeps
+30 minutes for `suite` and 20 for everything else.
 
 **A hold says whether it is still alive** (`github#25`, `decisions/0012`). An in-process holder
 writes its own pid and refreshes the timestamp every 30 seconds, so a dead holder's lock is
@@ -78,6 +81,19 @@ taken from the command line writes no pid, because nothing it could write would 
 second later; `status` says `holder unverified` rather than pretending otherwise. The suite
 checks that the lock is still its own while it runs, and **aborts rather than publishing numbers
 measured on a contended machine.**
+
+**A CLI hold beats for as long as a run is under it.** The two gated runs — the pre-push hook
+and `release.ps1` — take `suite` from the command line and then pass `--no-lock`, so until
+`github#25` the one hold whose numbers actually stamp a tree was the one hold nothing kept
+alive and nothing checked. `--no-lock` now **adopts** that hold rather than ignoring it: the
+run beats it under the caller's own owner, so their `release` still matches, aborts if it loses
+it, and hands the caller's own shape back on the way out without removing the directory. A
+`--no-lock` run with nothing holding the lock refuses to start. The same abort covers the
+display: a harness that loses `screen-left` mid-run says who took it and stops, rather than
+finishing on a shared screen.
+
+`node scripts/lock.mjs --selftest` holds all of this — **19 cases against a throwaway root**
+(`VAULT_LOCKS_HOME`), never the live mutex — and the pre-push hook runs it.
 
 Screenshots need no lock *of their own*: they go over CDP, so overlapping windows are harmless.
 Pass your own `--port`. But the window being shot is on the claimed screen, and `--shot` is part

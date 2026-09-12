@@ -1732,9 +1732,48 @@ pid was dead within a second and a crashed holder read exactly like a healthy on
 | a live in-process hold, read 35 s apart | `at` fixed at the acquire time, so the hold aged towards being broken | `at` moved **30,010 ms**, `since` moved **0**; a sister-repo acquire measures the hold at **5 s**, not 35 |
 | a hold taken from the command line | `pid` of a process that had already exited | no `pid` at all, `holder: "cli"`, and `status` prints `holder unverified` |
 
-The stale windows stay 30 minutes for `suite` and 20 for the rest. Liveness would allow minutes,
-but the sister repo's own holds do not heartbeat, and a shorter window here would break *their*
-live runs — the mirror image of the fault this fixes.
+### The window is asked of the hold, not of the name
+
+`github#25`, `decisions/0012` (amended 2026-09-12). The windows above stayed 30 and 20 because
+the sister repo's holds do not heartbeat and a shorter window would have broken *their* live
+runs. Asking the **hold** rather than the **name** shortens it exactly where liveness exists and
+nowhere else. Measured by `node scripts/lock.mjs --selftest`, **19 cases in 0.7 s** against a
+throwaway root (`VAULT_LOCKS_HOME`), never the live mutex — the pre-push hook runs it:
+
+| a contender meets | before | after |
+|---|---|---|
+| a **beating** hold (`holder: "process"`, live pid) last seen 6 min ago | waited — 30-minute window | `BREAKING stale suite lock (age 360s)` |
+| a **beating** hold last seen 1 min ago, held for 40 min | waited | waits — a live hold is never broken, however long it has held |
+| a **CLI** hold (`holder: "cli"`, no pid) last seen 6 min ago | waited | waits — 30 minutes, unchanged |
+| a hold in the **sister's shape** (`owner` and `at` alone) last seen 6 min ago | waited | waits — 30 minutes, unchanged |
+| a hold whose named process is **gone** | broken at once | broken at once |
+
+Five minutes, not two: the beat is a 30-second interval on an unref'd timer, so a long
+synchronous stretch inside a run can legitimately delay it. Ten missed beats is the margin, and
+a dead holder is already broken in milliseconds by the pid check, so this window only ever
+catches a **wedged** holder.
+
+### A CLI hold beats while a run is under it
+
+`github#25`. The two runs that hold `suite` from the command line and then pass `--no-lock` are
+the **gated** ones — `.githooks/pre-push` and `release.ps1` — so the one hold whose numbers stamp
+a tree was the one hold nothing kept alive and nothing checked. `--no-lock` now adopts it.
+Measured end to end, a CLI acquire around `smoke.mjs --no-lock --only "__vs is present"`:
+
+| | before | after |
+|---|---|---|
+| what the run says | `--no-lock: the caller is holding the suite lock, not this run` | `ADOPTED suite -- beating the hold of pre-push review-25 for this run` |
+| the hold's `at` while the run lasts | frozen at the acquire | refreshed every 30 s — **+177 ms at a 50 ms beat** in the selftest, `since` unmoved |
+| the hold's `since` after the run | — | **11 s**, the caller's own acquire time, kept |
+| the hold's shape after the run | — | `holder unverified` again: `holder: "cli"`, no `pid`, owner unchanged, directory still standing |
+| the caller's own `release` | `RELEASED` | `RELEASED` — the owner never changed, so it still matches |
+| losing the lock mid-run | nothing noticed until the eventual `release` | the beat names who took it, the run aborts, nothing is stamped |
+| `--no-lock` with **nothing** holding the lock | ran the whole suite unguarded | refuses at startup, exit **1**, before a fixture is touched |
+
+**A harness that loses the display says so too.** `takeLeftScreen` passed no `onLost`, so each of
+the five harnesses that park a window could lose `screen-left` mid-run and finish as though
+nothing had happened. It now names who took it and stops, the same way the suite already did for
+`suite`.
 
 **A fixture directory is never removed because a sibling appeared.** The store is shared by
 every worktree through git's common dir, and a fixture is named after the digest of the

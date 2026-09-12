@@ -72,9 +72,7 @@ function lostScreen(who) {
 /* github#8, github#37, decisions/0011, decisions/0012 */
 async function takeLock() {
   if (NO_LOCK) {
-    /* github#25 -- the caller's hold is taken from the command line, so it neither beats nor
-     * notices being broken. This run is the live process under it: beat it, under the caller's
-     * own owner so their release still matches, and hand its shape back on the way out. */
+    /* github#25 -- the caller's CLI hold neither beats nor notices */
     suiteLock = adopt("suite", { onLost: lostLock });
     if (suiteLock) {
       console.log("--no-lock: beating the suite lock held by " + suiteLock.owner);
