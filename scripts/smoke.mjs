@@ -5474,6 +5474,74 @@ check("the contents scroll to the current row after a tab, Previous and a ribbon
                    `ribbon from scrollTop ${ribbon.far} -> row ${back.index}, scrollTop ${back.scrollTop}, inside ${back.inside}` };
 });
 
+/* github#46 -- MOVING THE MARKER MOVES THE MARKER. A turn within one book changes nothing about
+ * the list, so the list is not rebuilt: `aria-current` moves between rows that are already
+ * standing there and the page keeps its scroll. Rebuilding emptied the `<ol>`, which collapsed
+ * the left page's scrollHeight, clamped its scrollTop to 0, and left `revealCurrent` -- a nudge
+ * measured FROM scrollTop -- computing against a baseline of zero, so a row already under the
+ * pointer was parked at the bottom edge after an animation up from the top. */
+check("clicking a row in the index moves the mark and leaves the index where it stood", async (p) => {
+  const opened = await p.j(`(function(){
+    var biggest = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { if (!biggest || b.notes.length > biggest.notes.length) biggest = b; });
+    });
+    __vs.openBook(biggest.id, null);
+    var page = document.querySelector("#vs-reader .vs-page.vs-left");
+    /* halfway down a long index, which is where the report was made from */
+    var span = Math.max(0, page.scrollHeight - page.clientHeight);
+    page.scrollTop = Math.round(span / 2);
+    var rows = [].slice.call(document.querySelectorAll("#vs-contents button"));
+    /* A STAMP ON THE ROWS THEMSELVES. A rebuild makes new buttons, so a row that comes back
+     * without its stamp is a row that was replaced -- which is the cause, where the scroll is
+     * only the symptom, and is what stops this decaying into "rebuild, then put the scroll back". */
+    rows.forEach(function (b, k) { b.__vs46 = k; });
+    /* the row nearest the middle of the page: on screen, so a correct reveal has nothing to do */
+    var pb = page.getBoundingClientRect();
+    var mid = pb.top + pb.height / 2;
+    var want = -1, best = Infinity;
+    rows.forEach(function (b, k) {
+      var r = b.getBoundingClientRect();
+      if (r.top < pb.top || r.bottom > pb.bottom) return;
+      var d = Math.abs((r.top + r.bottom) / 2 - mid);
+      if (d < best) { best = d; want = k; }
+    });
+    return { book: biggest.id, notes: biggest.notes.length, span: span,
+             at: Math.round(page.scrollTop), rows: rows.length, want: want,
+             markedAt: rows.indexOf(document.querySelector('#vs-contents button[aria-current="true"]')) };
+  })()`);
+  if (opened.span < 40 || opened.want < 1) {
+    return { ok: false,
+             detail: `${opened.book} (${opened.notes} notes, ${opened.rows} rows) gives an index ` +
+                     `that scrolls ${opened.span}px with row ${opened.want} in the middle -- ` +
+                     `nothing here to hold still` };
+  }
+  await p.eval(`(function(){
+    document.querySelectorAll("#vs-contents button")[${opened.want}].click();
+  })(); void 0`);
+  /* a wrong baseline ANIMATES, so give the smooth scroll its full chance to show itself */
+  await sleep(450);
+  const after = await p.j(`(function(){
+    var page = document.querySelector("#vs-reader .vs-page.vs-left");
+    var rows = [].slice.call(document.querySelectorAll("#vs-contents button"));
+    return { at: Math.round(page.scrollTop), rows: rows.length,
+             markedAt: rows.indexOf(document.querySelector('#vs-contents button[aria-current="true"]')),
+             kept: rows.filter(function (b, k) { return b.__vs46 === k; }).length,
+             index: __vs.reader().index };
+  })()`);
+  await p.eval("__vs.closeReader(); void 0");
+
+  const held = Math.abs(after.at - opened.at) <= 1;
+  const sameRows = after.rows === opened.rows && after.kept === opened.rows;
+  const ok = held && sameRows && after.markedAt === opened.want && after.index === opened.want;
+  return { ok,
+           detail: `${opened.book} (${opened.notes} notes, ${opened.rows} rows, index scrolls ` +
+                   `${opened.span}px): from scrollTop ${opened.at} a click on row ${opened.want} ` +
+                   `left it at ${after.at} (held ${held}), moved the mark ${opened.markedAt} -> ` +
+                   `${after.markedAt} and the reader to note ${after.index}; ${after.kept} of ` +
+                   `${opened.rows} rows are the same nodes (rebuilt ${!sameRows})` };
+});
+
 check("previous and next walk the book and stop at its ends", async (p) => {
   const r = await p.j(`(function(){
     /* github#17 -- the SMALLEST book with three notes, not the first: this walks a click at a
