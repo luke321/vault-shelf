@@ -3762,6 +3762,8 @@ check("every control is the same size in every look", async (p) => {
       ["#vs-marks .vs-mark", false], ["#vs-marks .vs-markstub", true], [".vs-spread", true],
       /* github#36 -- the turn is furniture too, in every look */
       [".vs-turn", true], ["#vs-place", false],
+      /* github#40 -- and so is the strip the push fills */
+      [".vs-push", true], ["#vs-pushsay", false],
       [".vs-alsoin button", false]
     ];
     var managing = [
@@ -3790,6 +3792,9 @@ check("every control is the same size in every look", async (p) => {
       /* A ribbon on this page, so a ribbon and the stub are both measured. */
       var stub = q("#vs-marks .vs-markstub");
       if (stub) stub.click();
+      /* github#40 -- the strip open; hidden it is 0x0 and proves nothing */
+      q("#vs-reader .vs-page.vs-right").dispatchEvent(
+        new WheelEvent("wheel", { deltaY: -100, deltaMode: 0, bubbles: true, cancelable: true }));
       reading.forEach(function (c) { row[c[0]] = { fixed: c[1], box: box(c[0]) }; });
       var mark = q("#vs-marks .vs-mark");
       if (mark) mark.click();
@@ -3891,6 +3896,9 @@ check("a look moves nothing on the page", async (p) => {
       var out = {};
       walk("library", out);
       __vs.openBook(book.id, null);
+      /* github#40 -- the strip open, so a look moving it is caught here */
+      document.querySelector("#vs-reader .vs-page.vs-right").dispatchEvent(
+        new WheelEvent("wheel", { deltaY: -100, deltaMode: 0, bubbles: true, cancelable: true }));
       walk("reading", out);
       __vs.closeReader();
       document.getElementById("vs-manageopen").click();
@@ -5556,6 +5564,319 @@ check("the turn sits under the spread, says the place, and yields to a caret", a
                    `reader at ${r.afterTyping}, and one outside it turned back to ${r.afterKey}` };
 });
 
+/* github#40, design/0026 -- a synthetic wheel does not scroll; these apply it by hand */
+const PUSH_HELPERS = `(function(){
+  window.__push = {
+    right: function () { return document.querySelector("#vs-reader .vs-page.vs-right"); },
+    left: function () { return document.querySelector("#vs-reader .vs-page.vs-left"); },
+    wheel: function (el, dy, n) {
+      for (var i = 0; i < (n || 1); i++) {
+        el.dispatchEvent(new WheelEvent("wheel", { deltaY: dy, deltaMode: 0,
+                                                   bubbles: true, cancelable: true }));
+      }
+    },
+    /* the smallest book with at least this many notes, so a turn has somewhere to go */
+    bookOf: function (min) {
+      var found = null;
+      __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+        if (b.notes.length >= min && (!found || b.notes.length < found.notes.length)) found = b;
+      }); });
+      return found;
+    }
+  };
+})(); void 0`;
+
+/* github#40 -- past PUSH_QUIET (140ms) plus the band's spring (180ms) */
+const PUSH_QUIET_WAIT = 400;
+
+check("pushing past the end of a page turns it, and one hard flick turns one page", async (p) => {
+  await p.eval(PUSH_HELPERS);
+  const first = await p.j(`(function(){
+    var book = __push.bookOf(4);
+    if (!book) return null;
+    __vs.openBook(book.id, null);
+    var page = __push.right();
+    /* THE 85% CASE (D-1): a note that never scrolls is already at its limit, so the push
+     * starts on the first notch rather than not existing at all. */
+    var span = page.scrollHeight - page.clientHeight;
+    var steps = [];
+    for (var i = 0; i < 3; i++) {
+      __push.wheel(page, 100, 1);
+      var o = __vs.overscroll();
+      steps.push({ at: o.at, index: __vs.reader().index, band: Math.round(o.band * 10) / 10 });
+    }
+    return { book: book.id, notes: book.notes.length, span: span, steps: steps,
+             turn: __vs.overscroll().turn, index: __vs.reader().index, top: page.scrollTop };
+  })()`);
+  if (!first) return { ok: false, detail: "no book with four notes in this vault" };
+  await sleep(PUSH_QUIET_WAIT);
+
+  const flick = await p.j(`(function(){
+    var book = __push.bookOf(6);
+    __vs.openBook(book.id, null);
+    var page = __push.right();
+    var seen = [];
+    /* ONE HARD FLICK, and the page it lands on is driven to its own bottom between every
+     * notch -- the momentum case. Without the latch spanning the flick this turns twice. */
+    for (var i = 0; i < 40; i++) {
+      __push.wheel(page, 120, 1);
+      page.scrollTop = page.scrollHeight - page.clientHeight;
+      seen.push(__vs.reader().index);
+    }
+    var turns = seen.filter(function (v, k) { return k > 0 && v !== seen[k - 1]; }).length;
+    return { notches: seen.length, turns: turns, index: __vs.reader().index,
+             spent: __vs.overscroll().spent };
+  })()`);
+  await sleep(PUSH_QUIET_WAIT);
+
+  const again = await p.j(`(function(){
+    var page = __push.right();
+    page.scrollTop = page.scrollHeight - page.clientHeight;
+    var before = __vs.reader().index;
+    __push.wheel(page, 100, 3);
+    var out = { before: before, after: __vs.reader().index };
+    __vs.closeReader();
+    return out;
+  })()`);
+
+  const twoNotches = first.steps[1];
+  const ok = first.span === 0 && first.steps[0].index === 0 && twoNotches.index === 0 &&
+             first.index === 1 && first.top === 0 && first.turn === 240 &&
+             twoNotches.band < -15 && twoNotches.band > -26 &&
+             flick.turns === 1 && flick.spent === true &&
+             again.after === again.before + 1;
+  return {
+    ok,
+    detail: `a note with ${first.span}px of overscroll (D-1: it never scrolls) took ` +
+            `${first.steps[0].at}px then ${twoNotches.at}px of push without turning, the band ` +
+            `reaching ${twoNotches.band}px, and turned on the third notch past the ` +
+            `${first.turn}px threshold, arriving at scrollTop ${first.top}; one flick of ` +
+            `${flick.notches} notches onto a page driven to its bottom each time turned ` +
+            `${flick.turns} page (latch still held: ${flick.spent}); after the flick went quiet ` +
+            `a fresh push turned ${again.before} -> ${again.after}`
+  };
+});
+
+check("a turn arrives at the top going forward and the bottom going back", async (p) => {
+  await p.eval(PUSH_HELPERS);
+  const found = await p.j(`(function(){
+    /* A NOTE THAT ACTUALLY OVERFLOWS, because "arrived at the bottom" is only provable on a
+     * page with a bottom to arrive at -- and 85% of this vault's notes have none. */
+    var out = null;
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+      if (out || b.notes.length < 3) return;
+      for (var i = 0; i < b.notes.length - 1; i++) {
+        __vs.openBook(b.id, b.notes[i].id);
+        var page = __push.right();
+        if (page.scrollHeight - page.clientHeight > 80) { out = { book: b.id, at: i }; return; }
+      }
+    }); });
+    return out;
+  })()`);
+  if (!found) return { ok: false, detail: "no note in this vault overflows its page" };
+
+  const back = await p.j(`(function(){
+    __vs.openBook(${JSON.stringify(found.book)}, __vs.views() && null);
+    var book = null;
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+      if (b.id === ${JSON.stringify(found.book)}) book = b; }); });
+    __vs.openBook(book.id, book.notes[${found.at} + 1].id);
+    var page = __push.right();
+    page.scrollTop = 0;
+    __push.wheel(page, -100, 3);
+    return { index: __vs.reader().index, top: page.scrollTop,
+             span: page.scrollHeight - page.clientHeight };
+  })()`);
+  await sleep(PUSH_QUIET_WAIT);
+
+  const forward = await p.j(`(function(){
+    var page = __push.right();
+    page.scrollTop = page.scrollHeight - page.clientHeight;
+    var from = __vs.reader().index;
+    __push.wheel(page, 100, 3);
+    var out = { from: from, index: __vs.reader().index, top: page.scrollTop };
+    __vs.closeReader();
+    return out;
+  })()`);
+
+  const atBottom = back.span > 0 && Math.abs(back.top - back.span) <= 1;
+  const ok = back.index === found.at && atBottom &&
+             forward.index === found.at + 1 && forward.top === 0;
+  return {
+    ok,
+    detail: `pushing up off note ${found.at + 1} turned back to ${back.index} and landed at ` +
+            `scrollTop ${back.top} of ${back.span} (the bottom: ${atBottom}); pushing down ` +
+            `again turned ${forward.from} -> ${forward.index} and landed at ${forward.top} ` +
+            `(the top). A turn is a reading motion, not a teleport`
+  };
+});
+
+check("the push resists at both ends of the book and never turns", async (p) => {
+  await p.eval(PUSH_HELPERS);
+  const r = await p.j(`(function(){
+    var book = __push.bookOf(4);
+    if (!book) return null;
+    /* D-4 -- the band still gives, about a third as far, and says why it will not turn. */
+    __vs.openBook(book.id, null);
+    var page = __push.right();
+    var strip = document.getElementById("vs-push");
+    __push.wheel(page, -100, 6);
+    var head = { index: __vs.reader().index, band: __vs.overscroll().band,
+                 say: __vs.overscroll().say, end: strip.hasAttribute("data-end"),
+                 at: strip.getAttribute("data-at"),
+                 prev: document.getElementById("vs-prevnote").disabled };
+    __vs.closeReader();
+    return { head: head, notes: book.notes.length, book: book.id };
+  })()`);
+  if (!r) return { ok: false, detail: "no book with four notes in this vault" };
+  await sleep(PUSH_QUIET_WAIT);
+
+  const tail = await p.j(`(function(){
+    var book = null;
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+      if (b.id === ${JSON.stringify(r.book)}) book = b; }); });
+    __vs.openBook(book.id, book.notes[book.notes.length - 1].id);
+    var page = __push.right();
+    page.scrollTop = page.scrollHeight - page.clientHeight;
+    var strip = document.getElementById("vs-push");
+    __push.wheel(page, 100, 6);
+    var out = { index: __vs.reader().index, band: __vs.overscroll().band,
+                say: __vs.overscroll().say, at: strip.getAttribute("data-at"),
+                next: document.getElementById("vs-nextnote").disabled,
+                last: book.notes.length - 1 };
+    __vs.closeReader();
+    return out;
+  })()`);
+
+  const says = "The book ends here";
+  const ok = r.head.index === 0 && r.head.band === 9 && r.head.say === says &&
+             r.head.end && r.head.at === "top" && r.head.prev === true &&
+             tail.index === tail.last && tail.band === -9 && tail.say === says &&
+             tail.at === "bottom" && tail.next === true;
+  return {
+    ok,
+    detail: `six notches up at note 0 left the reader at ${r.head.index} with the band at ` +
+            `${r.head.band}px (a third of the 26px it gives mid-book) and the strip at the ` +
+            `${r.head.at} reading ${JSON.stringify(r.head.say)}; six down at note ` +
+            `${tail.last} of ${r.notes} left it at ${tail.index}, band ${tail.band}px, strip ` +
+            `at the ${tail.at}. Previous and Next are disabled (${r.head.prev}/${tail.next}), ` +
+            `so the refusal is legible twice over`
+  };
+});
+
+check("the contents never turns the page, and nor does a key that scrolls one", async (p) => {
+  await p.eval(PUSH_HELPERS);
+  const r = await p.j(`(function(){
+    var book = __push.bookOf(4);
+    if (!book) return null;
+    __vs.openBook(book.id, null);
+    /* D-3 -- the left page is a list of things you click, not a page you read. */
+    var left = __push.left();
+    left.scrollTop = left.scrollHeight - left.clientHeight;
+    __push.wheel(left, 100, 12);
+    var afterContents = { index: __vs.reader().index, dir: __vs.overscroll().dir,
+                          at: __vs.overscroll().at };
+    /* D-2 -- design/0025 stands: a discrete keypress cannot express a push. */
+    var reader = document.getElementById("vs-reader");
+    reader.focus();
+    ["PageDown", " ", "PageUp", "PageDown"].forEach(function (k) {
+      reader.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true,
+                                                          cancelable: true }));
+    });
+    var afterKeys = __vs.reader().index;
+    /* and the arrow key still turns at once, with no resistance to push through */
+    reader.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true,
+                                                        cancelable: true }));
+    var afterArrow = __vs.reader().index;
+    var out = { contents: afterContents, keys: afterKeys, arrow: afterArrow,
+                notes: book.notes.length };
+    __vs.closeReader();
+    return out;
+  })()`);
+  if (!r) return { ok: false, detail: "no book with four notes in this vault" };
+  const ok = r.contents.index === 0 && r.contents.dir === 0 && r.contents.at === 0 &&
+             r.keys === 0 && r.arrow === 1;
+  return {
+    ok,
+    detail: `twelve notches off the bottom of the contents left the reader at ` +
+            `${r.contents.index} and the push at ${r.contents.at}px, never engaging ` +
+            `(D-3); PageDown, space and PageUp left it at ${r.keys} (D-2, design/0025 ` +
+            `unamended); the right arrow turned it to ${r.arrow} at once, as it always did`
+  };
+});
+
+check("a wheel on the spread stays smooth in every look", async (p) => {
+  await p.eval(PUSH_HELPERS);
+  /* github#40, design/0026 -- the library scroll's budget, same method */
+  /* github#40, design/0026 -- two costs, so measured where the push cannot turn */
+  const r = await p.eval(`(async function(){
+    var looks = window.VaultShelfCore.LOOKS.map(function (l) { return l.value; });
+    var was = document.getElementById("vs-app").getAttribute("data-look") || "";
+    var book = __push.bookOf(8);
+    var out = {};
+    for (var i = 0; i < looks.length; i++) {
+      __vs.setLook(looks[i]);
+      /* the LAST note, so every notch paints the band and none of them turns */
+      __vs.openBook(book.id, book.notes[book.notes.length - 1].id);
+      await new Promise(function (r) { setTimeout(r, 120); });
+      var page = __push.right();
+      page.scrollTop = page.scrollHeight - page.clientHeight;
+      /* one discarded pass, so the stylesheet is applied before anything is timed */
+      __push.wheel(page, 40, 8);
+      await new Promise(function (r) { setTimeout(r, 320); });
+      var frames = [];
+      var last = performance.now();
+      var start = last;
+      await new Promise(function (done) {
+        function step(now) {
+          frames.push(now - last);
+          last = now;
+          /* a steady push, the way a trackpad delivers one */
+          __push.wheel(page, 40, 1);
+          if (now - start < 1200) requestAnimationFrame(step); else done();
+        }
+        requestAnimationFrame(step);
+      });
+      frames.shift();
+      var turned = __vs.reader().index !== book.notes.length - 1;
+      frames.sort(function (a, b) { return a - b; });
+      /* and the turn on its own, timed once */
+      __vs.openBook(book.id, book.notes[0].id);
+      await new Promise(function (r) { setTimeout(r, 200); });
+      var t0 = performance.now();
+      __push.wheel(__push.right(), 100, 3);
+      var turn = performance.now() - t0;
+      out[looks[i] || "modern"] = {
+        p50: frames[Math.floor(frames.length * 0.5)],
+        p95: frames[Math.floor(frames.length * 0.95)],
+        worst: frames[frames.length - 1],
+        frames: frames.length,
+        turned: turned,
+        turn: turn,
+        landed: __vs.reader().index
+      };
+      __vs.closeReader();
+      await new Promise(function (r) { setTimeout(r, 400); });
+    }
+    __vs.setLook(was);
+    return out;
+  })()`);
+  const names = Object.keys(r);
+  const BUDGET = 34;
+  const over = names.filter((n) => r[n].p95 > BUDGET);
+  const turnedAnyway = names.filter((n) => r[n].turned);
+  return {
+    ok: over.length === 0 && !turnedAnyway.length && names.every((n) => r[n].landed === 1),
+    detail: `p50/p95/worst frame in ms while pushing against the end of the book -- ` +
+            names.map((n) => `${n} ${r[n].p50.toFixed(1)}/${r[n].p95.toFixed(1)}/` +
+              `${r[n].worst.toFixed(0)}`).join(", ") +
+            ` (budget: p95 under ${BUDGET}ms${over.length ? "; over in " + over.join(", ") : ""})` +
+            `; one whole turn, measured separately, cost ` +
+            names.map((n) => `${n} ${r[n].turn.toFixed(0)}ms`).join(", ") +
+            (turnedAnyway.length ? `; the end gave way in ${turnedAnyway.join(", ")}` : "")
+  };
+});
+
 check("a wikilink in a book goes to that note in this book, this shelf, or the nearest", async (p) => {
   const r = await p.j(`(function(){
     var notes = __vs.data().notes;
@@ -6477,6 +6798,10 @@ async function atRest(page) {
     /* github#34 -- a loop left running scrolls the library on its own. */
     var edge = __vs.edgeScroll ? __vs.edgeScroll() : null;
     if (edge && edge.running) out.push("an edge scroll still running (github#34)");
+    /* github#40 -- a band mid-spring is a page still moving. */
+    var push = __vs.overscroll ? __vs.overscroll() : null;
+    if (push && push.pushing) out.push("an overscroll band still held (github#40)");
+    if (push && push.settling) out.push("an overscroll band still springing back (github#40)");
     var mid = document.querySelectorAll(
       "#vs-app [data-dragging], #vs-app [data-carrying], #vs-app [data-leaving], " +
       "#vs-app [data-drop], #vs-app [data-shelfdrop]");

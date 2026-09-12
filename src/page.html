@@ -54,11 +54,19 @@
         <ol id="vs-contents" class="vs-contents"></ol>
       </div>
       <div class="vs-page vs-right">
-        <p id="vs-notemeta" class="vs-notemeta"></p>
-        <article id="vs-note" class="vs-prose"></article>
-        <div id="vs-alsoin" class="vs-alsoin"></div>
+        <!-- github#40, design/0026 -- the leaf is what the band moves -->
+        <div id="vs-leaf" class="vs-leaf">
+          <p id="vs-notemeta" class="vs-notemeta"></p>
+          <article id="vs-note" class="vs-prose"></article>
+          <div id="vs-alsoin" class="vs-alsoin"></div>
+        </div>
       </div>
       <nav id="vs-tabs" class="vs-tabs" aria-label="Index"></nav>
+      <!-- github#40, design/0026 -->
+      <div id="vs-push" class="vs-push" hidden aria-hidden="true">
+        <span class="vs-pushfill"></span>
+        <span id="vs-pushsay" class="vs-pushsay"></span>
+      </div>
     </div>
 
     <!-- github#36, design/0025 -->

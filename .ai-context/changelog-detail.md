@@ -2718,3 +2718,63 @@ over a library scrolling by itself. `settlePage()` dispatches a `dragend` on the
 
 Comment budget unchanged at **1500/1500** — every new comment is pointer-shaped, and the
 reasoning is in `design/0024`.
+
+## 2026-09-12 — reading off the bottom of a page turns it (`github#40`, `design/0026`)
+
+Both halves of the spread are `overflow-y: auto`, so reaching the bottom of a note stopped dead:
+nothing said the page had ended or that there was a next one, and the only ways on were the arrow
+keys and the footer buttons. Keeping the wheel going now meets **resistance** — a rubber band and a
+filling strip — and past a threshold the page **turns**, arriving at the top of the next note, or
+at the bottom of the previous one going back.
+
+| | before | after |
+|---|---|---|
+| ways to turn a page | 2 (arrow keys, footer buttons) | **3** |
+| notes the gesture exists on | — | **all of them** (85% never overflow) |
+| `goTo` scroll arrival | none — wherever the browser left the box | **top forward, bottom back** |
+| push to turn | — | **240px** (2 notches never, 3 always) |
+| band, mid-book / at the ends | — | **26px / 9px** |
+| latch clears after | — | **140ms** of silence |
+| one 40-notch flick turns | — | **1 page** |
+| p95 frame while pushing, leather/modern/cyber | — | **18.9 / 18.2 / 18.3ms** (budget 34) |
+| one whole turn, timed | — | **2–3ms** in every look |
+| same-size controls measured | 40 | **42** (`.vs-push`, `#vs-pushsay`) |
+| look files changed | — | **none** |
+
+**The trap the issue listed fifth was the dominant case.** Probed before any code was written — 40
+books sampled every 17th, 186 notes opened — **only 27 of 186 notes overflow their page at all**,
+the median slack is **0px**, p90 **75px**. A gesture that needs real overscroll would not exist for
+85% of the library, and a reader cannot tell why it works on one note and not the next. So a page
+that cannot scroll counts as already at its limit, and the push starts on the first notch.
+
+**One flick, one page — and the first version got it wrong in a way synthetic events could not
+see.** The latch was released as soon as the *arriving* page was not at its own limit, which is the
+ordinary case when you turn onto a long note: a real wheel would scroll that note to its bottom and
+turn again. Synthetic `WheelEvent`s do not scroll natively, so every early check passed. The fix is
+that **every notch re-arms the quiet timer**, absorbed or not, so one latch spans one whole flick
+however long its tail runs; the check now drives the arriving page to its own bottom between all 40
+notches and asserts exactly one turn.
+
+**The settle diagnostic caught the second defect.** `atRest()` learned `pushing` and `settling`
+from `__vs.overscroll()`, and immediately failed two of the new checks with `an overscroll band
+still springing back`: a **turn** was starting a spring-back, and the settle timer handle survived
+`closeReader`. A turn now snaps — the band belongs to the page being left — and `releasePush`
+clears any pending spring before deciding whether to start one. `decisions/0013` working exactly as
+intended, on the run that introduced the thing it caught.
+
+**The smoothness number was two costs added together.** The first version of `a wheel on the spread
+stays smooth in every look` read leather p95 **53.9ms** with a 264ms worst against modern's 18.4,
+because a single page turn — a full `renderContents`/`renderMarks`/`renderTabs`/`renderNote` —
+landed inside the sampled frames. Measured where the push cannot turn (the last note, pushing
+down), leather reads **18.9ms** against the library scroll's own 18.5ms on the same machine, and
+the turn is a separate **2–3ms**. leather's remaining 268ms worst frame is the first look measured
+paying for its stylesheet's first application — the existing library check reports 158ms there for
+the same reason, and p95 is the assertion in both.
+
+**Two defects found by reading the diff rather than by a check.** `reader.land` was set and never
+consumed, so a `refresh()` after a back-turn would have re-applied the landing and jumped the page
+to its bottom; and `ctrl`/`cmd` + wheel — a zoom gesture that belongs to the host — was being
+absorbed into the push.
+
+Comment budget unchanged at **1500/1500**: the blocks written for this landed 15 lines over, and
+the reasoning moved to `design/0026` rather than the baseline moving.

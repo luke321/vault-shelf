@@ -1083,6 +1083,58 @@
   min-height: 0;
   min-width: 0;
   position: relative;
+  /* github#40 -- the push stays in the book; the host never scrolls */
+  overscroll-behavior: contain;
+}
+
+/* github#40, design/0026 -- the leaf the band moves, and nothing else */
+.vault-shelf .vs-leaf {
+  --vs-band: 0px;
+  transform: translateY(var(--vs-band));
+}
+.vault-shelf .vs-page[data-push] .vs-leaf { transition: none; }
+.vault-shelf .vs-page[data-settling] .vs-leaf { transition: transform 180ms ease-out; }
+
+/* github#40, design/0026 -- absolutely positioned, so it moves nothing */
+.vault-shelf .vs-push {
+  --vs-fill: 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 26px;
+  z-index: 5;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.vault-shelf .vs-push[data-at="bottom"] {
+  bottom: 0;
+  background: linear-gradient(0deg, var(--surface-2), transparent);
+}
+.vault-shelf .vs-push[data-at="top"] {
+  top: 0;
+  background: linear-gradient(180deg, var(--surface-2), transparent);
+}
+
+.vault-shelf .vs-pushfill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  transform: scaleX(var(--vs-fill));
+  transform-origin: left center;
+  background: color-mix(in srgb, var(--text-1) 42%, transparent);
+}
+.vault-shelf .vs-push[data-at="bottom"] .vs-pushfill { bottom: 0; }
+.vault-shelf .vs-push[data-at="top"] .vs-pushfill { top: 0; }
+
+.vault-shelf .vs-pushsay {
+  font: 500 10.5px/26px var(--ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
 }
 
 /* the gutter: both inner edges fall away toward the fold */
@@ -1805,6 +1857,9 @@
   .vault-shelf .vs-spine:hover, .vault-shelf .vs-spine:focus-visible { transform: none; }
   .vault-shelf[data-query="1"] .vs-spine[data-match="1"] { transform: none; }
   .vault-shelf .vs-shelfhead .vs-mini { transition: none; }
+  /* github#40 -- no rubber band; the strip carries the threshold alone */
+  .vault-shelf .vs-leaf { transform: none; }
+  .vault-shelf .vs-page[data-settling] .vs-leaf { transition: none; }
 }
 
 /* design/0008 -- THE RIBBONS AN OPEN BOOK HOLDS, hanging out of the top of it.

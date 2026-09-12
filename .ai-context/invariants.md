@@ -754,6 +754,46 @@ at **1**, and the same key dispatched on the reader itself turns back to **0**. 
 so `"previous and next walk the book and stop at its ends"` reads identically on both sides of the
 change. `github#36`, `design/0025`.
 
+`"pushing past the end of a page turns it, and one hard flick turns one page"` is the gesture, and
+every number in it is measured rather than chosen. The push threshold is **240px** — between two
+and three notches of a mouse wheel, which Chrome delivers as 100px each — so the check asserts that
+**100px and then 200px of push turn nothing** and the third notch turns, on a note with **0px of
+overscroll**: 85% of this vault's notes never scroll at all (27 of 186 sampled do), which is why a
+page that cannot scroll counts as already at its limit. The band reaches **26px** at the threshold,
+and the check asserts it between **−15px and −26px** after two notches. Then the momentum case:
+**one flick of 40 notches turns exactly 1 page**, with the arriving page driven to its own bottom
+between every notch, and the latch still held at the end; after **140ms** of silence a fresh push
+turns again. `github#40`, `design/0026`.
+
+`"a turn arrives at the top going forward and the bottom going back"` finds a note whose page
+actually overflows (**more than 80px**, since most have none) and asserts that pushing up off the
+note after it lands at `scrollTop` **equal to the full span**, and pushing down again lands at
+**0**. A turn is a reading motion, not a teleport. `github#40`, `design/0026`.
+
+`"the push resists at both ends of the book and never turns"` asserts the band gives **9px** —
+about a third of its mid-book 26px — at note **0** pushing up and at the last note pushing down,
+that the strip reads **`The book ends here`** and sits at the `top` and the `bottom` respectively,
+that neither push moves the reader, and that `Previous` and `Next` are already `disabled` there, so
+the refusal is legible twice over. `github#40`, `design/0026`.
+
+`"the contents never turns the page, and nor does a key that scrolls one"` asserts that **twelve**
+notches off the bottom of the contents leave the reader where it was with the push at **0px**,
+never engaging at all; that `PageDown`, `space` and `PageUp` leave it there too (`design/0025`
+stands unamended); and that the right arrow still turns it **at once**, with no resistance to push
+through. `github#40`, `design/0026`.
+
+`"a wheel on the spread stays smooth in every look"` holds the **same p95 budget of 34ms** as
+`"scrolling the library stays smooth in every look"`, and measures it where the push **cannot**
+turn — the last note, pushing down — because a page turn inside the sampled frames is a different
+cost. Measured: p95 **18.9 / 18.2 / 18.3ms** for leather / modern / cyber, against the library
+scroll's own 18.5ms, and one whole turn timed separately at **2–3ms** in every look. `github#40`,
+`design/0026`.
+
+`.vs-push` and `#vs-pushsay` are in the same-size check's `reading` list, which now **opens the
+strip** before measuring — hidden it is 0×0 in every look, compares equal and proves nothing. That
+took the check from 40 controls to **42**. `a look moves nothing on the page` walks the strip too,
+in the reading state. `github#40`, `design/0021`, `design/0026`.
+
 `"a wikilink in a book goes to that note in this book, this shelf, or the nearest"` opens a
 Months book holding a note that links to a person's note but not the person's note itself,
 clicks the link, and asserts the reader is now on that note **in another Months book**; opens a
