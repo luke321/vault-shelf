@@ -6227,8 +6227,14 @@ check("the room above a spine is the largest lift, in every look", async (p) => 
       __vs.setLook(looks[i]);
       await new Promise(function (r) { setTimeout(r, 120); });
       /* github#51 -- setLook rebuilds; a detached node reads all zeroes. */
-      var track = document.querySelector("#vs-shelves .vs-track");
-      var spine = document.querySelector("#vs-shelves .vs-spine");
+      /* github#51 -- THE SPINE MUST BE THIS TRACK'S. Querying the track and the spine
+       * independently reads the slack between two different shelves: the first shelf is the
+       * Favourites pick shelf, which other checks empty, and the check then measured 239.3px
+       * of "slack" -- one shelf's height -- and failed on a tree where nothing was wrong.
+       * Take the first track that actually holds a spine, and the spine from inside it. */
+      var track = [].slice.call(document.querySelectorAll("#vs-shelves .vs-track"))
+        .filter(function (t) { return t.querySelector(".vs-spine"); })[0];
+      var spine = track.querySelector(".vs-spine");
       var cs = getComputedStyle(track);
       var rungs = ["--spine-lift-worn", "--spine-lift-worn-more", "--spine-lift-worn-hover",
                    "--spine-lift-hover", "--spine-lift-match"].map(function (n) {
