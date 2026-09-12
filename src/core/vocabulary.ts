@@ -10,18 +10,18 @@ export type TermKind = "person" | "tag" | "folder" | "book" | "note";
 /** github#41, design/0026 -- structural first, so a tag outranks a note title. */
 export const KIND_ORDER: TermKind[] = ["person", "tag", "folder", "book", "note"];
 
-/** github#41, design/0026 -- at most this many rows, of which at most NOTE_ROWS are titles. */
+/** github#41, design/0026 -- at most this many rows; NOTE_ROWS are titles */
 export const SUGGEST_ROWS = 8;
 export const NOTE_ROWS = 3;
 
 export interface Term {
-  /** What goes in the box when this row is picked. */
+  /** github#41 -- what goes in the box when this row is picked */
   text: string;
   /** github#41, design/0026 -- `text` folded the way `matchesQuery` folds. */
   fold: string;
-  /** Every kind that spells `text`, in KIND_ORDER. */
+  /** github#41 -- every kind that spells this text, in KIND_ORDER */
   kinds: TermKind[];
-  /** How many distinct notes this term names. */
+  /** github#41 -- how many distinct notes this term names */
   notes: number;
 }
 
@@ -80,7 +80,7 @@ export function buildVocabulary(views: ShelfView[], notes: Note[]): Term[] {
       notes: term.notes.size
     });
   });
-  /* github#41 -- one stable order, so two runs over one vault offer the same list. */
+  /* github#41 -- one stable order, so two runs offer the same list */
   out.sort((a, b) => (b.notes - a.notes) || (a.fold < b.fold ? -1 : a.fold > b.fold ? 1 : 0));
   return out;
 }
