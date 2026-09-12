@@ -2431,7 +2431,8 @@ function mountVaultShelf(root, data, options) {
   function litText(host, text, needle) {
     var low = needle ? text.toLowerCase() : "";
     var at = 0;
-    var i = needle ? low.indexOf(needle) : -1;
+    /* github#13 -- a fold that changes length cannot be mapped back */
+    var i = needle && low.length === text.length ? low.indexOf(needle) : -1;
     while (i >= 0) {
       if (i > at) host.appendChild(DOC.createTextNode(text.slice(at, i)));
       host.appendChild(el("span", "vs-hit", text.slice(i, i + needle.length)));

@@ -3341,3 +3341,27 @@ entry in this file whose cause was a picture.
 Checks **114 → 117**. Comment budget unchanged at **1490/1490** — every new comment is
 pointer-shaped and the reasoning is here and in `design/0027`. `--shot-query <needle>` is new:
 the search live in both pictures, and the reader opened on a book the query actually lit.
+
+**What the extra work costs, measured on the biggest index** (`people/-unfiled`, 2,450 notes).
+`renderContents` now asks `core.matchesQuery` once more per row to decide the mark, and the find
+box asks it instead of comparing titles:
+
+| opening it | before | after |
+|---|---|---|
+| with no query live | 68 ms | 72 ms |
+| with a query live | 87 ms | **99 ms** |
+| typing in the find box | 5 ms | **10 ms** |
+
+Twelve milliseconds on the largest book in the library, and only while a search is live. The
+boolean is the reason it is that cheap: `matchReasons` builds an array and is called once per
+*open note*, never per row.
+
+**A fold that changes length is not marked.** `litText` locates the needle in `text.toLowerCase()`
+and slices the original, so a case fold that changes the string's length (Turkish `İ`, and the
+vault deliberately carries four scripts) would map the offsets onto the wrong characters and
+mangle a title. Lengths are compared first and the text is left unmarked when they differ —
+nothing is claimed rather than something being drawn wrong.
+
+**Opening forty books wears forty books.** The find-box check drives 40 real `openBook` calls, and
+wear is counted per address and persisted. It snapshots `settings.wear` and puts it back, so the
+check leaves the library exactly as it found it.

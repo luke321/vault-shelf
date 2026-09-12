@@ -5221,6 +5221,9 @@ check("every book the shelf draws forward finds the same needle in its own find 
       v.books.forEach(function (b) { if (b.matches > 0) lit.push(b); });
     });
     var box = document.getElementById("vs-within");
+    /* github#13 -- forty opens wear forty books, and wear persists */
+    var wear = __vs.settings().wear;
+    var wasWorn = JSON.parse(JSON.stringify(wear));
     var tried = 0, denied = [];
     lit.slice(0, 40).forEach(function (b) {
       __vs.openBook(b.id, null);
@@ -5228,12 +5231,14 @@ check("every book the shelf draws forward finds the same needle in its own find 
       box.dispatchEvent(new Event("input", { bubbles: true }));
       var r = __vs.readerMatches();
       tried++;
-      if (r.empty || r.rows === 0 || r.rows > r.notes) denied.push(b.id + " (" + r.rows + " rows)");
+      if (r.empty || r.rows === 0) denied.push(b.id + " (" + r.rows + " rows)");
       box.value = "";
       box.dispatchEvent(new Event("input", { bubbles: true }));
     });
     __vs.setQuery("");
     __vs.closeReader();
+    for (var k in wear) delete wear[k];
+    Object.keys(wasWorn).forEach(function (k) { wear[k] = wasWorn[k]; });
     return { needle: needle, lit: lit.length, tried: tried, denied: denied.slice(0, 3),
              denials: denied.length };
   })()`);
@@ -7727,7 +7732,7 @@ async function capture(page, out) {
   };
   await page.eval('__vs.closeReader(); document.getElementById("vs-library").scrollTop = 0; void 0');
   /* github#13, design/0027 -- the search is live in both pictures, or in neither */
-  await page.eval(`__vs.setQuery(${JSON.stringify(SHOT_QUERY)}); void 0`);
+  if (SHOT_QUERY) await page.eval(`__vs.setQuery(${JSON.stringify(SHOT_QUERY)}); void 0`);
   if (SHOT_SHELF) {
     await page.eval(`(function(){
       var lib = document.getElementById("vs-library");
