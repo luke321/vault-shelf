@@ -1737,9 +1737,69 @@ pid was dead within a second and a crashed holder read exactly like a healthy on
 | a live in-process hold, read 35 s apart | `at` fixed at the acquire time, so the hold aged towards being broken | `at` moved **30,010 ms**, `since` moved **0**; a sister-repo acquire measures the hold at **5 s**, not 35 |
 | a hold taken from the command line | `pid` of a process that had already exited | no `pid` at all, `holder: "cli"`, and `status` prints `holder unverified` |
 
-The stale windows stay 30 minutes for `suite` and 20 for the rest. Liveness would allow minutes,
-but the sister repo's own holds do not heartbeat, and a shorter window here would break *their*
-live runs — the mirror image of the fault this fixes.
+### The windows stay at 30 and 20, and a live holder is never broken by the clock
+
+`github#25`, `decisions/0012` (revisited 2026-09-12). Shortening was asked for and **measured
+breaking a live holder**, so it is not here. A shorter window was built first — staleness asked
+of the hold rather than the name, 5 minutes for a hold declaring `holder: "process"` and the
+name's own window for everything else — and within the hour a `--only` run printed
+`BREAKING stale screen-left lock (age 301s, owner github#41 drive (after))`: a hold naming a
+**live** process (the dead-pid branch prints something else and runs first), broken while its
+worktree was still using the screen.
+
+The cause is structural, not bad luck: `smoke.mjs` generates fixtures and builds the page with
+`spawnSync`, which blocks its own event loop and therefore its own beat for as long as the child
+runs. **A live holder is not always a talking one**, so any window short enough to be worth
+shortening is short enough to break a busy run.
+
+Liveness replaces the question the window stood in for rather than shrinking it. Held by
+`node scripts/lock.mjs --selftest`, **25 cases in 1.0 s** against a throwaway root
+(`VAULT_LOCKS_HOME`), never the live mutex — the pre-push hook runs it:
+
+| a contender meets | what happens |
+|---|---|
+| a **beating** hold (`holder: "process"`, live pid) last seen 6 min ago | waits — its name's window |
+| a **live** holder blocked for 25 min, held for 40 | waits — never broken by the clock |
+| a **CLI** hold (`holder: "cli"`, no pid) last seen 6 min ago | waits — 30 minutes for `suite` |
+| a hold in the **sister's shape** (`owner` and `at` alone) at 6 min | waits — 30 minutes |
+| a **CLI** hold past its 30-minute window | `BREAKING stale suite lock (age 1860s)` — the backstop |
+| a hold whose named process is **gone**, at any age | `BREAKING dead ... pid 999999 is gone` |
+
+### A hold driven by hand is refreshed, not aged out
+
+`github#25`. The case the issue was filed about is an agent claiming `screen-left` to drive a
+window itself, across screenshots and reruns, with no run under it to beat. `lock.mjs refresh
+<name> --owner <id>` is the issue's own "a heartbeat the holder refreshes", and `status` now
+says how long each hold has left, so there is something to act on before it matters:
+
+| | before | after |
+|---|---|---|
+| a 19-minute-old `screen-left` hold, refreshed by its owner | no such command | `REFRESHED screen-left by #12 plaques -- stale in 1200s`, `since` unmoved |
+| the same, asked for by anyone else | — | `REFUSED`, exit **3**, the clock untouched |
+| refreshing a lock nobody holds | — | `NOT HELD`, exit **3** |
+| `status` on a hold inside its window | `seen=360s ago` | `... holder unverified  stale in 1440s` |
+
+### A CLI hold beats while a run is under it
+
+`github#25`. The two runs that hold `suite` from the command line and then pass `--no-lock` are
+the **gated** ones — `.githooks/pre-push` and `release.ps1` — so the one hold whose numbers stamp
+a tree was the one hold nothing kept alive and nothing checked. `--no-lock` now adopts it.
+Measured end to end, a CLI acquire around `smoke.mjs --no-lock --only "__vs is present"`:
+
+| | before | after |
+|---|---|---|
+| what the run says | `--no-lock: the caller is holding the suite lock, not this run` | `ADOPTED suite -- beating the hold of pre-push review-25 for this run` |
+| the hold's `at` while the run lasts | frozen at the acquire | refreshed every 30 s — **+177 ms at a 50 ms beat** in the selftest, `since` unmoved |
+| the hold's `since` after the run | — | **11 s**, the caller's own acquire time, kept |
+| the hold's shape after the run | — | `holder unverified` again: `holder: "cli"`, no `pid`, owner unchanged, directory still standing |
+| the caller's own `release` | `RELEASED` | `RELEASED` — the owner never changed, so it still matches |
+| losing the lock mid-run | nothing noticed until the eventual `release` | the beat names who took it, the run aborts, nothing is stamped |
+| `--no-lock` with **no live hold** to adopt -- none taken, or one already dead or past its window | ran the whole suite unguarded | refuses at startup, exit **1**, before a fixture is touched |
+
+**A harness that loses the display says so too.** `takeLeftScreen` passed no `onLost`, so each of
+the five harnesses that park a window could lose `screen-left` mid-run and finish as though
+nothing had happened. It now names who took it and stops, the same way the suite already did for
+`suite`.
 
 **A fixture directory is never removed because a sibling appeared.** The store is shared by
 every worktree through git's common dir, and a fixture is named after the digest of the

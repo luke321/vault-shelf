@@ -1,7 +1,7 @@
 import { attach, json } from "./cdp.mjs";
 import { leftmostScreen, leftWindowPos, takeLeftScreen, dropLeftScreen } from "./screen.mjs";
 // github#25, github#37, decisions/0012
-import { acquire, heldBy, ownerTag } from "./lock.mjs";
+import { acquire, adopt, heldBy, ownerTag } from "./lock.mjs";
 // github#5, decisions/0010
 import { FIXTURE_MAX_AGE_DAYS, FIXTURE_NAMES, describeFixture,
          record as recordPass } from "./suite-stamp.mjs";
@@ -60,10 +60,28 @@ function lostLock(who) {
   process.exit(1);
 }
 
+/* github#25 -- the same abort for the display the windows are parked on */
+function lostScreen(who) {
+  console.error("\nsmoke: the left screen was taken by " + who + " while this run was measuring.\n" +
+                "Its windows now share the display, so this run stops rather than publishing " +
+                "it.\ngithub#25.");
+  killLiveBrowsers();
+  process.exit(1);
+}
+
 /* github#8, github#37, decisions/0011, decisions/0012 */
 async function takeLock() {
   if (NO_LOCK) {
-    console.log("--no-lock: the caller is holding the suite lock, not this run");
+    /* github#25 -- the caller's CLI hold neither beats nor notices */
+    suiteLock = adopt("suite", { onLost: lostLock });
+    if (suiteLock) {
+      console.log("--no-lock: beating the suite lock held by " + suiteLock.owner);
+    } else {
+      console.error("\nsmoke: --no-lock says a caller is holding the suite lock, but no live " +
+                    "hold is there.\nIt was never taken, or it has already been lost. This run " +
+                    "would measure on a\nmachine nothing is guarding. github#25.");
+      process.exit(1);
+    }
   } else {
     try {
       suiteLock = await acquire("suite", { owner: LOCK_OWNER, timeoutMs: LOCK_TIMEOUT_MS,
@@ -81,7 +99,7 @@ async function takeLock() {
   }
   /* github#37 -- --no-lock names the suite lock; no parent ever holds the screen, so this run
    * claims the display it is about to park a window on either way. */
-  await takeLeftScreen(LOCK_OWNER, { timeoutMs: LOCK_TIMEOUT_MS });
+  await takeLeftScreen(LOCK_OWNER, { timeoutMs: LOCK_TIMEOUT_MS, onLost: lostScreen });
 }
 
 /* github#8, github#37, decisions/0011, decisions/0012 */
@@ -7042,7 +7060,7 @@ async function main() {
                 : vaults.some((v) => !v.fixture) ? "an unstamped fixture"
                 : lost.length ? `a run without ${lost.join(" and ")} (the generator failed)` : "";
   // github#25 -- the stamp is a measurement, so the hold is checked again
-  if (suiteLock && !heldBy("suite", LOCK_OWNER)) lostLock("somebody else");
+  if (suiteLock && !heldBy("suite", suiteLock.owner)) lostLock("somebody else");
   if (!worst && !partial) {
     let checks = 0;
     for (const t of ran.values()) checks += t;

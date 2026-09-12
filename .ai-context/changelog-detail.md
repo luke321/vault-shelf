@@ -32,6 +32,66 @@ directory, so `code-index.md` followed on its own. The genre keeps its own word 
 called), and both quoted asks stay verbatim. `docs/demo/index.html` still carries the old name at
 `:4190`: it is a committed export refreshed when the demo goes stale (`decisions/0009`), and its
 `--end` defaults to today, so rebuilding it for an unrenderable label would be ~1.4 MB of churn.
+## 2026-09-12 — The hold follows the run; the window was reconsidered and kept (github#25)
+
+> "a crashed worktree's abandoned lock and a healthy five-minute run are byte-for-byte
+> indistinguishable, and the only discriminator left is age."
+
+`github#37` landed two of this issue's three asks: an in-process holder writes its own live pid,
+beats every 30 s, and the suite aborts rather than publishing numbers measured after it lost the
+lock. What stayed open was the half the title is about — **a hold taken from the command line
+has no liveness of any kind** — and that is not a corner. `.githooks/pre-push` and `release.ps1`
+both acquire `suite` from the command line and then run `smoke.mjs --no-lock`, so the one hold
+whose numbers stamp a tree was the one hold nothing kept alive and nothing checked.
+
+**`--no-lock` now adopts the caller's hold instead of ignoring it.** The run beats it under the
+caller's own owner — so the parent's `release` still matches — and hands the caller's own shape
+back on the way out without removing the directory. A `--no-lock` run with nothing holding the
+lock refuses at startup rather than measuring on an unguarded machine.
+
+| a gated run | before | after |
+|---|---|---|
+| what it says | `--no-lock: the caller is holding the suite lock, not this run` | `ADOPTED suite -- beating the hold of pre-push review-25 for this run` |
+| the hold's `at` while it lasts | frozen at the acquire | refreshed every 30 s — **+177 ms at a 50 ms beat** in the selftest |
+| the hold's `since` after the run | — | **11 s**, the caller's own acquire time, kept |
+| the hold's shape after the run | — | `holder unverified` again: `holder: "cli"`, no `pid`, owner unchanged, directory standing |
+| the caller's own `release` | `RELEASED` | `RELEASED` — the owner never changed |
+| losing the lock mid-run | nothing noticed until the eventual `release` | the beat names who took it, the run stops, nothing is stamped |
+| `--no-lock` with nothing held | ran the whole suite unguarded | refuses, exit **1**, before a fixture is touched |
+
+**A bare CLI hold is refreshed rather than beaten.** An agent claiming `screen-left` to drive a
+window by hand has no run under it, and that is the case the issue was filed about — a hold that
+aged past its window during screenshot work while the sister repo's `pre-push develop` broke it
+mid-run. `lock.mjs refresh <name> --owner <id>` puts the clock back (`REFRESHED ... stale in
+1200s`, `since` unmoved; `REFUSED` and exit 3 for anyone else), and `status` now prints
+`stale in 1440s` beside each hold instead of leaving the arithmetic to the reader.
+
+**The 30-minute window was reconsidered, and deliberately kept.** A shorter one was built first
+and carefully — staleness asked of the hold rather than the name, 5 minutes for a hold declaring
+`holder: "process"`, the name's own window for a bare CLI hold and for everything the sister
+writes. Within the hour, verifying this very ticket, a `--only` run printed
+
+```
+BREAKING stale screen-left lock (age 301s, owner github#41 drive (after))
+```
+
+— a hold naming a **live** process, broken while another worktree was still using the screen.
+That is the fault this issue reports, reintroduced by the fix for it. The cause is structural:
+`smoke.mjs` generates fixtures and builds the page with `spawnSync`, which blocks its own event
+loop and so its own beat for as long as the child runs. **A live holder is not always a talking
+one.** So liveness replaces the question the window stood in for rather than shrinking it — a
+dead holder is broken in milliseconds by the pid check, a live one is never broken by the clock,
+and 30/20 stays as the backstop for a wedged process, a recycled pid, or a hold in the sister's
+shape that nobody can vouch for.
+
+A harness that loses `screen-left` mid-run now says who took it and stops, too — `takeLeftScreen`
+passed no `onLost`, so all five of them could finish on a shared display as though nothing had
+happened.
+
+And the lock finally has a check that can fail: `node scripts/lock.mjs --selftest`, **25 cases in
+1.0 s** against a throwaway root (`VAULT_LOCKS_HOME`), never the live mutex, run by the pre-push
+hook beside the update-note selftest. Until now its behaviour was a hand-measured table in
+`invariants.md`, which is not a thing that fails.
 
 ## 2026-09-12 — A plate dyes its whole run, from either copy of it (github#29)
 

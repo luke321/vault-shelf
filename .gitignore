@@ -43,3 +43,7 @@ mirror-vault/
 
 # Agent worktrees. A worktree is a checkout, not a file of this repository.
 .claude/worktrees/
+
+# Machine-local orchestration notes -- how work is RUN here, never the product.
+# Untracked so it can name paths, sessions and workflow that the public files must not.
+CLAUDE.local.md
