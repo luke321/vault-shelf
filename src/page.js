@@ -2263,7 +2263,9 @@ function mountVaultShelf(root, data, options) {
       var li = el("li");
       var b = el("button");
       b.type = "button";
-      if (note.id === reader.noteId) b.setAttribute("aria-current", "true");
+      /* github#46 -- the row says which note it is, so the mark can move to it without the
+       * list being rebuilt to carry one attribute across. */
+      b.setAttribute("data-note", note.id);
       b.appendChild(el("span", "vs-t", note.title));
       /* design/0012 -- a leader exists because there is something at the end of it. A row with
        * no date to lead to just stops, the way a printed index does. */
@@ -2280,6 +2282,29 @@ function mountVaultShelf(root, data, options) {
       empty.appendChild(el("span", "vs-hint", needle ? "Nothing in this book matches." : "This book is empty."));
       box.appendChild(empty);
     }
+    markContents();
+  }
+
+  /* github#46, design/0026 -- MOVING THE MARKER MOVES THE MARKER, and nothing else. A turn
+   * within one book changes nothing about the list, so the list is not rebuilt for it: the mark
+   * moves between rows that are already standing there and the page keeps the scroll the reader
+   * left it at.
+   *
+   * Rebuilding it cost two things, and the second is why it landed in the wrong place. `clear()`
+   * empties the <ol>, which collapses the left page's scrollHeight and clamps its scrollTop to
+   * 0 -- measured, and it needs a layout taken while the list is empty, which is exactly what
+   * the focus change forces when the row the press had focused is removed. `revealCurrent` then
+   * ran as a nudge measured FROM scrollTop against a baseline of zero, so a row already under
+   * the pointer was parked at the bottom edge after an animation up from the top, or, in a book
+   * whose index is short enough that the nudge has nothing to do, simply left at the top. */
+  function markContents() {
+    var box = $("contents");
+    var was = box.querySelector('button[aria-current="true"]');
+    if (was) was.removeAttribute("aria-current");
+    var now = reader.noteId
+      ? box.querySelector('button[data-note="' + cssEscape(reader.noteId) + '"]')
+      : null;
+    if (now) now.setAttribute("aria-current", "true");
     revealCurrent(box);
   }
 
@@ -2682,7 +2707,12 @@ function mountVaultShelf(root, data, options) {
      * the second one caught up, which is why it took two clicks to highlight one row. */
     var going = reader.book.notes[reader.index];
     if (going) reader.noteId = going.id;
-    renderContents();
+    /* github#46 -- THE MARK MOVES; THE LIST DOES NOT. Every one of the six callers below is a
+     * turn within the same book -- `openNote` reaches `goTo` only for a note this book already
+     * holds, and a note in another book goes through `openBook` -- so the rows standing here are
+     * the right rows and only the mark on them is out of date. `renderContents` threw the whole
+     * list away to move that one attribute, and took the page's scroll with it. */
+    markContents();
     /* THE ROW IS ABOUT THE PAGE YOU ARE ON, so moving to another page redraws it. Without
      * this the stub kept whatever state the previous page put it in: turn to a page that
      * already holds a ribbon and it still offered to leave one, and the ribbon you were on

@@ -5496,31 +5496,48 @@ check("clicking a row in the index moves the mark and leaves the index where it 
      * without its stamp is a row that was replaced -- which is the cause, where the scroll is
      * only the symptom, and is what stops this decaying into "rebuild, then put the scroll back". */
     rows.forEach(function (b, k) { b.__vs46 = k; });
-    /* the row nearest the middle of the page: on screen, so a correct reveal has nothing to do */
+    /* A ROW A FULL ROW-HEIGHT CLEAR OF BOTH EDGES, and the nearest such row to the middle. One
+     * only part-way into view is nudged fully in by the focus the press itself gives it, and the
+     * release then lands on its neighbour -- measured, a press on row 1029 marked row 1060. */
     var pb = page.getBoundingClientRect();
     var mid = pb.top + pb.height / 2;
-    var want = -1, best = Infinity;
+    var want = -1, best = Infinity, spot = null;
     rows.forEach(function (b, k) {
       var r = b.getBoundingClientRect();
-      if (r.top < pb.top || r.bottom > pb.bottom) return;
+      if (r.top < pb.top + r.height || r.bottom > pb.bottom - r.height) return;
       var d = Math.abs((r.top + r.bottom) / 2 - mid);
-      if (d < best) { best = d; want = k; }
+      if (d < best) {
+        best = d; want = k;
+        spot = { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+      }
     });
     return { book: biggest.id, notes: biggest.notes.length, span: span,
-             at: Math.round(page.scrollTop), rows: rows.length, want: want,
+             at: Math.round(page.scrollTop), rows: rows.length, want: want, spot: spot,
              markedAt: rows.indexOf(document.querySelector('#vs-contents button[aria-current="true"]')) };
   })()`);
-  if (opened.span < 40 || opened.want < 1) {
+  if (opened.span < 40 || opened.want < 1 || !opened.spot) {
     return { ok: false,
              detail: `${opened.book} (${opened.notes} notes, ${opened.rows} rows) gives an index ` +
                      `that scrolls ${opened.span}px with row ${opened.want} in the middle -- ` +
                      `nothing here to hold still` };
   }
-  await p.eval(`(function(){
-    document.querySelectorAll("#vs-contents button")[${opened.want}].click();
-  })(); void 0`);
+  /* A REAL PRESS, NOT `element.click()`, AND READ BETWEEN THE TWO HALVES OF IT. design/0026 --
+   * a programmatic click does not reproduce this at all: the clamp needs a layout taken while
+   * the <ol> is empty, and what forces one is the focus change when `clear()` removes the row
+   * the press had focused. The first check written for this ticket clicked in script, measured
+   * 30988 -> 30988 and passed, green, over a live bug. And the zero is only visible between
+   * press and release -- half a second later the smooth scroll has carried it part of the way
+   * back, and the number reads as merely wrong rather than as the diagnosis. */
+  const top = () =>
+    p.j(`Math.round(document.querySelector("#vs-reader .vs-page.vs-left").scrollTop)`);
+  const press = (type) => p.send("Input.dispatchMouseEvent",
+    { type, x: opened.spot.x, y: opened.spot.y, button: "left", clickCount: 1 });
+  await press("mousePressed");
+  const pressed = await top();
+  await press("mouseReleased");
+  const released = await top();
   /* a wrong baseline ANIMATES, so give the smooth scroll its full chance to show itself */
-  await sleep(450);
+  await sleep(600);
   const after = await p.j(`(function(){
     var page = document.querySelector("#vs-reader .vs-page.vs-left");
     var rows = [].slice.call(document.querySelectorAll("#vs-contents button"));
@@ -5531,15 +5548,16 @@ check("clicking a row in the index moves the mark and leaves the index where it 
   })()`);
   await p.eval("__vs.closeReader(); void 0");
 
-  const held = Math.abs(after.at - opened.at) <= 1;
+  const held = [pressed, released, after.at].every((v) => Math.abs(v - opened.at) <= 1);
   const sameRows = after.rows === opened.rows && after.kept === opened.rows;
   const ok = held && sameRows && after.markedAt === opened.want && after.index === opened.want;
   return { ok,
            detail: `${opened.book} (${opened.notes} notes, ${opened.rows} rows, index scrolls ` +
-                   `${opened.span}px): from scrollTop ${opened.at} a click on row ${opened.want} ` +
-                   `left it at ${after.at} (held ${held}), moved the mark ${opened.markedAt} -> ` +
-                   `${after.markedAt} and the reader to note ${after.index}; ${after.kept} of ` +
-                   `${opened.rows} rows are the same nodes (rebuilt ${!sameRows})` };
+                   `${opened.span}px): a press on row ${opened.want} at scrollTop ${opened.at} ` +
+                   `left it at ${pressed} pressed, ${released} released and ${after.at} settled ` +
+                   `(held ${held}); the mark moved ${opened.markedAt} -> ${after.markedAt} and ` +
+                   `the reader to note ${after.index}; ${after.kept} of ${opened.rows} rows are ` +
+                   `the same nodes (rebuilt ${!sameRows})` };
 });
 
 check("previous and next walk the book and stop at its ends", async (p) => {
