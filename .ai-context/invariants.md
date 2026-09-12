@@ -837,6 +837,35 @@ the row in, one row's height inside the edge, by the page's own `scrollTop` and 
 a re-render for the find-within box never moves a list somebody has scrolled by hand.
 `github#11`, `design/0015`.
 
+**Moving the marker moves the marker.** A turn within one book changes nothing about the contents
+list, so the list is not rebuilt for it: `aria-current` moves between the rows already standing
+there and the page keeps the scroll the reader left it at. `renderContents` rebuilds only on the
+two paths whose contents really change — opening a book, and *find within this book*; every other
+turn goes through `markContents`, and `goTo` is one of them. `revealCurrent` is unchanged and
+still nudges a row that is genuinely out of view, which is what a tab jump or an arrow key needs.
+
+`"clicking a row in the index moves the mark and leaves the index where it stood"` opens the
+biggest book, scrolls the left page to the middle of its index, picks the row nearest the middle
+that is a full row-height clear of both edges, and **dispatches a real mouse press**, reading
+`scrollTop` before the press, between press and release, and once the page has settled. It asserts
+all three are the same, that the mark and the reader moved to the row pressed, and that every row
+is **the same DOM node** it was before — the scroll is the symptom, the un-rebuilt list is the
+cause, and asserting both is what stops the fix decaying into "rebuild, then put the scroll back".
+Measured on `people/-unfiled` (**2,450 rows**, index scrolls **61,975px**): from `scrollTop`
+**30,988** a press on row **1,223** leaves it at **30,988 / 30,988 / 30,988**, the mark moves
+**0 → 1,223**, and **2,450 of 2,450** rows are the same nodes. Before the fix the same press read
+**30,988 pressed → 0 released**, then animated back to 19,489 half a second later, with **0 of
+2,450** rows surviving; on `weeks/2026-W29` (55 rows) it read **377 → 0** and stayed at 0, which
+is the report verbatim.
+
+**`element.click()` cannot measure this and must never be used for it.** The clamp needs a layout
+taken while the `<ol>` is empty, and what forces one under a real mouse is the focus change when
+`clear()` removes the row the press had focused. A programmatic click never focuses a row, so it
+never clamps: the first version of this check clicked in script, measured **30,988 → 30,988**, and
+passed — green, over a live bug. The zero is also only visible *between* press and release; half a
+second later the smooth scroll has carried it part of the way back and the number reads as merely
+wrong rather than as the diagnosis. `github#46`, `design/0026`.
+
 `"previous and next walk the book and stop at its ends"` opens a book with at least three
 notes, asserts it opens at index 0 with **previous** disabled, that next moves to 1, and that
 clicking next past the end stops at the last note with **next** disabled.

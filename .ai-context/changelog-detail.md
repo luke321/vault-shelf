@@ -139,6 +139,44 @@ passes it), `--port`, `--chrome`, `--shot`.
 
 **The `screen-left` claim is untouched.** It serialises who owns the *display*; it has no opinion
 about activation, and two harnesses politely taking turns still stole the focus once each.
+## 2026-09-12 — Moving the marker moves the marker (github#46)
+
+> "when clicking on a link in the left index it scrolls again from the top"
+
+`goTo` rebuilt the whole contents list to carry `aria-current` from one row to another. Emptying
+the `<ol>` collapses the left page's `scrollHeight` and clamps its `scrollTop` to **0**, and
+`revealCurrent` — a nudge measured *from* `scrollTop` — then ran against that baseline, parking a
+row already under the pointer at the bottom edge after an animation up from the top. Where the
+index is short enough that the nudge has nothing to do, the clamp is the whole story and the list
+is simply left at the top.
+
+`renderContents` keeps the rebuild for the two paths whose contents really change; `markContents`
+moves the mark between rows already standing there, and `goTo` calls that. `revealCurrent` is
+**unchanged** — it was never wrong, it was being lied to.
+
+A real mouse press on a row a full row-height clear of both edges, `scrollTop` read before the
+press, between press and release, and after the page settled:
+
+| | before | after |
+|---|---|---|
+| `people/-unfiled` (2,450 rows, index scrolls 61,975px), from 30,988 | **30,988 → 30,988 pressed → 0 released**, 19,489 at +500ms, still animating | **30,988 / 30,988 / 30,988** |
+| rows surviving the turn, same book | **0 of 2,450** — every button replaced | **2,450 of 2,450**, not rebuilt |
+| `weeks/2026-W29` (55 rows, scrolls 753px), from 377 | **377 → 0**, and 0 at +500ms — the report verbatim | **377 / 377 / 377** |
+| the row the press actually marked | row 1,029 pressed → row **1,060** marked on part-visible rows: the focus nudge moved the list between press and release | the row pressed, every time |
+| mark and reader after the press | correct note, wrong scroll | `0 → 1,223`, reader note 1,223 |
+| focus after a turn | `BODY` — the focused row was destroyed under the press | stays on the row pressed |
+| `github#11`'s reveal check | ok | **ok**, unchanged: a tab jump still reveals a row that is genuinely out of view |
+| checks | 100 | **101** |
+
+**The measurement that nearly went the other way.** `element.click()` does not reproduce this at
+all: the clamp needs a layout taken while the list is empty, and what forces one under a real
+mouse is the focus change when `clear()` removes the row the press had focused. The first version
+of this check clicked in script, measured **30,988 → 30,988**, and **passed — green, over a live
+bug** in the exact shape the report describes. The zero is also visible only *between* press and
+release. `design/0026` carries both traps.
+
+Not touched: `revealCurrent` itself, *find within this book*'s rebuild (its contents do change, and
+the top is a filtered list's natural start), and `github#40`, which will touch the same reveal path.
 
 ## 2026-09-12 — The shelved look is called Cyber (github#56)
 

@@ -2263,7 +2263,8 @@ function mountVaultShelf(root, data, options) {
       var li = el("li");
       var b = el("button");
       b.type = "button";
-      if (note.id === reader.noteId) b.setAttribute("aria-current", "true");
+      /* github#46 -- the row says which note it is */
+      b.setAttribute("data-note", note.id);
       b.appendChild(el("span", "vs-t", note.title));
       /* design/0012 -- a leader exists because there is something at the end of it. A row with
        * no date to lead to just stops, the way a printed index does. */
@@ -2280,6 +2281,18 @@ function mountVaultShelf(root, data, options) {
       empty.appendChild(el("span", "vs-hint", needle ? "Nothing in this book matches." : "This book is empty."));
       box.appendChild(empty);
     }
+    markContents();
+  }
+
+  /* github#46, design/0026 -- rebuilt only when its contents change */
+  function markContents() {
+    var box = $("contents");
+    var was = box.querySelector('button[aria-current="true"]');
+    if (was) was.removeAttribute("aria-current");
+    var now = reader.noteId
+      ? box.querySelector('button[data-note="' + cssEscape(reader.noteId) + '"]')
+      : null;
+    if (now) now.setAttribute("aria-current", "true");
     revealCurrent(box);
   }
 
@@ -2682,7 +2695,8 @@ function mountVaultShelf(root, data, options) {
      * the second one caught up, which is why it took two clicks to highlight one row. */
     var going = reader.book.notes[reader.index];
     if (going) reader.noteId = going.id;
-    renderContents();
+    /* github#46 -- every caller is a turn within one book */
+    markContents();
     /* THE ROW IS ABOUT THE PAGE YOU ARE ON, so moving to another page redraws it. Without
      * this the stub kept whatever state the previous page put it in: turn to a page that
      * already holds a ribbon and it still offered to leave one, and the ribbon you were on
