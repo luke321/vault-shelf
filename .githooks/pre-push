@@ -306,9 +306,9 @@ EOF
 fi
 
 # THE LOCK NEXT, same bar -- a throwaway root, no Chrome, a second at most. scripts/lock.mjs is
-# the one mutex six worktrees and the sister repo share (github#25, decisions/0012), and its
-# staleness rules now differ per hold rather than per name; a wrong window here either breaks a
-# live run's measurements or makes an abandoned lock cost everyone half an hour.
+# the one mutex six worktrees and the sister repo share (github#25, decisions/0012), and every
+# rule in it is about whose measurements get ruined: break a live holder and two runs measure a
+# contended machine, fail to break a dead one and everyone waits out half an hour for nothing.
 echo "pre-push: checking the lock can still tell a dead holder from a live one..."
 if ! node "$root/scripts/lock.mjs" --selftest </dev/null; then
   cat >&2 <<'EOF'

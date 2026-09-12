@@ -77,9 +77,9 @@ async function takeLock() {
     if (suiteLock) {
       console.log("--no-lock: beating the suite lock held by " + suiteLock.owner);
     } else {
-      console.error("\nsmoke: --no-lock says a caller is holding the suite lock, but nothing " +
-                    "holds it.\nThis run would measure on a machine nothing is guarding. " +
-                    "github#25.");
+      console.error("\nsmoke: --no-lock says a caller is holding the suite lock, but no live " +
+                    "hold is there.\nIt was never taken, or it has already been lost. This run " +
+                    "would measure on a\nmachine nothing is guarding. github#25.");
       process.exit(1);
     }
   } else {

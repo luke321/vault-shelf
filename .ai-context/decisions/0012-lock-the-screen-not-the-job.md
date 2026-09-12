@@ -186,9 +186,9 @@ already guarded against for `suite`. It now names who took it and stops.
 ### And the lock has a check that can fail
 
 Its behaviour was a hand-measured table in `invariants.md`, which is not a thing that fails on a
-push. `node scripts/lock.mjs --selftest` is **24 cases against a throwaway root**
+push. `node scripts/lock.mjs --selftest` is **25 cases against a throwaway root**
 (`VAULT_LOCKS_HOME`, so never the live mutex), and the pre-push hook runs it beside the
-update-note selftest — 0.7 s.
+update-note selftest — 1.0 s.
 
 | Option | Why not |
 |---|---|

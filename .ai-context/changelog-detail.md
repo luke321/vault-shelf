@@ -56,8 +56,8 @@ A harness that loses `screen-left` mid-run now says who took it and stops, too â
 passed no `onLost`, so all five of them could finish on a shared display as though nothing had
 happened.
 
-And the lock finally has a check that can fail: `node scripts/lock.mjs --selftest`, **24 cases in
-0.7 s** against a throwaway root (`VAULT_LOCKS_HOME`), never the live mutex, run by the pre-push
+And the lock finally has a check that can fail: `node scripts/lock.mjs --selftest`, **25 cases in
+1.0 s** against a throwaway root (`VAULT_LOCKS_HOME`), never the live mutex, run by the pre-push
 hook beside the update-note selftest. Until now its behaviour was a hand-measured table in
 `invariants.md`, which is not a thing that fails.
 

@@ -47,6 +47,7 @@ this repo takes `record`, and nothing should.
 
 ```bash
 node scripts/lock.mjs acquire screen-left --owner "who you are"   # blocks; exit 1 = give up
+node scripts/lock.mjs refresh screen-left --owner "who you are"   # a long hold, kept alive
 node scripts/lock.mjs release screen-left --owner "who you are"   # always, even on failure
 node scripts/lock.mjs status
 ```
@@ -86,7 +87,8 @@ and `release.ps1` — take `suite` from the command line and then pass `--no-loc
 alive and nothing checked. `--no-lock` now **adopts** that hold rather than ignoring it: the
 run beats it under the caller's own owner, so their `release` still matches, aborts if it loses
 it, and hands the caller's own shape back on the way out without removing the directory. A
-`--no-lock` run with nothing holding the lock refuses to start. The same abort covers the
+`--no-lock` run refuses to start unless a **live** hold is there to adopt — one already dead
+or past its window is not one to beat. The same abort covers the
 display: a harness that loses `screen-left` mid-run says who took it and stops, rather than
 finishing on a shared screen.
 
@@ -107,7 +109,7 @@ standing in for rather than shrinking it: a dead holder is broken in millisecond
 check, a live one is never broken by the clock, and the window is left as the backstop for what
 liveness cannot see — a wedged process, a recycled pid, a hold nobody can vouch for.
 
-`node scripts/lock.mjs --selftest` holds all of this — **24 cases against a throwaway root**
+`node scripts/lock.mjs --selftest` holds all of this — **25 cases against a throwaway root**
 (`VAULT_LOCKS_HOME`), never the live mutex — and the pre-push hook runs it.
 
 Screenshots need no lock *of their own*: they go over CDP, so overlapping windows are harmless.

@@ -8,13 +8,13 @@ import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 
 // github#25 -- the selftest points every root somewhere throwaway
-const HOME = process.env.VAULT_LOCKS_HOME || tmpdir();
+const LOCK_HOME = process.env.VAULT_LOCKS_HOME || tmpdir();
 
 // github#8, decisions/0011 -- one root for every sister project
-const ROOT = join(HOME, "obsidian-vault-locks");
+const ROOT = join(LOCK_HOME, "obsidian-vault-locks");
 
 // github#8 -- the per-repo roots this replaced
-const LEGACY_ROOTS = [join(HOME, "vault-graph-locks"), join(HOME, "vault-shelf-locks")];
+const LEGACY_ROOTS = [join(LOCK_HOME, "vault-graph-locks"), join(LOCK_HOME, "vault-shelf-locks")];
 
 // github#37, decisions/0012 -- a lock names the resource, not the job
 const SCREENS = ["screen-left", "screen-right", "screen-primary"];
@@ -257,8 +257,10 @@ function hold(name, owner, asCli, onLost, say) {
 export function adopt(name, opts = {}) {
   const meta = readMeta(name);
   if (!meta || !meta.owner) return null;
+  // github#25 -- a hold already lost is not one to beat
+  if (holderGone(meta) || ageOf(meta) > staleWindow(name)) return null;
   const say = opts.say || ((l) => console.log(l));
-  const was = meta.holder;
+  const was = meta.holder, wasPid = meta.pid;
   writeMeta(name, { ...meta, at: Date.now(), pid: process.pid, holder: "process" });
   say("ADOPTED " + name + " -- beating the hold of " + meta.owner + " for this run");
   const stop = beat(name, meta.owner, opts.onLost);
@@ -270,8 +272,8 @@ export function adopt(name, opts = {}) {
       stop();
       const now = readMeta(name);
       if (!now || now.owner !== meta.owner) return;
-      const back = { ...now, at: Date.now(), holder: was };
-      if (was !== "process") delete back.pid;
+      const back = { ...now, at: Date.now(), holder: was, pid: wasPid };
+      if (wasPid === undefined) delete back.pid;
       try { writeMeta(name, back); } catch { void 0; }
     }
   };
@@ -477,6 +479,15 @@ async function selftest() {
         rel.status === 0 && !existsSync(dirFor("suite")), (rel.stdout || "").trim());
   check("adopting a lock nobody holds answers null",
         adopt("suite", { say: () => void 0 }) === null);
+  seed("suite", { owner: "a dead hook", at: ago(31 * MIN), since: ago(31 * MIN), holder: "cli" });
+  check("adopting a hold already past its window answers null",
+        adopt("suite", { say: () => void 0 }) === null);
+  clear("suite");
+  seed("suite", { owner: "a dead run", at: Date.now(), since: Date.now(),
+                  pid: 999999, holder: "process" });
+  check("adopting a hold whose process is gone answers null",
+        adopt("suite", { say: () => void 0 }) === null);
+  clear("suite");
 
   console.log("a holder notices the lock is no longer its own");
   let lostTo = "";

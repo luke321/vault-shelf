@@ -1748,7 +1748,7 @@ runs. **A live holder is not always a talking one**, so any window short enough 
 shortening is short enough to break a busy run.
 
 Liveness replaces the question the window stood in for rather than shrinking it. Held by
-`node scripts/lock.mjs --selftest`, **24 cases in 0.7 s** against a throwaway root
+`node scripts/lock.mjs --selftest`, **25 cases in 1.0 s** against a throwaway root
 (`VAULT_LOCKS_HOME`), never the live mutex — the pre-push hook runs it:
 
 | a contender meets | what happens |
@@ -1789,7 +1789,7 @@ Measured end to end, a CLI acquire around `smoke.mjs --no-lock --only "__vs is p
 | the hold's shape after the run | — | `holder unverified` again: `holder: "cli"`, no `pid`, owner unchanged, directory still standing |
 | the caller's own `release` | `RELEASED` | `RELEASED` — the owner never changed, so it still matches |
 | losing the lock mid-run | nothing noticed until the eventual `release` | the beat names who took it, the run aborts, nothing is stamped |
-| `--no-lock` with **nothing** holding the lock | ran the whole suite unguarded | refuses at startup, exit **1**, before a fixture is touched |
+| `--no-lock` with **no live hold** to adopt -- none taken, or one already dead or past its window | ran the whole suite unguarded | refuses at startup, exit **1**, before a fixture is touched |
 
 **A harness that loses the display says so too.** `takeLeftScreen` passed no `onLost`, so each of
 the five harnesses that park a window could lose `screen-left` mid-run and finish as though
