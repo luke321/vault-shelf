@@ -235,6 +235,47 @@ the reader is on the same book and the same note and the Reading shelf shows the
 a spine whose count is its unique notes and which hangs one ribbon; takes the ribbon out and
 asserts the spine is gone. Measured: `years/-plaque-2020-2029` **3,908 notes**.
 
+## The Reading shelf is a row, and it is packed tight
+
+`"the Reading shelf lays its books in a row, and draws as many rows as it packed"` is
+`github#48`. `renderTrack` builds `.vs-track > .vs-group > .vs-books`, and `page.css:555` gives
+`display: flex` to **`.vs-group .vs-books`** — a line *inside a group*, not the class.
+`renderReadingShelf` appended its line straight into the track with no group, so the rule did not
+match, the line computed `display: block`, and the spines stacked in a column. The board is a
+background on the track at `background-position: 0 var(--spine-h)`, so every book past the first
+hung **under the floor** — identical in all three looks, because `page.css` owns the geometry.
+
+**One ribbon can never see this.** A block container holding one spine and a flex row holding one
+spine are the same picture, and every check that put a book on the Reading shelf put exactly one.
+The number that catches it is the **y of the second spine**, which nothing read. So the check
+asserts geometry rather than presence. It writes ribbons straight into `settings.reading` — a mark
+is `{noteId, shelfId, bookId, at}`, and `readingBooks()` resolves it through `core.resolveReading`
+exactly as a click on the stub would — at **two**, at **three**, and at a count large enough to
+wrap, and for each asserts: every spine on a track shares one `y`, `x` ascends across it, the
+drawn bands number the tracks `rowsOf` packed, the line computes `flex` and is one spine tall, and
+the shelf carries **0 grips, 0 pluses and 0 plates**. It puts back the ribbons it found.
+
+Measured before: two ribbons **1 track on 2 bands**, at `675,163` and `675,295` — the same `x`, one
+spine-height down — the line `block` and **264px** tall for a **132px** spine; three ribbons
+**396px**. After: **1 track on 1 band**, `675,163` and `718,163`, the line `flex` and **132px**.
+
+**A row breaks because the next book did not fit, not because of something that is not drawn.**
+The check asserts that too, and it caught two things paying for what they never got:
+
+- `rowsOf(books)` was called with no `shelf` yet still charged `plaqueWidth(label)` per run, so a
+  Years book under `2010-2019` reserved **86.4px** where a 35px spine was drawn. It now takes
+  `plaques`, and both call sites say which they are.
+- `widthOf(book, shelf)` was given the *row's* shelf, which is `null` on the Reading shelf, while
+  `renderSpine` draws each book through its **own** shelf. `squeezeIndex` narrows the
+  Encyclopedia's spines for its own rail and leaves the scale in `indexScale`, so a squeezed
+  Encyclopedia book drew narrow and was charged wide. `rowsOf` now measures a book the way it will
+  be drawn: `widthOf(book, shelf || shelfById(book.shelfId))`.
+
+Measured with 32 ribbons, **7 of them from the one index shelf**: the first row held **26 books
+over 1,104px** of a 1,180px room with a **32px** book waiting — **73px** paid for and not used. It
+now holds **28 books over 1,167px**, with a **42px** book next that genuinely does not fit.
+`design/0014`.
+
 `"on a manual shelf a plate opens what is under it, not the whole letter"` turns Tags manual,
 moves the first book of the first letter with two or more books to the very end — past
 Untagged — so that letter is drawn on two plates, clicks each and asserts the last opens

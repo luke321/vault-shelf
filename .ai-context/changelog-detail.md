@@ -1,5 +1,65 @@
 # Changelog detail
 
+## 2026-09-12 — The Reading shelf lays its books in a row (github#48)
+
+> "with two ribbons in the library, the second book on the Reading shelf is drawn below the
+> first, under the shelf board"
+
+**A missing element, and two things the packer was paying for and not getting.** `renderTrack`
+builds `.vs-track > .vs-group > .vs-books` and `page.css:555` gives `display: flex` to
+`.vs-group .vs-books` — a line *inside a group*, not the class. `renderReadingShelf` appended its
+line straight into the track, so the rule never matched, the line was `display: block`, and the
+spines stacked. The board is a background on the track at `background-position: 0 var(--spine-h)`,
+so the second book was not on a second row: it was **under the floor**. The fix is the group, and
+no CSS moved — which is what makes all three looks inherit it (`design/0021` rule 2 never comes
+into play).
+
+| | before | after |
+|---|---|---|
+| `.vs-books` parent on `-reading` | `.vs-track` | **`.vs-group`**, as on every other shelf |
+| its computed `display` | `block` | **`flex`** |
+| its height, two ribbons | **264px** (two spines) | **132px** (one) |
+| its height, three ribbons | **396px** | **132px** |
+| two spines' boxes | `675,163` and `675,295` | `675,163` and **`718,163`** |
+| drawn bands for 1 track | **2** | **1** |
+| CSS rules changed | — | **0** |
+
+**Asserting that a row breaks because the next book did not fit** is what found the other two.
+Both are the same defect — the packer charging for width the paint does not use — and both were
+measured with **32 ribbons, 7 of them from the one index shelf**, in a 1,180px room:
+
+| | before | after |
+|---|---|---|
+| `rowsOf`'s plate charge on a shelf that draws none | `plaqueWidth("2010-2019")` = **86.4px** per run | **0** — it takes `plaques`, and both callers say which |
+| a squeezed Encyclopedia spine's charged width | `widthOf(book, null)` — **unsqueezed** | `widthOf(book, shelf ‖ shelfById(book.shelfId))` — as drawn |
+| books on the first row | **26** | **28** |
+| first row used | **1,104px** of 1,180 | **1,167px** |
+| room left over / next book's width | **73px** left, **32px** book — it fitted | **13px** left, **42px** book — it does not |
+| tracks for 32 ribbons | 2 | 2 |
+
+`squeezeIndex` narrows the Encyclopedia's spines to fit its own rail and leaves the scale in
+`indexScale`; `renderReadingShelf` draws each book through its **own** shelf, so those books drew
+narrow while `rowsOf`, handed the row's shelf (`null` there), charged them wide.
+
+**Why the suite was green.** Every check that put a book on the Reading shelf put exactly one, and
+one spine in a block container and one in a flex row are the same picture. The new check,
+`"the Reading shelf lays its books in a row, and draws as many rows as it packed"`, asserts the
+**y of every spine** instead of its presence, at two, three and a wrapping count. It writes marks
+straight into `settings.reading` rather than driving the reader once per book — `readingBooks()`
+resolves them through `core.resolveReading` exactly as a click on the stub would — and puts back
+what it found. **It fails on `develop` and passes here**, which is the point of it.
+
+| | |
+|---|---|
+| suite | **100 checks** (99 + this one), 1 fixture |
+| `check-comments` | 1500 / baseline 1500 — the reasoning is here, the code carries pointers |
+| layout goldens | **unchanged** — a library with no ribbons has no Reading shelf to draw |
+| `.vs-group`/`.vs-books`/`.vs-plaque` CSS | **untouched** |
+
+One consequence worth naming: `page.css:1663` gives `[data-list="1"] .vs-group .vs-books` a
+`display: block`, which could never reach the Reading shelf before. Its line was `block` in list
+mode by accident; it is now `block` on purpose, and the picture is the same.
+
 ## 2026-09-12 — The shelved look is called Cyber (github#56)
 
 > "disable cyberpunk for now, call it cyber aswell"
