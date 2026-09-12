@@ -1674,6 +1674,51 @@ pixel. **The width does not move**: 1556px either way, in a 922px view. It write
 the oldest links collapse: **11 releases behind draws 9 links** — one `…` to the releases page,
 then the newest eight.
 
+## No harness takes the keyboard, and a run that changes shape stamps nothing
+
+Not a check in `smoke.mjs` but a property of the harness, held by driving it. `github#50`,
+`design/0006`.
+
+**Every harness that opens a window is headless by default.** A window Chrome has just created
+activates itself, and Windows permits it because the harness was spawned by whatever held the
+foreground — the terminal. Placement was never the question: `design/0006` put the window on the
+leftmost display and it still took the next keystroke. `scripts/chrome.mjs` is the one place that
+decides, and `--headed` is the only thing that changes it. `record-demo.mjs` was already headless
+(`design/0007`).
+
+**It moved nothing.** Measured 2026-09-12 on the 4,938-note vault, both modes, same tree:
+
+| | headless (default) | `--headed` |
+|---|---|---|
+| full suite | **99/99**, 36s wall | **99/99**, 39s wall |
+| the golden snapshot at 1180px | 6 shelves, 10 rows, 227 spines, 52 plaques, 1125px room | identical |
+| *scrolling stays smooth*, p95 leather/modern/cyber | 18.6 / 18.5 / 18.6 ms | 18.4 / 18.6 / 18.5 ms (budget 34) |
+| suite stamp | **written** | **refused** — `--headed is not the full suite` |
+
+The goldens were all taken headed and none of them moved, because at the same window size the
+two modes hand the page the same box: inner **1584×961** for a requested 1600×1000, a **15px**
+scrollbar and `devicePixelRatio` **1**, measured in both. What differs is `screen.width/height`
+(800×600 headless against the real 2560×1440), and nothing in `src/` reads it.
+
+**Headless is the reproducible one.** The scroll span of *scrolling the library stays smooth*
+was **1063px in every headless run** (five of five) and varied headed — 1063px in the full suite
+and on `develop`, 465px in three consecutive `--only --headed` runs, with leather's p95 going
+36.0 and 69.5 ms against the 34 ms budget in two of them. A headless window is exactly the size
+asked for; a headed one is subject to the desktop it lands on.
+
+**A run whose shape differs from the default writes no stamp.** The shape is
+`{ --only, --vault, --url, --look, --headed }`, declared once with its defaults; a delta sets
+`partial`, which already suppresses `recordPass()`. This replaces five reasons enumerated by
+hand, so the next flag that changes the measurement is covered without anyone extending a list.
+Fail-closed beats truthful: a stamp naming its own mode only helps if every consumer remembers
+to compare it. Deliberately **not** shape — `--jobs`, `--no-lock`, `--port`, `--chrome`,
+`--shot` — because none of them changes what is measured, and the first two are what the quiet
+run and every gated push actually pass.
+
+**`--headed` used to be worse than no flag.** It was parsed, wrote a `VS_HEADED` nothing read,
+and was never referenced again: a switch that reads as the control for the foreground theft and
+did nothing.
+
 ## No two suite runs, no two windows on one screen, and no fixture pulled out from under one
 
 Not a check in `smoke.mjs` but a property of the harness, held by driving the runs themselves.

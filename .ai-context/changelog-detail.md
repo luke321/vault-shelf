@@ -1,5 +1,73 @@
 # Changelog detail
 
+## 2026-09-12 — Every harness is headless, and a changed shape stamps nothing (github#50)
+
+> "a window comes to the foreground mid-run and keystrokes stop landing in Orca, so it is not
+> possible to type while a suite is going"
+
+**Placement was never the question.** `design/0006` already put harness windows on the leftmost
+display, and the ticket's own reading is the finding: a window Chrome has just created
+**activates itself**, and Windows permits it because the harness was spawned by whatever held
+the foreground — the terminal. So a window placed politely off to one side still took the next
+keystroke. Nothing here ever asked for the foreground: no `SetForegroundWindow`, no
+`SetWindowPos`, no CDP `Page.bringToFront`. Up to three thefts per suite run, once more for each
+of the four other harnesses.
+
+**The risk was that headless would move the goldens, and it was measured rather than assumed.**
+It did not move anything.
+
+| | before (headed) | after (headless default) |
+|---|---|---|
+| full suite | 99/99, 39s wall | **99/99, 36s wall** |
+| goldens at 1180px, all 3 looks | 6 shelves, 10 rows, 227 spines, 52 plaques, 1125px room | **identical** |
+| *scrolling stays smooth* p95, leather/modern/cyber | 18.4 / 18.6 / 18.5 ms | **18.6 / 18.5 / 18.6 ms** (budget 34) |
+| viewport for a requested 1600×1000 | inner 1584×961 | **1584×961** |
+| scrollbar / `devicePixelRatio` | 15px / 1 | **15px / 1** |
+| `screen.width×height` | 2560×1440 | 800×600 — and nothing in `src/` reads it |
+| windows raised per suite run | up to **3**, plus 1 per other harness | **0** |
+| suite stamp on a `--headed` run | written | **refused** |
+
+**Headless turned out to be the reproducible mode, which was not the expectation.** The scroll
+span of *scrolling the library stays smooth* was **1063px in five of five** headless runs. Headed
+gave 1063px in the full suite and on `develop`, and **465px in three consecutive
+`--only --headed` runs**, taking leather's p95 to **36.0** and **69.5 ms** against a 34 ms budget
+in two of them. A headless window is exactly the size asked for; a headed one is subject to
+whatever the desktop does to it. The 465px runs are not a regression this introduced — the same
+combination is `--only` on `develop`, which measured 1063px earlier the same day — they are the
+variance becoming visible.
+
+**`--headed` was inert, which is worse than absent.** Parsed at `smoke.mjs:128`, it set a
+`VS_HEADED` that nothing read and was never referenced again — a switch that reads as the control
+for exactly this and did nothing, inviting the belief that the default was already headless.
+
+**One place decides now.** `scripts/chrome.mjs` owns the shared flag list, `--headless=new`
+unless `--headed`, and the `findChrome()` that **six files carried byte for byte**. Five
+harnesses had their own copy of the 19-flag list, so wiring the mode into each would have been
+five places to miss one. Two flags only `smoke.mjs` carried
+(`--disable-client-side-phishing-detection`, `--disable-domain-reliability`) now reach the other
+four; both suppress chatter. `record-demo.mjs` keeps its own launch (`design/0007`) and takes
+only `findChrome()`.
+
+| | before | after |
+|---|---|---|
+| copies of the Chrome flag list | 5 | **1** |
+| copies of `findChrome()` | 6 | **1** |
+| `net` lines in `scripts/` | — | 154 removed, 65 added |
+
+**The stamp had to move in the same commit.** `recordPass()` stores the tree, the fixtures and
+the check count and **nothing about how the measurement was taken**, so the moment `--headed`
+became real, a headed run of a headless-default tree would have stamped it and both the pre-push
+hook and `release.ps1` would have trusted it. `smoke.mjs` now declares the run **shape** —
+`{ --only, --vault, --url, --look, --headed }` — with its defaults in one place, and any delta
+sets `partial`, which already suppresses the stamp. That replaces five reasons enumerated by
+hand. **Fail-closed rather than truthful**: a stamp naming its own mode only helps if every
+consumer remembers to compare it. Deliberately not shape — `--jobs` (the quiet run beside a
+recording is `--jobs 1`, a full suite that must still stamp), `--no-lock` (every gated push
+passes it), `--port`, `--chrome`, `--shot`.
+
+**The `screen-left` claim is untouched.** It serialises who owns the *display*; it has no opinion
+about activation, and two harnesses politely taking turns still stole the focus once each.
+
 ## 2026-09-12 — The shelved look is called Cyber (github#56)
 
 > "disable cyberpunk for now, call it cyber aswell"
