@@ -110,7 +110,9 @@ moving along the shelf) is still the manual shelf's and nobody else's.
 A shelf that starts empty is the only shelf in the product that has to explain itself, and it
 does so in the row where the books will stand: a dashed landing the height of a spine, saying
 **Drag a book here**. Not a blank board, which reads as a bug, and not a hidden shelf, which
-reads as no shelf. It is in the **jump strip** like any other shelf, with its book count.
+reads as no shelf. It is in the **Manage sheet** like any other shelf, and its own head carries
+its book and note count. (Until `github#38` that count was also a chip in the rail's jump strip,
+which is what the two checks here used to read it from; they read the shelf's head now.)
 
 ## The reader is never told about Favourites
 

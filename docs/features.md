@@ -132,9 +132,11 @@ hiding is kept.
 
 ### The room has no sidebar
 
-The library is the surface. The vault's name, a jump chip per shelf with its book count, the
-search box, the hit count and **Manage** ride one rail across the top; a shelf's own **Edit**
-and **Hide** appear on hover, so a room at rest is books and labels and nothing else.
+The library is the surface. The vault's name, the search box, the hit count, the reading-order
+toggle, the look selector and **Manage** ride one rail across the top — every one of them a
+fixed width, with the space between them in one gap rather than in a strip that scrolls. A
+shelf's own **Edit** and **Hide** appear on hover, so a room at rest is books and labels and
+nothing else. To get to a shelf several screens down, open **Manage** and press its name.
 
 The way to add a shelf is at **both ends** of the scroll — a dashed `+ New shelf` above the
 first shelf and below the last — because the point the product has to make in its first ten

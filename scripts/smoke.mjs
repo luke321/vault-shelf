@@ -1363,7 +1363,9 @@ check("a drop onto Favourites adds the book where it landed, and a rebuild keeps
     var addressesAfter = __vs.addresses().filter(function (a) { return a.indexOf(fav.id + "/") === 0; });
     var reread = core.migrate(JSON.parse(JSON.stringify(__vs.settings())))
       .shelves.filter(function (s) { return s.classifier === "pick"; })[0].picks;
-    var jump = document.querySelector('#vs-jump [data-jump="' + fav.id + '"] .vs-n').textContent;
+    /* github#38 -- the shelf's own head, where the reader actually reads the count; the
+     * jump chip that used to carry it went with the strip. */
+    var head = document.querySelector('[data-shelf="' + fav.id + '"] .vs-shelfhead .vs-meta').textContent;
     var draggableElsewhere = document.querySelectorAll('[data-shelf="years"] .vs-spine[draggable="true"]').length;
     var handElsewhere = document.querySelectorAll('[data-shelf="years"] .vs-spine[data-hand="1"]').length;
     var yearsSpines = document.querySelectorAll('[data-shelf="years"] .vs-spine').length;
@@ -1380,7 +1382,7 @@ check("a drop onto Favourites adds the book where it landed, and a rebuild keeps
              stored: stored, rebuilt: rebuilt, narrowedBooks: narrowed.books.length,
              narrowedNotes: narrowed.noteCount, picksUnderFilter: picksUnderFilter,
              addressesStable: addressesBefore.join("|") === addressesAfter.join("|"),
-             reread: reread, jump: jump, draggableElsewhere: draggableElsewhere,
+             reread: reread, head: head, draggableElsewhere: draggableElsewhere,
              handElsewhere: handElsewhere, yearsSpines: yearsSpines, emptied: emptied,
              hintBack: hintBack, yearsId: years.id, peopleId: people.id };
   })()`);
@@ -1395,7 +1397,7 @@ check("a drop onto Favourites adds the book where it landed, and a rebuild keeps
              r.marksLeft === 0 && same(r.stored, r.seqMoved) && same(r.rebuilt, r.seqMoved) &&
              r.narrowedBooks <= 2 && r.narrowedNotes < r.twoNotes &&
              same(r.picksUnderFilter, r.seqMoved) && r.addressesStable &&
-             same(r.reread, r.seqMoved) && r.jump === "2" &&
+             same(r.reread, r.seqMoved) && r.head.indexOf("2 books") === 0 &&
              r.draggableElsewhere === r.yearsSpines && r.handElsewhere === 0 &&
              r.emptied === 0 && r.hintBack;
   return {
@@ -1408,7 +1410,7 @@ check("a drop onto Favourites adds the book where it landed, and a rebuild keeps
             `${r.seqMoved.join(", ")} with ${r.marksLeft} marks left; a rebuild (${same(r.rebuilt, r.seqMoved)}), ` +
             `a folder filter (${r.narrowedBooks} books / ${r.narrowedNotes} of ${r.twoNotes} notes, picks kept: ` +
             `${same(r.picksUnderFilter, r.seqMoved)}, addresses stable: ${r.addressesStable}) and ` +
-            `migrate() (${same(r.reread, r.seqMoved)}) keep the picks; the jump chip says ${r.jump}; ` +
+            `migrate() (${same(r.reread, r.seqMoved)}) keep the picks; the shelf head says "${r.head}"; ` +
             `${r.draggableElsewhere}/${r.yearsSpines} Years spines lift and ${r.handElsewhere} ` +
             `are handles; emptied to ${r.emptied} and the hint is back (${r.hintBack})`
   };
@@ -1839,7 +1841,8 @@ check("a book made on the shelf holds the notes it points at, where it was made"
       spine: !!spine, focused: !!spine && document.activeElement === spine,
       draggable: !!spine && spine.draggable, hand: !!spine && spine.getAttribute("data-hand") === "1",
       landingGone: !document.querySelector('#vs-shelves [data-shelf="' + fav.id + '"] .vs-dropzone'),
-      jump: document.querySelector('#vs-jump [data-jump="' + fav.id + '"] .vs-n').textContent,
+      /* github#38 -- the shelf's own head, since the strip went. */
+      head: document.querySelector('[data-shelf="' + fav.id + '"] .vs-shelfhead .vs-meta').textContent,
       picks: fav.picks.slice(), defined: !!(fav.made && made && fav.made[made.key])
     };
 
@@ -1946,7 +1949,8 @@ check("a book made on the shelf holds the notes it points at, where it was made"
              r.book.id === "favourites/-made-dailies" &&
              r.book.key === "-made-dailies" && r.book.label === "Dailies" &&
              r.book.notes === r.book.expected && r.book.notes > 0 && r.book.spine && r.book.focused &&
-             r.book.draggable && r.book.hand && r.book.landingGone && r.book.jump === "1" &&
+             r.book.draggable && r.book.hand && r.book.landingGone &&
+             r.book.head.indexOf("1 book ") === 0 &&
              same(r.book.picks, ["-made-dailies"]) && r.book.defined &&
              r.overlap.books === 2 && r.overlap.ok && r.overlap.claimed === r.overlap.unique &&
              (!r.overlap.dated || r.overlap.overlaps) &&
@@ -1969,7 +1973,7 @@ check("a book made on the shelf holds the notes it points at, where it was made"
             `sheet "${r.form.title}" suggested "${r.form.suggested}" for ${r.form.firstValue}, then ` +
             `"${r.form.followed}" for ${r.folder}, counted "${r.form.count}" and made ${r.book.id} ("${r.book.label}", ` +
             `${r.book.notes} of ${r.book.expected} notes in ${r.folder}), draggable ${r.book.draggable}, ` +
-            `a handle ${r.book.hand}, focused ${r.book.focused}, the jump chip says ${r.book.jump}; with ` +
+            `a handle ${r.book.hand}, focused ${r.book.focused}, the shelf head says "${r.book.head}"; with ` +
             `${r.yearId} beside it ${r.overlap.sum} places are ${r.overlap.unique} notes and the shelf ` +
             `claims ${r.overlap.claimed}; a filter to ${r.other} left ${r.filtered.notes} of ` +
             `${r.filtered.expected} (empty spine ${r.filtered.empty}) and the picks ${r.filtered.picks}; ` +
@@ -2743,10 +2747,23 @@ check("hiding every shelf offers a way back rather than an empty room", async (p
 check("the library is the whole surface, with no sidebar", async (p) => {
   const r = await p.j(`(function(){
     var c = __vs.counts();
-    return { jump: c.jump, newshelf: c.newshelf, spines: c.spines,
+    return { newshelf: c.newshelf, spines: c.spines,
              sidebars: document.querySelectorAll("#vs-app aside").length,
              railChildren: document.querySelectorAll("#vs-rail .vs-inner > *").length,
              search: !!document.getElementById("vs-q"),
+             /* github#38 -- THE SHELF LIST IS STILL REACHABLE, in the sheet rather than in
+              * the rail: one row per shelf, hidden ones included, each a button that goes
+              * to it. That is what the jump strip used to be asserted for here. */
+             shelves: c.shelves,
+             go: (function(){
+               document.getElementById("vs-manageopen").click();
+               var rows = document.querySelectorAll("#vs-managelist .vs-name[data-go]");
+               var n = rows.length;
+               var live = 0;
+               [].slice.call(rows).forEach(function (b) { if (!b.disabled) live++; });
+               document.getElementById("vs-mclose").click();
+               return { rows: n, live: live };
+             })(),
              topFirst: (function(){
                var lib = document.getElementById("vs-library");
                var adds = lib.querySelectorAll(".vs-newshelf");
@@ -2757,8 +2774,10 @@ check("the library is the whole surface, with no sidebar", async (p) => {
                       shelves.compareDocumentPosition(adds[1]) === 4;
              })() };
   })()`);
-  return { ok: r.sidebars === 0 && r.newshelf === 2 && r.topFirst && r.jump > 0 && r.search,
-           detail: `${r.sidebars} sidebars, ${r.jump} shelves in the jump rail, ` +
+  return { ok: r.sidebars === 0 && r.newshelf === 2 && r.topFirst && r.search &&
+               r.go.rows === r.shelves && r.go.live > 0,
+           detail: `${r.sidebars} sidebars, ${r.go.rows} of ${r.shelves} shelves reachable ` +
+                   `from the Manage sheet (${r.go.live} not hidden), ` +
                    `${r.newshelf} New shelf buttons bracketing the scroll (in order: ` +
                    `${r.topFirst}), ${r.spines} spines` };
 });
@@ -3326,7 +3345,7 @@ check("every control is the same size in every look", async (p) => {
     /* [selector, widthMatters]. A width follows its text unless the rule fixes it. */
     var library = [
       ["#vs-q", true], ["#vs-order", true], ["#vs-look", false], ["#vs-manageopen", false],
-      ["#vs-jump .vs-jump", false], ["#vs-rail", true], ["#vs-newshelf", true],
+      ["#vs-rail", true], ["#vs-newshelf", true],
       ["#vs-shelves .vs-shelfhead", true], ["#vs-shelves .vs-plaque", false],
       ["#vs-shelves .vs-spine", true]
     ];
@@ -3338,7 +3357,10 @@ check("every control is the same size in every look", async (p) => {
       [".vs-alsoin button", false]
     ];
     var managing = [
-      ["#vs-managelist .vs-managerow", true], ["#vs-managelist .vs-managerow button", false],
+      /* github#38 -- the row's NAME is a button now, and not an action one: the action
+       * buttons are what this line has always measured, so it says so. */
+      ["#vs-managelist .vs-managerow", true], ["#vs-managelist .vs-name", false],
+      ["#vs-managelist .vs-managerow button:not(.vs-name)", false],
       ["#vs-managelist .vs-toggle[data-fact=shown] .vs-knob", true],
       ["#vs-managelist .vs-toggle[data-fact=vary] .vs-knob", true], ["#vs-mclose", false],
       ["#vs-mpalette .vs-swatch", true], ["#vs-mpalette .vs-slotreset", true],
@@ -3725,12 +3747,14 @@ check("the furniture is one material", async (p) => {
     reading: { room: ["#vs-back", "#vs-nextnote",
                       "#vs-tabs button:not([aria-current='true']):not(.vs-findtab)"],
                paper: [".vs-alsoin button"] },
-    managing: { room: [], paper: ["#vs-managelist .vs-managerow button", "#vs-mnew"] },
+    /* github#38 -- the action buttons; the row's name is not one */
+    managing: { room: [], paper: ["#vs-managelist .vs-managerow button:not(.vs-name)", "#vs-mnew"] },
   };
   const others = {
-    library: ["#vs-shelves .vs-spine", "#vs-jump .vs-jump", "#vs-newshelf"],
+    library: ["#vs-shelves .vs-spine", "#vs-newshelf"],
     reading: ["#vs-contents button", "#vs-marks .vs-markstub"],
-    managing: ["#vs-mclose"],
+    /* github#38 -- where the jump chip's place in this list went. */
+    managing: ["#vs-mclose", "#vs-managelist .vs-name"],
   };
   const book = await p.j(`__vs.views().filter(function (v) { return v.shelf.id === "years"; })[0].books[0].id`);
   const off = [];
@@ -4621,12 +4645,8 @@ check("a narrower window grows rows, and a wide one centres the shelf", async (p
   };
 });
 
-/* github#38, design/0009 -- THE RAIL IS FIXED CONTROLS. `#vs-jump` was a nav of one chip per
- * shelf with `flex: 1 1 auto` and `overflow-x: auto`, so it took whatever room was left and
- * turned into a sideways strip inside a bar of fixed controls -- a second, worse copy of the
- * library underneath it. Nothing in the rail scrolls sideways now, and this is what stops one
- * growing back: it reads computed `overflow-x` as well as the boxes, because a strip that has
- * not overflowed yet at this vault's shelf count still overflows at twenty. */
+/* github#38, design/0009 -- the rail is fixed controls, and no grower
+ * github#38 -- computed overflow-x, not just the boxes it has today */
 check("the rail is fixed controls, and nothing in it scrolls sideways", async (p) => {
   const at = async (width) => {
     await p.send("Emulation.setDeviceMetricsOverride",
@@ -4637,27 +4657,31 @@ check("the rail is fixed controls, and nothing in it scrolls sideways", async (p
     return p.j(`(function(){
       var rail = document.getElementById("vs-rail");
       var inner = rail.querySelector(".vs-inner");
+      /* An out-of-flow child is not in the row: both screen-reader labels are absolute. */
       var kids = [].slice.call(inner.children).filter(function (k) {
-        return k.getClientRects().length > 0;
+        return k.getClientRects().length > 0 && getComputedStyle(k).position !== "absolute";
       });
       var scrollers = [];
       [].slice.call(rail.querySelectorAll("*")).forEach(function (n) {
         var ox = getComputedStyle(n).overflowX;
         if (ox === "auto" || ox === "scroll") scrollers.push(n.id || n.className || n.tagName);
       });
-      var over = [], rows = [], span = 0;
+      /* CLIPPED IS NOT SCROLLED, and only one of the two is a defect: the vault's name is
+       * overflow-hidden with an ellipsis on purpose (page.css -- the name is the first
+       * thing to go when the rail is tight), so it is reported and not asserted on. */
+      var clipped = [], rows = [], span = 0;
       var name = function (k) { return k.id || (k.getAttribute("class") || k.tagName.toLowerCase()); };
       kids.forEach(function (k) {
         var b = k.getBoundingClientRect();
-        if (k.scrollWidth - k.clientWidth > 1) over.push(name(k) + " +" + (k.scrollWidth - k.clientWidth));
+        if (k.scrollWidth - k.clientWidth > 1) clipped.push(name(k) + " +" + (k.scrollWidth - k.clientWidth));
         var mid = Math.round((b.top + b.bottom) / 2);
         if (rows.indexOf(mid) < 0) rows.push(mid);
         span += b.width;
       });
       var box = inner.getBoundingClientRect();
       var gap = parseFloat(getComputedStyle(inner).gap) || 0;
-      return { width: width, rows: rows.length, scrollers: scrollers,
-               over: over, inner: Math.round(box.width),
+      return { width: ${width}, rows: rows.length, scrollers: scrollers,
+               clipped: clipped, inner: Math.round(box.width),
                railHigh: Math.round(rail.getBoundingClientRect().height),
                free: Math.round(box.width - span - gap * Math.max(0, kids.length - 1)),
                controls: kids.map(function (k) {
@@ -4671,18 +4695,19 @@ check("the rail is fixed controls, and nothing in it scrolls sideways", async (p
   await p.send("Emulation.clearDeviceMetricsOverride");
   await sleep(250);
 
+  /* github#38 -- one row at both widths: the strip was what wrapped it */
   const ok = !wide.scrollers.length && !narrow.scrollers.length &&
-             !wide.over.length && !narrow.over.length && wide.rows === 1;
+             wide.rows === 1 && narrow.rows === 1 && wide.free >= 0 && narrow.free >= 0;
   const say = (r) => `at ${r.width}px ${r.rows} row(s) ${r.railHigh}px high, ` +
                      `${r.free}px free of ${r.inner}px (${r.controls.join(", ")})`;
+  const clipped = wide.clipped.concat(narrow.clipped);
   return {
     ok,
     detail: `${say(wide)}; ${say(narrow)}; ` +
             `${wide.scrollers.length + narrow.scrollers.length} sideways scroller(s)` +
             (wide.scrollers.length || narrow.scrollers.length
               ? `: ${wide.scrollers.concat(narrow.scrollers).join(", ")}` : "") +
-            (wide.over.length || narrow.over.length
-              ? `; overflowing: ${wide.over.concat(narrow.over).join(", ")}` : "")
+            (clipped.length ? `; clipped to fit (allowed): ${clipped.join(", ")}` : "")
   };
 });
 

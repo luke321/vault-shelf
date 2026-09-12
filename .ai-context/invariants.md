@@ -386,7 +386,8 @@ and leaves **0** marks behind. A rebuild, a folder filter and `core.migrate` ove
 blob all read back the same picks, and the favourites' addresses are unchanged across the
 filter. Measured: the dropped year held **54 notes**, the
 filter cut the shelf to **2 books / 48 of 134** notes without touching the
-picks, the jump chip said **2**, and **12/12** Years spines
+picks, the shelf's own head read **"2 books · 135 notes"** (the jump chip carried this until
+`github#38`), and **12/12** Years spines
 were draggable while **0** of them became `data-hand` handles — lifting is not arranging.
 
 `"a favourite comes off by the menu, and a dead pick is dropped on save and not before"`
@@ -447,7 +448,8 @@ and that a name cleared to nothing comes back as the suggestion and saves as it 
 *Untitled book*); that the count under the form is the **real** one; and that Save
 makes a book addressed `favourites/-made-dailies` — key `-made-dailies`, label `Dailies`,
 holding exactly the notes of the vault's biggest folder, on a spine that is draggable, a hand
-handle, focused, and has taken the landing's place, with the jump chip reading **1**. Then the
+handle, focused, and has taken the landing's place, with the shelf head reading
+**"1 book · 1204 notes"**. Then the
 laws: a year favourite beside it overlaps it and the shelf claims the **unique** count; a filter
 to another folder leaves the book on the shelf with the same address and picks (an empty spine
 when nothing survives); `migrate` round-trips `picks` and `made`, and a hand-edited file of
@@ -1124,19 +1126,21 @@ legislating a spine's thickness, which `design/0011` gives to the vault, so it s
 ### Every control is the same size in every look
 
 `"every control is the same size in every look"` (2026-09-11, "make sure all components
-buttons etc have the same size in all themes, some seem off") measures **37 controls** —
-the search box, the order button, the look selector, Manage, a shelf jump, the rail, New shelf,
+buttons etc have the same size in all themes, some seem off") measures **38 controls** —
+the search box, the order button, the look selector, Manage, the rail, New shelf,
 a shelf head, a plaque, a spine; the reader bar and its four buttons, the find-within box, an
 index tab, a contents row, the ribbon row, a ribbon and the stub, the spread, an also-in
-button; a Manage row and its button, the Shown and Vary switches' knobs, Done, a palette
+button; a Manage row, its name and its action button, the Shown and Vary switches' knobs, Done, a palette
 slot, a slot's reset mark, the ribbon slot and Reset colours; the builder's Name box, its
 source and classifier dropdowns, its order dropdown and Save; a dye swatch — in every look
 `core.LOOKS` knows, shelved included, against the modern look's reading. Since github#2 and
 github#4 (2026-09-11) the palette slot is **36×28**, a ribbon swatch **22×30**, the colours
 table itself **92** wide, the builder's dropdown **31.5** high and the same in all three, and
-every dropdown is measured with its box taken back from the host. **38** are measured where the
-reader has index tabs and **37** on the vault, whose first book has none; the check's floor
-is 34.
+every dropdown is measured with its box taken back from the host. **39** are measured where the
+reader has index tabs and **38** on the vault, whose first book has none; the check's floor
+is 34. Since `github#38` (2026-09-12) the shelf jump is gone from the list and the Manage row's
+**name** is on it, as a button of its own that is deliberately not an action button — so the
+count went up by one, not down.
 
 The table is in that list because it caught three, all of them a look or a container quietly
 resizing a control:
@@ -1177,9 +1181,11 @@ in **4** rooms — leather, modern dark, modern light and the shelved cyberpunk 
 and focused (`CSS.forcePseudoState`; a synthetic event cannot put an element into `:hover`).
 The Order button, Manage, Back, Next and an index tab must resolve to the plaque's
 `background-image`, `color`, `border-bottom-color` and `text-shadow`; *Also shelved in*, a Manage
-row's button and *New shelf…* to the sheet's plate, which a look may cut from paper (leather's
-bone plate). A spine, a contents row, the ribbon stub, a shelf jump, *New shelf* and *Done* must
-carry neither the plate's face nor its engraving shadow. A focused plaque and a focused button
+row's *action* button and *New shelf…* to the sheet's plate, which a look may cut from paper
+(leather's bone plate). A spine, a contents row, the ribbon stub, a Manage row's **name**,
+*New shelf* and *Done* must carry neither the plate's face nor its engraving shadow. The row's
+name took the shelf jump's place on that list when the jump strip went (`github#38`,
+2026-09-12), so the count is still **56**. A focused plaque and a focused button
 draw an outline. Tracking is the one thing that may differ, and must: a plaque at or above
 **0.1em** (0.14 modern, 0.1 leather, 0.22 cyber), a button at or below **0.05em** (0.03 in
 every look). The ink against both ends of the plate, rested and lit, room and paper, is at least
@@ -1331,7 +1337,33 @@ wide as the words, and the packer was costing runs by their books alone.
 
 `"the library is the whole surface, with no sidebar"` asserts **zero** `<aside>` elements,
 exactly **two** New shelf buttons, and that they bracket the shelves in document order — the
-affordance is at both ends of the scroll, which is the point `design/0009` makes.
+affordance is at both ends of the scroll, which is the point `design/0009` makes. Since
+`github#38` it also opens the Manage sheet and asserts **one row per shelf, each a button that
+goes to it**, at least one of them not hidden: the shelf list left the rail, and this is the
+check that says it is still reachable.
+
+### The rail is fixed controls
+
+`"the rail is fixed controls, and nothing in it scrolls sideways"` (2026-09-12, *"i think the
+navigation to shelfs at the top needs to go"*) overrides the viewport to **1180px** and
+**860px** and, at each, asserts that **no descendant of `#vs-rail` computes
+`overflow-x: auto` or `scroll`**, that no in-flow child of `.vs-inner` overflows its own box,
+that the rail is **one row**, and that the free space never goes negative. Out-of-flow children
+are excluded — both screen-reader labels are absolute — and a box clipped by `overflow: hidden`
+is *reported, not failed*: the vault's name is ellipsised on purpose.
+
+Measured after `#vs-jump` went (`github#38`, `design/0009`):
+
+| | 1180px | 860px |
+|---|---|---|
+| the rail | 1 row, **47px** | 1 row, **51px** |
+| the controls | name 116, search 232, hits 96, **spacer 407**, order 92, look 71, Manage 63 | name 116, **search 455**, order 92, look 71, Manage 63 |
+| sideways scrollers | **0** | **0** |
+
+Before it went: **421px of 1148px** to the strip at 1180px, and at 860px a **second row** (93px
+of rail) that the strip filled at 828px and **still overflowed by 57px** — at seven shelves.
+The computed-overflow test is the part that matters: a strip that has not overflowed yet at this
+vault's shelf count is still a strip, and the builder makes twenty shelves easy.
 
 ## Accessibility and scale
 

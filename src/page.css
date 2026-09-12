@@ -224,36 +224,15 @@
   white-space: nowrap;
 }
 
-.vault-shelf #vs-jump {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  flex: 1 1 auto;
-  min-width: 0;
-  scrollbar-width: none;
-}
-
-.vault-shelf #vs-jump::-webkit-scrollbar { display: none; }
-
-.vault-shelf .vs-jump {
-  flex: 0 0 auto;
-  font: inherit;
-  font-size: 11.5px;
-  color: var(--text-2);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  padding: 3px 8px;
-  cursor: pointer;
-  white-space: nowrap;
-  /* github#9 -- a chip in the rail, not a plate */
-  letter-spacing: 0;
-  box-shadow: none;
-  text-shadow: none;
-}
-
-.vault-shelf .vs-jump:hover { color: var(--text-1); background: var(--surface-2); border-color: var(--border); }
-.vault-shelf .vs-jump .vs-n { color: var(--text-3); margin-left: 5px; font-variant-numeric: tabular-nums; }
+/* github#38, design/0009 -- THE ONE THING IN THE RAIL THAT GROWS IS THE GAP. `#vs-jump` was
+ * a chip per shelf at `flex: 1 1 auto` with `overflow-x: auto`: 421px of 1148px at the
+ * measure, and a second row that still overflowed by 57px at 860px. Every control in here is
+ * a fixed width now, and the space between them goes to one spacer -- the reader bar's own
+ * idiom -- so the name and the search sit left and the three controls sit right, rather than
+ * the whole bar clumping at one end. NOT a flexible search box: `.vs-railname` is sized by
+ * the look's face, so a search box that took what was left would be a different width in
+ * every look, and a control is the same size in every look (design/0016). */
+.vault-shelf .vs-spacer { flex: 1 1 auto; min-width: 0; }
 
 .vault-shelf #vs-q {
   flex: 0 0 auto;
@@ -1006,7 +985,7 @@
 
 .vault-shelf .vs-readerbar .vs-inner { gap: 8px; flex-wrap: wrap; }
 
-.vault-shelf .vs-readerbar .vs-spacer { flex: 1 1 auto; }
+/* github#38 -- one spacer rule, up with the rail that now uses it too. */
 .vault-shelf .vs-readertitle { color: var(--text-2); font-size: 12px; line-height: 20px; }
 
 
@@ -1611,7 +1590,30 @@
   padding: 7px 2px;
 }
 
-.vault-shelf .vs-managerow .vs-name { flex: 1 1 auto; line-height: 22px; }
+/* github#38, design/0009 -- A ROW'S NAME IS A TARGET, NOT A PLATE. It is the button that
+ * took the jump strip's one job, and it has to read as the name it already was: no plate
+ * face, no engraving, the same box it had as a span. It takes the chip's old place in the
+ * list of things that must not wear a plate (design/0019, the furniture). */
+.vault-shelf .vs-managerow .vs-name {
+  flex: 1 1 auto;
+  font: inherit;
+  line-height: 22px;
+  letter-spacing: 0;
+  text-align: left;
+  color: var(--text-1);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-left: -5px;
+  min-height: 0;
+  box-shadow: none;
+  text-shadow: none;
+}
+.vault-shelf .vs-managerow .vs-name:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
 .vault-shelf .vs-managerow .vs-meta { color: var(--text-3); font-size: 11px; }
 .vault-shelf .vs-managerow .vs-colourby { flex: 0 0 auto; }
 
@@ -1726,7 +1728,9 @@
 @media (max-width: 860px) {
   .vault-shelf #vs-rail { flex-wrap: wrap; }
   .vault-shelf #vs-rail .vs-inner { flex-wrap: wrap; gap: 8px; }
-  .vault-shelf #vs-jump { order: 4; flex-basis: 100%; }
+  /* github#38 -- the gap is what the rail can afford to lose down here, so the search box
+   * takes the room the spacer was holding rather than the rail taking a second row. */
+  .vault-shelf .vs-inner .vs-spacer { display: none; }
   .vault-shelf #vs-q { order: 2; flex: 1 1 140px; width: auto; min-width: 100px; }
   .vault-shelf #vs-manageopen { order: 3; }
   .vault-shelf #vs-hits:empty { display: none; }

@@ -36,7 +36,9 @@ shelves, they are six of the shelves.* A creation affordance you have to go look
 the opposite point.
 
 `"the library is the whole surface, with no sidebar"` asserts zero `<aside>` elements, exactly
-two New shelf buttons, and that they bracket the shelves in document order.
+two New shelf buttons, and that they bracket the shelves in document order. Since `github#38` it
+also asserts that **every shelf is still reachable** — one Manage row per shelf, each a button that
+goes to it — because that is what the rail's shelf list used to be asserted for here.
 
 ## A room has a width
 
@@ -75,13 +77,83 @@ a column that is genuinely aligned to one side, which would be off by hundreds.
 | | |
 |---|---|
 | the vault's name | so the room belongs to somewhere |
-| a jump chip per visible shelf, with its book count | the shelf list, as one line |
 | the search box | `design/0008` — it marks, it does not narrow |
 | the hit count | `12 notes in 4 books`, or nothing |
-| **Manage** | reorder, hide, restore |
+| the gap | one `.vs-spacer`, so the name and the search sit left and the controls right |
+| the order toggle | oldest first, or newest |
+| the look selector | `design/0016` |
+| **Manage** | reorder, hide, restore — and now, get to a shelf |
 
 The per-shelf **Edit** and **Hide** buttons live in the shelf's own header and are invisible
 until you hover it, so a room at rest is books and labels and nothing else.
+
+## The shelf list left the rail (2026-09-12, `github#38`)
+
+*"i think the navigation to shelfs at the top needs to go"*.
+
+`#vs-jump` was a `<nav>` of one chip per visible shelf, each with the shelf's name and its book
+count. It sat between the vault's name and the search box at `flex: 1 1 auto` with
+`overflow-x: auto` — **the only thing in a bar of fixed controls that grew, and the only one that
+scrolled**. The thing a bookcase is for is seeing what is there, and this was a second, worse copy
+of the library underneath it.
+
+Measured before it went, at the measure and at the narrow breakpoint:
+
+| | 1180px | 860px |
+|---|---|---|
+| the rail | 1 row, 47px | **2 rows, 93px** |
+| the strip | **421px of 1148px** | a whole row of 828px, **and still 57px past its end** |
+| the vault's name | 102px, clipped | 116px, clipped by 14px |
+| sideways scrollers | 1 | 1 |
+
+The 57px is the part worth keeping in mind: at **seven** shelves the strip already could not show
+itself at 860px. The builder makes twenty easy (`github#10`, `github#3`), so the count was never
+bounded by the six that ship.
+
+### What replaces it
+
+**The Manage sheet.** A row's name is a button: press it and the sheet closes and the library
+scrolls to that shelf. The sheet already listed every shelf in the library's own order and already
+had a door in the rail, so this costs one button and no new furniture — and a list that runs *down*
+the page is the shape that survives twenty shelves, which is exactly the shape the strip was not.
+A hidden shelf's row is disabled rather than silently doing nothing; hiding still never deletes.
+
+### What was rejected, and why
+
+**"Search already does it."** It does not, and this was read rather than assumed:
+`core.matchesQuery` tests a note's title, path, tags, people and body — **never a shelf's name**.
+Typing *Encyclopedia* marks the notes whose text says "Encyclopedia"; it does not find the
+Encyclopedia shelf. Changing the placeholder to imply otherwise would have put a false claim in the
+chrome.
+
+**"Nothing."** Defensible at six shelves, indefensible at twenty, and the builder decides which.
+
+**A sticky shelf heading.** It tells you where you *are*, which is not the job: the strip's one
+irreplaceable trick was reaching a shelf several screens down without scrolling past everything
+between.
+
+### Where the space went
+
+Not to a wider search box. `.vs-railname` is `flex: 0 1 auto` and its width follows the look's
+face, so a search box that took whatever was left would be a **different width in every look**, and
+a control is the same size in every look (`design/0016`). Instead the rail borrows the reader bar's
+own idiom — one `.vs-spacer` after the hit count — so the name and the search sit left and the
+order toggle, the look selector and **Manage** sit right. Every control keeps the width it had.
+
+| | 1180px | 860px |
+|---|---|---|
+| the rail | 1 row, 47px | **1 row, 51px** |
+| the gap | **407px**, as one spacer | none — the spacer is hidden and the search box takes it (455px) |
+| the vault's name | **116px, no longer clipped** | 116px |
+| sideways scrollers | **0** | **0** |
+
+So: 407px of deliberate gap at the measure, 14px back to the vault's name, which the strip had been
+squeezing into an ellipsis — and at 860px a **whole row of rail**, 42px, handed back to the library.
+
+`"the rail is fixed controls, and nothing in it scrolls sideways"` holds it: at both widths no
+descendant of `#vs-rail` computes `overflow-x: auto|scroll`, nothing overflows its own box, and the
+rail is one row. It reads the computed overflow rather than only the boxes on purpose — a strip that
+has not overflowed *yet* is still a strip.
 
 ## What this costs
 
