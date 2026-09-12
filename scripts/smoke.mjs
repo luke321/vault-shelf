@@ -7037,7 +7037,8 @@ async function main() {
     "--look": [LOOK || "", ""],
     "--headed": [HEADED, false],
   };
-  const shifted = Object.keys(SHAPE).filter((k) => SHAPE[k][0] !== SHAPE[k][1]);
+  const shifted = Object.entries(SHAPE)
+    .filter(([, [is, byDefault]]) => is !== byDefault).map(([flag]) => flag);
   const partial = shifted.length ? shifted.join(" and ")
                 : vaults.some((v) => !v.fixture) ? "an unstamped fixture"
                 : lost.length ? `a run without ${lost.join(" and ")} (the generator failed)` : "";

@@ -3,7 +3,7 @@
 import { existsSync } from "node:fs";
 
 const argv = process.argv.slice(2);
-const named = (() => { const i = argv.indexOf("--chrome"); return i >= 0 ? argv[i + 1] || "" : ""; })();
+const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
 
 /* github#50, design/0006 -- headless by default; --headed is the only switch */
 export const HEADED = argv.includes("--headed");
@@ -26,6 +26,7 @@ const QUIET = [
  * @returns {string}
  */
 export function findChrome() {
+  const named = arg("chrome", "");
   if (named) return named;
   const guesses = [
     process.env.PROGRAMFILES + "\\Google\\Chrome\\Application\\chrome.exe",
