@@ -582,9 +582,9 @@ function mountVaultShelf(root, data, options) {
      * thin book under `2010-2019` is as wide as the words, not as wide as the book -- and a
      * row packed on the books alone then overflowed by exactly that difference. Every run is
      * given room for its own plate before it is allowed to start. */
-    /* github#48 -- a shelf that draws no plate is charged for none */
+    /* github#48 -- a shelf that draws no plate opts out of paying for one */
     /** @param {string|null} label @returns {number} */
-    function plateW(label) { return plaques ? plaqueWidth(label) : 0; }
+    function plateW(label) { return plaques === false ? 0 : plaqueWidth(label); }
     function closeRun() {
       if (label !== null) used = Math.max(used, runStart + plateW(label));
       label = null;
