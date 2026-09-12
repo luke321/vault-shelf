@@ -90,3 +90,58 @@ went ahead with two shapes. `SKIP_SMOKE` stays as the manual override; `release.
   identity is part of the key rather than assumed from the generator sources in the tree.
   Two worktrees whose generators differ thrash one shared store, and the stamps of each miss
   as soon as the other has run — which is correct, and visible in the printed reason.
+
+---
+
+## Amendment, 2026-09-12 — a tree is gated once, but it is *stamped* twice
+
+**Issue** [#55](https://github.com/luke321/vault-shelf/issues/55) · **Status** accepted
+
+The record above is unchanged in every respect but one: **how many green runs a stamp is
+worth.** It was one. It is now two consecutive, `GREENS_REQUIRED` in `scripts/suite-stamp.mjs`.
+
+### What went wrong
+
+`"a hovered swatch paints the room, and leaving puts it back"` failed **three full runs in
+four** on `develop` at `6c99c60`, and passed every time on its own. The one run that passed
+stamped tree `f9ac717`, so `suite-stamp check` exited 0 and a push would have skipped the
+suite on a tree that was red three times out of four.
+
+That is not a bad-luck stamp. It is the *predictable* outcome of keying a stamp to a single
+observation of a non-deterministic measurement: an intermittent check does not merely cost a
+re-run, **it launders itself into a stamp**, and the stamp then suppresses the only thing
+that would have caught it. The more intermittent the check, the more runs happen, and the
+more certain the laundering becomes.
+
+### The decision
+
+A stamp counts a **streak**, not an event.
+
+- `record()` increments `greens` when the stamp it finds is for the same tree **and** the
+  same fixtures; otherwise it starts the count at 1. A regenerated fixture is a different
+  measurement, so it does not inherit a green earned against something else.
+- `lookup()` is a hit only at `greens >= GREENS_REQUIRED`, and says how far short it is
+  otherwise — `tree f9ac717 has 1 green run(s) of the 2 in a row a stamp needs`.
+- **A red full run deletes the stamp** (`forget()`). Without that, "two consecutive" would
+  mean "two greens ever", which an intermittent check reaches on its own by being run often
+  enough — the same laundering, slowed down rather than stopped. A partial run (`--only`,
+  `--vault`, `--url`, `--look`) still says nothing about the tree, so it neither stamps nor
+  clears.
+- Stamps written under the old law carry no `greens` field, so they read as 0 and every one
+  of them is demoted rather than grandfathered. That is deliberate: none of them can say how
+  its measurement went, which is the thing now being asked of them.
+
+### What it costs, said plainly
+
+**The first push on a fresh tree pays for two suite runs instead of one** — about 45 s more
+on this machine. Every push after that on the same tree is unchanged, and the release path
+is unchanged, because both read the same stamp.
+
+### Rejected
+
+| Option | Why not |
+|---|---|
+| **Quarantine a check that has flaked** | Targeted and cheap, but it needs a register somebody keeps up to date by hand, and it is blind to the flake nobody has spotted yet — which is precisely the case that produced #55. Two greens needs no list and catches the unknown ones. |
+| **Record the count but keep trusting one green** | Honest reporting with none of the effect. The behaviour the issue calls wrong would stay exactly as it is. |
+| **Three or more greens** | Each extra run buys less than the one before, and the cost is paid on every fresh tree. Two is where a single flake stops being able to stamp on its own. |
+| **Require the two runs to be on different days, or by different callers** | A clock cannot say which tree it saw — the same objection the original record makes to trusting recency. |
