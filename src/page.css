@@ -120,6 +120,21 @@
   --spine-rule-side: 4px;
   --spine-rule: 1px;
   --spine-clear: 3px;
+  /* github#51, design/0021 -- HOW FAR A SPINE RISES, DECLARED, and the room above it derived
+   * from the ladder rather than typed in beside it. Five states lift, and two of them are not
+   * hover states at all: a worn book never goes back flush, and a search match is drawn
+   * forward. The track contains its paint, so whatever the tallest rung is, that is the room
+   * the clip edge has to allow -- and reading it with max() is what makes a lift changed later
+   * move the room with it instead of silently re-cutting the heads. A look that spends a
+   * different lift sets its rung here, not a transform of its own (github#14). */
+  --spine-lift-worn: 1px;
+  --spine-lift-worn-more: 2px;
+  --spine-lift-worn-hover: 5px;
+  --spine-lift-hover: 6px;
+  --spine-lift-match: 7px;
+  --spine-lift-max: max(var(--spine-lift-worn), var(--spine-lift-worn-more),
+                        var(--spine-lift-worn-hover), var(--spine-lift-hover),
+                        var(--spine-lift-match));
   /* github#0 -- THICKER, because it is a handle now: at 3px the floor was a hairline to paint
    * and an impossible thing to grab.
    * github#14, design/0021 -- and ONE PLANK, in every look: each sheet used to declare its own
@@ -480,7 +495,19 @@
   content-visibility: auto;
   contain-intrinsic-size: auto 240px;
 }
-.vault-shelf .vs-track { contain: layout paint; }
+/* github#51, design/0021 -- AND SAY WHERE THE CLIP EDGE IS. `paint` clips every descendant
+ * pixel to the track's box, and the track has no room above a spine: its min-height puts all of
+ * its slack BELOW, for the board and the plaque. So every lift painted outside the box and was
+ * sliced flat -- the rounded head, the head band and the closing border gone -- on every row,
+ * most visibly under a shelf head where the missing pixels fall in a gap instead of into the
+ * dark above a board. A clip margin moves the edge and nothing else: it is not padding, so no
+ * spine, board, plaque or golden moves, and it is still a clip -- measured, a lift taller than
+ * the margin is still cut at the margin. The room is the ladder's top rung, read rather than
+ * typed, so a look that lifts further (cyber) carries its own edge with it. */
+.vault-shelf .vs-track {
+  contain: layout paint;
+  overflow-clip-margin: var(--spine-lift-max);
+}
 .vault-shelf .vs-shelfrail { contain: layout; }
 
 /* AND SCROLL A TEXTURE, NOT A PAINT. With the library's contents on a compositor layer of
@@ -639,10 +666,11 @@
               margin 160ms ease, box-shadow 120ms ease;
 }
 
-/* github#14 -- ONE LIFT. It was -5px here, -5px in leather and -6px in cyber. */
+/* github#14 -- ONE LIFT. It was -5px here, -5px in leather and -6px in cyber.
+ * github#51 -- and it READS its rung now, so the room above it is derived from it. */
 .vault-shelf .vs-spine:hover,
 .vault-shelf .vs-spine:focus-visible {
-  transform: translateY(-6px);
+  transform: translateY(calc(-1 * var(--spine-lift-hover)));
   border-color: var(--spine-tint, var(--accent));
   color: var(--text-1);
   z-index: 2;
@@ -890,7 +918,7 @@
  * well-read book is a handled book, not a more purple one. */
 .vault-shelf .vs-spine[data-wear="2"] {
   border-radius: 4px 4px 2px 2px;
-  transform: translateY(-1px);
+  transform: translateY(calc(-1 * var(--spine-lift-worn)));
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--text-1) 8%, transparent) 0 16%, transparent 40%),
     linear-gradient(0deg, color-mix(in srgb, var(--text-1) 5%, transparent) 0 9%, transparent 24%),
@@ -898,7 +926,7 @@
 }
 .vault-shelf .vs-spine[data-wear="3"] {
   border-radius: 5px 5px 2px 2px;
-  transform: translateY(-2px);
+  transform: translateY(calc(-1 * var(--spine-lift-worn-more)));
   border-color: var(--border-strong);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--text-1) 12%, transparent) 0 18%, transparent 44%),
@@ -906,7 +934,9 @@
     color-mix(in srgb, var(--spine-tint, var(--n1)) var(--tint), var(--surface-2));
 }
 .vault-shelf .vs-spine[data-wear="2"]:hover,
-.vault-shelf .vs-spine[data-wear="3"]:hover { transform: translateY(-5px); }
+.vault-shelf .vs-spine[data-wear="3"]:hover {
+  transform: translateY(calc(-1 * var(--spine-lift-worn-hover)));
+}
 
 /* ---- magic 2: ribbons that hang -----------------------------------------
  * design/0008 -- a bookmarked note leaves a ribbon out of the book, visible from the shelf
@@ -946,7 +976,7 @@
 .vault-shelf[data-query="1"] .vs-spine[data-match="1"] {
   margin-left: 9px;
   margin-right: 9px;
-  transform: translateY(-7px);
+  transform: translateY(calc(-1 * var(--spine-lift-match)));
   border-color: var(--accent);
   box-shadow: 0 2px 0 0 var(--accent);
   color: var(--text-1);
