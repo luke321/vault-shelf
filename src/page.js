@@ -214,6 +214,9 @@ function mountVaultShelf(root, data, options) {
   /* github#41, design/0026 -- what the vault spells, rebuilt with the books */
   /** @type {import("./core/index").Term[]} */
   var vocabulary = [];
+  /* github#58, design/0008 -- what the search reads, rebuilt with the books */
+  /** @type {import("./core/index").SearchIndex | null} */
+  var searchIndex = null;
   /** @type {import("./core/index").Term[]} */
   var offered = [];
   /** github#41 -- which row the arrows are on, -1 for none. */
@@ -332,7 +335,9 @@ function mountVaultShelf(root, data, options) {
         view.books.forEach(function (book, i) { dyeDeal[book.id] = i; });
       });
     }
-    core.markMatches(views, query);
+    /* github#58, design/0008 -- ONCE, here, where the books are. */
+    searchIndex = core.buildSearchIndex(views, visible);
+    core.markMatches(views, query, searchIndex);
     /* github#41, design/0026 -- ONCE, here, where the books are. */
     vocabulary = core.buildVocabulary(views, visible);
   }
@@ -2083,7 +2088,7 @@ function mountVaultShelf(root, data, options) {
    * they stand instead of the room being replaced under you.
    */
   function applyQuery() {
-    var totals = core.markMatches(views, query);
+    var totals = core.markMatches(views, query, searchIndex);
     var live = query.trim().length > 0;
     if (live) root.setAttribute("data-query", "1");
     else root.removeAttribute("data-query");
@@ -2098,7 +2103,9 @@ function mountVaultShelf(root, data, options) {
         book = findBook(id);
         if (book) {
           book.matches = needle
-            ? book.notes.filter(function (n) { return core.matchesQuery(n, needle); }).length : 0;
+            ? book.notes.filter(function (n) {
+                return core.matchesQuery(n, needle, searchIndex);
+              }).length : 0;
         }
       }
       spines[i].setAttribute("data-match", book && book.matches > 0 ? "1" : "0");

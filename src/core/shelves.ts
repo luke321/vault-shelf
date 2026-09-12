@@ -581,13 +581,62 @@ export function dyePeriod(shelf: Shelf, key: string): number | null {
   return rule === "decade" ? Math.floor(year / 10) : year;
 }
 
-export function matchesQuery(note: Note, needle: string): boolean {
+/* ---- what the search reads -----------------------------------------------
+ * github#58, design/0008
+ */
+
+/** github#41, github#58, design/0026 -- ONE folding, for the box and the search alike. */
+export function fold(text: string): string {
+  return text.toLowerCase();
+}
+
+/** github#58 -- a note's own text: its title and its declared metadata. */
+export function noteText(note: Note): string {
+  return fold(note.title + "\n" + note.folder + "\n" +
+              note.tags.join("\n") + "\n" + note.people.join("\n"));
+}
+
+/** github#58, design/0026 -- the one definition of a book the box and the search both read. */
+export function searchableBook(shelf: Shelf, book: Book): boolean {
+  if (shelf.hidden || isReference(shelf, book)) return false;
+  return book.notes.length > 0 && (book.cover || "").trim().length > 0;
+}
+
+/** github#58 -- note id to everything that note is searchable by, folded once. */
+export type SearchIndex = Map<string, string>;
+
+/**
+ * github#58, design/0008 -- built ONCE, where the books are, never per keystroke.
+ * @param {ShelfView[]} views @param {Note[]} notes @returns {SearchIndex}
+ */
+export function buildSearchIndex(views: ShelfView[], notes: Note[]): SearchIndex {
+  const covers = new Map<string, string[]>();
+  for (const view of views) {
+    if (view.shelf.hidden) continue;
+    for (const book of view.books) {
+      if (!searchableBook(view.shelf, book)) continue;
+      const cover = fold(book.cover.trim());
+      for (const note of book.notes) {
+        const mine = covers.get(note.id);
+        if (!mine) covers.set(note.id, [cover]);
+        else if (mine.indexOf(cover) < 0) mine.push(cover);
+      }
+    }
+  }
+  const index: SearchIndex = new Map();
+  for (const note of notes) {
+    const mine = covers.get(note.id);
+    index.set(note.id, mine ? noteText(note) + "\n" + mine.join("\n") : noteText(note));
+  }
+  return index;
+}
+
+/** github#58 -- `needle` arrives folded; an index adds the covers a note sits behind. */
+export function matchesQuery(note: Note, needle: string,
+                             index?: SearchIndex | null): boolean {
   if (!needle) return false;
-  if (note.title.toLowerCase().indexOf(needle) >= 0) return true;
-  if (note.path.toLowerCase().indexOf(needle) >= 0) return true;
-  if (note.tags.some((t) => t.toLowerCase().indexOf(needle) >= 0)) return true;
-  if (note.people.some((p) => p.toLowerCase().indexOf(needle) >= 0)) return true;
-  return note.body.toLowerCase().indexOf(needle) >= 0;
+  const text = index ? index.get(note.id) : undefined;
+  return (text === undefined ? noteText(note) : text).indexOf(needle) >= 0;
 }
 
 /**
@@ -595,18 +644,27 @@ export function matchesQuery(note: Note, needle: string): boolean {
  * An empty query zeroes every score, which is what makes clearing the box put the room
  * back exactly as it was rather than rebuilding it.
  */
-export function markMatches(views: ShelfView[], query: string): { books: number; notes: number } {
-  const needle = query.trim().toLowerCase();
+export function markMatches(views: ShelfView[], query: string,
+                            index?: SearchIndex | null): { books: number; notes: number } {
+  const needle = fold(query.trim());
   const seen = new Set<string>();
+  /* github#58 -- a note stands in 7.6 books here; it is read once, not once per book. */
+  const missed = new Set<string>();
+  const hit = (note: Note): boolean => {
+    if (seen.has(note.id)) return true;
+    if (missed.has(note.id)) return false;
+    const ok = matchesQuery(note, needle, index);
+    (ok ? seen : missed).add(note.id);
+    return ok;
+  };
   let books = 0;
   for (const view of views) {
     for (const book of view.books) {
       let n = 0;
       if (needle) {
         for (const note of book.notes) {
-          if (!matchesQuery(note, needle)) continue;
+          if (!hit(note)) continue;
           n++;
-          seen.add(note.id);
         }
       }
       book.matches = n;
