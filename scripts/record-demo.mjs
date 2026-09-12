@@ -184,7 +184,7 @@ const CURSOR_SVG = '<svg viewBox="0 0 24 24" width="26" height="26" xmlns="http:
  */
 function storyboard(P) {
   const { go, j, caption, scrollTo, settleOn, click, shelfTop, once, pointer, rightClick,
-          centreOf, lift, carry, drop } = P;
+          pressAt, centreOf, lift, carry, drop } = P;
   let parted = "note";   // the search the parting act types, taken from the vault itself
   let turnedAt = -1;     // github#36 -- which beat of the turn act has already turned
 
@@ -597,10 +597,9 @@ function storyboard(P) {
         const step = Math.floor(t * 5);
         if (step === turnedAt) return;
         turnedAt = step;
+        /* github#54 -- a real press, or the act films a control that closes */
         const next = await centreOf("#vs-nextnote");
-        await pointer(next, true);
-        await go(`(function(){ document.getElementById("vs-nextnote").click(); })(); void 0`);
-        await pointer(next, false);
+        await pressAt(next);
       },
     },
     {
@@ -1173,6 +1172,14 @@ try {
       k.classList.toggle("press", ${pressed ? "true" : "false"});
     })(); void 0`);
   };
+  /* github#54 -- a real press, because el.click() arms no mousedown */
+  const pressAt = async (p) => {
+    if (!p) return;
+    await pointer(p, true);
+    await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: p.x, y: p.y, button: "left", clickCount: 1 });
+    await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: p.x, y: p.y, button: "left", clickCount: 1 });
+    await pointer(p, false);
+  };
   const rightClick = async (p) => {
     await pointer(p, true);
     await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: p.x, y: p.y, button: "right", clickCount: 1 });
@@ -1247,7 +1254,7 @@ try {
   };
 
   const P = { go, j, caption, scrollTo, settleOn, railTo, hover, click, shelfTop, railOf, spineIn, once,
-              pointer, rightClick, centreOf, lift, carry, drop, state: {} };
+              pointer, rightClick, pressAt, centreOf, lift, carry, drop, state: {} };
   const acts = storyboard(P).filter((a) => !ONLY.length || ONLY.some((q) => a.name.toLowerCase().includes(q)));
   if (!acts.length) throw new Error("--act " + ONLY.join(",") + " matched no act");
 

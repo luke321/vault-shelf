@@ -1,5 +1,57 @@
 # Changelog detail
 
+## 2026-09-12 — The turn footer is furniture, not desk (github#54)
+
+Reported minutes after `github#36` reached `develop`: clicking **Previous** or **Next** closed
+the book instead of turning the page. `design/0004`'s desk rule was an allow-list — *not*
+`.vs-spread`, `#vs-marks`, `.vs-readerbar` or `#vs-dye` — and `github#36` put
+`<footer class="vs-turn">` inside `#vs-reader` and outside `.vs-spread` without joining it. Both
+ends of the click therefore landed off the book: the button's handler turned the page and the desk
+handler immediately threw the turn away.
+
+**Why the suite was green at 99/99 is sharper than "the checks press arrow keys".** They do call
+`document.getElementById("vs-nextnote").click()` — but `.click()` dispatches no `mousedown`, so
+`pressedOffBook` is never armed and the desk handler declines. A control exercised only by
+`.click()` is not exercised. Both new checks press `mousedown` + `mouseup` + `click`, the way the
+desk check already did, and both were watched failing against the old code before the fix went in.
+
+| | before | after |
+|---|---|---|
+| `#vs-nextnote` pressed | **closes the book** | still open, index **+1** |
+| `#vs-prevnote` pressed, from index 1 | **closes the book** | still open, index **−1** |
+| `#vs-place` pressed | **closes the book** | still open, index **0** |
+| `.vs-turn`'s own background pressed | **closes the book** | still open, index **0** |
+| across leather, modern and cyber | **12 of 12 put the book down** | **12 of 12** leave it open |
+| children of `#vs-reader` that held the book open | **3 of 4** (`.vs-turn` dropped it) | **4 of 4** |
+| the desk beside the cover | closes it | **closes it**, unchanged |
+| a selection dragged past the cover | does not close it | **does not**, unchanged |
+| `offBook` | an allow-list of 4 selectors | `target === $("reader")` |
+| checks in the suite | 99 | **101** |
+| `check-comments` baseline | 1500 | **1496** |
+
+**Inverted rather than enumerated.** The one-line fix — add `.vs-turn` to the list — was rejected
+because this was already the second piece of furniture to ship without joining it. `#vs-reader`
+has exactly four element children, and all four are the book, so the predicate is now the desk
+test: `target === $("reader")`. New furniture is inside the book by default. The two forms are
+observationally identical today; they differ on what happens next time.
+
+That identity rests on a measured fact rather than an argument: the spread is inset by 96px
+(`github#0`), so `elementFromPoint` in the gutter beside the cover returns `#vs-reader` itself —
+**730px** of gutter at the suite's window — and the guard check asserts it every run.
+
+`#vs-dye` left the predicate with it. It is a **sibling** of `#vs-reader` (`page.html:179`), so
+its clicks never reached this handler; it was a dead entry that read as a live one.
+
+The second check, *nothing in the reader but the desk puts the book down*, is the part that closes
+the class rather than the instance: for every visible direct child of `#vs-reader` it finds a point
+that is not a control, presses it, and asserts the book stays open — then presses the desk and
+asserts it still closes, so it cannot pass a reader that has stopped closing at all. Controls are
+skipped on purpose: `#vs-back` lives in `.vs-readerbar` and closes the book by its own contract.
+An `offBook()`-over-the-children assertion was rejected for being near-tautological under the
+inverted predicate — it would restate the implementation instead of exercising the click path the
+bug actually lived on.
+
+
 ## 2026-09-12 — A plate dyes its whole run, from either copy of it (github#29)
 
 > "right click on a plaque enables to set the color for all books under the plaque"

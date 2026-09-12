@@ -5715,6 +5715,172 @@ check("a click off the book puts it down, and a click on it does not", async (p)
   };
 });
 
+/* github#54, design/0004 -- the footer is furniture, and a press proves it */
+/* github#36 -- .click() arms no mousedown, so the desk declined */
+check("every part of the turn turns the page rather than putting the book down", async (p) => {
+  const r = await p.j(`(function(){
+    var press = function (el, x, y) {
+      ["mousedown", "mouseup", "click"].forEach(function (type) {
+        el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true,
+                                                clientX: x, clientY: y }));
+      });
+    };
+    var book = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) {
+        if (b.notes.length >= 3 && (!book || b.notes.length < book.notes.length)) book = b;
+      });
+    });
+    if (!book) return { found: false };
+    var readerEl = document.getElementById("vs-reader");
+
+    var spotOf = function (el) {
+      if (!el) return null;
+      var b = el.getBoundingClientRect();
+      if (!b.width || !b.height) return null;
+      var x = b.left + b.width / 2, y = b.top + b.height / 2;
+      return { el: document.elementFromPoint(x, y) || el, x: x, y: y };
+    };
+    var byId = function (id) { return function () { return spotOf(document.getElementById(id)); }; };
+    var bareTurn = function () {
+      var turn = document.querySelector(".vs-turn");
+      var b = turn.getBoundingClientRect();
+      var y = b.top + b.height / 2;
+      for (var i = 1; i < 48; i++) {
+        var x = b.left + (b.width * i) / 48;
+        if (document.elementFromPoint(x, y) === turn) return { el: turn, x: x, y: y };
+      }
+      return null;
+    };
+
+    /* github#54 -- re-measure before each press; a scrolled list lies */
+    /* github#54 -- Previous is disabled at index 0 and swallows a click */
+    var hit = function (pick) {
+      __vs.openBook(book.id, null);
+      document.getElementById("vs-nextnote").click();
+      var from = __vs.reader().index;
+      var spot = pick();
+      if (!spot) { __vs.closeReader(); return null; }
+      press(spot.el, spot.x, spot.y);
+      var open = !readerEl.hidden;
+      var out = { open: open, from: from, moved: open ? __vs.reader().index - from : null };
+      __vs.closeReader();
+      return out;
+    };
+
+    /* design/0021 -- one geometry, three faces, so measure all three */
+    var root = document.querySelector(".vault-shelf");
+    var was = root.getAttribute("data-look") || "";
+    var out = {};
+    window.VaultShelfCore.LOOKS.forEach(function (l) {
+      __vs.setLook(l.value);
+      out[l.value || "modern"] = { next: hit(byId("vs-nextnote")), prev: hit(byId("vs-prevnote")),
+                                   place: hit(byId("vs-place")), bare: hit(bareTurn) };
+    });
+    __vs.setLook(was);
+    return { found: true, size: book.notes.length, looks: out };
+  })()`);
+  if (!r.found) return { ok: false, detail: "no book with three notes in this vault" };
+  const want = { next: 1, prev: -1, place: 0, bare: 0 };
+  const parts = Object.keys(want);
+  const looks = Object.keys(r.looks);
+  const bad = [];
+  for (const look of looks) {
+    for (const part of parts) {
+      const got = r.looks[look][part];
+      if (!got) { bad.push(`${look}/${part}: nothing there to press`); continue; }
+      if (!got.open) { bad.push(`${look}/${part}: put the book down`); continue; }
+      if (got.moved !== want[part]) {
+        bad.push(`${look}/${part}: the index moved ${got.moved}, wanted ${want[part]}`);
+      }
+    }
+  }
+  return {
+    ok: bad.length === 0,
+    detail: bad.length
+      ? `${bad.length} of ${looks.length * parts.length} presses were wrong: ${bad.join("; ")}`
+      : `in ${looks.length} looks, from index 1 of ${r.size}: Next moved +1, Previous -1, the ` +
+        `place label and the footer's own background 0, and all ${looks.length * parts.length} ` +
+        `left the book open`
+  };
+});
+
+/* github#54, design/0004 -- the next furniture is covered in advance */
+/* github#54 -- a control has its own contract; press the furniture */
+check("nothing in the reader but the desk puts the book down", async (p) => {
+  const r = await p.j(`(function(){
+    var press = function (el, x, y) {
+      ["mousedown", "mouseup", "click"].forEach(function (type) {
+        el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true,
+                                                clientX: x, clientY: y }));
+      });
+    };
+    var CONTROL = "button, a, input, select, textarea, [role=button]";
+    var readerEl = document.getElementById("vs-reader");
+    var address = __vs.addresses()[0];
+    var nameOf = function (el) {
+      if (el.id) return "#" + el.id;
+      var cls = (el.getAttribute("class") || "").split(" ")[0];
+      return cls ? "." + cls : el.tagName.toLowerCase();
+    };
+    __vs.openBook(address, null);
+    var count = readerEl.children.length;
+    var out = [];
+    for (var i = 0; i < count; i++) {
+      /* github#54 -- re-open, or one that closes takes the rest with it */
+      __vs.openBook(address, null);
+      var child = readerEl.children[i];
+      var b = child.getBoundingClientRect();
+      if (child.hidden || !b.width || !b.height) {
+        out.push({ name: nameOf(child), skipped: true });
+        continue;
+      }
+      var spot = null;
+      for (var gy = 1; gy < 8 && !spot; gy++) {
+        for (var gx = 1; gx < 32 && !spot; gx++) {
+          var x = b.left + (b.width * gx) / 32, y = b.top + (b.height * gy) / 8;
+          var el = document.elementFromPoint(x, y);
+          if (el && el !== readerEl && readerEl.contains(el) && !el.closest(CONTROL)) {
+            spot = { el: el, x: x, y: y };
+          }
+        }
+      }
+      if (!spot) { out.push({ name: nameOf(child), bare: false }); continue; }
+      press(spot.el, spot.x, spot.y);
+      out.push({ name: nameOf(child), bare: true, open: !readerEl.hidden, at: nameOf(spot.el) });
+    }
+    /* github#54 -- the desk must still put it down, or this proves nothing */
+    __vs.openBook(address, null);
+    var spread = document.querySelector("#vs-reader .vs-spread").getBoundingClientRect();
+    var host = readerEl.getBoundingClientRect();
+    var deskX = host.left + Math.max(4, (spread.left - host.left) / 2);
+    var deskY = spread.top + spread.height / 2;
+    var deskEl = document.elementFromPoint(deskX, deskY);
+    press(deskEl, deskX, deskY);
+    var deskClosed = readerEl.hidden;
+    __vs.closeReader();
+    return { children: out, count: count, deskClosed: deskClosed,
+             deskIsReader: deskEl === readerEl, desk: nameOf(deskEl) };
+  })()`);
+  const name = (c) => c.name;
+  const held = r.children.filter((c) => c.bare && c.open);
+  const dropped = r.children.filter((c) => c.bare && !c.open);
+  const unreachable = r.children.filter((c) => c.bare === false);
+  const skipped = r.children.filter((c) => c.skipped);
+  const ok = dropped.length === 0 && unreachable.length === 0 && r.deskClosed && r.deskIsReader;
+  return {
+    ok,
+    detail: `${r.count} children of #vs-reader: ${held.length} held the book open ` +
+            `(${held.map(name).join(", ") || "none"})` +
+            (dropped.length ? `, ${dropped.length} PUT IT DOWN (${dropped.map(name).join(", ")})` : "") +
+            (unreachable.length
+              ? `, ${unreachable.length} offered no background point (${unreachable.map(name).join(", ")})`
+              : "") +
+            (skipped.length ? `, ${skipped.length} not on screen (${skipped.map(name).join(", ")})` : "") +
+            `; the desk beside the book is ${r.desk} and still puts it down (${r.deskClosed})`
+  };
+});
+
 check("escape closes the reader and leaves the shelf where it was", async (p) => {
   const r = await p.j(`(function(){
     var library = document.getElementById("vs-library");

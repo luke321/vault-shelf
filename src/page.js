@@ -3995,14 +3995,11 @@ function mountVaultShelf(root, data, options) {
 
   on($("back"), "click", closeReader);
   on($("prevcollection"), "click", previousCollection);
-  /* design/0004 -- CLICKING OFF THE BOOK PUTS IT DOWN. The dark around the spread is the
-   * desk; a click on it, and not on the book, the ribbons or the bar, goes back to the
-   * shelves. Both ends of the click have to be off the book, or dragging a text selection out
-   * past the cover would close it on release. */
+  /* design/0004, github#54 -- only the reader itself is the desk */
+  /* design/0004 -- both ends off the book, or a selection drags it shut */
   var pressedOffBook = false;
   var offBook = function (target) {
-    if (!(target instanceof Element)) return false;
-    return !target.closest(".vs-spread, #vs-marks, .vs-readerbar, #vs-dye");
+    return target === $("reader");
   };
   on($("reader"), "mousedown", function (e) { pressedOffBook = offBook(e.target); });
   on($("reader"), "click", function (e) {
