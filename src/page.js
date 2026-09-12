@@ -218,6 +218,8 @@ function mountVaultShelf(root, data, options) {
   var offered = [];
   /** github#41 -- which row the arrows are on, -1 for none. */
   var activeRow = -1;
+  /* github#41, design/0026 -- measuring the box forces a reflow; once per opening */
+  var placed = false;
   /** @type {ShelfView[]} */
   var views = [];
   /* github#33, design/0005 -- a varied shelf's slots, dealt unfiltered. */
@@ -2122,6 +2124,7 @@ function mountVaultShelf(root, data, options) {
     clear(list);
     offered = [];
     activeRow = -1;
+    placed = false;
     field("q").setAttribute("aria-expanded", "false");
     field("q").removeAttribute("aria-activedescendant");
   }
@@ -2195,7 +2198,8 @@ function mountVaultShelf(root, data, options) {
     list.hidden = false;
     field("q").setAttribute("aria-expanded", "true");
     markRow(-1);
-    placeSuggest();
+    /* github#41, design/0026 -- once per opening, not once per keystroke */
+    if (!placed) { placeSuggest(); placed = true; }
   }
 
   /* github#41 -- which row a pointer is over, by the index the row carries */

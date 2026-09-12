@@ -91,46 +91,41 @@ export function buildVocabulary(views: ShelfView[], notes: Note[]): Term[] {
   return out;
 }
 
-/** github#41, design/0026 -- a term with no kind but "note" is only a title. */
+/** github#41, design/0026 -- "note" sorts last in KIND_ORDER, so first is enough */
 function structural(term: Term): boolean {
-  return term.kinds.some((k) => k !== "note");
+  return term.kinds[0] !== "note";
 }
 
 /**
- * github#41, design/0026 -- OFFERED ON CONTAINS, RANKED ON PREFIX.
+ * github#41, design/0026 -- offered on CONTAINS, ranked on PREFIX
+ * github#41, design/0026 -- no sort: the vocabulary is already in rank order
  * @param {Term[]} vocabulary @param {string} typed @param {number} rows @returns {Term[]}
  */
 export function suggest(vocabulary: Term[], typed: string, rows: number = SUGGEST_ROWS): Term[] {
   const needle = foldTerm((typed || "").trim());
   if (!needle) return [];
 
-  const hits: { term: Term; at: number }[] = [];
-  for (const term of vocabulary) {
+  /* github#41, design/0026 -- prefix before contains, structural before a bare title */
+  const buckets: Term[][] = [[], [], [], []];
+  for (let i = 0; i < vocabulary.length; i++) {
+    const term = vocabulary[i];
     const at = term.fold.indexOf(needle);
-    if (at >= 0) hits.push({ term, at });
+    if (at < 0) continue;
+    const bucket = buckets[(at === 0 ? 0 : 2) + (structural(term) ? 0 : 1)];
+    if (bucket.length < rows) bucket.push(term);
   }
 
-  hits.sort((a, b) => {
-    const aPrefix = a.at === 0 ? 0 : 1;
-    const bPrefix = b.at === 0 ? 0 : 1;
-    if (aPrefix !== bPrefix) return aPrefix - bPrefix;
-    const aStruct = structural(a.term) ? 0 : 1;
-    const bStruct = structural(b.term) ? 0 : 1;
-    if (aStruct !== bStruct) return aStruct - bStruct;
-    if (a.term.notes !== b.term.notes) return b.term.notes - a.term.notes;
-    if (a.term.text.length !== b.term.text.length) return a.term.text.length - b.term.text.length;
-    return a.term.fold < b.term.fold ? -1 : a.term.fold > b.term.fold ? 1 : 0;
-  });
-
-  /* github#41, design/0026 -- titles are 4,938 of 5,700 terms here, so they are capped. */
+  /* github#41, design/0026 -- titles are 4,938 of the 5,147 terms here, so they are capped */
   const out: Term[] = [];
   let titles = 0;
-  for (const hit of hits) {
-    if (out.length >= rows) break;
-    const onlyTitle = !structural(hit.term);
-    if (onlyTitle && titles >= NOTE_ROWS) continue;
-    if (onlyTitle) titles++;
-    out.push(hit.term);
+  for (let b = 0; b < buckets.length && out.length < rows; b++) {
+    for (const term of buckets[b]) {
+      if (out.length >= rows) break;
+      const onlyTitle = !structural(term);
+      if (onlyTitle && titles >= NOTE_ROWS) continue;
+      if (onlyTitle) titles++;
+      out.push(term);
+    }
   }
   return out;
 }
