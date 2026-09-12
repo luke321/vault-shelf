@@ -2,6 +2,8 @@
 // design/0007
 
 import { attach } from "./cdp.mjs";
+// github#50 -- the one copy of it
+import { findChrome } from "./chrome.mjs";
 import { currentFixture } from "./fixture-store.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -38,20 +40,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const say = (m) => { if (!QUIET) console.log(m); };
 
 /* ------------------------------------------------------------------ tools -- */
-
-function findChrome() {
-  const named = arg("chrome", "");
-  if (named) return named;
-  const guesses = [
-    process.env.PROGRAMFILES + "\\Google\\Chrome\\Application\\chrome.exe",
-    process.env["PROGRAMFILES(X86)"] + "\\Google\\Chrome\\Application\\chrome.exe",
-    process.env.LOCALAPPDATA + "\\Google\\Chrome\\Application\\chrome.exe",
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/usr/bin/google-chrome", "/usr/bin/chromium",
-  ];
-  for (const g of guesses) if (g && existsSync(g)) return g;
-  throw new Error("Chrome not found; pass --chrome <path>");
-}
 
 function findFfmpeg() {
   const named = arg("ffmpeg", "");
