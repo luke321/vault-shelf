@@ -6049,6 +6049,48 @@ const PUSH_HELPERS = `(function(){
         if (b.notes.length >= min && (!found || b.notes.length < found.notes.length)) found = b;
       }); });
       return found;
+    },
+    /* A NOTE THAT ACTUALLY OVERFLOWS, because "arrived at the bottom" is only provable on a
+     * page with a bottom to arrive at -- and most of this vault's notes have none. THE SEARCH
+     * FOR ONE HAS A BUDGET, and that is the whole point of it: openBook renders the contents,
+     * which costs 45-90ms on this vault's biggest books (2,450 notes), so walking one of them
+     * is 93-217 SECONDS of synchronous script. Two checks used to walk views order with no cap
+     * at all, which was 50ms on a fresh page and a renderer that never answered CDP again once
+     * an earlier check had moved something onto the front of Favourites -- taking eleven
+     * innocent neighbours down with each of them. github#40, github#57.
+     * A FEW NOTES FROM EACH BOOK AND NEVER THE SAME NOTE TWICE, rather than one book at a
+     * time: the books this vault has most of are the sparse early years, where a week, a
+     * month, a folder and three tags all hold the one note, so a budget spent down one book
+     * at a time buys a dozen distinct notes and concludes the vault has nothing tall in it.
+     * Books over MAX_WALK notes are left alone because their open is the expensive one, and
+     * every other book is sampled in the order the shelves are in. */
+    overflowing: function (minNotes, minSpan, budget) {
+      var seen = {}, opens = 0, cap = budget || 150, tallest = 0, MAX_WALK = 200;
+      var books = [];
+      __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+        if (b.notes.length >= minNotes && b.notes.length <= MAX_WALK) books.push(b);
+      }); });
+      for (var k = 0; k < books.length; k++) {
+        var b = books[k], took = 0;
+        /* stops one short of the end, so a turn forward has somewhere to go */
+        for (var i = 0; i < b.notes.length - 1 && took < 4; i++) {
+          var id = b.notes[i].id;
+          if (seen[id]) continue;
+          seen[id] = 1;
+          if (opens >= cap) return { found: null, opens: opens, tallest: tallest };
+          opens++; took++;
+          __vs.openBook(b.id, id);
+          var p = __push.right();
+          if (!p) break;
+          var span = p.scrollHeight - p.clientHeight;
+          if (span > tallest) tallest = span;
+          if (span > minSpan) {
+            return { found: { id: b.id, at: i, span: span, notes: b.notes.length },
+                     opens: opens };
+          }
+        }
+      }
+      return { found: null, opens: opens, tallest: tallest };
     }
   };
 })(); void 0`;
@@ -6174,21 +6216,14 @@ check("a push made slowly still turns, and the latch still clears on its own", a
 
 check("a turn arrives at the top going forward and the bottom going back", async (p) => {
   await p.eval(PUSH_HELPERS);
-  const found = await p.j(`(function(){
-    /* A NOTE THAT ACTUALLY OVERFLOWS, because "arrived at the bottom" is only provable on a
-     * page with a bottom to arrive at -- and 85% of this vault's notes have none. */
-    var out = null;
-    __vs.views().forEach(function (v) { v.books.forEach(function (b) {
-      if (out || b.notes.length < 3) return;
-      for (var i = 0; i < b.notes.length - 1; i++) {
-        __vs.openBook(b.id, b.notes[i].id);
-        var page = __push.right();
-        if (page.scrollHeight - page.clientHeight > 80) { out = { book: b.id, at: i }; return; }
-      }
-    }); });
-    return out;
-  })()`);
-  if (!found) return { ok: false, detail: "no note in this vault overflows its page" };
+  const hit = await p.j(`(function(){ var r = __push.overflowing(3, 80, 150);
+                                      __vs.closeReader(); return r; })()`);
+  if (!hit.found) {
+    return { ok: false,
+             detail: `no note that overflows its page within ${hit.opens} distinct notes of ` +
+                     `this vault -- the tallest page reached ${hit.tallest}px` };
+  }
+  const found = { book: hit.found.id, at: hit.found.at };
 
   const back = await p.j(`(function(){
     __vs.openBook(${JSON.stringify(found.book)}, __vs.views() && null);
@@ -6230,16 +6265,9 @@ check("every way to another note starts at the top of it", async (p) => {
   await p.eval(PUSH_HELPERS);
   /* github#40, design/0028 -- goTo reset no scroll offset at all */
   const r = await p.j(`(function(){
-    var found = null;
-    __vs.views().forEach(function (v) { v.books.forEach(function (b) {
-      if (found || b.notes.length < 4) return;
-      for (var i = 0; i < b.notes.length; i++) {
-        __vs.openBook(b.id, b.notes[i].id);
-        var page = __push.right();
-        if (page.scrollHeight - page.clientHeight > 120) { found = { id: b.id, at: i }; return; }
-      }
-    }); });
-    if (!found) return null;
+    var hit = __push.overflowing(4, 120, 150);
+    if (!hit.found) { __vs.closeReader(); return { opens: hit.opens }; }
+    var found = hit.found;
     var page = __push.right();
     var out = { span: page.scrollHeight - page.clientHeight, ways: {} };
 
@@ -6276,7 +6304,11 @@ check("every way to another note starts at the top of it", async (p) => {
     __vs.closeReader();
     return out;
   })()`);
-  if (!r) return { ok: false, detail: "no note in this vault overflows its page" };
+  if (!r.ways) {
+    return { ok: false,
+             detail: `no note that overflows its page within ${r.opens} distinct notes of ` +
+                     `this vault -- the tallest page reached ${r.tallest}px` };
+  }
   const ways = Object.keys(r.ways);
   const off = ways.filter((w) => r.ways[w] !== 0);
   return {
