@@ -644,6 +644,108 @@ check("a ribbon left in a plaque-book re-resolves after a rebuild, and the Readi
                    `of ${r.count} with ${r.ribbons} ribbon; taken out again it leaves the shelf (${r.gone})` };
 });
 
+/* github#48, design/0014 -- ONE RIBBON CANNOT SEE THIS. A block container holding one spine
+ * and a flex row holding one spine are the same picture, so every check that put a ribbon on
+ * the Reading shelf put exactly one and the column went unnoticed for as long as it existed.
+ * The number that catches it is the y of the SECOND spine, which nothing read. */
+check("the Reading shelf lays its books in a row, and draws as many rows as it packed", async (p) => {
+  const r = await p.j(`(function(){
+    var settings = __vs.settings();
+    var was = settings.reading.slice();
+    var views = __vs.views().filter(function (v) {
+      return !v.shelf.hidden && v.books.length && v.shelf.classifier !== "pick";
+    });
+    if (views.length < 2) return { found: false };
+
+    /* a ribbon is {noteId, shelfId, bookId, at}; readingBooks() resolves it through
+     * core.resolveReading exactly as it would after a click on the stub, so this is the real
+     * shelf -- it just does not cost a reader round trip per book. */
+    function mark(n) {
+      settings.reading.length = 0;
+      var at = 1, placed = 0;
+      for (var round = 0; placed < n && round < 60; round++) {
+        for (var i = 0; i < views.length && placed < n; i++) {
+          var book = views[i].books[round];
+          if (!book || !book.notes.length) continue;
+          settings.reading.push({ noteId: book.notes[0].id, shelfId: views[i].shelf.id,
+                                  bookId: book.id, at: at++ });
+          placed++;
+        }
+      }
+      __vs.setFilters({});
+      return placed;
+    }
+
+    function read(asked) {
+      var rail = document.querySelector('[data-shelf="-reading"] .vs-shelfrail');
+      if (!rail) return { drawn: false, asked: asked };
+      var line = rail.querySelector(".vs-books");
+      var rows = [].slice.call(rail.querySelectorAll(".vs-track")).map(function (t) {
+        return [].slice.call(t.querySelectorAll(".vs-spine")).map(function (s) {
+          var b = s.getBoundingClientRect();
+          return { x: Math.round(b.left), y: Math.round(b.top) };
+        });
+      }).filter(function (row) { return row.length; });
+      var ys = {};
+      rows.forEach(function (row) { row.forEach(function (s) { ys[s.y] = 1; }); });
+      var first = rows.length ? rows[0] : [];
+      return {
+        drawn: true, asked: asked,
+        tracks: rows.length,
+        spines: rows.reduce(function (a, row) { return a + row.length; }, 0),
+        /* the packer's rows and the drawn rows are the same number, or the paint disagrees */
+        bands: Object.keys(ys).length,
+        flat: rows.every(function (row) {
+          return row.every(function (s) { return s.y === row[0].y; });
+        }),
+        ascending: rows.every(function (row) {
+          for (var i = 1; i < row.length; i++) if (row[i].x <= row[i - 1].x) return false;
+          return true;
+        }),
+        display: getComputedStyle(line).display,
+        lineH: Math.round(line.getBoundingClientRect().height),
+        spineH: Math.round(rail.querySelector(".vs-spine").getBoundingClientRect().height),
+        grips: rail.querySelectorAll("[data-grip]").length,
+        pluses: rail.querySelectorAll(".vs-plusbook").length,
+        plates: rail.querySelectorAll(".vs-plaque").length,
+        row0: first.map(function (s) { return s.x + "," + s.y; }).join(" ")
+      };
+    }
+
+    var two = read(mark(2));
+    var three = read(mark(3));
+
+    /* enough books to outgrow the room, so the packer has to break a row */
+    var wide = null;
+    for (var n = 8; n <= 96 && !wide; n += 8) {
+      var got = read(mark(n));
+      if (!got.drawn) break;
+      if (got.tracks > 1) wide = got;
+    }
+
+    settings.reading.length = 0;
+    was.forEach(function (m) { settings.reading.push(m); });
+    __vs.setFilters({});
+    var restored = settings.reading.length;
+    return { found: true, two: two, three: three, wide: wide, restored: restored, was: was.length };
+  })()`);
+  if (!r.found) return { ok: false, detail: "fewer than two shelves with books in this library" };
+  const sane = (m) => m && m.drawn && m.spines === m.asked && m.bands === m.tracks &&
+                      m.flat && m.ascending && m.display === "flex" &&
+                      m.lineH === m.spineH && !m.grips && !m.pluses && !m.plates;
+  const ok = sane(r.two) && r.two.tracks === 1 && sane(r.three) && r.three.tracks === 1 &&
+             sane(r.wide) && r.wide.tracks > 1 && r.restored === r.was;
+  const say = (m) => m
+    ? `${m.spines} spine(s) over ${m.tracks} track(s) on ${m.bands} band(s), one y per row ` +
+      `(${m.flat}), x ascending (${m.ascending}), the line ${m.display} and ${m.lineH}px for a ` +
+      `${m.spineH}px spine, ${m.grips} grips ${m.pluses} pluses ${m.plates} plates`
+    : "never wrapped";
+  return { ok,
+           detail: `two ribbons: ${say(r.two)} at ${r.two.row0}; three: ${say(r.three)}; ` +
+                   `${r.wide ? r.wide.asked : "?"} ribbons wrap: ${say(r.wide)}; ` +
+                   `the ${r.was} it started with are back (${r.restored})` };
+});
+
 /* github#6, design/0018, design/0019 */
 check("on a manual shelf a plate opens what is under it, not the whole letter", async (p) => {
   const r = await p.j(`(function(){
