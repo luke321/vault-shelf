@@ -379,6 +379,69 @@ skipped on purpose: `#vs-back` lives in `.vs-readerbar` and closes the book by i
 An `offBook()`-over-the-children assertion was rejected for being near-tautological under the
 inverted predicate — it would restate the implementation instead of exercising the click path the
 bug actually lived on.
+## 2026-09-12 — The swatch check flaked 3 runs in 4, and the one that passed stamped the tree (github#55)
+
+Two faults, one symptom. `"a hovered swatch paints the room, and leaving puts it back"` failed
+**three full runs in four** on `develop` at `6c99c60` and passed **five of five** with `--only`,
+always on the same two flags — `arrowPainted` and `focused`, the keyboard half — while the pointer
+half passed in the same run.
+
+**Measured rather than reasoned, and two standing theories died first.** The issue put the cause in
+state shared within a lane. The check is 6th of 12 in the serial lane, so its five serial
+predecessors were run in order with it in one Chrome: **6/6 green, six consecutive times**. The
+earlier pairing experiments had used *parallel-lane* checks, which land in a different browser
+altogether, so those three samples measured nothing — which is why they looked random. The check
+was then instrumented to record its own surroundings and the second full run went red with the
+answer in one line.
+
+| the red run said | |
+|---|---|
+| `hasFocus` | **false** — the window had lost the foreground |
+| `activeElement` after two arrows | **`BUTTON.vs-swatch`** — focus *did* move |
+| `focus` events fired | **0**, not once |
+| `menu.hidden` / reader open | false / false — nothing else was wrong |
+
+**A Chrome window without the OS foreground still moves `document.activeElement`, but delivers no
+`focus` event.** The preview hangs off `on(btn, "focus", show)`; `mouseenter` is dispatched straight
+at the element and needs no document focus. A full run opens three Chromes and Windows decides
+which ends up in front; `--only` opens one into a quiet desktop and it keeps it.
+
+| | before | after |
+|---|---|---|
+| the suite tells the page it is focused | no — every focus-driven check rode on what the desktop happened to do | `Emulation.setFocusEmulationEnabled` on every page `runOne` drives |
+| the keyboard half is driven by | a synthetic `KeyboardEvent` at the menu, and `element.focus()` | real `ArrowRight` and `Tab` over `Input.dispatchKeyEvent` (`press()`) |
+| flags the check asserts | 29 | **32** — `tabbed`, `tabbedOn`, `windowFocused` added; none removed, none relaxed |
+| `"a hovered swatch…"` in a full run | **2 green in 6** — FAIL, pass, FAIL, FAIL (github#55) · pass, FAIL (here) | **11 green in 11**, 99/99 every time |
+| `smoke.mjs` calls to `.focus()` exposed to the desktop | 8 | **0** |
+| `suite-stamp --selftest` | 17 cases | **30 cases**, 13 of them the streak law |
+| a stamp is worth | **1** green run | **2 consecutive** (`GREENS_REQUIRED`), and a red full run deletes it |
+| `suite-stamp check develop` on tree `f9ac717` | **exit 0** — "passed the invariant suite" | **exit 1** — "has 0 green run(s) of the 2 in a row a stamp needs" |
+| the first push on a fresh tree | one suite run | **two**, about 45 s more; every later push unchanged |
+
+**The verification is a run count, because a single green proves nothing — that was the defect.**
+
+| full runs of `smoke.mjs` | `"a hovered swatch…"` |
+|---|---|
+| before, github#55 on `6c99c60` | FAIL · pass · FAIL · FAIL |
+| before, reproducing here on the same tree | pass · **FAIL** (instrumented; this is the run that gave the answer) |
+| after the fix, 8 consecutive | ok × 8, 99/99 each |
+| after the review passes, 3 more | ok × 3, 99/99 each, 35-36 s wall |
+
+At the measured baseline rate, eleven consecutive greens by luck is about 1 in 7,000.
+
+**Negative control**, because a check that cannot fail is not a check: with
+`on(o.btn, "focus", o.show)` removed from `src/page.js`, the rewritten check goes red on
+`focused, arrowPainted, tabbedOn` and stays green on `arrowLanded, arrowMoved, tabbed` — focus
+still moves, nothing paints. Restored before anything was committed.
+
+**The stamp is the other half of the issue and the more general one.** One green run stamped a tree
+that was red three times in four, so a push would have skipped the suite on the strength of the run
+that happened to pass. An intermittent check does not merely cost a re-run: **it launders itself
+into a stamp**, and the stamp then suppresses the only thing that would have caught it. Quarantining
+a check that has flaked was rejected — it needs a register kept by hand and is blind to the flake
+nobody has spotted, which is exactly this case. Stamps written under the old law carry no `greens`
+field, read as 0, and are demoted rather than grandfathered. `decisions/0010` amended,
+`decisions/0015` new.
 
 
 ## 2026-09-12 — A plate dyes its whole run, from either copy of it (github#29)

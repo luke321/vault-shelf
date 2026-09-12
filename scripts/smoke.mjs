@@ -6,7 +6,7 @@ import { leftmostScreen, leftWindowPos, takeLeftScreen, dropLeftScreen } from ".
 import { acquire, adopt, heldBy, ownerTag } from "./lock.mjs";
 // github#5, decisions/0010
 import { FIXTURE_MAX_AGE_DAYS, FIXTURE_NAMES, describeFixture,
-         record as recordPass } from "./suite-stamp.mjs";
+         record as recordPass, forget as forgetPass, GREENS_REQUIRED } from "./suite-stamp.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync,
          renameSync, mkdirSync, statSync } from "node:fs";
@@ -3157,6 +3157,18 @@ check("the twelve colour slots are Vault Graph's own", async (p) => {
                : `light ${r.light.slice(0, 3).join(",")} dark ${r.dark.slice(0, 3).join(",")}` };
 });
 
+/* github#44, github#55 -- what the room is wearing, read the same way in every block */
+const ROOM_HELPERS = `
+    var shelves = document.getElementById("vs-shelves");
+    var read = function (prop) {
+      var parts = [], spines = shelves.querySelectorAll(".vs-spine");
+      for (var i = 0; i < spines.length; i++) {
+        parts.push(getComputedStyle(spines[i]).getPropertyValue(prop).trim());
+      }
+      return parts.join(",");
+    };
+    var room = function () { return read("--spine-tint") + "/" + read("--ribbon"); };`;
+
 /* github#44, design/0022 -- a preview paints and nothing else */
 check("a hovered swatch paints the room, and leaving puts it back", async (p) => {
   /* github#44 -- boxes are read, so the first packing has to have landed */
@@ -3170,18 +3182,10 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
   }
   const r = await p.j(`(function(){
     var out = {};
-    var shelves = document.getElementById("vs-shelves");
     var fire = function (el, type) {
       el.dispatchEvent(new MouseEvent(type, { bubbles: false, cancelable: true }));
     };
-    var read = function (prop) {
-      var parts = [], spines = shelves.querySelectorAll(".vs-spine");
-      for (var i = 0; i < spines.length; i++) {
-        parts.push(getComputedStyle(spines[i]).getPropertyValue(prop).trim());
-      }
-      return parts.join(",");
-    };
-    var room = function () { return read("--spine-tint") + "/" + read("--ribbon"); };
+    ${ROOM_HELPERS}
     /* a shelf off screen has content-visibility: auto, so its spines have no box until the
      * browser gets to them -- the packing that can be seen is the packing that is compared */
     var furniture = function () {
@@ -3278,25 +3282,84 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
       .dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
     out.clickedOff = room() === before && menu.hidden;
 
-    /* github#44 -- 4. focus previews and an arrow moves, so not mouse-only */
-    slotSwatch(0).click();
-    /* the menu holds its own focus, so nothing is offered until the hand moves */
-    out.menuHolds = document.activeElement === menu;
-    var arrow = function () {
-      menu.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    /* github#55 -- step 4 is driven from node, on real keys */
+    out.row = row;
+    out.away = away;
+    out.before = before;
+    out.shelved = shelved;
+    return out;
+  })()`);
+
+  /* github#44, github#55 -- 4. real keys preview, so not mouse-only */
+  const keyboard = `(function(){
+    var menu = document.getElementById("vs-swatchpick");
+    var offered = function (n) { return menu.querySelectorAll(".vs-swatches .vs-swatch")[n]; };
+    ${ROOM_HELPERS}
+    var at = function () {
+      for (var k = 0; k < 12; k++) if (offered(k) === document.activeElement) return k;
+      return -1;
     };
-    arrow();
-    var landed = -1;
-    for (var k = 0; k < 12; k++) if (offered(k) === document.activeElement) landed = k;
-    out.arrowLanded = landed >= 0;
-    arrow();
-    out.arrowMoved = document.activeElement === offered((landed + 1) % 12);
-    out.arrowPainted = room() !== before;
-    /* and a swatch focused straight on, the way Tab reaches it */
-    offered((landed + 5) % 12).focus();
-    out.focused = room() !== before;
-    escape();
-    out.keyboardPutBack = room() === before;
+    return { menu: menu, offered: offered, room: room, at: at };
+  })()`;
+  /* github#55 -- one expression, so no state is left behind */
+  const inMenu = (expr) => p.j(`(function(){ var h = ${keyboard}; return (${expr}); })()`);
+  const before4 = r.before;
+
+  /* github#44 -- the menu holds its focus until the hand moves */
+  await p.j(`(function(){
+    document.querySelectorAll("#vs-mpalette .vs-dyerows tr")[${r.row}]
+      .querySelectorAll("td .vs-slot .vs-swatch")[0].click();
+    return true;
+  })()`);
+  r.menuHolds = await inMenu("document.activeElement === h.menu");
+  /* github#55 -- named, so a harness regression says so itself */
+  r.windowFocused = await p.j("document.hasFocus()");
+
+  await press(p, "ArrowRight");
+  const landed = await inMenu("h.at()");
+  r.arrowLanded = landed >= 0;
+  const from = Math.max(landed, 0);
+  await press(p, "ArrowRight");
+  r.arrowMoved = await inMenu(`h.at() === ${(from + 1) % 12}`);
+  r.arrowPainted = await inMenu(`h.room() !== ${JSON.stringify(before4)}`);
+
+  /* github#55 -- a swatch reached by Tab, as the comment always claimed */
+  const start = [0, 1, 2, 3].find((k) => k !== r.row && k + 1 !== r.row);
+  if (start === undefined) throw new Error("no Tab start clear of the slot's own colour");
+  for (let step = ((start - from - 1) % 12 + 12) % 12; step > 0; step--) {
+    await press(p, "ArrowRight");
+  }
+  const onStart = await inMenu("h.at()");
+  const painted = await inMenu("h.room()");
+  await press(p, "Tab");
+  r.tabbed = await inMenu(`h.at() === ${start + 1}`);
+  r.focused = await inMenu(`h.room() !== ${JSON.stringify(before4)}`);
+  r.tabbedOn = await inMenu(`h.room() !== ${JSON.stringify(painted)}`);
+  r.tabStart = onStart === start;
+  await press(p, "Escape");
+  r.keyboardPutBack = await inMenu(`h.room() === ${JSON.stringify(before4)}`);
+
+  const rest = await p.j(`(function(){
+    var out = {};
+    var fire = function (el, type) {
+      el.dispatchEvent(new MouseEvent(type, { bubbles: false, cancelable: true }));
+    };
+    ${ROOM_HELPERS}
+    var books = function () {
+      return JSON.stringify(__vs.addresses()) + "#" +
+             JSON.stringify(__vs.views().map(function (v) { return v.noteCount; }));
+    };
+    var menu = document.getElementById("vs-swatchpick");
+    var offered = function (n) { return menu.querySelectorAll(".vs-swatches .vs-swatch")[n]; };
+    var slotSwatch = function (column) {
+      return document.querySelectorAll("#vs-mpalette .vs-dyerows tr")[${r.row}]
+               .querySelectorAll("td .vs-slot .vs-swatch")[column];
+    };
+    var escape = function () {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    };
+    var before = ${JSON.stringify(r.before)}, shelved = ${JSON.stringify(r.shelved)};
+    var away = ${r.away};
 
     /* github#44 -- 5. the ribbon column paints ribbons, never boards */
     var boards = read("--spine-tint");
@@ -3325,19 +3388,20 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
     out.shut = menu.hidden && document.getElementById("vs-manage").hidden;
     return out;
   })()`);
+  Object.assign(r, rest);
   const want = ["laidOut", "opened", "openedQuiet", "painted", "stillPacked", "stillShelved",
                 "followed", "escaped", "escapedClean", "packedBack", "paintedForLeave",
                 "leftAlone", "stillOpen", "paintedAgain", "clickedOff", "menuHolds",
-                "arrowLanded", "focused", "arrowMoved",
-                "arrowPainted", "keyboardPutBack", "threadOnly", "threadPutBack", "committed",
+                "windowFocused", "arrowLanded", "focused", "arrowMoved",
+                "arrowPainted", "tabStart", "tabbed", "tabbedOn", "keyboardPutBack", "threadOnly", "threadPutBack", "committed",
                 "previewedOverCommitted", "backToCommitted", "reset", "shut", "finalShelved"];
   const bad = want.filter((k) => r[k] !== true);
   const ok = !bad.length && r.saved === 0 && r.wearing > 0;
   return { ok,
            detail: ok
-             ? `the pointer, the keyboard, Escape and a click outside all paint ${r.wearing} ` +
-               "spines and put back exactly what was there; nothing was saved, the ribbon " +
-               "column paints only ribbons, and no box, address or count moved"
+             ? `the pointer, real arrow and Tab keys, Escape and a click outside all paint ` +
+               `${r.wearing} spines and put back exactly what was there; nothing was saved, ` +
+               "the ribbon column paints only ribbons, and no box, address or count moved"
              : bad.length
                ? `${bad.join(", ")} -- not what a preview does`
                : r.wearing > 0
@@ -7107,6 +7171,22 @@ async function settlePage(page) {
 
 /* --------------------------------------------------------------- one run -- */
 
+/**
+ * github#55 -- a key the browser routes itself, not a synthetic one
+ * @param {{ send: (m: string, p?: object) => Promise<unknown> }} p @param {string} key
+ */
+async function press(p, key) {
+  const CODES = { Tab: 9, Enter: 13, Escape: 27, End: 35, Home: 36,
+                  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40 };
+  const code = CODES[key];
+  if (!code) throw new Error(`press(): no virtual key code for "${key}"`);
+  for (const type of ["rawKeyDown", "keyUp"]) {
+    await p.send("Input.dispatchKeyEvent", {
+      type, key, code: key, windowsVirtualKeyCode: code, nativeVirtualKeyCode: code,
+    });
+  }
+}
+
 async function runOne(vault, work) {
   const mine = work && work.checks ? work.checks : selected();
   const slot = GRID && work && work.slot !== undefined ? gridSlot(work.slot, work.slots) : null;
@@ -7181,6 +7261,8 @@ async function runOne(vault, work) {
     }
     const errors = [];
     await page.send("Runtime.enable").catch(() => {});
+    /* github#55 -- the window's focus is not the suite's business */
+    await page.send("Emulation.setFocusEmulationEnabled", { enabled: true }).catch(() => {});
     page.on((msg) => {
       if (msg.method === "Runtime.exceptionThrown") {
         const d = msg.params && msg.params.exceptionDetails;
@@ -7637,10 +7719,20 @@ async function main() {
     let checks = 0;
     for (const t of ran.values()) checks += t;
     const r = recordPass({ fixtures: vaults.map((v) => v.fixture), checks });
-    console.log(r.wrote ? `stamped tree ${r.tree.slice(0, 7)} as passed: ${r.wrote}`
-                        : `not stamping this run: ${r.why}`);
+    /* github#55 -- a run short of the streak says how many it owes */
+    console.log(r.wrote
+      ? (r.short
+          ? `tree ${r.tree.slice(0, 7)} is ${r.greens}/${GREENS_REQUIRED} green: ` +
+            `${r.short} more green run(s) before it is stamped`
+          : `stamped tree ${r.tree.slice(0, 7)} as passed ${r.greens} times in a row: ${r.wrote}`)
+      : `not stamping this run: ${r.why}`);
   } else if (!worst) {
     console.log(`not stamping this run: ${partial} is not the full suite`);
+  } else if (!partial) {
+    /* github#55 -- a red full run ends the streak; a partial one does not */
+    const f = forgetPass({});
+    console.log(f.forgot ? `red run: tree ${f.tree.slice(0, 7)} loses its green streak (${f.forgot})`
+                         : `red run: no green streak to lose (${f.why})`);
   }
   if (worst) {
     console.log("");

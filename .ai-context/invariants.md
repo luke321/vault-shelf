@@ -650,10 +650,40 @@ goes back to *its* value, not to the look's own — the check commits one of the
 **The ribbon column paints ribbons.** Hovering in the second column changes `--ribbon` and leaves
 every `--spine-tint` in the library byte-identical.
 
-**The keyboard offers the same thing.** Focus previews, and `ArrowRight` moves focus to the next
-of the twelve and previews as it goes; the twelve stay individually tabbable, so the **337**
-named controls the accessibility check reads do not move. The grid's column count is read back
-from the computed style, because `page.css` owns the geometry (`design/0016`).
+**The keyboard offers the same thing, and it is asked with real keys** (`github#55`,
+`decisions/0015`). Focus previews, and `ArrowRight` moves focus to the next of the twelve and
+previews as it goes; a `Tab` reaches one straight on and previews something different again; the
+twelve stay individually tabbable, so the **337** named controls the accessibility check reads do
+not move. The grid's column count is read back from the computed style, because `page.css` owns
+the geometry (`design/0016`).
+
+That half of the check used to dispatch a synthetic `KeyboardEvent` at the menu and call
+`element.focus()` outright, and it **failed three full runs in four while passing five of five on
+its own**. Instrumented, the red run said why in one line: `hasFocus: false`, `activeElement`
+moved to the swatch, and the `focus` event **fired zero times**. *A Chrome window that does not
+hold the OS foreground still moves `document.activeElement`, but delivers no focus event* — and
+the preview hangs off `on(btn, "focus", show)`, while `mouseenter` is dispatched straight at the
+element and needs none. That is why exactly one half of one check failed. A full run opens three
+Chromes and Windows decides which ends up in front; `--only` opens one into a quiet desktop.
+
+Two things hold it now. The suite sends `Emulation.setFocusEmulationEnabled` to every page it
+drives, so **the window's focus is not the suite's business** — it covers all eight places
+`smoke.mjs` calls `.focus()`, not just this one. And the keyboard half dispatches **real keys**
+through `Input.dispatchKeyEvent` (`press()`), so it goes through the machinery a person's
+keyboard goes through rather than pretending to: the comment beside it claimed *"the way Tab
+reaches it"* while never pressing Tab.
+
+**The assertion was not relaxed, it grew three flags**: `tabbed` (Tab landed on another of the
+twelve), `tabbedOn` (and painted something different from the swatch before it), and
+`windowFocused` (`document.hasFocus()`), so a harness regression names itself instead of looking
+like a dead preview. Proved by negative control — with `on(o.btn, "focus", o.show)` taken out of
+`src/page.js`, the check goes red on `focused, arrowPainted, tabbedOn` while `arrowLanded`,
+`arrowMoved` and `tabbed` stay green: focus still moves, nothing paints.
+
+**And the predecessor theory was measured, not assumed.** The check runs 6th of 12 in the serial
+lane, sharing one page; its five serial predecessors were run in order with it, **6/6 green six
+times running**. The pairings tried before that had used parallel-lane checks, which land in a
+different browser altogether and so measured nothing.
 
 **A menu of the twelve opens holding its own focus, and offers nothing until the hand moves.**
 No swatch takes the opening focus, so "opening offers nothing" is structural rather than timed --
@@ -2039,11 +2069,11 @@ now tells a **fresh** same-digest directory (another run got there first — kee
 **stale** one (rename aside, replace, delete), and never renames onto an existing directory,
 which on Windows throws rather than replacing.
 
-## A tree is gated once, and a partial run never claims to be a full one
+## A tree is gated once, and a stamp is two consecutive green runs
 
 Not a check in `smoke.mjs` but a property of the gates themselves, held by
-`node scripts/suite-stamp.mjs --selftest` — **17 cases**, against a throwaway repository and a
-seeded fixture store. `decisions/0010`.
+`node scripts/suite-stamp.mjs --selftest` — **30 cases** (17 before github#55), against a
+throwaway repository and a seeded fixture store. `decisions/0010`, amended 2026-09-12.
 
 What it asserts: a clean tree records a stamp; the same tree hits again from a **new commit**
 and from a **`--no-ff` merge commit**, which is the whole point, since the merge that reaches
@@ -2081,6 +2111,31 @@ generator failed) is not the full suite`. Before `decisions/0014` this was measu
 breaking the sparse generator for one run — 87/87 on the two shapes that still ran, exit 0, no
 stamp; with one fixture there is no partial run left to have, which is why the selftest now
 drives `record({ fixtures: [] })` instead.
+
+**A STAMP IS A STREAK, NOT AN EVENT** — `GREENS_REQUIRED = 2`, github#55, `decisions/0010`
+amended. One green run stamped tree `f9ac717` while the same tree failed **three full runs in
+four**, so `suite-stamp check` exited 0 and a push would have skipped the suite on a tree that
+was mostly red. An intermittent check does not merely cost a re-run: it launders itself into a
+stamp, and the stamp then suppresses the only thing that would have caught it.
+
+So `record()` counts consecutive greens on the same tree **against the same fixtures** — a
+regenerated fixture starts the count at 1 rather than inheriting a green earned against
+something else — `lookup()` is a hit only at 2 and otherwise says how far short it is
+(`tree f9ac717 has 1 green run(s) of the 2 in a row a stamp needs`), and **a red full run
+deletes the stamp** (`forget()`). That last part is what makes "consecutive" mean anything:
+without it, two greens *ever* would do, which an intermittent check reaches on its own by being
+run often enough. A partial run (`--only`, `--vault`, `--url`, `--look`) neither stamps nor
+clears, because it says nothing about the tree. Stamps written before this carry no `greens`
+field, read as 0, and are demoted rather than grandfathered.
+
+Eleven of the 28 cases are this law: one green counts 1 and misses; a second counts 2 and hits;
+the hit says how many runs it stands on; a red run forgets the streak; forgetting twice says
+there was nothing to forget; one green after a red one is back to 1 and misses; two after a red
+one hit again; a run against a regenerated fixture starts the count again.
+
+**The cost, stated rather than hidden: the first push on a fresh tree pays for two suite runs
+instead of one**, about 45 s more on this machine. Every push after that on the same tree is
+unchanged, and so is the release path, because both read the same stamp.
 
 A stamped push to `develop` costs **7.5 s** and an unstamped one the suite on top, both measured
 by driving the hook with the ref lines git hands it. What the suite itself costs is the next
