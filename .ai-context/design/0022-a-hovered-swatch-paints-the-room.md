@@ -140,13 +140,40 @@ unit each entry point passes:
 | right-click | the unit | where |
 |---|---|---|
 | a spine | that book | `renderSpine` |
-| a plate | **its run** — the adjacent books it names, wrapped rows included | `renderTrack` |
+| a plate | **its run** — the adjacent books it names, wrapped rows included (`github#29`) | `renderTrack` → `runOver` |
 | a shelf's head, or empty rail | every book standing on the shelf | `renderShelf`, `offersBook` |
 
 A plate's unit is its **run**, not every book that shares its label, because that is what a plate
 already means everywhere else: `design/0018` settled that a run is what is adjacent, and
 `openPlaque()` opens the same run. A shelf a person has split shows two plates, and dyeing one
 dyes one.
+
+### "Wrapped rows included" was not true when this record first said so (github#29)
+
+The row above is the correction, and it is worth keeping the memory of, because it is this
+repository's own named failure mode caught in its own design record: **a claim of behaviour that
+nobody had measured.** The table said "wrapped rows included" on the day the feature landed. The
+code did not do it.
+
+One `renderTrack` call is **one shelf row** (`design/0014`), so the handler wired to a plate closed
+over `group.books` — the slice of the run that landed on *that board*. A run of twelve months drawn
+nine-and-three dyed nine books from one plate and three from the other, while `openPlaque()`, three
+lines further down the same file, resolved the whole run through `core.runsOf(view.books)` and
+opened all twelve from either copy. So the two gestures on the same piece of brass disagreed about
+what it named, and the check written for the feature read the run as
+`plate.parentElement.querySelectorAll(".vs-spine")` — the row — so it asserted the bug and passed.
+
+**`runOver(shelf, under)` is now the one resolution, and both gestures go through it.** It is the
+body `openPlaque()` already had, lifted out: the runs of the shelf's whole sequence, the one
+holding this book. A plate cannot dye a different set from the one it opens, because neither of
+them computes the set any more. The builder's preview passes a draft shelf that is in no view and
+has no sequence; there `runOver` returns null and the row is all there is, which is correct — that
+preview is not a shelf anybody can right-click.
+
+**And a run of one book is still a run.** `openDye()` used to infer the menu's shape from
+`books.length`, so a plate over a single book grew the lines that belong to a spine — *Add to
+Favourites*, *Edit book*. It now takes **where the hand landed** as an argument, and only a spine
+is a spine.
 
 **It is a stamp, not a rule.** `setBookColors()` writes one `bookColors` key per book, exactly as
 right-clicking each spine in turn would — so it survives a rebuild by address, a single spine can
@@ -164,6 +191,42 @@ space is a gesture about a *position* — it is how a book is made at that gap (
 *New book here…* stays first and the twelve sit under it. Two checks in the suite took that
 button by position, and one of them came back holding **-1 notes** when the twelve went in above
 it; that one now asks for `.vs-railline` by name, which is what it always meant.
+
+## The menu says which gesture this one is (github#29)
+
+> "dyeing one book and dyeing eleven are the same gesture and need different words"
+
+They are the same right-click, the same twelve swatches and the same *Automatic*, and until now
+the same menu: a name line carrying whatever was under the pointer. On a spine that name **is** the
+unit. On a plate it is the label of a run whose size is nowhere on screen, and on a shelf head it
+is a shelf that might hold two books or two hundred and thirty-one. The gesture that dyes 231 books
+in one click should not be indistinguishable from the one that dyes one.
+
+So the menu carries a second line, `.vs-dyeunit`: **`12 books under this plate`**, **`231 books on
+this shelf`**, and nothing at all on a spine.
+
+- **Its own line, not a suffix on the name.** `.vs-dyename` is `white-space: nowrap` with an
+  ellipsis, because a tag key can be longer than a 196px popover; appending the count to it would
+  have put the one fact nobody can infer behind the ellipsis on exactly the labels where the menu
+  is hardest to read. The name may clip. The count may wrap. Neither may vanish.
+- **A run of one still says `1 book under this plate`.** It is a plate, and saying so is how the
+  two menus stay told apart; a plate that fell silent whenever its run held one book would be
+  indistinguishable from a spine's menu at the moment the difference is subtlest.
+- Under the shelf's menu the line sits below *New book here…*, because that button is about the
+  position the hand landed on and stays first (above). Under a plate's it sits straight under the
+  name, and closes the gap the name left: `.vs-dyename + .vs-dyeunit` is the only rule that
+  distinguishes them, so there is one line and two placements rather than two lines.
+
+**The undo is *Automatic*, and it is deliberately not a new word.** `github#29` asked whether
+twelve keys written in one gesture want their own way back — "use the shelf's own colours again" on
+the plaque menu, or something else. They do not. *Automatic* already means *no hand-given colour
+here*, it already sits under the twelve on every one of these menus, and it already takes off
+whatever the unit wears because the unit is what the menu was opened on. A second word for the same
+act on one of the four menus would be a fourth thing to learn and a fifth thing to keep in step;
+the per-slot reset in `github#4` is a different case, because a Manage swatch has a corner to put a
+badge in and something to reset *to* (the look's own), where a book has neither. What did change is
+that *Automatic* on a plate now takes the **run** off, from either copy, for the same reason the
+twelve now dye it.
 
 ## The check
 
@@ -192,5 +255,28 @@ the whole unit and its threads and saves nothing, a click saves one key per book
 takes them all off, and no box moves across any preview. Both checks clear the palette, the
 ribbons and the hand-given colours before they measure — the checks that run before them in the
 serial lane leave all three behind, and what these measure is a difference.
+
+A third, `a plate dyes its whole run from either copy, and the colours survive a rebuild`
+(`github#29`), is the one that would have caught the row-for-run bug above, and it was written by
+first watching it fail against the old code. It is in the serial lane: it counts the plates a run is
+drawn on, so it reads the packing.
+
+**It goes looking for a wrapped plate rather than assuming one.** The first shape of it narrowed the
+viewport until *the longest run* was drawn twice, and that never happens: the vault's longest run is
+twelve months, and twelve spines fit one row at any width the library is usable at. A run wraps when
+it **starts late on a row** and does not fit what is left, which is a fact about the whole shelf's
+packing and not about the run's own length. So every run on every sorted shelf is asked how many
+plates it is drawn on, and the biggest one drawn twice is the one that gets dyed — with the widths
+kept as a fallback for a library where none is. Manual shelves are excluded, because there one label
+may name two runs (`design/0018`) and this check is about one run drawn twice.
+
+Measured on the vault: `months` plate **2022**, drawn **2** times at 1280px over a run of **12**
+books, **9** on one row and **3** on the other. Right-clicking the **second** copy — the three —
+says `2022 / 12 books under this plate` and dyes all **12**, writing **12** `bookColors` keys and
+leaving the shelf's other **98** books alone. All **12** survive `__vs.setFilters({})` and a
+`core.migrate` round-trip. A favourite dropped on a pick shelf pointing into the run follows the
+dye and gains **no key of its own** (`design/0019` — a reference, never a copy). *Automatic* on the
+**first** copy takes all 12 off again and every spine's tint is what it was before the dye, string
+for string.
 
 `--shot-open swatch` takes the picture of it, since numbers cannot see.

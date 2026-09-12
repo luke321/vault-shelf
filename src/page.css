@@ -1522,16 +1522,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* github#29 -- how many books the gesture is about, under the name of what it landed on. It
- * may wrap where the name may not: the count is the part that cannot be inferred. */
+/* github#29, design/0022 -- the count; it may wrap where the name may not */
 .vault-shelf .vs-dyeunit {
   font-size: 10.5px;
   color: var(--text-3);
   opacity: 0.85;
   margin: 0 0 6px 2px;
 }
-/* Straight under the name it is the second half of one sentence, so it closes the gap the
- * name left; under the rail's own first button it is a line in its own right. */
+/* Under the name it closes the gap the name left; under a button it stands alone. */
 .vault-shelf .vs-dyename + .vs-dyeunit { margin-top: -4px; }
 .vault-shelf .vs-swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
 /* THREE CLASSES DEEP ON PURPOSE. Every look paints `button` with its own rule at

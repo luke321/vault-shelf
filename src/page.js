@@ -770,18 +770,14 @@ function mountVaultShelf(root, data, options) {
         plate.type = "button";
         var first = group.books[0];
         on(plate, "click", function () { openPlaque(shelf, first); });
-        /* github#44 -- a plate says what is under it, so it dyes what is under it */
-        /* github#29 -- and what is under it is THE RUN, not this row of it: one call of
-         * renderTrack is one shelf row, so the group closed over here is the slice of the run
-         * that landed on this board. Both copies of a wrapped plate go through runOver, the
-         * same resolution the click uses, so dyeing from either dyes the whole run. */
-        var row = group.books, name = group.plaque;
+        /* github#44, github#29 -- a plate dyes its RUN, not this row */
+        var onBoard = group.books, name = group.plaque;
         on(plate, "contextmenu", function (e) {
           var me = /** @type {MouseEvent} */ (e);
           me.preventDefault();
           /* github#44 -- the rail's own menu must not open behind it */
           me.stopPropagation();
-          openDye(runOver(shelf, row[0]) || row, name, me.clientX, me.clientY,
+          openDye(runOver(shelf, onBoard[0]) || onBoard, name, me.clientX, me.clientY,
                   "under this plate");
         });
         g.appendChild(plate);
@@ -800,11 +796,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * github#6, github#29, design/0019 -- THE RUN A PLATE NAMES, over the shelf's whole sequence
-   * rather than over the row it was drawn on. One `renderTrack` call is one row (design/0014),
-   * so a run that wraps is two plates on two rows; this is what makes both of them the same
-   * run, for opening it and for dyeing it alike. No view means the builder's preview, which is
-   * a draft shelf nobody has a sequence for: there the row is all there is.
+   * github#29, design/0019 -- the run a plate names, over the whole shelf
    * @param {Shelf} shelf @param {Book} under @returns {Book[]|null}
    */
   function runOver(shelf, under) {
@@ -1534,7 +1526,7 @@ function mountVaultShelf(root, data, options) {
     menu.appendChild(line);
     /* github#44 -- right-clicking a shelf dyes every book standing on it */
     var books = booksOn(shelf);
-    /* github#29 -- and it says so: a shelf of 130 is one gesture. */
+    /* github#29 -- and it says so */
     menu.appendChild(el("div", "vs-dyeunit", dyeUnit(books, "on this shelf")));
     var offers = dyeRow(menu, books, function (slot) { setBookColors(books, slot); });
     placeMenu(menu, x, y);
@@ -1958,10 +1950,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * github#29 -- HOW MANY BOOKS THIS GESTURE IS ABOUT, under the label that says which ones.
-   * Dyeing one book and dyeing eleven are the same right-click, so the menu has to say which it
-   * is about to be. It is a line of its own rather than a suffix on the name because the name
-   * ellipsises: a long tag would have eaten the count, which is the half nobody can infer.
+   * github#29, design/0022 -- how many books this gesture is about, said out loud.
    * @param {Book[]} books @param {string} where @returns {string}
    */
   function dyeUnit(books, where) {
@@ -1970,9 +1959,7 @@ function mountVaultShelf(root, data, options) {
 
   /**
    * github#44 -- one spine, a plate's run or a shelf; the lines are a book's
-   * github#29 -- `where` names what the hand landed on, and null is a spine. Only a spine
-   * carries the lines below the twelve: a run that happens to hold one book is still a run,
-   * and it used to grow a book's lines because the shape was inferred from the count.
+   * github#29, design/0022 -- `where` is where the hand landed; only a spine has none
    * @param {Book[]} books @param {string} label @param {number} x @param {number} y
    * @param {string} [where]
    */

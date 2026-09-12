@@ -247,6 +247,8 @@ const POINTER_DRIVEN = [
   /* github#44, design/0022 -- it reads every spine's box, before and after a hover. */
   "hovered swatch",
   "a right-click dyes",
+  /* github#29 -- it counts plates and reads tints, so it reads the packing */
+  "its whole run from either copy",
   /* github#45 -- it reads every spine's title box and the rules drawn on it */
   "touches a line",
   /* design/0020 -- a right-click and a drag off the rail read boxes. */
@@ -3167,11 +3169,7 @@ check("a right-click dyes a book, a plate's run or a shelf, and hovering paints 
                  "a preview saves nothing" };
 });
 
-/* github#29, design/0019, design/0022 -- A PLATE DYES THE RUN IT NAMES, and a run that wraps
- * is one plaque drawn twice: both copies dye all of it, exactly as both copies open the same
- * book. The gesture landed in github#44 taking the plate's ROW, because one renderTrack call is
- * one row; nothing measured the second copy, and design/0022's own table claimed the fix it did
- * not have. */
+/* github#29, design/0022 -- a plate dyes its run, from either copy */
 check("a plate dyes its whole run from either copy, and the colours survive a rebuild", async (p) => {
   /* github#44 -- boxes are read, so the first packing has to have landed */
   for (let wait = 0; wait < 20; wait++) {
@@ -3183,33 +3181,31 @@ check("a plate dyes its whole run from either copy, and the colours survive a re
     await sleep(150);
   }
 
-  /* THE WRAPPED PLATE IS THE CASE, so it is made rather than hoped for: the viewport narrows
-   * until the longest run in the library is drawn on two rows. A packing that happened to put
-   * one there says nothing about a vault, a look or a window that does not. */
+  /* github#29, design/0022 -- a run drawn twice, found not assumed */
   const find = `(function(){
     var core = window.VaultShelfCore;
-    var best = null;
+    var best = null, longest = null;
     __vs.views().forEach(function (v) {
-      if (v.shelf.hidden) return;
+      if (v.shelf.hidden || v.shelf.direction === "manual") return;
+      var drawn = {};
+      [].slice.call(document.querySelectorAll('[data-shelf="' + v.shelf.id + '"] .vs-plaque'))
+        .forEach(function (b) { drawn[b.textContent] = (drawn[b.textContent] || 0) + 1; });
       core.runsOf(v.books).forEach(function (run) {
         if (run.plaque === null || run.books.length < 2) return;
-        if (!best || run.books.length > best.size) {
-          best = { shelf: v.shelf.id, label: run.plaque, size: run.books.length };
-        }
+        var one = { shelf: v.shelf.id, label: run.plaque, size: run.books.length,
+                    plates: drawn[run.plaque] || 0 };
+        if (!longest || one.size > longest.size) longest = one;
+        if (one.plates > 1 && (!best || one.size > best.size)) best = one;
       });
     });
-    if (!best) return null;
-    best.plates = [].slice.call(
-      document.querySelectorAll('[data-shelf="' + best.shelf + '"] .vs-plaque'))
-      .filter(function (b) { return b.textContent === best.label; }).length;
-    return best;
+    return best || longest;
   })()`;
 
   let run = null, width = 0;
   for (const w of [1280, 1000, 860, 820]) {
     await p.send("Emulation.setDeviceMetricsOverride",
                  { width: w, height: 1000, deviceScaleFactor: 1, mobile: false });
-    /* CDP resizes the viewport without telling the page (see the narrower-window check). */
+    /* github#29 -- CDP resizes without telling the page */
     await p.j(`window.dispatchEvent(new Event("resize"))`);
     await sleep(200);
     run = await p.j(find);
@@ -3267,8 +3263,7 @@ check("a plate dyes its whole run from either copy, and the colours survive a re
       .filter(function (id) { return ids.indexOf(id) < 0; });
     out.outside = outside.length;
 
-    /* design/0019 -- a favourite wears its source's colour, so one is put on the shelf first
-     * and the run is dyed around it: the reference has to follow without being touched. */
+    /* design/0019 -- a favourite wears its source's colour, so one stands in the run */
     var fav = __vs.picks()[0];
     out.hasPick = !!fav;
     var favId = "";
