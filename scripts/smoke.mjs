@@ -6584,9 +6584,14 @@ check("the room above a spine is the largest lift, in every look", async (p) => 
        * Favourites pick shelf, which other checks empty, and the check then measured 239.3px
        * of "slack" -- one shelf's height -- and failed on a tree where nothing was wrong.
        * Take the first track that actually holds a spine, and the spine from inside it. */
+      /* github#51 -- AND THE SPINE MUST NOT BE LIFTED AT REST. A worn spine carries
+       * translateY(-1px) or (-2px) by design (the worn rungs below), so it is never flush with
+       * its track and the slack reads -1 on a tree where nothing is wrong. Take a spine with no
+       * rest lift, from the first track that holds one. */
+      var flush = '.vs-spine:not([data-wear="2"]):not([data-wear="3"])';
       var track = [].slice.call(document.querySelectorAll("#vs-shelves .vs-track"))
-        .filter(function (t) { return t.querySelector(".vs-spine"); })[0];
-      var spine = track.querySelector(".vs-spine");
+        .filter(function (t) { return t.querySelector(flush); })[0];
+      var spine = track.querySelector(flush);
       var cs = getComputedStyle(track);
       var rungs = ["--spine-lift-worn", "--spine-lift-worn-more", "--spine-lift-worn-hover",
                    "--spine-lift-hover", "--spine-lift-match"].map(function (n) {
