@@ -1760,6 +1760,79 @@
 .vault-shelf .vs-peeknotes { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 12px; }
 .vault-shelf .vs-peeknotes div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* ---- what the vault spells ------------------------------------------------
+ * github#41, design/0026 -- page.css owns this geometry, in pixels, so a look can repaint the
+ * list and move nothing: every row is the same height in all three, the way every other
+ * control is (design/0016, design/0021). Placed absolute inside `#vs-app` like `.vs-dye` and
+ * `.vs-peek`; the width is written by placeSuggest() from the box it hangs under.
+ */
+.vault-shelf .vs-suggest {
+  position: absolute;
+  z-index: 46;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 30%, transparent);
+}
+
+.vault-shelf .vs-sugrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  padding: 3px 7px;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+/* github#41 -- a LIT row, not a recessed one: --surface-0 is darker than the list in
+ * leather, so the active row read as disabled rather than as selected. */
+.vault-shelf .vs-sugrow[aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.vault-shelf .vs-sugtext {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* github#41 -- THE KIND IS NOT DECORATION: a word can be a tag and a folder at once. */
+.vault-shelf .vs-sugkind {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 20px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.vault-shelf .vs-sugcount {
+  flex: 0 0 auto;
+  min-width: 28px;
+  font-size: 11px;
+  line-height: 20px;
+  text-align: right;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* github#41 -- the typo case, and it is the case the feature exists for. */
+.vault-shelf .vs-sugempty {
+  min-height: 26px;
+  padding: 3px 7px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text-3);
+}
+
 /* github#14 -- a list row is padded once, above: leather's own 8/12 is gone. */
 .vault-shelf[data-list="1"] .vs-spine .vs-n { position: static; text-align: left; margin-left: auto; }
 .vault-shelf[data-list="1"] .vs-spine .vs-ribbon { position: static; width: 7px; height: 12px; margin: 0 0 0 8px; }

@@ -108,6 +108,9 @@ __vs.makeBook("favourites", { name: "Dailies", source: { kind: "folder", value: 
 __vs.setFilters({ search: "garden" })
 __vs.openBook("months/2026-09", null)
 __vs.setQuery("garden")   // the shelf parts; nothing is removed
+__vs.typeQuery("gard")    // as if typed: marks AND offers the list (github#41, design/0026)
+__vs.suggest()            // what the box is offering right now, and which row is active
+__vs.vocabulary()         // every term the vault spells, with its kinds and note count
 __vs.magic()              // wear, ribbons, what drew forward and what went to ghosts
 __vs.slots()              // the twelve colour slots, as the cascade resolved them
 __vs.setTheme("light")    // light and dark are Vault Graph's own

@@ -211,6 +211,15 @@ function mountVaultShelf(root, data, options) {
   var filters = { folders: [], from: null, to: null };
   /** design/0008 -- the query MARKS; it never narrows. See applyQuery(). */
   var query = "";
+  /* github#41, design/0026 -- what the vault spells, rebuilt with the books */
+  /** @type {import("./core/index").Term[]} */
+  var vocabulary = [];
+  /** @type {import("./core/index").Term[]} */
+  var offered = [];
+  /** github#41 -- which row the arrows are on, -1 for none. */
+  var activeRow = -1;
+  /* github#41, design/0026 -- measuring the box forces a reflow; once per opening */
+  var placed = false;
   /** @type {ShelfView[]} */
   var views = [];
   /* github#33, design/0005 -- a varied shelf's slots, dealt unfiltered. */
@@ -324,6 +333,8 @@ function mountVaultShelf(root, data, options) {
       });
     }
     core.markMatches(views, query);
+    /* github#41, design/0026 -- ONCE, here, where the books are. */
+    vocabulary = core.buildVocabulary(views, visible);
   }
 
   /* ================================================================= the rail ==
@@ -2099,6 +2110,143 @@ function mountVaultShelf(root, data, options) {
       : "";
   }
 
+  /* ---- what the vault spells ---------------------------------------------
+   * github#41, design/0026 -- a combobox, so the keyboard owns it
+   * github#41, design/0026 -- picking COMPLETES THE TEXT and nothing else
+   * design/0008 -- untouched: only what you can spell changes
+   */
+
+  function suggestOpen() {
+    return !node("suggest").hidden;
+  }
+
+  /** github#41 -- the id aria-activedescendant names */
+  /** @param {number} i @returns {string} */
+  function rowId(i) {
+    return ID + "sug-" + i;
+  }
+
+  function closeSuggest() {
+    var list = node("suggest");
+    if (list.hidden && activeRow === -1) return;
+    list.hidden = true;
+    clear(list);
+    offered = [];
+    activeRow = -1;
+    placed = false;
+    field("q").setAttribute("aria-expanded", "false");
+    field("q").removeAttribute("aria-activedescendant");
+  }
+
+  /** github#41, design/0026 -- the active row, and only it, is `aria-selected`. */
+  /** @param {number} i */
+  function markRow(i) {
+    var list = node("suggest");
+    var rows = list.querySelectorAll('[role="option"]');
+    for (var r = 0; r < rows.length; r++) {
+      rows[r].setAttribute("aria-selected", r === i ? "true" : "false");
+    }
+    activeRow = i;
+    if (i < 0) field("q").removeAttribute("aria-activedescendant");
+    else {
+      field("q").setAttribute("aria-activedescendant", rowId(i));
+      var row = /** @type {HTMLElement|null} */ (list.querySelector("#" + cssEscape(rowId(i))));
+      /* github#41 -- the LIST scrolls, never the room. */
+      if (row && row.offsetTop < list.scrollTop) list.scrollTop = row.offsetTop;
+      else if (row && row.offsetTop + row.offsetHeight > list.scrollTop + list.clientHeight) {
+        list.scrollTop = row.offsetTop + row.offsetHeight - list.clientHeight;
+      }
+    }
+  }
+
+  /** github#41, design/0026 -- what a picked row puts in the box. @param {number} i */
+  function takeSuggestion(i) {
+    var term = offered[i];
+    if (!term) return;
+    query = term.text;
+    field("q").value = term.text;
+    closeSuggest();
+    applyQuery();
+    field("q").focus();
+  }
+
+  /* github#41, design/0026 -- absolute inside the room, like every popout here */
+  function placeSuggest() {
+    var list = node("suggest");
+    var host = root.getBoundingClientRect();
+    var box = field("q").getBoundingClientRect();
+    list.style.width = box.width + "px";
+    var left = Math.min(box.left - host.left, Math.max(8, host.width - box.width - 8));
+    list.style.left = Math.max(8, left) + "px";
+    list.style.top = (box.bottom - host.top + 4) + "px";
+  }
+
+  function openSuggest() {
+    var typed = field("q").value;
+    var list = node("suggest");
+    if (!typed.trim()) { closeSuggest(); return; }
+
+    offered = core.suggest(vocabulary, typed);
+    clear(list);
+    if (!offered.length) {
+      /* github#41, design/0026 -- the typo case, and not a pickable row */
+      var none = el("div", "vs-sugempty", "Nothing in this vault spells that.");
+      list.appendChild(none);
+    }
+    offered.forEach(function (term, i) {
+      var row = el("div", "vs-sugrow");
+      row.id = rowId(i);
+      row.setAttribute("role", "option");
+      row.setAttribute("aria-selected", "false");
+      row.setAttribute("data-row", String(i));
+      row.appendChild(el("span", "vs-sugtext", term.text));
+      row.appendChild(el("span", "vs-sugkind", core.kindsLabel(term)));
+      row.appendChild(el("span", "vs-sugcount", term.notes));
+      list.appendChild(row);
+    });
+    list.hidden = false;
+    field("q").setAttribute("aria-expanded", "true");
+    markRow(-1);
+    /* github#41, design/0026 -- once per opening, not once per keystroke */
+    if (!placed) { placeSuggest(); placed = true; }
+  }
+
+  /* github#41 -- which row a pointer is over, by the index the row carries */
+  /** @param {EventTarget|null} target @returns {number} */
+  function rowUnder(target) {
+    if (!(target instanceof Element)) return -1;
+    var row = target.closest("#" + ID + "suggest .vs-sugrow");
+    return row ? Number(row.getAttribute("data-row")) : -1;
+  }
+
+  /* github#41, design/0026 -- arrows walk, Enter takes, Escape gives the box back */
+  /** @param {KeyboardEvent} e @returns {boolean} whether the key belonged to the list */
+  function suggestKey(e) {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (!suggestOpen()) openSuggest();
+      /* github#41 -- nothing to walk: the key is the caret's */
+      if (!offered.length) return false;
+      var step = e.key === "ArrowDown" ? 1 : -1;
+      var next = activeRow + step;
+      if (next < 0) next = offered.length - 1;
+      if (next >= offered.length) next = 0;
+      markRow(next);
+      return true;
+    }
+    if (!suggestOpen()) return false;
+    if (e.key === "Enter") {
+      if (activeRow < 0) { closeSuggest(); return true; }
+      takeSuggestion(activeRow);
+      return true;
+    }
+    if (e.key === "Escape") {
+      closeSuggest();
+      field("q").focus();
+      return true;
+    }
+    return false;
+  }
+
   /** @param {string} id */
   function scrollToShelf(id) {
     var found = $("shelves").querySelector('[data-shelf="' + cssEscape(id) + '"]');
@@ -3710,6 +3858,8 @@ function mountVaultShelf(root, data, options) {
     filters = { folders: [], from: null, to: null };
     query = "";
     field("q").value = "";
+    /* github#41 */
+    closeSuggest();
     refresh();
   }
 
@@ -3938,7 +4088,35 @@ function mountVaultShelf(root, data, options) {
   on($("q"), "input", function () {
     query = field("q").value;
     applyQuery();
+    /* github#41, design/0026 */
+    openSuggest();
   });
+  on($("q"), "keydown", function (e) {
+    if (suggestKey(/** @type {KeyboardEvent} */ (e))) {
+      e.preventDefault();
+      /* github#41 -- Escape here shuts the LIST, not the reader behind it. */
+      e.stopPropagation();
+    }
+  });
+  on($("q"), "blur", function () { closeSuggest(); });
+  /* github#41, design/0026 -- one delegated reader, not a listener per row */
+  on($("suggest"), "mousedown", function (e) { e.preventDefault(); });
+  on($("suggest"), "click", function (e) {
+    var i = rowUnder(e.target);
+    if (i >= 0) takeSuggestion(i);
+  });
+  on($("suggest"), "mousemove", function (e) {
+    var i = rowUnder(e.target);
+    if (i >= 0 && i !== activeRow) markRow(i);
+  });
+  /* github#41 -- a click elsewhere is a way out, like every popout here */
+  on(DOC, "mousedown", function (e) {
+    if (!suggestOpen()) return;
+    var t = e.target;
+    if (t instanceof Node && (node("suggest").contains(t) || t === field("q"))) return;
+    closeSuggest();
+  });
+  on(WIN, "resize", function () { if (suggestOpen()) placeSuggest(); });
   on($("clearfilters"), "click", clearFilters);
   on($("newshelf"), "click", function () { openBuilder(null, "top"); });
   on($("newshelf2"), "click", function () { openBuilder(null, "end"); });
@@ -4141,6 +4319,23 @@ function mountVaultShelf(root, data, options) {
       field("q").value = q;
       applyQuery();
     },
+    /* github#41, design/0026 -- the vocabulary, and what the box is offering right now. */
+    vocabulary: function () { return vocabulary.slice(); },
+    suggest: function () {
+      return { open: suggestOpen(), active: activeRow,
+               rows: offered.map(function (t) {
+                 return { text: t.text, kinds: t.kinds.slice(), notes: t.notes };
+               }) };
+    },
+    /** @param {string} q */
+    typeQuery: function (q) {
+      field("q").value = q;
+      query = q;
+      applyQuery();
+      openSuggest();
+      return offered.length;
+    },
+    closeSuggest: function () { closeSuggest(); },
     /** The twelve slots as the cascade currently resolves them. design/0005. */
     slots: function () { return SLOTS.slice(); },
     /** design/0014 -- the room as packed, and what the resize watcher has seen. */

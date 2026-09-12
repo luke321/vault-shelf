@@ -3,7 +3,9 @@
     <div class="vs-inner">
       <span id="vs-vname" class="vs-railname">Vault Shelf</span>
       <label class="vs-sr" for="vs-q">Search the library</label>
-      <input type="search" id="vs-q" placeholder="Search the library...">
+      <input type="search" id="vs-q" placeholder="Search the library..."
+             role="combobox" aria-expanded="false" aria-controls="vs-suggest"
+             aria-autocomplete="list" autocomplete="off">
       <span id="vs-hits" role="status"></span>
       <span class="vs-spacer"></span>
       <button id="vs-order" aria-pressed="false">Oldest first</button>
@@ -180,6 +182,9 @@
   <div id="vs-railmenu" class="vs-dye" hidden role="menu" aria-label="This shelf"></div>
   <div id="vs-swatchpick" class="vs-dye" hidden role="menu" aria-label="Choose a colour"></div>
   <div id="vs-peek" class="vs-peek" hidden role="tooltip"></div>
+  <!-- github#41, design/0026 -->
+  <div id="vs-suggest" class="vs-suggest" hidden role="listbox"
+       aria-label="What this vault spells"></div>
 
   <div id="vs-manage" class="vs-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="vs-managetitle">
     <div class="vs-sheetbody">
