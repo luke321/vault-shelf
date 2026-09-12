@@ -2186,18 +2186,24 @@ function mountVaultShelf(root, data, options) {
       row.id = rowId(i);
       row.setAttribute("role", "option");
       row.setAttribute("aria-selected", "false");
+      row.setAttribute("data-row", String(i));
       row.appendChild(el("span", "vs-sugtext", term.text));
       row.appendChild(el("span", "vs-sugkind", core.kindsLabel(term)));
       row.appendChild(el("span", "vs-sugcount", term.notes));
-      on(row, "mousedown", function (e) { e.preventDefault(); });
-      on(row, "click", function () { takeSuggestion(i); });
-      on(row, "mouseenter", function () { markRow(i); });
       list.appendChild(row);
     });
     list.hidden = false;
     field("q").setAttribute("aria-expanded", "true");
     markRow(-1);
     placeSuggest();
+  }
+
+  /* github#41 -- which row a pointer is over, by the index the row carries */
+  /** @param {EventTarget|null} target @returns {number} */
+  function rowUnder(target) {
+    if (!(target instanceof Element)) return -1;
+    var row = target.closest("#" + ID + "suggest .vs-sugrow");
+    return row ? Number(row.getAttribute("data-row")) : -1;
   }
 
   /* github#41, design/0026 -- arrows walk, Enter takes, Escape gives the box back */
@@ -4066,6 +4072,16 @@ function mountVaultShelf(root, data, options) {
     }
   });
   on($("q"), "blur", function () { closeSuggest(); });
+  /* github#41, design/0026 -- one delegated reader, not a listener per row */
+  on($("suggest"), "mousedown", function (e) { e.preventDefault(); });
+  on($("suggest"), "click", function (e) {
+    var i = rowUnder(e.target);
+    if (i >= 0) takeSuggestion(i);
+  });
+  on($("suggest"), "mousemove", function (e) {
+    var i = rowUnder(e.target);
+    if (i >= 0 && i !== activeRow) markRow(i);
+  });
   /* github#41 -- a click elsewhere is a way out, like every popout here */
   on(DOC, "mousedown", function (e) {
     if (!suggestOpen()) return;

@@ -106,6 +106,13 @@ focus never leaves the box, so the arrows cannot scroll the room behind the list
 the keyboard can reach has a name` does not gain eight nameless rows. Escape closes the list and
 keeps the box; a click anywhere else closes it, and so does a blur.
 
+**One delegated reader, not a listener per row.** The rows are rebuilt on every keystroke, so a
+listener attached to a row would push an unmount entry per row per key onto the teardown list and
+never take it off again -- 24 entries a keystroke, growing for as long as somebody types. The list
+container carries one `mousedown`, one `click` and one `mousemove` instead, registered once, and a
+row says which one it is with `data-row`. Taking the container's `mousedown` is also what stops a
+drag on the list's own scrollbar blurring the box out from under the list.
+
 An open list is **the page still in flight** (`decisions/0013`): `atRest` sees it and `settlePage`
 closes it, rather than a check being allowed to return with it hanging over the library.
 
