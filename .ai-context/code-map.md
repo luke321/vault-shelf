@@ -4,7 +4,7 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 4385 lines, 24 sections, 195 functions
+## `src/page.js` — 4382 lines, 24 sections, 195 functions
 
 ### Sections
 
@@ -31,9 +31,9 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 3694–3715 | filters |
 | 3716–3814 | refresh |
 | 3815–3918 | a drag that reaches the edge |
-| 3919–4102 | the wiring |
-| 4103–4345 | debug api — stripped from the plugin build |
-| 4346–4385 | the wiring (continued) |
+| 3919–4099 | the wiring |
+| 4100–4342 | debug api — stripped from the plugin build |
+| 4343–4382 | the wiring (continued) |
 
 ### Functions
 
@@ -232,21 +232,21 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 3864 | `edgeReplay` |
 | 3882 | `edgeTick` |
 | 3898 | `edgeScroll` |
-| 4026 | `offBook` |
-| 4057 | `typing` |
+| 4024 | `offBook` |
+| 4054 | `typing` |
 
-## `scripts/smoke.mjs` — 7486 lines, 6 sections, 138 functions, 103 checks
+## `scripts/smoke.mjs` — 7652 lines, 6 sections, 145 functions, 105 checks
 
 ### Sections
 
 | lines | section |
 |---|---|
 | 158–266 | the checks |
-| 267–6735 | the invariants |
-| 6736–6884 | which vault, and why |
-| 6885–6936 | at rest, or |
-| 6937–7317 | one run |
-| 7318–7486 | main |
+| 267–6901 | the invariants |
+| 6902–7050 | which vault, and why |
+| 7051–7102 | at rest, or |
+| 7103–7483 | one run |
+| 7484–7652 | main |
 
 ### Functions
 
@@ -376,20 +376,27 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 5755 | · `books` |
 | 5758 | · `holds` |
 | 5863 | · `press` |
-| 6410 | · `px` |
-| 6471 | · `faceOnto` |
-| 6485 | · `faceOf` |
-| 6500 | · `read` |
-| 6761 | `resolveVaults` |
-| 6871 | `buildFor` |
-| 6891 | `atRest` |
-| 6913 | `settlePage` |
-| 6939 | `runOne` |
-| 7131 | `tagged` |
-| 7137 | `capture` |
-| 7180 | · · `pick` |
-| 7276 | `killBrowser` |
-| 7320 | `main` |
+| 5909 | · `press` |
+| 5924 | · `spotOf` |
+| 5931 | · `byId` |
+| 5932 | · `bareTurn` |
+| 5945 | · `hit` |
+| 5999 | · `press` |
+| 6008 | · `nameOf` |
+| 6576 | · `px` |
+| 6637 | · `faceOnto` |
+| 6651 | · `faceOf` |
+| 6666 | · `read` |
+| 6927 | `resolveVaults` |
+| 7037 | `buildFor` |
+| 7057 | `atRest` |
+| 7079 | `settlePage` |
+| 7105 | `runOne` |
+| 7297 | `tagged` |
+| 7303 | `capture` |
+| 7346 | · · `pick` |
+| 7442 | `killBrowser` |
+| 7486 | `main` |
 
 ### Checks
 
@@ -479,22 +486,24 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 5806 | also shelved in moves to another book and keeps the note |
 | 5839 | previous collection walks back, and Alt+Left does the same |
 | 5861 | a click off the book puts it down, and a click on it does not |
-| 5905 | escape closes the reader and leaves the shelf where it was |
-| 5924 | the reading shelf survives its own shelf being hidden |
-| 5960 | a saved reading place re-resolves after its own book is gone |
-| 5975 | the builder previews the shelf it would actually save |
-| 5994 | a saved shelf gets a stable id and joins the library |
-| 6015 | parent tag inclusion is a setting, and it changes the answer |
-| 6035 | a person is read from every people property, and out of a wikilink |
-| 6069 | a link to a person's note names that person, once, by the note's name |
-| 6102 | people come from the property alone, never from prose |
-| 6123 | plain list mode keeps every book reachable |
-| 6140 | every control the keyboard can reach has a name |
-| 6162 | nothing on the page reaches the network |
-| 6172 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
-| 6232 | a lifted spine is painted whole, in every look |
-| 6404 | the room above a spine is the largest lift, in every look |
-| 6464 | a short cover is stood upright by one face, not the look's |
-| 6617 | a tag book's cover carries no hash, and every other place it is named keeps it |
-| 6667 | a spine lifts on hover and holds its size |
-| 6682 | the shelves are packed the way the golden snapshot says |
+| 5907 | every part of the turn turns the page rather than putting the book down |
+| 5997 | nothing in the reader but the desk puts the book down |
+| 6071 | escape closes the reader and leaves the shelf where it was |
+| 6090 | the reading shelf survives its own shelf being hidden |
+| 6126 | a saved reading place re-resolves after its own book is gone |
+| 6141 | the builder previews the shelf it would actually save |
+| 6160 | a saved shelf gets a stable id and joins the library |
+| 6181 | parent tag inclusion is a setting, and it changes the answer |
+| 6201 | a person is read from every people property, and out of a wikilink |
+| 6235 | a link to a person's note names that person, once, by the note's name |
+| 6268 | people come from the property alone, never from prose |
+| 6289 | plain list mode keeps every book reachable |
+| 6306 | every control the keyboard can reach has a name |
+| 6328 | nothing on the page reaches the network |
+| 6338 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
+| 6398 | a lifted spine is painted whole, in every look |
+| 6570 | the room above a spine is the largest lift, in every look |
+| 6630 | a short cover is stood upright by one face, not the look's |
+| 6783 | a tag book's cover carries no hash, and every other place it is named keeps it |
+| 6833 | a spine lifts on hover and holds its size |
+| 6848 | the shelves are packed the way the golden snapshot says |

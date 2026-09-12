@@ -776,12 +776,19 @@ books.
 recovery card with a working button is on screen and zero spines are drawn, then restores.
 An empty room with no way out is the worst reachable state in this product.
 
-## The book sits on a desk you can hit
+## The book sits on a desk you can hit, and the desk is the reader itself
 
 `"a click off the book puts it down, and a click on it does not"` measures the desk beside the
 open book, which is what a click has to land on to close it. The spread is inset from the measure
 now — it was filling it — so the desk went from **42px** to **90px**. The book
-is the same book; there is simply somewhere to put it down.
+is the same book; there is simply somewhere to put it down. At the suite's own window that inset
+leaves a gutter of **730px** on each side, which is what the check prints.
+
+Since `github#54` the predicate is an **identity, not an allow-list**: `offBook` is
+`target === $("reader")`, so `#vs-reader` is the desk and every one of its children is the book.
+That rests on one measured fact — `elementFromPoint` in the gutter beside the cover returns
+`#vs-reader` itself and nothing else — and `"nothing in the reader but the desk puts the book
+down"` is what asserts it, so the identity cannot quietly stop being true. `design/0004`.
 
 ## The reader
 
@@ -834,6 +841,44 @@ own text and asserts the reader stays open; clicks the desk **42px** to the left
 and asserts it closed; then presses on the page and releases on the desk — a text selection
 dragged off the cover — and asserts it did **not** close. Both ends of a click have to be off
 the book, or every selection dragged past the edge would put the book down on release.
+
+
+`"every part of the turn turns the page rather than putting the book down"` is the check
+`github#36` owed and did not ship. Its own turn checks drive the footer with
+`element.click()`, which dispatches **no `mousedown`**, so `pressedOffBook` is never armed and
+the desk handler declines — the suite stayed green at **99/99** with both buttons doing the
+opposite of their label. This one presses both ends, the way a hand does. It opens the smallest
+book holding three notes or more, turns to index 1 so **Previous** is enabled (a `disabled`
+control swallows its click whole and reads innocent at index 0), and presses four things,
+**re-measuring the coordinates immediately before each press** — a sweep that stores them once
+and clicks them in sequence lands on the desk when a list has scrolled underneath, and reports
+an innocent control as guilty:
+
+| pressed | the reader | the index |
+|---|---|---|
+| `#vs-nextnote` | still open | **+1** |
+| `#vs-prevnote`, from index 1 | still open | **−1** |
+| `#vs-place` | still open | **0** |
+| `.vs-turn`'s own background | still open | **0** |
+
+The last two are a live-region label and empty space, not controls, so a moved index there would
+be a defect rather than a pass. All four run in **all three looks** — `design/0021` says the
+geometry is one geometry, and a wider face moves a label's neighbours along its row, so the
+footer's bare point is found by scanning rather than assumed. Measured before the fix:
+**12 of 12 presses put the book down**, in leather, modern and cyber alike. After it: 12 of 12
+leave it open and move the index by exactly what the table says. `github#54`, `design/0004`.
+
+`"nothing in the reader but the desk puts the book down"` is the guard that would have caught
+`github#36` on the day. For every visible direct child of `#vs-reader` it scans the child's box
+for a point whose `elementFromPoint` is **not** a `button`, `a`, `input`, `select`, `textarea`
+or `[role=button]` — a control has its own contract, and `#vs-back` lives in the bar and closes
+the book on purpose — presses that point for real, and asserts the reader is still open. Then it
+presses the desk beside the cover and asserts it **does** close, so the check cannot pass a reader
+that has stopped closing at all. Measured before the fix: **4 children, 3 held the book open
+(`.vs-readerbar`, `#vs-marks`, `.vs-spread`) and `.vs-turn` PUT IT DOWN**. After it: 4 of 4 held
+it open, and the desk beside the book is `#vs-reader` and still puts it down. A child that offers
+no background point at all **fails** rather than being skipped quietly; a child that is off screen
+is skipped and named. `github#54`, `design/0004`.
 
 
 `"a wide table scrolls inside the page and never widens the book"` opens the fixture note that
