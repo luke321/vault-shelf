@@ -305,6 +305,23 @@ EOF
   exit 1
 fi
 
+# THE LOCK NEXT, same bar -- a throwaway root, no Chrome, a second at most. scripts/lock.mjs is
+# the one mutex six worktrees and the sister repo share (github#25, decisions/0012), and its
+# staleness rules now differ per hold rather than per name; a wrong window here either breaks a
+# live run's measurements or makes an abandoned lock cost everyone half an hour.
+echo "pre-push: checking the lock can still tell a dead holder from a live one..."
+if ! node "$root/scripts/lock.mjs" --selftest </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: the lock selftest failed -- push blocked.
+
+Read the FAIL lines above. It runs against a throwaway root, never the live mutex, so a
+failure is the rules and not contention. .ai-context/decisions/0012-lock-the-screen-not-the-job.md
+has the reasoning. There is no skip flag for this check.
+EOF
+  exit 1
+fi
+
 # THE GENERATED NAVIGATION FILES NEXT, same bar -- a read of the tree, well under a second.
 # .ai-context/code-map.md and code-index.md are written from the source by
 # scripts/code-map.mjs (decisions/0007) and are only worth having while they agree with it; a

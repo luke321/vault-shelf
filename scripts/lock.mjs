@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, readdirSync,
-         renameSync } from "node:fs";
+         renameSync, mkdtempSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -311,6 +311,7 @@ export function releaseNamed(name, owner, say) {
 
 function usage(code) {
   console.error("usage: node scripts/lock.mjs <acquire|release|status> <name> --owner <id>");
+  console.error("       node scripts/lock.mjs --selftest");
   console.error("  names: " + NAMES.join(" | ") + " (record is legacy, github#37)");
   process.exit(code);
 }
@@ -339,6 +340,138 @@ function status() {
                 "  seen=" + Math.round(ageOf(meta) / 1000) + "s ago" + since + live +
                 (ageOf(meta) > staleFor(n, meta) ? "  STALE" : ""));
   }
+}
+
+// github#25 -- the one mutex six worktrees share, checked rather than hand-measured
+/** @returns {Promise<number>} */
+async function selftest() {
+  let failed = 0;
+  /** @param {string} what @param {boolean} ok @param {string} [detail] */
+  const check = (what, ok, detail) => {
+    console.log("  " + (ok ? "ok  " : "FAIL") + " " + what + (detail ? "   (" + detail + ")" : ""));
+    if (!ok) failed++;
+  };
+  const MIN = 60 * 1000;
+  const ago = (ms) => Date.now() - ms;
+  /** @param {string} n @param {Record<string, any>} meta */
+  const seed = (n, meta) => { mkdirSync(dirFor(n), { recursive: true }); writeMeta(n, meta); };
+  /** @param {string} n */
+  const clear = (n) => { try { rmSync(dirFor(n), { recursive: true, force: true }); } catch { void 0; } };
+  /** @param {string} n @param {string} who */
+  const ask = async (n, who) => {
+    /** @type {string[]} */
+    const lines = [];
+    try {
+      const h = await acquire(n, { owner: who, timeoutMs: 0, say: (l) => lines.push(l) });
+      return { got: true, lines: lines, hold: h };
+    } catch (e) {
+      if (e.code !== "BUSY") throw e;
+      return { got: false, lines: lines, hold: null };
+    }
+  };
+  const cli = (...args) => spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...args],
+                                     { encoding: "utf8" });
+
+  console.log("a hold that cannot beat keeps its name's window");
+  seed("suite", { owner: "a hook", at: ago(6 * MIN), since: ago(6 * MIN), holder: "cli" });
+  let r = await ask("suite", "contender");
+  check("a CLI hold on suite seen 6 minutes ago is not stale", !r.got, r.lines.join(" / "));
+  clear("suite");
+  seed("suite", { owner: "the sister", at: ago(6 * MIN) });
+  r = await ask("suite", "contender");
+  check("a hold in the sister's shape -- owner and at alone -- is not stale either", !r.got,
+        r.lines.join(" / "));
+  clear("suite");
+
+  console.log("a hold that beats goes stale in minutes");
+  seed("suite", { owner: "a run", at: ago(6 * MIN), since: ago(6 * MIN),
+                  pid: process.pid, holder: "process" });
+  r = await ask("suite", "contender");
+  check("a beating hold last seen 6 minutes ago is broken",
+        r.got && r.lines.some((l) => l.startsWith("BREAKING stale")), r.lines.join(" / "));
+  if (r.hold) r.hold.release();
+  clear("suite");
+  seed("suite", { owner: "a run", at: ago(1 * MIN), since: ago(40 * MIN),
+                  pid: process.pid, holder: "process" });
+  r = await ask("suite", "contender");
+  check("a beating hold seen a minute ago is never broken, however long it has held", !r.got,
+        r.lines.join(" / "));
+  clear("suite");
+  seed("screen-left", { owner: "a dead run", at: Date.now(), since: Date.now(),
+                        pid: 999999, holder: "process" });
+  r = await ask("screen-left", "contender");
+  check("a hold whose named process is gone is still broken at once",
+        r.got && r.lines.some((l) => l.startsWith("BREAKING dead")), r.lines.join(" / "));
+  if (r.hold) r.hold.release();
+  clear("screen-left");
+
+  console.log("status says which window it is applying");
+  seed("suite", { owner: "a run", at: ago(6 * MIN), since: ago(6 * MIN),
+                  pid: process.pid, holder: "process" });
+  let out = (cli("status").stdout || "").trim();
+  check("a beating hold seen 6 minutes ago prints STALE", /STALE/.test(out), out);
+  clear("suite");
+  seed("suite", { owner: "a hook", at: ago(6 * MIN), since: ago(6 * MIN), holder: "cli" });
+  out = (cli("status").stdout || "").trim();
+  check("a CLI hold of the same age does not, and says holder unverified",
+        /holder unverified/.test(out) && !/STALE/.test(out), out);
+  clear("suite");
+
+  console.log("a CLI hold beats while a run is under it");
+  const acq = cli("acquire", "suite", "--owner", "pre-push develop");
+  check("the command line takes the hold",
+        acq.status === 0 && /ACQUIRED/.test(acq.stdout || ""), (acq.stdout || "").trim());
+  const before = readMeta("suite");
+  const adopted = adopt("suite", { say: () => void 0 });
+  const mid = readMeta("suite");
+  check("adoption keeps the caller's owner and its acquire time",
+        !!adopted && adopted.owner === "pre-push develop" && !!before && !!mid &&
+        mid.owner === before.owner && mid.since === before.since);
+  check("adoption names this process as the holder",
+        !!mid && mid.holder === "process" && mid.pid === process.pid, JSON.stringify(mid));
+  await sleep(200);
+  const beaten = readMeta("suite");
+  check("the adopted hold is refreshed for as long as the run lasts",
+        !!beaten && !!mid && !!before && beaten.at > mid.at && beaten.since === before.since,
+        "at moved " + (beaten && mid ? beaten.at - mid.at : "?") + "ms");
+  if (adopted) adopted.release();
+  const after = readMeta("suite");
+  check("release hands the caller its own shape back",
+        !!after && !!before && after.holder === "cli" && after.pid === undefined &&
+        after.owner === before.owner, JSON.stringify(after));
+  check("release leaves the hold standing -- the caller owns it", existsSync(dirFor("suite")));
+  const rel = cli("release", "suite", "--owner", "pre-push develop");
+  check("the caller's own release still matches",
+        rel.status === 0 && !existsSync(dirFor("suite")), (rel.stdout || "").trim());
+  check("adopting a lock nobody holds answers null",
+        adopt("suite", { say: () => void 0 }) === null);
+
+  console.log("a holder notices the lock is no longer its own");
+  let lostTo = "";
+  await acquire("screen-right", { owner: "a run", timeoutMs: 0, say: () => void 0,
+                                  onLost: (who) => { lostTo = who; } });
+  check("heldBy is true while it is ours", heldBy("screen-right", "a run"));
+  writeMeta("screen-right", { owner: "somebody else", at: Date.now(), since: Date.now(),
+                              holder: "cli" });
+  await sleep(200);
+  check("the beat names who took it", lostTo === "somebody else", lostTo || "nothing reported");
+  check("heldBy says so too", !heldBy("screen-right", "a run"));
+  clear("screen-right");
+
+  if (failed) { console.log("lock selftest: " + failed + " FAILED"); return 1; }
+  console.log("lock selftest: all passed");
+  return 0;
+}
+
+// github#25 -- never against the live mutex
+/** @returns {number} */
+function selftestInAThrowawayRoot() {
+  const home = mkdtempSync(join(tmpdir(), "lock-selftest-"));
+  const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--selftest-run"],
+                      { stdio: "inherit",
+                        env: { ...process.env, VAULT_LOCKS_HOME: home, VAULT_LOCKS_BEAT_MS: "50" } });
+  try { rmSync(home, { recursive: true, force: true }); } catch { void 0; }
+  return r.status === 0 ? 0 : 1;
 }
 
 const RUN_DIRECTLY = (() => {
@@ -370,6 +503,10 @@ if (RUN_DIRECTLY) {
     process.exit(releaseNamed(name, owner));
   } else if (cmd === "status") {
     status();
+  } else if (cmd === "--selftest") {
+    process.exit(selftestInAThrowawayRoot());
+  } else if (cmd === "--selftest-run") {
+    process.exit(await selftest());
   } else {
     usage(2);
   }
