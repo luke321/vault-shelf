@@ -15,7 +15,7 @@ can do to a real 424-note vault in the page itself.
 | **The library** | [Favourites, at the top](#favourites-at-the-top) · [Six shelves, and every one is the whole vault](#six-shelves-and-every-one-of-them-is-the-whole-vault) · [Build your own, from two questions](#build-your-own-from-two-questions) · [Arranged by hand](#arranged-by-hand) · [The room has no sidebar](#the-room-has-no-sidebar) · [Hiding never deletes](#hiding-never-deletes) |
 | **The bookcase** | [A shelf is a bookcase, not a conveyor belt](#a-shelf-is-a-bookcase-not-a-conveyor-belt) · [Thickness is the note count](#thickness-is-the-note-count) · [Year and decade plaques](#year-and-decade-plaques) · [A spine tells you where its notes came from](#a-spine-tells-you-where-its-notes-came-from) |
 | **Reading a book** | [The two-page spread](#the-two-page-spread) · [Index tabs, cut the way the book is ordered](#index-tabs-cut-the-way-the-book-is-ordered) · [Also shelved in](#also-shelved-in) · [Which end you open](#which-end-you-open) · [Obsidian's own renderer](#obsidians-own-renderer) |
-| **The magic** | [Ribbons that hang out of the book](#ribbons-that-hang-out-of-the-book) · [Shelf wear](#shelf-wear) · [The shelf parts as you type](#the-shelf-parts-as-you-type) |
+| **The magic** | [Ribbons that hang out of the book](#ribbons-that-hang-out-of-the-book) · [Shelf wear](#shelf-wear) · [The shelf parts as you type](#the-shelf-parts-as-you-type) · [The box knows what the vault spells](#the-box-knows-what-the-vault-spells) |
 | **Paint** | [Two looks on offer, and none of them moves anything](#two-looks-on-offer-and-none-of-them-moves-anything) · [The theme is your Obsidian's](#the-theme-is-your-obsidians) |
 | **What it promises** | [It never writes to your notes](#it-never-writes-to-your-notes) · [It makes no network requests](#it-makes-no-network-requests) · [It never guesses](#it-never-guesses) |
 
@@ -478,6 +478,36 @@ The reader's *find within this book* is a different thing in a different place: 
 book's contents list only.
 
 `design/0008`
+
+### The box knows what the vault spells
+
+Every classifier has already collected every person, every tag, every folder and every book
+name. As you type, the search box offers them back — and says what kind each one is.
+
+```
+gard
+  garden           tag · folder    412
+  garden/seeds     tag              38
+  Gardening by moonlight   note      1
+```
+
+**A word can be more than one kind, so it is one row, not two.** A tag `garden` and a folder
+`garden` are different books on different shelves, and the row says so rather than offering the
+same completion twice.
+
+**Picking one completes the box, and nothing else.** It is a spelling aid, not a shortcut past
+the room: the query still marks, every book stays on the shelf, and the count still counts. So
+there is nothing to guess about before you click.
+
+**It never offers a dead end.** Every suggestion is built from notes that are actually on a
+shelf, so picking one always marks something. Type something the vault cannot spell and it
+tells you that, instead of leaving you to wonder whether you mistyped it or simply never wrote
+it down — which was the whole reason for building this.
+
+The arrows walk the list without moving the room behind it, Escape closes it and gives you the
+box back, and the list is the same size in every look.
+
+`design/0026`
 
 ---
 
