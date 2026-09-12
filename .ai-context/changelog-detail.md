@@ -26,9 +26,10 @@ The two figures that were quoted from the sister project rather than taken here 
 here, and three the sheet never had: link `:hover` `--accent-hi` `#6aa6f0` **6.91:1**, inline
 code on `--surface-2` **15.73:1**, the header control **8.78:1**. The served stylesheet declares
 **149 rules and the browser keeps 149** — none dropped — of which **23** resolve one of our
-tokens. The *counts* in the old entry were off by a little in the site's favour: the theme
-ships eight OpenSans **families** in four formats, 32 files, and three images, not two. None of
-them is requested.
+tokens. One count in the old entry was low: the theme ships **three** images, not two — the
+list bullet, the rule under a heading, and the header's tiling background. Its "8 fonts" was
+right if read as families; that is eight OpenSans faces in four formats, 32 files on disk.
+None of the 35 is requested.
 
 **"Vault Graph's sheet, rule for rule" is exact, and now has a number.** Strip the comments from
 both files and they are the same **2,673 bytes**, byte for byte. The whole textual difference
@@ -62,6 +63,16 @@ page, not `docs/`, so the law that nothing shipped reaches the network has never
 
 **Still not live.** `has_pages: false`, `private: true`, read from the API — not POSTed to.
 Enabling Pages needs the repository public (`decisions/0009`), which is the owner's call.
+
+**What this build still is not.** It is Pages' *software*, not Pages: the site was built from a
+copy of `docs/` with a `Gemfile` beside it, `PAGES_REPO_NWO` supplied by hand, and no API token,
+so `jekyll-github-metadata` filled what it could and left the rest — the stylesheet is linked as
+`style.css?v=` where Pages appends a build SHA, and the title block's repository fields come from
+the config rather than the API. It was served over `http://127.0.0.1` rather than
+`luke321.github.io`, so nothing here exercises a `baseurl`, a custom domain, or Pages' own
+caching; `file://` is not a substitute either — root-absolute asset paths mean the sheet does not
+load at all that way, which is worth knowing before the next person tries it. What remains
+genuinely unverified is the hosting, not the rendering.
 
 ## 2026-09-12 — A plate dyes its whole run, from either copy of it (github#29)
 
