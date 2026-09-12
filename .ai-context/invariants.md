@@ -765,10 +765,25 @@ and the check asserts it between **−15px and −26px** after two notches. Then
 between every notch, and the latch still held at the end; after **140ms** of silence a fresh push
 turns again. `github#40`, `design/0026`.
 
+`"a push made slowly still turns, and the latch still clears on its own"` pins the **two silences**
+against each other: the spent latch clears after **140ms** and the accumulator holds its push for
+**600ms**. Three notches **220ms** apart — further apart than the latch's silence — accumulate
+100px then 200px and turn the page, which turned **nothing at all** while one timer did both jobs;
+after **800ms** of silence a fresh notch starts again at **100px**, so a push is not remembered for
+ever. Measured with real wheel input: at 34ms, 44ms and 93ms between notches a flick turns
+**1** page, and a slow 229ms spin of 12 notches turns **3** — where one timer turned **0, ever**.
+`github#40`, `design/0026`.
+
 `"a turn arrives at the top going forward and the bottom going back"` finds a note whose page
 actually overflows (**more than 80px**, since most have none) and asserts that pushing up off the
 note after it lands at `scrollTop` **equal to the full span**, and pushing down again lands at
 **0**. A turn is a reading motion, not a teleport. `github#40`, `design/0026`.
+
+`"every way to another note starts at the top of it"` scrolls a note to the bottom of its **188px**
+and then leaves it by each route in turn, asserting **scrollTop 0** every time: `Next`, `Previous`,
+the arrow key, a contents row, and `openBook`. `goTo` reset no offset at all before this, so a move
+landed wherever the browser left the box; `"top"` is its default now and only a backward push asks
+for `"bottom"`. `github#40`, `design/0026`.
 
 `"the push resists at both ends of the book and never turns"` asserts the band gives **9px** —
 about a third of its mid-book 26px — at note **0** pushing up and at the last note pushing down,

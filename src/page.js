@@ -2125,7 +2125,10 @@ function mountVaultShelf(root, data, options) {
     persist();
     markWear(worn);
     $("reader").hidden = false;
+    /* github#40 -- a book opens at the top of its note */
+    reader.land = "top";
     renderReader();
+    landOn("top");
     node("reader").focus();
   }
 
@@ -2688,8 +2691,8 @@ function mountVaultShelf(root, data, options) {
   function goTo(index, land) {
     if (!reader) return;
     reader.index = Math.max(0, Math.min(index, reader.book.notes.length - 1));
-    /* github#40, design/0026 -- a turn arrives somewhere, and it is not always the top */
-    reader.land = land || null;
+    /* github#40, design/0026 -- every move arrives at the top unless it asks for the bottom */
+    reader.land = land || "top";
     /* THE CONTENTS MARK `reader.noteId`, AND `renderNote` IS WHERE IT WAS SET -- which runs
      * after them. So the first click drew the index against the note you had just left and
      * the second one caught up, which is why it took two clicks to highlight one row. */
@@ -2705,7 +2708,7 @@ function mountVaultShelf(root, data, options) {
     renderMarks();
     renderTabs();
     renderNote();
-    if (land) landOn(land);
+    landOn(land === "bottom" ? "bottom" : "top");
   }
 
   /* ---- reading off the bottom turns the page ---------------------------------
@@ -2714,8 +2717,9 @@ function mountVaultShelf(root, data, options) {
    * github#40, design/0026 -- D-3: the right page only; the contents never turns
    */
 
-  /* github#40 -- the threshold, the band, and the gap that ends a gesture */
-  var PUSH_TURN = 240, PUSH_QUIET = 140, PUSH_BAND = 26, PUSH_BAND_END = 9, PUSH_SETTLE = 180;
+  /* github#40, design/0026 -- the threshold, the band, and two silences */
+  var PUSH_TURN = 240, PUSH_QUIET = 140, PUSH_HOLD = 600;
+  var PUSH_BAND = 26, PUSH_BAND_END = 9, PUSH_SETTLE = 180;
 
   /** github#40 -- the direction being pushed, 0 when nothing is @type {number} */
   var pushDir = 0;
@@ -2723,8 +2727,10 @@ function mountVaultShelf(root, data, options) {
   var pushAt = 0;
   /** github#40, design/0026 -- a turn has fired; swallow the flick's tail */
   var pushSpent = false;
-  /** github#40 -- the quiet timer that ends a gesture @type {number} */
+  /** github#40 -- the silence that clears the spent latch @type {number} */
   var pushQuiet = 0;
+  /** github#40, design/0026 -- the longer silence that lets a push go @type {number} */
+  var pushHold = 0;
   /** github#40 -- the band's spring-back, seen by atRest @type {number} */
   var pushSettle = 0;
 
@@ -2807,17 +2813,24 @@ function mountVaultShelf(root, data, options) {
   /** github#40 -- every exit path lands here, teardown included */
   function pushStop() {
     if (pushQuiet) WIN.clearTimeout(pushQuiet);
+    if (pushHold) WIN.clearTimeout(pushHold);
     pushQuiet = 0;
+    pushHold = 0;
     pushSpent = false;
     pushDir = 0;
     pushAt = 0;
     releasePush();
   }
 
-  /** github#40, design/0026 -- a gesture ends when the wheel goes quiet, not on a clock */
+  /** github#40, design/0026 -- two silences, and only one of them is the latch's */
   function armPush() {
     if (pushQuiet) WIN.clearTimeout(pushQuiet);
-    pushQuiet = WIN.setTimeout(pushStop, PUSH_QUIET);
+    pushQuiet = WIN.setTimeout(function () {
+      pushQuiet = 0;
+      pushSpent = false;
+    }, PUSH_QUIET);
+    if (pushHold) WIN.clearTimeout(pushHold);
+    pushHold = WIN.setTimeout(function () { pushHold = 0; abandonPush(); }, PUSH_HOLD);
   }
 
   /**
@@ -4316,6 +4329,8 @@ function mountVaultShelf(root, data, options) {
         dir: pushDir,
         at: pushAt,
         turn: PUSH_TURN,
+        quiet: PUSH_QUIET,
+        hold: PUSH_HOLD,
         spent: pushSpent,
         pushing: !!(page && page.hasAttribute("data-push")),
         settling: !!pushSettle,

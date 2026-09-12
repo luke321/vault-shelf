@@ -56,12 +56,35 @@ A consequence worth stating: spinning a mouse wheel steadily and fast turns one 
 refuses until you pause. That is deliberate. *A feed turns because you kept moving; a book turns
 because you decided to.*
 
+## Two silences, not one — and the gesture had a speed floor until it had two
+
+The latch and the accumulator were one timer at first, and driving the page with **real** CDP wheel
+input rather than synthetic events showed what that cost:
+
+| real wheel input | notches apart | one timer | two timers (D-5) |
+|---|---|---|---|
+| one hard flick, back to back | 34ms | 1 page | **1 page** |
+| a flick with a momentum tail | 44ms | 1 page | **1 page** |
+| a steady fast spin | 93ms | 1 page | **1 page** |
+| a slow deliberate spin, 12 notches | 229ms | **0 pages, ever** | **3 pages** |
+
+One timer doing both jobs gave the gesture a **speed floor**: notches further apart than the
+latch's silence reset the accumulator, so it never reached the threshold and a person scrolling
+slowly, one notch at a time, could never turn the page at all however long they kept going. That
+is the same class of failure as the 85% short-note case — a gesture that silently does not exist
+for some readers.
+
+They are different questions, so they are different numbers now. The **latch** needs only to
+outlast a flick's momentum tail; the **accumulator** should hold a push that a person is making
+slowly, because that is still one push. Asked rather than decided (D-5).
+
 ## The numbers
 
 | | |
 |---|---|
 | threshold to turn (`PUSH_TURN`) | **240px** |
-| the gap that ends a gesture (`PUSH_QUIET`) | **140ms** |
+| the silence that clears the spent latch (`PUSH_QUIET`) | **140ms** |
+| the silence that lets a push go (`PUSH_HOLD`) | **600ms** |
 | band, mid-book (`PUSH_BAND`) | **26px** at the threshold |
 | band, at either end of the book (`PUSH_BAND_END`) | **9px** |
 | the band's spring back (`PUSH_SETTLE`) | **180ms** |
@@ -69,7 +92,8 @@ because you decided to.*
 240px is between two and three notches of a mouse wheel, which Chrome delivers as 100px each:
 **two notches never turn, three always do**, and that is what the check asserts rather than a
 feeling about resistance. 140ms is longer than any gap inside a flick's tail (16ms at 60Hz) and
-shorter than a deliberate pause.
+shorter than a deliberate pause. 600ms is long enough to span a slow hand and short enough that a
+push is not remembered for ever — a fresh notch after it starts again at 100px, which is checked.
 
 The band and the strip's fill are the same fraction, `min(1, pushAt / PUSH_TURN)`, linear to the
 threshold and capped there.
@@ -106,6 +130,19 @@ they are a command rather than a gesture.
 `goTo` reset no scroll offset at all before this, so even the arrow keys landed wherever the
 browser left the box. It takes an **arrival** now: the **top** going forward, the **bottom** going
 back, so the reading motion is continuous in both directions.
+
+**Every way to another note arrives at its top, not just a push.** The issue says `goTo` resets no
+offset *"so a turn today does not even reliably start you at the top of the note you turned to"*,
+and that is true of all six callers — the contents, the tabs, the ribbons, `Previous`, `Next` and
+the arrow keys — plus `openBook`, where the right page kept whatever scroll the last book left on
+it. So `"top"` is `goTo`'s default and `openBook` lands there too; only a backward push asks for
+`"bottom"`. Checked from a note scrolled to the bottom of its 188px: `Next`, `Previous`, the arrow
+key, a contents row and `openBook` all arrive at **scrollTop 0**.
+
+This surfaced sideways, which is worth recording: the per-look stills of the strip came back
+**blank**, because each one opened a note while the page was still scrolled from the previous
+shot, so the push was never at its limit and painted nothing. The harness was right and the page
+was wrong.
 
 The bottom landing is the awkward half. Inside Obsidian the note is rendered by the host's own
 `MarkdownRenderer`, which is asynchronous, so at the moment `goTo` returns there is no content to

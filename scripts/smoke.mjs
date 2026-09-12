@@ -5657,6 +5657,54 @@ check("pushing past the end of a page turns it, and one hard flick turns one pag
   };
 });
 
+check("a push made slowly still turns, and the latch still clears on its own", async (p) => {
+  await p.eval(PUSH_HELPERS);
+  /* github#40, design/0026 -- D-5: two silences, measured one against the other */
+  const t = await p.j(`(function(){
+    var o = __vs.overscroll();
+    return { quiet: o.quiet, hold: o.hold, turn: o.turn };
+  })()`);
+  const open = `(function(){
+    var book = __push.bookOf(6);
+    __vs.openBook(book.id, null);
+    return book.notes.length;
+  })()`;
+
+  /* github#40 -- a gap past the latch's silence, inside the hold's */
+  await p.j(open);
+  const slow = [];
+  for (let i = 0; i < 3; i++) {
+    await p.j(`(function(){ __push.wheel(__push.right(), 100, 1);
+      return __vs.overscroll().at; })()`);
+    slow.push(await p.j(`(function(){ var o = __vs.overscroll();
+      return { at: o.at, index: __vs.reader().index }; })()`));
+    if (i < 2) await sleep(t.quiet + 80);
+  }
+  const slowIndex = await p.j(`__vs.reader().index`);
+
+  /* github#40 -- and the accumulator does give up eventually */
+  await sleep(t.hold + 200);
+  const forgotten = await p.j(`(function(){
+    __push.wheel(__push.right(), 100, 1);
+    var o = __vs.overscroll();
+    var out = { at: o.at, index: __vs.reader().index };
+    __vs.closeReader();
+    return out;
+  })()`);
+
+  const ok = t.quiet === 140 && t.hold === 600 && t.hold > t.quiet &&
+             slow[1].at === 200 && slowIndex === 1 && forgotten.at === 100;
+  return {
+    ok,
+    detail: `the latch clears after ${t.quiet}ms of silence and the accumulator holds its push ` +
+            `for ${t.hold}ms. Three notches ${t.quiet + 80}ms apart -- further apart than the ` +
+            `latch's silence -- accumulated ${slow.map((s) => s.at).join("px, ")}px and turned ` +
+            `the page to ${slowIndex}, which turned nothing at all while one timer did both ` +
+            `jobs; after ${t.hold + 200}ms of silence a fresh notch starts again at ` +
+            `${forgotten.at}px, so a push is not remembered for ever`
+  };
+});
+
 check("a turn arrives at the top going forward and the bottom going back", async (p) => {
   await p.eval(PUSH_HELPERS);
   const found = await p.j(`(function(){
@@ -5708,6 +5756,68 @@ check("a turn arrives at the top going forward and the bottom going back", async
             `scrollTop ${back.top} of ${back.span} (the bottom: ${atBottom}); pushing down ` +
             `again turned ${forward.from} -> ${forward.index} and landed at ${forward.top} ` +
             `(the top). A turn is a reading motion, not a teleport`
+  };
+});
+
+check("every way to another note starts at the top of it", async (p) => {
+  await p.eval(PUSH_HELPERS);
+  /* github#40, design/0026 -- goTo reset no scroll offset at all */
+  const r = await p.j(`(function(){
+    var found = null;
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+      if (found || b.notes.length < 4) return;
+      for (var i = 0; i < b.notes.length; i++) {
+        __vs.openBook(b.id, b.notes[i].id);
+        var page = __push.right();
+        if (page.scrollHeight - page.clientHeight > 120) { found = { id: b.id, at: i }; return; }
+      }
+    }); });
+    if (!found) return null;
+    var page = __push.right();
+    var out = { span: page.scrollHeight - page.clientHeight, ways: {} };
+
+    /* each of these leaves the note scrolled to its bottom first */
+    var scrolled = function () {
+      var q = __push.right();
+      q.scrollTop = q.scrollHeight - q.clientHeight;
+      return q.scrollTop;
+    };
+    var at = function () { return __push.right().scrollTop; };
+
+    scrolled();
+    document.getElementById("vs-nextnote").click();
+    out.ways.next = at();
+
+    scrolled();
+    document.getElementById("vs-prevnote").click();
+    out.ways.previous = at();
+
+    scrolled();
+    document.getElementById("vs-reader").dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+    out.ways.arrow = at();
+
+    scrolled();
+    var rows = document.querySelectorAll("#vs-contents button");
+    rows[rows.length - 1].click();
+    out.ways.contents = at();
+
+    /* and opening a book while the last note was left scrolled */
+    scrolled();
+    __vs.openBook(found.id, null);
+    out.ways.openBook = at();
+    __vs.closeReader();
+    return out;
+  })()`);
+  if (!r) return { ok: false, detail: "no note in this vault overflows its page" };
+  const ways = Object.keys(r.ways);
+  const off = ways.filter((w) => r.ways[w] !== 0);
+  return {
+    ok: off.length === 0 && r.span > 120,
+    detail: `with the note scrolled to the bottom of its ${r.span}px first, each way to another ` +
+            `note arrived at scrollTop ` +
+            ways.map((w) => `${w} ${r.ways[w]}`).join(", ") +
+            (off.length ? ` -- ${off.join(", ")} did not start at the top` : " -- all at the top")
   };
 });
 

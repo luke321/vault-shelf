@@ -2732,10 +2732,13 @@ at the bottom of the previous one going back.
 | ways to turn a page | 2 (arrow keys, footer buttons) | **3** |
 | notes the gesture exists on | — | **all of them** (85% never overflow) |
 | `goTo` scroll arrival | none — wherever the browser left the box | **top forward, bottom back** |
+| every other way to a note | wherever the browser left the box | **scrollTop 0** |
 | push to turn | — | **240px** (2 notches never, 3 always) |
 | band, mid-book / at the ends | — | **26px / 9px** |
 | latch clears after | — | **140ms** of silence |
+| a push is held for | — | **600ms** |
 | one 40-notch flick turns | — | **1 page** |
+| a slow 229ms spin, 12 notches | — | **3 pages** (was 0, ever) |
 | p95 frame while pushing, leather/modern/cyber | — | **18.9 / 18.2 / 18.3ms** (budget 34) |
 | one whole turn, timed | — | **2–3ms** in every look |
 | same-size controls measured | 40 | **42** (`.vs-push`, `#vs-pushsay`) |
@@ -2755,6 +2758,16 @@ that **every notch re-arms the quiet timer**, absorbed or not, so one latch span
 however long its tail runs; the check now drives the arriving page to its own bottom between all 40
 notches and asserts exactly one turn.
 
+**The gesture had a speed floor, and only real wheel input showed it.** The spent latch and the
+push accumulator were one timer, so notches further apart than **140ms** reset the accumulation and
+it never reached the threshold: driven with real CDP wheel input, a slow deliberate spin of 12
+notches **229ms apart turned 0 pages, ever**, while every flick turned exactly 1. Synthetic
+`WheelEvent`s dispatched in a loop cannot show this — their spacing is the harness's, not a hand's.
+The two are different questions, so they are two numbers now (**D-5**, asked rather than decided):
+the latch only has to outlast a flick's momentum tail (140ms), while a push a person is making
+slowly is still one push (600ms). The same slow spin now turns **3** pages and every flick still
+turns exactly **1**.
+
 **The settle diagnostic caught the second defect.** `atRest()` learned `pushing` and `settling`
 from `__vs.overscroll()`, and immediately failed two of the new checks with `an overscroll band
 still springing back`: a **turn** was starting a spring-back, and the settle timer handle survived
@@ -2770,6 +2783,14 @@ down), leather reads **18.9ms** against the library scroll's own 18.5ms on the s
 the turn is a separate **2–3ms**. leather's remaining 268ms worst frame is the first look measured
 paying for its stylesheet's first application — the existing library check reports 158ms there for
 the same reason, and p95 is the assertion in both.
+
+**And one found by a blank screenshot.** The per-look stills of the strip came back empty: each
+one opened a note while the right page was still scrolled from the previous shot, so the push was
+never at its limit and painted nothing. The harness was right and the page was wrong — `goTo` reset
+no offset for *any* of its six callers, nor did `openBook`, which is the rest of what the issue
+meant by *"a turn today does not even reliably start you at the top of the note you turned to"*.
+`"top"` is the default now, and `Next`, `Previous`, the arrow key, a contents row and `openBook` all
+arrive at **scrollTop 0** from a note scrolled to its bottom.
 
 **Two defects found by reading the diff rather than by a check.** `reader.land` was set and never
 consumed, so a `refresh()` after a back-turn would have re-applied the landing and jumped the page

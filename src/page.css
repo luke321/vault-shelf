@@ -1109,13 +1109,16 @@
   justify-content: center;
   overflow: hidden;
 }
+/* github#40 -- a real ground under the words, not a hint of one */
 .vault-shelf .vs-push[data-at="bottom"] {
   bottom: 0;
-  background: linear-gradient(0deg, var(--surface-2), transparent);
+  background: linear-gradient(0deg,
+    color-mix(in srgb, var(--text-1) 14%, var(--surface-2)) 40%, transparent);
 }
 .vault-shelf .vs-push[data-at="top"] {
   top: 0;
-  background: linear-gradient(180deg, var(--surface-2), transparent);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--text-1) 14%, var(--surface-2)) 40%, transparent);
 }
 
 .vault-shelf .vs-pushfill {
@@ -1130,11 +1133,12 @@
 .vault-shelf .vs-push[data-at="bottom"] .vs-pushfill { bottom: 0; }
 .vault-shelf .vs-push[data-at="top"] .vs-pushfill { top: 0; }
 
+/* github#40 -- the words sat on the spread's edge in --text-3 and could not be read */
 .vault-shelf .vs-pushsay {
-  font: 500 10.5px/26px var(--ui);
+  font: 600 10.5px/26px var(--ui);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-3);
+  color: var(--text-2);
 }
 
 /* the gutter: both inner edges fall away toward the fold */
