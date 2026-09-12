@@ -420,14 +420,18 @@ function mountVaultShelf(root, data, options) {
     var rail = el("div", "vs-shelfrail");
     /* It packs into rows like any other shelf (design/0014): one ribbon can put a book on it
      * from each of six shelves, so it is not as short as it sounds. */
-    rowsOf(books).forEach(function (row) {
+    /* github#48 -- it draws no plates, so it is not charged for any */
+    rowsOf(books, 0, null, false).forEach(function (row) {
       var track = el("div", "vs-track");
+      /* github#48 -- a line is laid out INSIDE a group, so it gets one */
+      var group = el("div", "vs-group");
       var line = el("div", "vs-books");
       row.forEach(function (book) {
         var shelf = shelfById(book.shelfId);
         line.appendChild(renderSpine(book, shelf || { name: "Reading" }, false));
       });
-      track.appendChild(line);
+      group.appendChild(line);
+      track.appendChild(group);
       rail.appendChild(track);
     });
     wrap.appendChild(rail);
@@ -477,7 +481,7 @@ function mountVaultShelf(root, data, options) {
     /* design/0020 -- a hand-arranged shelf ends in a plus. */
     var makes = view.shelf.direction === "manual";
     var rail = el("div", "vs-shelfrail");
-    var rows = rowsOf(view.books, makes ? SPINE_MIN + SPINE_GAP : 0, view.shelf);
+    var rows = rowsOf(view.books, makes ? SPINE_MIN + SPINE_GAP : 0, view.shelf, true);
     rows.forEach(function (row, i) {
       var last = i === rows.length - 1;
       rail.appendChild(renderTrack(row, view.shelf, true, makes && last ? plusOf(view.shelf) : null));
@@ -558,9 +562,10 @@ function mountVaultShelf(root, data, options) {
    * under the part of its run that landed on THIS shelf. Every width is already known --
    * `thicknessOf` is arithmetic on the note count -- so the packing needs no layout pass.
    *
-   * @param {Book[]} books @param {number} [tail] @param {Shelf} [shelf] @returns {Book[][]}
+   * @param {Book[]} books @param {number} [tail] @param {Shelf|null} [shelf]
+   * @param {boolean} [plaques] @returns {Book[][]}
    */
-  function rowsOf(books, tail, shelf) {
+  function rowsOf(books, tail, shelf, plaques) {
     var avail = room();
     squeezeIndex(shelf, books, avail - (tail || 0));
     /** @type {Book[][]} */
@@ -577,8 +582,11 @@ function mountVaultShelf(root, data, options) {
      * thin book under `2010-2019` is as wide as the words, not as wide as the book -- and a
      * row packed on the books alone then overflowed by exactly that difference. Every run is
      * given room for its own plate before it is allowed to start. */
+    /* github#48 -- a shelf that draws no plate is charged for none */
+    /** @param {string|null} label @returns {number} */
+    function plateW(label) { return plaques ? plaqueWidth(label) : 0; }
     function closeRun() {
-      if (label !== null) used = Math.max(used, runStart + plaqueWidth(label));
+      if (label !== null) used = Math.max(used, runStart + plateW(label));
       label = null;
       plaque = false;
     }
@@ -593,7 +601,7 @@ function mountVaultShelf(root, data, options) {
       var mine = book.plaque;
       if (!plaque || mine !== label) {
         closeRun();
-        if (row.length && used + Math.max(w, plaqueWidth(mine)) > avail) flush();
+        if (row.length && used + Math.max(w, plateW(mine)) > avail) flush();
         label = mine;
         plaque = true;
         runStart = used;
