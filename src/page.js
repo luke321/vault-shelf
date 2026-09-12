@@ -2204,8 +2204,9 @@ function mountVaultShelf(root, data, options) {
   /** @param {KeyboardEvent} e @returns {boolean} whether the key belonged to the list */
   function suggestKey(e) {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      if (!suggestOpen()) { openSuggest(); if (!offered.length) return true; }
-      if (!offered.length) return true;
+      if (!suggestOpen()) openSuggest();
+      /* github#41 -- nothing to walk: the key is the caret's */
+      if (!offered.length) return false;
       var step = e.key === "ArrowDown" ? 1 : -1;
       var next = activeRow + step;
       if (next < 0) next = offered.length - 1;
