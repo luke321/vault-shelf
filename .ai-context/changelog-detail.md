@@ -2741,7 +2741,7 @@ at the bottom of the previous one going back.
 | a slow 229ms spin, 12 notches | — | **3 pages** (was 0, ever) |
 | p95 frame while pushing, leather/modern/cyber | — | **18.9 / 18.2 / 18.3ms** (budget 34) |
 | one whole turn, timed | — | **2–3ms** in every look |
-| same-size controls measured | 40 | **42** (`.vs-push`, `#vs-pushsay`) |
+| same-size controls measured | 40 | **40** — this draws nothing |
 | look files changed | — | **none** |
 
 **The trap the issue listed fifth was the dominant case.** Probed before any code was written — 40
@@ -2796,6 +2796,26 @@ arrive at **scrollTop 0** from a note scrolled to its bottom.
 consumed, so a `refresh()` after a back-turn would have re-applied the landing and jumped the page
 to its bottom; and `ctrl`/`cmd` + wheel — a zoom gesture that belongs to the host — was being
 absorbed into the push.
+
+**The strip came out after the review, at Lukas's word.** He used the build and said *"remove the
+bar and shadow animation that the text moves is indicator enough"*, so the fill bar, the ground
+under it and the words `The book ends here` all went (**D-6**). That removes a whole class of
+question rather than just some CSS: with nothing drawn there is no absolutely-positioned decoration
+to keep out of the layout, nothing to add to the same-size list, and no per-look paint to verify.
+The same-size check went back from **42** controls to **40** and the look-walker from **4,229**
+elements to **4,226**.
+
+It was put to him first that an end-of-book push then looks like a mid-book push that is not
+working — the reading `github#40` explicitly warns against — and he chose it anyway, so the refusal
+is carried by the shorter **9px** band plus a disabled `Next` rather than by a sentence. The first
+version is in `design/0026`'s history if it ever reads as broken.
+
+**One consequence had to be taken rather than asked.** The band was suppressed under
+`prefers-reduced-motion` because the strip carried the threshold alone; with the strip gone that
+left **no indicator at all**, which fails the issue's own *"can still exist and still be legible"*.
+Reduced motion now keeps the **offset** and drops only the **spring** — the band tracks the wheel
+directly with no transition, which is direct manipulation rather than animation, on the same
+reasoning `design/0024` used for the edge scroll being the gesture's reach rather than decoration.
 
 Comment budget unchanged at **1500/1500**: the blocks written for this landed 15 lines over, and
 the reasoning moved to `design/0026` rather than the baseline moving.

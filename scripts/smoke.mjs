@@ -3762,8 +3762,6 @@ check("every control is the same size in every look", async (p) => {
       ["#vs-marks .vs-mark", false], ["#vs-marks .vs-markstub", true], [".vs-spread", true],
       /* github#36 -- the turn is furniture too, in every look */
       [".vs-turn", true], ["#vs-place", false],
-      /* github#40 -- and so is the strip the push fills */
-      [".vs-push", true], ["#vs-pushsay", false],
       [".vs-alsoin button", false]
     ];
     var managing = [
@@ -3792,9 +3790,6 @@ check("every control is the same size in every look", async (p) => {
       /* A ribbon on this page, so a ribbon and the stub are both measured. */
       var stub = q("#vs-marks .vs-markstub");
       if (stub) stub.click();
-      /* github#40 -- the strip open; hidden it is 0x0 and proves nothing */
-      q("#vs-reader .vs-page.vs-right").dispatchEvent(
-        new WheelEvent("wheel", { deltaY: -100, deltaMode: 0, bubbles: true, cancelable: true }));
       reading.forEach(function (c) { row[c[0]] = { fixed: c[1], box: box(c[0]) }; });
       var mark = q("#vs-marks .vs-mark");
       if (mark) mark.click();
@@ -3896,9 +3891,6 @@ check("a look moves nothing on the page", async (p) => {
       var out = {};
       walk("library", out);
       __vs.openBook(book.id, null);
-      /* github#40 -- the strip open, so a look moving it is caught here */
-      document.querySelector("#vs-reader .vs-page.vs-right").dispatchEvent(
-        new WheelEvent("wheel", { deltaY: -100, deltaMode: 0, bubbles: true, cancelable: true }));
       walk("reading", out);
       __vs.closeReader();
       document.getElementById("vs-manageopen").click();
@@ -5826,14 +5818,12 @@ check("the push resists at both ends of the book and never turns", async (p) => 
   const r = await p.j(`(function(){
     var book = __push.bookOf(4);
     if (!book) return null;
-    /* D-4 -- the band still gives, about a third as far, and says why it will not turn. */
+    /* D-4, amended -- the band gives about a third as far and never resolves. Nothing is
+     * drawn: the leaf moving is the whole indicator, and at an end it moves less. */
     __vs.openBook(book.id, null);
     var page = __push.right();
-    var strip = document.getElementById("vs-push");
     __push.wheel(page, -100, 6);
     var head = { index: __vs.reader().index, band: __vs.overscroll().band,
-                 say: __vs.overscroll().say, end: strip.hasAttribute("data-end"),
-                 at: strip.getAttribute("data-at"),
                  prev: document.getElementById("vs-prevnote").disabled };
     __vs.closeReader();
     return { head: head, notes: book.notes.length, book: book.id };
@@ -5848,29 +5838,27 @@ check("the push resists at both ends of the book and never turns", async (p) => 
     __vs.openBook(book.id, book.notes[book.notes.length - 1].id);
     var page = __push.right();
     page.scrollTop = page.scrollHeight - page.clientHeight;
-    var strip = document.getElementById("vs-push");
     __push.wheel(page, 100, 6);
     var out = { index: __vs.reader().index, band: __vs.overscroll().band,
-                say: __vs.overscroll().say, at: strip.getAttribute("data-at"),
                 next: document.getElementById("vs-nextnote").disabled,
                 last: book.notes.length - 1 };
     __vs.closeReader();
     return out;
   })()`);
 
-  const says = "The book ends here";
-  const ok = r.head.index === 0 && r.head.band === 9 && r.head.say === says &&
-             r.head.end && r.head.at === "top" && r.head.prev === true &&
-             tail.index === tail.last && tail.band === -9 && tail.say === says &&
-             tail.at === "bottom" && tail.next === true;
+  /* github#40 -- nothing is painted anywhere, at an end or mid-book */
+  const drawn = await p.j(`document.querySelectorAll("#vs-app .vs-push, #vs-app #vs-pushsay").length`);
+  const ok = r.head.index === 0 && r.head.band === 9 && r.head.prev === true &&
+             tail.index === tail.last && tail.band === -9 && tail.next === true &&
+             drawn === 0;
   return {
     ok,
     detail: `six notches up at note 0 left the reader at ${r.head.index} with the band at ` +
-            `${r.head.band}px (a third of the 26px it gives mid-book) and the strip at the ` +
-            `${r.head.at} reading ${JSON.stringify(r.head.say)}; six down at note ` +
-            `${tail.last} of ${r.notes} left it at ${tail.index}, band ${tail.band}px, strip ` +
-            `at the ${tail.at}. Previous and Next are disabled (${r.head.prev}/${tail.next}), ` +
-            `so the refusal is legible twice over`
+            `${r.head.band}px -- a third of the 26px it gives mid-book, which is the whole ` +
+            `indicator now; six down at note ${tail.last} of ${r.notes} left it at ` +
+            `${tail.index}, band ${tail.band}px. Previous and Next are disabled ` +
+            `(${r.head.prev}/${tail.next}), which is what says why. ${drawn} strip elements ` +
+            `on the page`
   };
 });
 

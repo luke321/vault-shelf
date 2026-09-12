@@ -787,9 +787,10 @@ for `"bottom"`. `github#40`, `design/0026`.
 
 `"the push resists at both ends of the book and never turns"` asserts the band gives **9px** —
 about a third of its mid-book 26px — at note **0** pushing up and at the last note pushing down,
-that the strip reads **`The book ends here`** and sits at the `top` and the `bottom` respectively,
-that neither push moves the reader, and that `Previous` and `Next` are already `disabled` there, so
-the refusal is legible twice over. `github#40`, `design/0026`.
+that neither push moves the reader, that `Previous` and `Next` are already `disabled` there, and
+that **0** strip elements exist on the page. The leaf moving is the whole indicator (D-6): nothing
+is drawn at an end or mid-book, so an end is a band that gives less and never resolves.
+`github#40`, `design/0026`.
 
 `"the contents never turns the page, and nor does a key that scrolls one"` asserts that **twelve**
 notches off the bottom of the contents leave the reader where it was with the push at **0px**,
@@ -804,10 +805,17 @@ cost. Measured: p95 **18.9 / 18.2 / 18.3ms** for leather / modern / cyber, again
 scroll's own 18.5ms, and one whole turn timed separately at **2–3ms** in every look. `github#40`,
 `design/0026`.
 
-`.vs-push` and `#vs-pushsay` are in the same-size check's `reading` list, which now **opens the
-strip** before measuring — hidden it is 0×0 in every look, compares equal and proves nothing. That
-took the check from 40 controls to **42**. `a look moves nothing on the page` walks the strip too,
-in the reading state. `github#40`, `design/0021`, `design/0026`.
+**This feature adds nothing to either look check, because it draws nothing.** The push is a
+`translateY` on `.vs-leaf` and a transform does not affect layout, so the same-size check stays at
+**40** controls and `a look moves nothing on the page` at **4,226** elements — both back where they
+were before the strip existed (42 and 4,229 while it did). No look file changed. `github#40`,
+`design/0021`, `design/0026`.
+
+**`prefers-reduced-motion` keeps the offset and drops only the spring.** With nothing drawn,
+suppressing the band as well would leave no indicator at all, which fails the issue's own
+constraint that the threshold still be legible; the band tracks the wheel directly with no
+transition, which is direct manipulation rather than animation, and what reduced motion removes is
+the spring back — it snaps. `github#40`, `design/0026`.
 
 `"a wikilink in a book goes to that note in this book, this shelf, or the nearest"` opens a
 Months book holding a note that links to a person's note but not the person's note itself,

@@ -2749,25 +2749,17 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * github#40 -- the band and the strip, from one fraction
+   * github#40, design/0026 -- the leaf moving IS the indicator, and the only one
    * @param {number} frac @param {number} dir @param {boolean} ends
    */
   function paintPush(frac, dir, ends) {
     var page = rightPage();
-    if (!page || !$("push") || !$("leaf")) return;
-    var strip = node("push");
-    var leaf = node("leaf");
-    /* github#40 -- reduced motion: no band, and the strip carries the threshold */
-    var reach = reduceMotion ? 0 : (ends ? PUSH_BAND_END : PUSH_BAND) * frac;
+    if (!page || !$("leaf")) return;
+    var reach = (ends ? PUSH_BAND_END : PUSH_BAND) * frac;
     page.setAttribute("data-push", "1");
     page.removeAttribute("data-settling");
     if (pushSettle) { WIN.clearTimeout(pushSettle); pushSettle = 0; }
-    leaf.style.setProperty("--vs-band", (dir > 0 ? -reach : reach) + "px");
-    strip.hidden = false;
-    strip.setAttribute("data-at", dir > 0 ? "bottom" : "top");
-    if (ends) strip.setAttribute("data-end", "1"); else strip.removeAttribute("data-end");
-    strip.style.setProperty("--vs-fill", String(ends ? 1 : frac));
-    $("pushsay").textContent = ends ? "The book ends here" : "";
+    node("leaf").style.setProperty("--vs-band", (dir > 0 ? -reach : reach) + "px");
   }
 
   /**
@@ -2776,11 +2768,6 @@ function mountVaultShelf(root, data, options) {
    */
   function releasePush(snap) {
     var page = rightPage();
-    if ($("push")) {
-      node("push").hidden = true;
-      node("push").removeAttribute("data-end");
-      node("pushsay").textContent = "";
-    }
     /* github#40 -- one spring at a time, and none outliving this call */
     if (pushSettle) { WIN.clearTimeout(pushSettle); pushSettle = 0; }
     if (!page || !$("leaf")) return;
@@ -2789,7 +2776,7 @@ function mountVaultShelf(root, data, options) {
     page.removeAttribute("data-push");
     /* github#40 -- back to the stylesheet's own 0px, rather than a literal here */
     leaf.style.removeProperty("--vs-band");
-    /* github#40 -- a closed book snaps: no spring outlives the page it was on */
+    /* github#40 -- a closed book snaps, and so does reduced motion */
     if (snap || !was || parseFloat(was) === 0 || reduceMotion || !reader) {
       page.removeAttribute("data-settling");
       return;
@@ -4335,7 +4322,6 @@ function mountVaultShelf(root, data, options) {
         pushing: !!(page && page.hasAttribute("data-push")),
         settling: !!pushSettle,
         band: page ? parseFloat(node("leaf").style.getPropertyValue("--vs-band")) || 0 : 0,
-        say: $("pushsay") ? node("pushsay").textContent : "",
         top: page ? page.scrollTop : 0,
         span: page ? Math.max(0, page.scrollHeight - page.clientHeight) : 0
       };

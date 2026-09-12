@@ -95,27 +95,51 @@ feeling about resistance. 140ms is longer than any gap inside a flick's tail (16
 shorter than a deliberate pause. 600ms is long enough to span a slow hand and short enough that a
 push is not remembered for ever — a fresh notch after it starts again at 100px, which is checked.
 
-The band and the strip's fill are the same fraction, `min(1, pushAt / PUSH_TURN)`, linear to the
-threshold and capped there.
+The band is `min(1, pushAt / PUSH_TURN)` of its reach — linear to the threshold and capped there,
+so how far the leaf has lifted is how far through the resistance you are.
 
 ## Which column owns the gesture
 
 **The right page only** (D-3). The left page is the contents; it scrolls on its own and
 `github#11` keeps it following the reader. Somebody scrolling a list of things they are about to
 click must not turn the page they are reading. The handler is bound **on the right page**, so the
-contents is excluded by construction rather than by a test — and the index rail, which is a
-sibling of both pages, reaches it either.
+contents is excluded by construction rather than by a test. The index rail is a sibling of both
+pages rather than a child of either, so a wheel over it reaches neither.
 
 ## The ends of the book
 
-At the first and last note the push can never give, and *resistance that never gives has to read
-as the book ends here, not as a broken gesture*. So the band still gives — **9px, about a third of
-its mid-book reach** — and the strip carries the words `The book ends here` instead of a fill that
-counts up to nothing (D-4). `Previous` and `Next` are already `disabled` at those ends, so the
-refusal is legible twice over, and that is also what a screen reader gets: the strip is
-`aria-hidden`, and `#vs-place` remains the `aria-live` announcement of where you are.
+At the first and last note the push can never give. The band still gives — **9px, about a third of
+its mid-book reach** — and then simply stops. `Previous` and `Next` are already `disabled` there,
+and that is what says why; `#vs-place` remains the `aria-live` announcement of where you are.
 
 `Alt+←` still walks to the previous collection, untouched.
+
+**D-4 was amended after the review, and the first version is worth recording because the issue
+argues for it.** As built, the ends carried the words `The book ends here` on a strip at the foot
+of the spread, which is what *"resistance that never gives has to read as the book ends here, not
+as a broken gesture"* asks for. Lukas removed it after using the build: **the leaf moving is
+indicator enough**, so the bar, the ground under it and the words all went (D-6). It was put to
+him that an end-of-book push then looks like a mid-book push that is not working, and he chose it
+anyway — so the refusal is now carried by the shorter band plus a disabled button rather than by a
+sentence. Recorded rather than argued: if it ever reads as broken, the strip is in this file's
+history.
+
+## Nothing is drawn, and that removes a whole class of question
+
+With no strip there is no absolutely-positioned decoration to keep out of the layout, no element
+to add to the same-size list, and no per-look paint to verify: the same-size check went back from
+**42** controls to **40** and the look-walker from **4,229** elements to **4,226**. The band is a
+`transform` on `.vs-leaf`, and a transform does not affect layout, so *nothing this feature draws
+can move anything* — by construction rather than by measurement.
+
+The one thing it costs is the reduced-motion story, which had to change with it. The band was
+suppressed under `prefers-reduced-motion` and the strip carried the threshold alone; with the strip
+gone that left **no indicator at all**, which fails the issue's own constraint that the threshold
+*"can still exist and still be legible"*. So reduced motion now keeps the **offset** and drops only
+the **spring**: the band tracks the wheel directly, with no transition, which is direct
+manipulation rather than animation — the same reasoning `design/0024` used for the edge scroll
+being the gesture's reach rather than decoration. What reduced motion removes is the rubber band
+*springing back*, which snaps instead.
 
 ## The keys did not change, and that is the decision
 
@@ -157,31 +181,15 @@ its bottom. Found in review, not by a check.
 
 ## A look is paint, and the band moves nothing
 
-`page.css` owns all of it: the strip's box, the leaf's transform, the words' line box. Neither
-`leather.css` nor `cyber.css` changed for this feature at all — the strip's colours come from
-`--text-1`, `--text-3` and `--surface-2`, which each look already redefines, so it takes each
-look's paint for free exactly as `design/0025`'s footer does.
+`page.css` owns all of it, and **no look file changed for this feature at all**. There is nothing
+left for a look to paint: the only thing the push draws is a `translateY` on `.vs-leaf`, which is
+geometry rather than colour, and it is identical in all three looks because `page.css` is the one
+place it is set.
 
-Two things make it safe against `design/0021`:
-
-- **The strip is absolutely positioned inside `.vs-spread`**, like `#vs-tabs` already is, so it
-  moves nothing whatever it paints.
-- **The band transforms a wrapper, `.vs-leaf`, not the page.** A transform does not affect
-  layout, so the page's own `scrollHeight` — which is what decides whether there is anything to
-  push through — is unchanged by the thing the push draws.
-
-Both are *measured* rather than argued: `.vs-push` and `#vs-pushsay` are in the same-size check's
-`reading` list, and the check now opens the strip before measuring, because **hidden it is 0×0 in
-every look, compares equal, and proves nothing**. `a look moves nothing on the page` walks it too,
-in the reading state, for the same reason.
-
-## `prefers-reduced-motion` removes the band and keeps the threshold
-
-The constraint the issue set. Under reduced motion the band is not painted at all and no spring
-is scheduled; the strip's fill still tracks the push, so the threshold is still legible and the
-gesture still exists. This is the opposite call from `design/0024`'s edge scroll, and for a
-reason: there the scroll **was** the gesture's only reach, so suppressing it would have deleted
-the feature. Here the band is decoration over a threshold that is visible without it.
+**The band transforms a wrapper, not the page.** A transform does not affect layout, so the page's
+own `scrollHeight` — which is what decides whether there is anything to push through — cannot be
+changed by the thing the push draws. That is why the band can be read off `--vs-band` and trusted:
+it is not feeding back into the measurement that produced it.
 
 ## `decisions/0013`: the spring is declared, not hidden
 
