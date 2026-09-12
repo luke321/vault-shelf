@@ -625,8 +625,9 @@ export function buildSearchIndex(views: ShelfView[], notes: Note[]): SearchIndex
   }
   const index: SearchIndex = new Map();
   for (const note of notes) {
+    const own = noteText(note);
     const mine = covers.get(note.id);
-    index.set(note.id, mine ? noteText(note) + "\n" + mine.join("\n") : noteText(note));
+    index.set(note.id, mine ? own + "\n" + mine.join("\n") : own);
   }
   return index;
 }
