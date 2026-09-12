@@ -491,8 +491,7 @@
 /* design/0005 sets the budget at 5px of lift. This spends one more and no rotation: the
  * cartridge slides out of the rack and its tube comes up to full power. Still nothing but a
  * transform and a shadow, so a lifted spine cannot reflow its neighbours.
- * github#51 -- the lift itself is page.css's rung now, so the room above it follows this look
- * rather than being a number two sheets disagree about. */
+ * github#51 -- the lift is page.css's rung now. */
 .vault-shelf[data-look="cyber"] .vs-spine:hover,
 .vault-shelf[data-look="cyber"] .vs-spine:focus-visible {
   transform: translateY(calc(-1 * var(--spine-lift-hover)));
@@ -532,11 +531,8 @@
 
 .vault-shelf[data-look="cyber"] .vs-spine[data-wear="3"] .vs-title { color: #a8c2d2; }
 
-/* github#51 -- A LOOK THAT LIFTS FURTHER MOVES ITS RUNG, not a transform of its own: a worn
- * cartridge comes out the full six here where page.css stops a worn book at five. The rung goes
- * on the room and not on the spine, because the room above a book is the TRACK's to allow and
- * the track is above the spine: --spine-lift-max is re-derived here, so the clip edge widens
- * with the lift instead of the two disagreeing. */
+/* github#51, design/0021 -- A LOOK THAT LIFTS FURTHER MOVES ITS RUNG, on the room and not on
+ * the spine: the room is the track's to allow, and the track is above the spine. */
 .vault-shelf[data-look="cyber"] {
   --spine-lift-worn-hover: var(--spine-lift-hover);
 }

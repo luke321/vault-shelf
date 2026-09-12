@@ -120,21 +120,7 @@
   --spine-rule-side: 4px;
   --spine-rule: 1px;
   --spine-clear: 3px;
-  /* github#51, design/0021 -- HOW FAR A SPINE RISES, DECLARED AS A LADDER, shortest rung
-   * first. Five states lift, and two of them are not hover states at all: a worn book never
-   * goes back quite flush, and a search match is drawn forward while a query is live. The
-   * track contains its paint and has no room above a spine, so the tallest rung is exactly the
-   * room its clip edge has to allow -- and the two are ONE VALUE here rather than two that can
-   * drift apart. A look that spends a different lift moves its rung (cyber does), never a
-   * transform of its own, so the room follows the look (github#14).
-   *
-   * NOT max() OVER THE RUNGS, which is what this wanted to be: measured in this Chrome,
-   * `overflow-clip-margin` takes a bare length and rejects every math function -- `max(1px,
-   * 7px)`, `calc(max(1px, 7px))` and a var() holding either all compute to 0px, silently, and
-   * the clip goes back to biting. Only an @property registration makes a max() compute down to
-   * a length, and that registration is document-global where every rule here is scoped under
-   * .vault-shelf. So the top rung is the room by identity, and `the room above a spine is the
-   * largest lift, in every look` is the check that catches a LESSER rung raised past it. */
+  /* github#51, design/0021 -- HOW FAR A SPINE RISES, and its top rung IS the track's room. */
   --spine-lift-worn: 1px;
   --spine-lift-worn-more: 2px;
   --spine-lift-worn-hover: 5px;
@@ -501,15 +487,7 @@
   content-visibility: auto;
   contain-intrinsic-size: auto 240px;
 }
-/* github#51, design/0021 -- AND SAY WHERE THE CLIP EDGE IS. `paint` clips every descendant
- * pixel to the track's box, and the track has no room above a spine: its min-height puts all of
- * its slack BELOW, for the board and the plaque. So every lift painted outside the box and was
- * sliced flat -- the rounded head, the head band and the closing border gone -- on every row,
- * most visibly under a shelf head where the missing pixels fall in a gap instead of into the
- * dark above a board. A clip margin moves the edge and nothing else: it is not padding, so no
- * spine, board, plaque or golden moves, and it is still a clip -- measured, a lift taller than
- * the margin is still cut at the margin. The room is the ladder's top rung, read rather than
- * typed, so a look that lifts further (cyber) carries its own edge with it. */
+/* github#51, design/0021 -- AND SAY WHERE THE CLIP EDGE IS. Not padding, so no golden moves. */
 .vault-shelf .vs-track {
   contain: layout paint;
   overflow-clip-margin: var(--spine-lift-max);
@@ -672,8 +650,7 @@
               margin 160ms ease, box-shadow 120ms ease;
 }
 
-/* github#14 -- ONE LIFT. It was -5px here, -5px in leather and -6px in cyber.
- * github#51 -- and it READS its rung now, so the room above it is derived from it. */
+/* github#14, github#51 -- ONE LIFT, read from its rung. -5/-5/-6 across the sheets before. */
 .vault-shelf .vs-spine:hover,
 .vault-shelf .vs-spine:focus-visible {
   transform: translateY(calc(-1 * var(--spine-lift-hover)));

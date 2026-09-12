@@ -924,6 +924,68 @@ in light, dark and leather: **691** existing book colors unchanged;
 encyclopedia volumes use **one** color in every case. Turning
 variation on/off preserves all addresses and counts.
 
+## A lifted spine is painted whole, and the clip edge says so
+
+`github#51`, `design/0021` (amendment). `.vs-track` has `contain: layout paint`, which clips
+every descendant pixel to the track's overflow clip edge, and the track has **`0px` of box above
+a spine**: its `min-height: calc(var(--spine-h) + 34px)` with `align-items: flex-start` puts all
+34px of slack *below*, for the board and the plaque. So every lift painted outside the box and
+was sliced flat.
+
+**Five rungs lift, and two of them are not hover states**, declared as a ladder on
+`.vault-shelf`:
+
+| rung | token | state |
+|---|---|---|
+| 1px | `--spine-lift-worn` | a worn spine **at rest**, `[data-wear="2"]` |
+| 2px | `--spine-lift-worn-more` | a worn spine **at rest**, `[data-wear="3"]` |
+| 5px | `--spine-lift-worn-hover` | a worn spine hovered — **6px under `data-look="cyber"`** |
+| 6px | `--spine-lift-hover` | `:hover` / `:focus-visible` |
+| **7px** | `--spine-lift-max`, read by `--spine-lift-match` | a search match, **every one, while a query is live** |
+
+**The top rung IS the room**, by identity rather than by `max()`: `overflow-clip-margin` takes a
+bare `<length>` and rejects every math function, computing **`0px`** for `max(1px, 7px)`,
+`calc(max(1px, 7px))` and a `var()` holding either. Only an `@property` registration makes a
+`max()` compute down, and that registration is document-global where every rule in this sheet is
+scoped. `design/0021` has the table.
+
+**A look that lifts further moves its rung on the room, not on the spine** — cyber sets
+`--spine-lift-worn-hover` on `.vault-shelf[data-look="cyber"]`, which is above the track, so the
+clip edge re-derives with it. The room above a book is the track's to allow, and the track is the
+spine's ancestor.
+
+`"a lifted spine is painted whole, in every look"` reads **painted pixels**, because this defect
+is invisible to geometry: `getBoundingClientRect` reported the lifted spine at `y=160` clipped or
+not. It lifts one spine **20px**, far past any rung, captures the rows above its track with the
+spine there and again with it hidden, and reads how far up it was allowed to paint:
+
+- the clip **grants** the room `page.css` declares — **7px of 7px** in all three looks;
+- the clip is **still a clip** — a 20px lift paints 7px, never 20;
+- `contain` still includes `paint` in all three looks;
+- and one real state end to end: a search match, lifted by the **query** rather than the pointer,
+  **lifted 7px and painted 7px** in leather, modern and cyber.
+
+Without the clip margin it reads `0px of 0px` and a match `lifted 7px, painted 0px`.
+
+The reference is the spine **absent**, never the spine put back down: shifting leather's steep
+gilt head by a pixel moves those pixels by more than any threshold whether the head was clipped
+or not. And it samples the spine's **whole width**, never one column — a look's top hairline can
+sit within a unit or two of its ground, and leather's does.
+
+`"the room above a spine is the largest lift, in every look"` is the arithmetic the pixels cannot
+state, and the only thing that catches a **lesser** rung raised past the room: the room granted
+**is** the tallest rung (`7px` = `7px`, by `match`), containment is on, and the box still has
+`0px` of slack above a spine, in every look. Without the fix: `SHORT: leather by 7px, modern by
+7px, cyber by 7px`.
+
+**Nothing moved, and that is the assertion.** A clip margin is not padding, so no spine, board,
+plaque, `min-height` or `background-position` moved, `the shelves are packed the way the golden
+snapshot says` passes against the **unchanged** goldens, and `every control is the same size in
+every look` and `a look moves nothing on the page` are unchanged. Containment is intact, so
+`scrolling the library stays smooth in every look` is unchanged too: p50/p95/worst ms per frame
+`leather 17.6/18.4/21 · modern 17.6/18.5/23 · cyber 17.5/18.3/19` with the margin, against
+`leather 17.6/18.4/21 · modern 17.6/18.3/19 · cyber 17.6/18.4/18` without it.
+
 ## A look is paint, and nothing else
 
 `design/0016`, `design/0017`. There are **three** looks — the default, the leather binding

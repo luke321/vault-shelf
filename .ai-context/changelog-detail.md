@@ -1,5 +1,78 @@
 # Changelog detail
 
+## 2026-09-12 — A lifted spine is painted whole (github#51)
+
+> "a book is cut off at the top when you hover it near the shelf header"
+
+**The header was a red herring: it cut on every row, and hover was not the worst case.**
+`.vs-track` has `contain: layout paint`, and the track has `0px` of box above a spine — all 34px
+of its slack is below, for the board and the plaque. So all five lifts painted outside the box and
+were sliced flat, two of them with nobody hovering.
+
+**The fix is one property and it moves nothing.** `overflow-clip-margin: var(--spine-lift-max)`
+next to the `contain` it belongs to. Not padding, so no golden, no board, no plaque and no control
+moved; containment survives, so the scroll cost is unchanged.
+
+A spine lifted 20px, and how far above its track it is actually **painted** (measured
+headless on the one vault, differencing the same pixel band with the spine there and hidden):
+
+| track | painted above | reading |
+|---|---|---|
+| `contain: layout paint` — as shipped | **0px** | the whole lift is cut |
+| `+ overflow-clip-margin: 0px` | 0px | |
+| `+ overflow-clip-margin: 7px` | **7px** | the fix |
+| `+ overflow-clip-margin: 13px` | 13px | the edge follows the margin exactly |
+| `+ overflow-clip-margin: 40px` | **20px** | **the lift, not the margin — still a clip** |
+| `contain: layout` — paint dropped | 20px | clipping gone |
+
+The cut per state, before and after:
+
+| state | rung | cut before | cut after |
+|---|---|---|---|
+| a worn spine at rest, `[data-wear="2"]` | 1px | 1px | **0** |
+| a worn spine at rest, `[data-wear="3"]` | 2px | 2px | **0** |
+| a worn spine hovered | 5px (cyber 6px) | 5px / 6px | **0** |
+| `:hover` / `:focus-visible` | 6px | 6px | **0** |
+| a search match, query live | 7px | 7px | **0** |
+
+What the two new checks print, with the fix and without it:
+
+| | with | without |
+|---|---|---|
+| `a lifted spine is painted whole, in every look` | `leather 7px of 7px, modern 7px of 7px, cyber 7px of 7px`; a match `lifted 7px, painted 7px` ×3 | `0px of 0px` ×3; a match `lifted 7px, painted 0px` ×3 |
+| `the room above a spine is the largest lift, in every look` | `room 7px for a tallest lift of 7px (match), containment on, 0px of box above a spine` ×3 | `room 0px … SHORT: leather by 7px, modern by 7px, cyber by 7px` |
+
+And the numbers that had to **not** move:
+
+| | before | after |
+|---|---|---|
+| `scripts/layout-snapshots/` goldens | — | **unchanged**, `the shelves are packed the way the golden snapshot says` green |
+| `every control is the same size in every look` | ok | **ok** |
+| `a look moves nothing on the page` | ok | **ok** |
+| scroll, p50/p95/worst ms per frame — leather | 17.6/18.4/21 | 17.6/18.4/21 |
+| — modern | 17.6/18.3/19 | 17.6/18.5/23 |
+| — cyber | 17.6/18.4/18 | 17.5/18.3/19 |
+| `contain` on `.vs-track` | `layout paint` | `layout paint` |
+| checks in the suite | 99 | **101** |
+
+**Why not the two options the issue costed.** `padding-top: 7px` works (cut 6px → 0px) and pushes
+every shelf down 7px — ~105px of extra scroll over fifteen shelves — rewriting every golden.
+Dropping `paint` also works, and its cost is **not measurable on this vault**: paint-dropped reads
+`leather 17.6/18.4/22 · modern 17.6/18.4/20 · cyber 17.4/18.3/19`, indistinguishable from shipped,
+because `.vs-shelf`'s `content-visibility: auto` is carrying `design/0014`'s win now rather than
+the track's `paint`. Not measurable is not free, and the clip margin is free.
+
+**`overflow-clip-margin` rejects every math function in this Chrome**, which is why the room is
+the top rung by identity rather than `max()` over the rungs: `max(1px, 7px)`,
+`calc(max(1px, 7px))` and a `var()` holding either all compute to **`0px`**, silently. Only an
+`@property` registration makes one compute down, and that is document-global.
+
+**Two forms of the pixel check were wrong in ways that passed**, and both are recorded in
+`design/0021`: driving all five states with a real hover and real wear flaked outright (the same
+build read `0/0/94/96` on one run and `104/104/101/176` on the next), and differencing against the
+spine *put back down* read a clipped leather head as painted, because a 1px shift of that look's
+steep gilt band moves those pixels more than any threshold either way.
+
 ## 2026-09-12 — The shelved look is called Cyber (github#56)
 
 > "disable cyberpunk for now, call it cyber aswell"
