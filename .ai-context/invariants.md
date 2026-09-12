@@ -658,6 +658,24 @@ one dyes one); a shelf's head or its empty rail is every book standing on it —
 whole unit at once and **saves 0 keys**; a click saves **one key per book**; *Automatic* takes
 every one of them off again and the room is byte-identical to where it started.
 
+**A plate's run is the shelf's, never the row's.** `"a plate dyes its whole run from either copy,
+and the colours survive a rebuild"` (`github#29`, `design/0022`). One `renderTrack` call is one
+shelf row, so a plate wired to the books beside it is wired to the slice of the run on that board;
+`runOver()` is the one resolution both the click and the right-click go through, so a plate cannot
+dye a different set from the one it opens. Measured on the vault: `months` plate **2022** is drawn
+**2** times over a run of **12** books, **9** and **3**; the right-click on the copy over the
+**three** writes **12** `bookColors` keys, leaves the shelf's other **98** books alone, survives a
+rebuild and a `core.migrate` round-trip, is followed by a favourite pointing into the run with
+**no key of its own**, and comes off in one *Automatic* on the other copy. The check searches for a
+run that is actually drawn twice rather than assuming the longest one is — the longest run in this
+vault is twelve books and twelve spines fit one row at any usable width.
+
+**The menu says which gesture it is.** `.vs-dyeunit` — `12 books under this plate`, `231 books on
+this shelf`, absent on a spine, and `1 book under this plate` on a run that holds one, because a
+plate is still a plate. It is a line of its own because `.vs-dyename` ellipsises. And the lines
+below the twelve are a spine's: `openDye()` is told where the hand landed instead of inferring it
+from the book count, so a run of one no longer grows them.
+
 **A hand-given colour is a stamp, not a rule.** Each book keeps its own `bookColors` key, so it
 survives a rebuild by address and one spine can be re-dyed afterwards. A book that joins the
 shelf later does not inherit it.

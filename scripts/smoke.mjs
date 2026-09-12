@@ -247,6 +247,8 @@ const POINTER_DRIVEN = [
   /* github#44, design/0022 -- it reads every spine's box, before and after a hover. */
   "hovered swatch",
   "a right-click dyes",
+  /* github#29 -- it counts plates and reads tints, so it reads the packing */
+  "its whole run from either copy",
   /* github#45 -- it reads every spine's title box and the rules drawn on it */
   "touches a line",
   /* design/0020 -- a right-click and a drag off the rail read boxes. */
@@ -3165,6 +3167,192 @@ check("a right-click dyes a book, a plate's run or a shelf, and hovering paints 
                ? `${bad.join(", ")} -- not what a hand-given colour does`
                : `a hover wrote ${r.spineSaved}/${r.plateSaved}/${r.shelfSaved} keys; ` +
                  "a preview saves nothing" };
+});
+
+/* github#29, design/0022 -- a plate dyes its run, from either copy */
+check("a plate dyes its whole run from either copy, and the colours survive a rebuild", async (p) => {
+  /* github#44 -- boxes are read, so the first packing has to have landed */
+  for (let wait = 0; wait < 20; wait++) {
+    const up = await p.j(`(function(){
+      var one = document.querySelector("#vs-shelves .vs-spine");
+      return one ? Math.round(one.getBoundingClientRect().width) : 0;
+    })()`);
+    if (up > 0) break;
+    await sleep(150);
+  }
+
+  /* github#29, design/0022 -- a run drawn twice, found not assumed */
+  const find = `(function(){
+    var core = window.VaultShelfCore;
+    var best = null, longest = null;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.hidden || v.shelf.direction === "manual") return;
+      var drawn = {};
+      [].slice.call(document.querySelectorAll('[data-shelf="' + v.shelf.id + '"] .vs-plaque'))
+        .forEach(function (b) { drawn[b.textContent] = (drawn[b.textContent] || 0) + 1; });
+      core.runsOf(v.books).forEach(function (run) {
+        if (run.plaque === null || run.books.length < 2) return;
+        var one = { shelf: v.shelf.id, label: run.plaque, size: run.books.length,
+                    plates: drawn[run.plaque] || 0 };
+        if (!longest || one.size > longest.size) longest = one;
+        if (one.plates > 1 && (!best || one.size > best.size)) best = one;
+      });
+    });
+    return best || longest;
+  })()`;
+
+  let run = null, width = 0;
+  for (const w of [1280, 1000, 860, 820]) {
+    await p.send("Emulation.setDeviceMetricsOverride",
+                 { width: w, height: 1000, deviceScaleFactor: 1, mobile: false });
+    /* github#29 -- CDP resizes without telling the page */
+    await p.j(`window.dispatchEvent(new Event("resize"))`);
+    await sleep(200);
+    run = await p.j(find);
+    width = w;
+    if (run && run.plates > 1) break;
+  }
+  if (!run) {
+    await p.send("Emulation.clearDeviceMetricsOverride");
+    return { ok: false, detail: "no run of two books under a plaque in this library" };
+  }
+  if (run.plates < 2) {
+    await p.send("Emulation.clearDeviceMetricsOverride");
+    return { ok: false,
+             detail: `the longest run (${run.shelf} "${run.label}", ${run.size} books) still ` +
+                     `fits one row at ${width}px, so no second plate could be right-clicked` };
+  }
+
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var out = { shelf: ${JSON.stringify(run.shelf)}, label: ${JSON.stringify(run.label)} };
+    var shelves = document.getElementById("vs-shelves");
+    var dye = document.getElementById("vs-dye");
+    var fire = function (el, type) {
+      el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true,
+                                              clientX: 200, clientY: 200 }));
+    };
+    var tint = function (id) {
+      var sp = shelves.querySelector('[data-book="' + CSS.escape(id) + '"]');
+      return sp ? getComputedStyle(sp).getPropertyValue("--spine-tint").trim() : "?";
+    };
+    var given = function () { return Object.keys(__vs.settings().bookColors).length; };
+    var plates = function () {
+      return [].slice.call(shelves.querySelectorAll('[data-shelf="' + out.shelf + '"] .vs-plaque'))
+        .filter(function (b) { return b.textContent === out.label; });
+    };
+    var rowOf = function (plate) {
+      return [].map.call(plate.parentElement.querySelectorAll(".vs-spine[data-book]"),
+                         function (s) { return s.getAttribute("data-book"); });
+    };
+
+    /* github#44 -- a hand-given colour left by an earlier check is not this one's */
+    var kept = __vs.settings();
+    kept.palette = [];
+    kept.ribbons = kept.ribbons.map(function () { return ""; });
+    Object.keys(kept.bookColors).forEach(function (k) { delete kept.bookColors[k]; });
+    __vs.setFilters({});
+    out.clean = given() === 0;
+
+    var view = __vs.views().filter(function (v) { return v.shelf.id === out.shelf; })[0];
+    var theRun = core.runsOf(view.books).filter(function (x) { return x.plaque === out.label; })[0];
+    var ids = theRun.books.map(function (b) { return b.id; });
+    out.runSize = ids.length;
+    /* every book the shelf holds that this plate does NOT name */
+    var outside = view.books.map(function (b) { return b.id; })
+      .filter(function (id) { return ids.indexOf(id) < 0; });
+    out.outside = outside.length;
+
+    /* design/0019 -- a favourite wears its source's colour, so one stands in the run */
+    var fav = __vs.picks()[0];
+    out.hasPick = !!fav;
+    var favId = "";
+    if (fav) {
+      /* design/0019 -- a pick's key IS the source's address, so its own is one segment longer */
+      __vs.pick(ids[0], null, fav.id);
+      favId = core.bookId(fav.id, ids[0]);
+      out.favDrawn = tint(favId) !== "?";
+    }
+    var wasTint = ids.map(tint);
+
+    var two = plates();
+    out.plates = two.length;
+    var first = rowOf(two[0]), last = rowOf(two[two.length - 1]);
+    out.firstRow = first.length;
+    out.lastRow = last.length;
+    out.split = first.length < ids.length && last.length < ids.length;
+
+    /* 1. the SECOND copy of the plate, which is the whole point */
+    fire(two[two.length - 1], "contextmenu");
+    out.menu = !dye.hidden && dye.querySelectorAll(".vs-swatches .vs-swatch").length === 12;
+    out.name = dye.querySelector(".vs-dyename").textContent;
+    var unit = dye.querySelector(".vs-dyeunit");
+    out.unit = unit ? unit.textContent : "";
+    /* github#44 -- the lines below the twelve are one book's, and a run is not one book */
+    out.noLines = dye.querySelectorAll(".vs-dyepick").length === 0;
+    dye.querySelectorAll(".vs-swatches .vs-swatch")[7].click();
+    out.shut = dye.hidden;
+
+    var wore = ids.map(tint);
+    out.wholeRun = wore.every(function (c) { return c === wore[0] && c !== "" && c !== "?"; });
+    var colours = __vs.settings().bookColors;
+    out.allSeven = ids.every(function (id) { return colours[id] === 7; });
+    out.entries = given();
+    out.outsideClean = outside.every(function (id) { return colours[id] === undefined; });
+    /* the books on the row the plate was NOT on are dyed too: the row is not the unit */
+    out.otherRowDyed = first.every(function (id) { return colours[id] === 7; });
+    if (fav) {
+      out.favFollows = tint(favId) === wore[0];
+      /* design/0019 -- a reference, never a copy: the colour was written against the source */
+      out.favNoKey = colours[favId] === undefined;
+    }
+
+    /* 2. a rebuild, and the settings round-tripped through migrate */
+    __vs.setFilters({});
+    out.afterRebuild = ids.map(tint).join(",") === wore.join(",");
+    var migrated = core.migrate(JSON.parse(JSON.stringify(__vs.settings())));
+    out.afterMigrate = ids.filter(function (id) { return migrated.bookColors[id] === 7; }).length;
+
+    /* 3. one gesture back: Automatic on the FIRST copy takes off what the second put on */
+    fire(plates()[0], "contextmenu");
+    dye.querySelector(".vs-dyeauto").click();
+    out.undone = given() === 0;
+    /* back to exactly the room that was there, not merely to something else */
+    out.undoneRoom = ids.map(tint).join(",") === wasTint.join(",");
+    if (fav) __vs.unpick(ids[0], fav.id);
+    __vs.setFilters({});
+    out.leftClean = given() === 0;
+    return out;
+  })()`);
+
+  await p.send("Emulation.clearDeviceMetricsOverride");
+  await p.j(`window.dispatchEvent(new Event("resize"))`);
+  await sleep(250);
+
+  const want = ["clean", "split", "menu", "noLines", "shut", "wholeRun", "allSeven",
+                "outsideClean", "otherRowDyed", "afterRebuild", "undone", "undoneRoom",
+                "leftClean"];
+  if (r.hasPick) want.push("favDrawn", "favFollows", "favNoKey");
+  const bad = want.filter((k) => r[k] !== true);
+  const named = r.name === run.label && r.unit === `${r.runSize} books under this plate`;
+  const kept = r.entries === r.runSize && r.afterMigrate === r.runSize;
+  const ok = !bad.length && named && kept;
+  return { ok,
+           detail: ok
+             ? `${r.shelf} plate "${r.label}" is drawn ${r.plates} times at ${width}px over a ` +
+               `run of ${r.runSize} books (${r.firstRow} on one row, ${r.lastRow} on the other); ` +
+               `right-clicking the second copy says "${r.name} / ${r.unit}" and dyes all ` +
+               `${r.runSize}, writing ${r.entries} bookColors keys and leaving the shelf's ` +
+               `other ${r.outside} books alone; ${r.afterMigrate} survive a rebuild and a ` +
+               `migrate round-trip, the favourite pointing into the run follows without a key ` +
+               `of its own, and Automatic on the first copy takes all ${r.runSize} off again`
+             : bad.length
+               ? `${bad.join(", ")} -- not what a plate names`
+               : !named
+                 ? `the menu said "${r.name}" / "${r.unit}", not "${run.label}" over ` +
+                   `${r.runSize} books`
+                 : `a run of ${r.runSize} wrote ${r.entries} keys and ${r.afterMigrate} ` +
+                   "survived a migrate" };
 });
 
 check("the theme follows the host, and the slots are re-read when it changes", async (p) => {

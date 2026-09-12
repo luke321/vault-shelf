@@ -770,14 +770,15 @@ function mountVaultShelf(root, data, options) {
         plate.type = "button";
         var first = group.books[0];
         on(plate, "click", function () { openPlaque(shelf, first); });
-        /* github#44 -- a plate says what is under it, so it dyes what is under it */
-        var run = group.books, name = group.plaque;
+        /* github#44, github#29 -- a plate dyes its RUN, not this row */
+        var onBoard = group.books, name = group.plaque;
         on(plate, "contextmenu", function (e) {
           var me = /** @type {MouseEvent} */ (e);
           me.preventDefault();
           /* github#44 -- the rail's own menu must not open behind it */
           me.stopPropagation();
-          openDye(run, name, me.clientX, me.clientY);
+          openDye(runOver(shelf, onBoard[0]) || onBoard, name, me.clientX, me.clientY,
+                  "under this plate");
         });
         g.appendChild(plate);
       }
@@ -794,16 +795,26 @@ function mountVaultShelf(root, data, options) {
     return track;
   }
 
+  /**
+   * github#29, design/0019 -- the run a plate names, over the whole shelf
+   * @param {Shelf} shelf @param {Book} under @returns {Book[]|null}
+   */
+  function runOver(shelf, under) {
+    var view = viewById(shelf.id);
+    if (!view) return null;
+    var run = core.runsOf(view.books).filter(function (r) {
+      return r.books.some(function (b) { return b.id === under.id; });
+    })[0];
+    return run ? run.books : null;
+  }
+
   /* github#6, design/0019 */
   /** @param {Shelf} shelf @param {Book} under */
   function openPlaque(shelf, under) {
     var view = viewById(shelf.id);
-    if (!view) return;
-    var run = core.runsOf(view.books).filter(function (r) {
-      return r.books.some(function (b) { return b.id === under.id; });
-    })[0];
-    if (!run) return;
-    var book = core.plaqueBook(view, run.books, settings.noteOrder);
+    var run = view && runOver(shelf, under);
+    if (!view || !run) return;
+    var book = core.plaqueBook(view, run, settings.noteOrder);
     if (book) openBook(book, null);
   }
 
@@ -1515,6 +1526,8 @@ function mountVaultShelf(root, data, options) {
     menu.appendChild(line);
     /* github#44 -- right-clicking a shelf dyes every book standing on it */
     var books = booksOn(shelf);
+    /* github#29 -- and it says so */
+    menu.appendChild(el("div", "vs-dyeunit", dyeUnit(books, "on this shelf")));
     var offers = dyeRow(menu, books, function (slot) { setBookColors(books, slot); });
     placeMenu(menu, x, y);
     line.focus();
@@ -1937,10 +1950,20 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * github#44 -- one spine, a plate's run or a shelf; the lines are a book's
-   * @param {Book[]} books @param {string} label @param {number} x @param {number} y
+   * github#29, design/0022 -- how many books this gesture is about, said out loud.
+   * @param {Book[]} books @param {string} where @returns {string}
    */
-  function openDye(books, label, x, y) {
+  function dyeUnit(books, where) {
+    return books.length + (books.length === 1 ? " book " : " books ") + where;
+  }
+
+  /**
+   * github#44 -- one spine, a plate's run or a shelf; the lines are a book's
+   * github#29, design/0022 -- `where` is where the hand landed; only a spine has none
+   * @param {Book[]} books @param {string} label @param {number} x @param {number} y
+   * @param {string} [where]
+   */
+  function openDye(books, label, x, y, where) {
     dyeing = { books: books, label: label };
     var menu = node("dye");
     clear(menu);
@@ -1948,8 +1971,9 @@ function mountVaultShelf(root, data, options) {
     /* design/0019 -- a colour given to a favourite is given to the book it stands for. */
     var book = books[0];
     menu.appendChild(el("div", "vs-dyename", label));
+    if (where) menu.appendChild(el("div", "vs-dyeunit", dyeUnit(books, where)));
     var offers = dyeRow(menu, books, function (slot) { setBookColors(books, slot); });
-    if (books.length !== 1) {
+    if (where || books.length !== 1) {
       placeMenu(menu, x, y);
       holdFocus(menu);
       offerPreviews(offers);

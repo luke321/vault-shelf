@@ -1,5 +1,50 @@
 # Changelog detail
 
+## 2026-09-12 — A plate dyes its whole run, from either copy of it (github#29)
+
+> "right click on a plaque enables to set the color for all books under the plaque"
+
+Asked for as new work; **half of it was already on `develop`** from `github#44`, and that half was
+wrong in the case the issue names. One `renderTrack` call is one shelf row (`design/0014`), so the
+plate's right-click was wired to the slice of its run that landed on that board, while
+`openPlaque()` — the click, three lines away in the same file — resolved the run over the shelf's
+whole sequence. Both plates of a wrapped run opened the same book; only one of them dyed all of it.
+`design/0022`'s own table already said "wrapped rows included", and the check written for the
+feature read the run as `plate.parentElement.querySelectorAll(".vs-spine")` — the row — so it
+asserted the bug and passed. Measured, not reasoned: the new check was watched failing against the
+old code before the fix went in.
+
+| | before | after |
+|---|---|---|
+| a plate's right-click dyes | the books on **that board** | **the run**, over the shelf's whole sequence |
+| `months` "2022", drawn 2 times over 12 books, 9 + 3 | | |
+| — from the copy over the **9** | 9 keys | **12** keys |
+| — from the copy over the **3** | **3** keys | **12** keys |
+| the shelf's other books | 98 untouched | **98** untouched |
+| through `setFilters({})` and `core.migrate` | — | **12 / 12** survive |
+| a favourite pointing into the run | — | follows, with **0** keys of its own |
+| *Automatic* on the other copy | took its own row off | takes all **12** off; every tint back string for string |
+| a plate over a run of **1** book | showed a **spine's** lines (*Add to Favourites*, *Edit book…*) | shows **0** of them |
+| what the menu says it will dye | the label alone | the label **and** `12 books under this plate` |
+
+`runOver(shelf, under)` is the one resolution both gestures use — the body `openPlaque()` already
+had, lifted out — so a plate cannot dye a set it does not open. `openDye()` takes **where the hand
+landed** rather than inferring the menu's shape from `books.length`, which is what had let a
+one-book run wear a spine's lines. The undo stays *Automatic* rather than gaining a word of its
+own (`design/0022`).
+
+The check searches for a run that is **actually drawn twice** instead of narrowing until the
+longest one wraps. The first shape of it did the latter and could never pass: the longest run in
+this vault is twelve months, and twelve spines fit one row at any width the library is usable at —
+a run wraps when it starts late on a row, which is a fact about the shelf's packing, not the run's
+length.
+
+| | |
+|---|---|
+| `smoke.mjs` | 94 → **95 checks**, 95 runs, **35s** wall over 3 Chromes |
+| the new check | **0.7s**, serial lane (it counts plates, so it reads the packing) |
+| suite | **95/95** on the vault |
+
 ## 2026-09-11 — Re-measured against the one vault (github#44, decisions/0014)
 
 `develop` replaced the three fixtures with one generated vault while this branch was in flight.

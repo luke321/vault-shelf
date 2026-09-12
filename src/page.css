@@ -1522,6 +1522,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* github#29, design/0022 -- the count; it may wrap where the name may not */
+.vault-shelf .vs-dyeunit {
+  font-size: 10.5px;
+  color: var(--text-3);
+  opacity: 0.85;
+  margin: 0 0 6px 2px;
+}
+/* Under the name it closes the gap the name left; under a button it stands alone. */
+.vault-shelf .vs-dyename + .vs-dyeunit { margin-top: -4px; }
 .vault-shelf .vs-swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
 /* THREE CLASSES DEEP ON PURPOSE. Every look paints `button` with its own rule at
  * `.vault-shelf[data-look] button` -- one class, one attribute, one element -- which beats a
