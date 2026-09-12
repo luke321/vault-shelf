@@ -1326,6 +1326,74 @@ running against: hard-coding one passed on one fixture and, on another, asserted
 that a query finding nothing still drew something forward. Measured: **227** spines before,
 during and after, **193** drawn forward and **34** thinned to ghosts, none removed.
 
+## What the vault spells
+
+`design/0026`, `github#41`. The search box is a **combobox** over the vocabulary the classifiers
+have already collected, and **picking a suggestion completes the text and nothing else** — the
+query still marks, so `design/0008`'s law is untouched.
+
+`"the search box offers what the vault spells, and says what kind each one is"` asserts the
+vocabulary carries all five kinds, that every row is labelled and counted, that **no spelling is
+offered twice**, and that at most **8** rows appear with at most **3** of them bare note titles.
+Measured on the one vault: **5,147 terms** — 25 people, 43 tags, 12 folders, **222 books** and
+4,938 note titles — of which **68 are spelled by more than one kind**. That last number is what
+makes the kind label information rather than decoration: `garden` is one row reading `tag · book`,
+never two rows that would do the same thing.
+
+`"every suggestion the box offers marks at least one note when it is picked"` is the honesty
+invariant. It types thirteen probes drawn from the vault, picks **every** row each one offers, and
+asserts `#vs-hits` reads more than zero notes each time. **77 suggestions, 0 dead ends.**
+
+It failed the first time it ran, at **29 of 77**, and every failure was a book: `Aug 2026`,
+`No one named`, `#работа`. `core.labelFor` builds a *display* string while `matchesQuery` reads the
+note's title, path, tags, people and body — which carry the **key**. Offering a label was offering
+exactly the dead end this feature exists to remove. A book contributes `book.key` now, a key
+beginning with `-` is a sentinel rather than a word, and any key that no note of that book actually
+spells is dropped when the vocabulary is built. The invariant holds **by construction**; the check
+is what proves it stays that way.
+
+`"a typo that spells nothing says so, and offers nothing to pick"` types a string the vault cannot
+spell and asserts the list stays **open** with **0** `role="option"` rows and one non-pickable row
+reading *Nothing in this vault spells that.* An empty list would say the same thing as a vault that
+genuinely has no gardening in it, which is the bug being fixed.
+
+`"the suggestion list is a combobox the keyboard can drive"` asserts `role="combobox"` over a
+`role="listbox"`, `aria-expanded` **false** at rest and **true** when open, **no**
+`aria-activedescendant` until an arrow is pressed, that the arrows walk the rows and **wrap**, and
+that `#vs-library`'s `scrollTop` is **identical** before and after they do — the room must not move
+while the list is walked. Then that Enter completes the box, marks, shuts the list and **keeps the
+focus in the box**, and that Escape shuts the list, keeps the focus, and leaves the reader
+**untouched** — the list's Escape stops there rather than reaching the overlay behind it.
+
+`"a vocabulary that is not Latin is still offered"` takes the first term whose **first** character
+is outside Latin-1, types that one character, and asserts the term is offered and marks notes.
+Measured: `学` offers `学び` (135 notes). `toLowerCase()` is a no-op on CJK, which is why a term is
+**offered on contains and ranked on prefix** rather than matched with `startsWith` — which would
+also put `garden/seeds` out of reach of somebody typing `seeds`.
+
+`"a vault with no vocabulary offers nothing"` asks `core` directly: `buildVocabulary([], [])` spells
+**0** terms and offers **0**, and one note with a title spells **2** and offers it.
+
+**Typing costs about two milliseconds more than it did.** The vocabulary is built once in
+`rebuild()`, where the books are built, never per keystroke. Measured on the one vault — 4,938 notes
+in 691 books, so **37,423 book-note slots** scanned per keystroke by `markMatches`, which is the
+cost that was already there:
+
+| sustained typing, per keystroke | median |
+|---|---|
+| marking only, which is what this branch replaced | **15.1 ms** |
+| marking **and** offering the list | **17.4 ms** |
+| `core.suggest` over all 5,147 terms, on its own | **0.1–0.2 ms** |
+
+**Sustained means a growing word that is never cleared**, which is what a person types. An earlier
+reading of 14.5 → 29.5 ms was an artefact of a probe that emptied the box between every keystroke:
+that pays the **once-per-opening** cost of measuring the box's rectangle — a forced reflow of a room
+whose 691 spines `applyQuery` has just dirtied — on every key instead of once. The list is placed
+when it opens and on a resize, and not again while somebody types.
+
+Both numbers must be read from **one run**: five worktrees share this machine, and marking alone
+measured 14.1, 15.1 and 19.9 ms across three runs of code that never changed.
+
 ## Scrolling stays smooth
 
 `"scrolling the library stays smooth in every look"` scripts a 1.4-second scroll through the

@@ -23,7 +23,7 @@ keystroke:
 | **median / worst** | **14.5 / 17.8** |
 
 The vocabulary that vault can offer: 25 people, 43 tags, 12 folders, 691 book labels and 4,938 note
-titles — **5,689 distinct terms** after deduplication, of which two are non-Latin (`学び`, `работа`).
+titles — **5,147 distinct terms** after deduplication, of which two are non-Latin (`学び`, `работа`).
 
 ## Decision
 
@@ -94,7 +94,7 @@ lexicographic, so the list is deterministic and two runs over one vault offer th
 
 ### Note titles are capped
 
-Titles are 4,938 of the 5,689 terms. Uncapped, typing a common word buries the tag under two hundred
+Titles are 4,938 of the 5,147 terms. Uncapped, typing a common word buries the tag under two hundred
 note titles. `SUGGEST_ROWS = 8`, of which at most `NOTE_ROWS = 3` may be titles, and titles rank last
 — so the structural vocabulary is always visible, and a title still gets in when it is what you meant.
 
@@ -135,13 +135,20 @@ expensive to fix.
 ## Consequences
 
 **Typing costs what it cost.** The vocabulary is built once, in `rebuild()`, where the books are
-built — never per keystroke. `suggest()` is one `indexOf` per term over 5,689 terms, against the
-37,423 note-body scans `markMatches` was already doing.
+built — never per keystroke. `suggest()` is one `indexOf` per term over 5,147 terms into four capped buckets -- no sort,
+because the vocabulary is already in rank order -- against the 37,423 note-body scans
+`markMatches` was already doing.
 
-| | median | worst |
-|---|---|---|
-| before | 14.5 ms | 17.8 ms |
-| after | see `.ai-context/changelog-detail.md` | |
+| sustained typing, per keystroke | median |
+|---|---|
+| marking only, which is what this replaced | **15.1 ms** |
+| marking **and** offering the list | **17.4 ms** |
+| `core.suggest` over all 5,147 terms | **0.1–0.2 ms** |
+
+Read both from one run: five worktrees share this machine, and marking alone measured 14.1, 15.1
+and 19.9 ms across three runs of code that never changed. The list is placed when it opens and on a
+resize, never per keystroke — measuring the box forces a reflow of a room `applyQuery` has just
+dirtied, and paying that on every key is what made an early reading say 29.5 ms.
 
 **A vault with nothing to suggest** offers nothing and says so, in one non-pickable row: *Nothing in
 this vault spells that.* That is also what a typo gets, which is the case the whole feature exists

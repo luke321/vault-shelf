@@ -1,5 +1,54 @@
 # Changelog detail
 
+## 2026-09-12 — The search box knows what the vault spells (github#41)
+
+> "could we implement a search with auto complete suggestions?"
+
+The box took any string while every classifier behind it had already collected every person, tag,
+folder and book key. Type `gardne` and the room said *0 notes in 0 books* — the same thing it says
+for a vault with no gardening in it.
+
+The issue would not close without a decision it called the law's: **what does picking a suggestion
+do?** Answered by Lukas at the gate — it **completes the text**, not navigates and not narrows, so
+`design/0008` is untouched: the query still marks, every book stays on the shelf and `#vs-hits`
+still counts. One flat string, no `tag:` grammar. `#vs-within` deliberately left alone, because
+`github#13` says the two boxes do not yet agree what a match *is*.
+
+| | before | after |
+|---|---|---|
+| what the box knows about the vault | nothing | **5,147 terms** |
+| — people / tags / folders / books / titles | — | 25 / 43 / 12 / **222** / 4,938 |
+| — spelled by more than one kind | — | **68** |
+| a suggestion that marks nothing when picked | — | **0 of 77** |
+| — before a book was offered by key rather than label | — | ~~29 of 77~~ |
+| typing `gardne` | `0 notes in 0 books`, and no reason why | *Nothing in this vault spells that.* |
+| typing `gard` | — | `garden` **tag · book** 808 · `garden/seeds` 404 · `garden/soil` 337 |
+| typing `学` | — | `学び` **tag · book** 135 |
+| sustained keystroke, marking only | **15.1 ms** | 15.1 ms |
+| sustained keystroke, marking and offering | — | **17.4 ms** |
+| `core.suggest` over all 5,147 terms | — | **0.1–0.2 ms** |
+| the golden packing | 1 snapshot | **unchanged** — the list moves no furniture |
+| `every control the keyboard can reach has a name` | green | **green** — rows are `role="option"`, not controls |
+
+**The honesty check earned its place immediately.** It failed on its first run at 29 of 77, and
+every failure was a book: `Aug 2026`, `No one named`, `#работа`. `labelFor()` builds a string for
+*reading* and `matchesQuery` reads the note's title, path, tags, people and body, which carry the
+**key** — so the box was offering dead ends, which is the precise bug it was built to remove. A
+book contributes `book.key` now, verified against its own notes at build time, so the invariant
+holds by construction. A tag book therefore spells `garden` rather than `#garden` and merges with
+the tag the notes already gave, which is where 68 multi-kind terms come from.
+
+**Two of the three first-run failures were the checks misreading themselves** — one read
+`list.hidden` *after* closing the list, the other probed the first character of `#работа`, which is
+a hash. Worth recording: a check that fails for its own reasons looks exactly like a product bug.
+
+**A pooled set of row elements was tried and reverted.** Measured against its own baseline in the
+same run it bought nothing (+7.1 ms before, +7.4 ms after), and the listener churn it would have
+saved had already gone when the rows moved to one delegated reader. Kept instead: placing the list
+**once per opening** rather than once per keystroke, because reading the box's rectangle forces a
+reflow of a room whose 691 spines `applyQuery` has just dirtied.
+
+
 ## 2026-09-12 — A plate dyes its whole run, from either copy of it (github#29)
 
 > "right click on a plaque enables to set the color for all books under the plaque"
