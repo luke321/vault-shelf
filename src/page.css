@@ -1006,7 +1006,6 @@
 
 .vault-shelf .vs-readerbar .vs-inner { gap: 8px; flex-wrap: wrap; }
 
-.vault-shelf .vs-readerbar .vs-spacer { flex: 1 1 auto; }
 .vault-shelf .vs-readertitle { color: var(--text-2); font-size: 12px; line-height: 20px; }
 
 
@@ -1040,7 +1039,7 @@
   min-width: 0;
   width: 100%;
   max-width: min(calc(var(--measure) - 96px), calc(100% - 96px));
-  margin: 0 auto 30px;
+  margin: 0 auto 16px;
   display: grid;
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   position: relative;
@@ -1066,6 +1065,37 @@
 }
 .vault-shelf .vs-spread::before { left: 0; }
 .vault-shelf .vs-spread::after { right: 0; }
+
+/* github#36, design/0025 -- the turn, under the book and as wide as it */
+.vault-shelf .vs-turn {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: min(calc(var(--measure) - 96px), calc(100% - 96px));
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* github#36 -- the glyph is the key, so it is set like one */
+.vault-shelf .vs-turn button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.vault-shelf .vs-turnkey { font-size: 14px; line-height: 1; }
+
+/* github#36 -- where am I, which the contents only implied */
+.vault-shelf .vs-place {
+  flex: 1 1 auto;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
 
 .vault-shelf .vs-page {
   overflow-y: auto;

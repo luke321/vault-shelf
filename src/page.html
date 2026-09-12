@@ -42,9 +42,6 @@
         <button id="vs-back">Back to shelves</button>
         <button id="vs-prevcollection" title="Previous collection (Alt+Left)">Previous collection</button>
         <span id="vs-readertitle" class="vs-readertitle"></span>
-        <span class="vs-spacer"></span>
-        <button id="vs-prevnote" title="Previous note">Previous</button>
-        <button id="vs-nextnote" title="Next note">Next</button>
       </div>
     </header>
     <div id="vs-marks" class="vs-marks" hidden></div>
@@ -63,6 +60,19 @@
       </div>
       <nav id="vs-tabs" class="vs-tabs" aria-label="Index"></nav>
     </div>
+
+    <!-- github#36, design/0025 -->
+    <footer class="vs-turn">
+      <button id="vs-prevnote" title="Previous note (Left arrow)" aria-keyshortcuts="ArrowLeft">
+        <span class="vs-turnkey" aria-hidden="true">&larr;</span>
+        <span>Previous</span>
+      </button>
+      <span id="vs-place" class="vs-place" aria-live="polite"></span>
+      <button id="vs-nextnote" title="Next note (Right arrow)" aria-keyshortcuts="ArrowRight">
+        <span>Next</span>
+        <span class="vs-turnkey" aria-hidden="true">&rarr;</span>
+      </button>
+    </footer>
   </section>
 
   <div id="vs-builder" class="vs-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="vs-buildertitle">

@@ -3739,6 +3739,8 @@ check("every control is the same size in every look", async (p) => {
       ["#vs-prevnote", false], ["#vs-nextnote", false], ["#vs-within", true],
       ["#vs-tabs button", false], ["#vs-contents button", true], ["#vs-marks", true],
       ["#vs-marks .vs-mark", false], ["#vs-marks .vs-markstub", true], [".vs-spread", true],
+      /* github#36 -- the turn is furniture too, in every look */
+      [".vs-turn", true], ["#vs-place", false],
       [".vs-alsoin button", false]
     ];
     var managing = [
@@ -5410,6 +5412,56 @@ check("previous and next walk the book and stop at its ends", async (p) => {
                r.last === r.size - 1 && r.nextDisabled,
            detail: `opened at ${r.first} (previous disabled: ${r.prevDisabled}), next -> ${r.second}, ` +
                    `ran to ${r.last} of ${r.size - 1} and stopped (next disabled: ${r.nextDisabled})` };
+});
+
+/* github#36, design/0025 -- the turn, and what it does not take */
+check("the turn sits under the spread, says the place, and yields to a caret", async (p) => {
+  const r = await p.j(`(function(){
+    var book = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) {
+        if (b.notes.length >= 3 && (!book || b.notes.length < book.notes.length)) book = b;
+      });
+    });
+    if (!book) return { found: false };
+    __vs.openBook(book.id, null);
+    var place = function () { return document.getElementById("vs-place").textContent; };
+    var spread = document.querySelector(".vs-spread").getBoundingClientRect();
+    var turn = document.querySelector(".vs-turn").getBoundingClientRect();
+    var first = place();
+    document.getElementById("vs-nextnote").click();
+    var second = place();
+    var at = __vs.reader().index;
+
+    /* github#36 -- an arrow key in the find field moves the caret, not the book */
+    var within = document.getElementById("vs-within");
+    within.focus();
+    within.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    var afterTyping = __vs.reader().index;
+
+    /* github#36 -- and outside one it still turns the page */
+    document.getElementById("vs-reader").focus();
+    document.getElementById("vs-reader")
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    var afterKey = __vs.reader().index;
+
+    var out = { found: true, first: first, second: second, at: at,
+                afterTyping: afterTyping, afterKey: afterKey, size: book.notes.length,
+                below: Math.round(turn.top - spread.bottom),
+                lined: Math.round(turn.left - spread.left) === 0 &&
+                       Math.round(turn.width - spread.width) === 0 };
+    /* github#39 */
+    __vs.closeReader();
+    return out;
+  })()`);
+  if (!r.found) return { ok: false, detail: "no book with three notes in this vault" };
+  const ok = r.first === `1 of ${r.size}` && r.second === `2 of ${r.size}` && r.at === 1 &&
+             r.afterTyping === 1 && r.afterKey === 0 && r.below >= 0 && r.below <= 40 && r.lined;
+  return { ok,
+           detail: `the place read ${JSON.stringify(r.first)} then ${JSON.stringify(r.second)} ` +
+                   `over ${r.size} notes; the turn sits ${r.below}px under the spread and is ` +
+                   `lined up with it (${r.lined}); an arrow key in the find field left the ` +
+                   `reader at ${r.afterTyping}, and one outside it turned back to ${r.afterKey}` };
 });
 
 check("a wikilink in a book goes to that note in this book, this shelf, or the nearest", async (p) => {
