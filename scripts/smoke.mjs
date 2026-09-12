@@ -644,10 +644,7 @@ check("a ribbon left in a plaque-book re-resolves after a rebuild, and the Readi
                    `of ${r.count} with ${r.ribbons} ribbon; taken out again it leaves the shelf (${r.gone})` };
 });
 
-/* github#48, design/0014 -- ONE RIBBON CANNOT SEE THIS. A block container holding one spine
- * and a flex row holding one spine are the same picture, so every check that put a ribbon on
- * the Reading shelf put exactly one and the column went unnoticed for as long as it existed.
- * The number that catches it is the y of the SECOND spine, which nothing read. */
+/* github#48, design/0014 -- one ribbon cannot see this; the y of the second can */
 check("the Reading shelf lays its books in a row, and draws as many rows as it packed", async (p) => {
   const r = await p.j(`(function(){
     var settings = __vs.settings();
@@ -683,12 +680,23 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
       var rows = [].slice.call(rail.querySelectorAll(".vs-track")).map(function (t) {
         return [].slice.call(t.querySelectorAll(".vs-spine")).map(function (s) {
           var b = s.getBoundingClientRect();
-          return { x: Math.round(b.left), y: Math.round(b.top) };
+          return { x: Math.round(b.left), y: Math.round(b.top),
+                   r: Math.round(b.right), w: Math.round(b.width) };
         });
       }).filter(function (row) { return row.length; });
       var ys = {};
       rows.forEach(function (row) { row.forEach(function (s) { ys[s.y] = 1; }); });
-      var first = rows.length ? rows[0] : [];
+
+      /* A ROW BREAKS BECAUSE THE NEXT BOOK DID NOT FIT, not because of a plate that is not
+       * there. rowsOf charged plaqueWidth for every run even on a shelf that draws none, so
+       * the first row gave back ~48px a book -- room the next spine would have fitted in. */
+      var slack = null, next = null, fits = null;
+      if (rows.length > 1) {
+        var r0 = rows[0];
+        slack = Math.round(__vs.room().width) - (r0[r0.length - 1].r - r0[0].x);
+        next = rows[1][0].w;
+        fits = slack >= next + 3;
+      }
       return {
         drawn: true, asked: asked,
         tracks: rows.length,
@@ -708,7 +716,8 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
         grips: rail.querySelectorAll("[data-grip]").length,
         pluses: rail.querySelectorAll(".vs-plusbook").length,
         plates: rail.querySelectorAll(".vs-plaque").length,
-        row0: first.map(function (s) { return s.x + "," + s.y; }).join(" ")
+        slack: slack, next: next, roomLeftForOneMore: fits,
+        row0: rows.length ? rows[0].map(function (s) { return s.x + "," + s.y; }).join(" ") : ""
       };
     }
 
@@ -734,7 +743,8 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
                       m.flat && m.ascending && m.display === "flex" &&
                       m.lineH === m.spineH && !m.grips && !m.pluses && !m.plates;
   const ok = sane(r.two) && r.two.tracks === 1 && sane(r.three) && r.three.tracks === 1 &&
-             sane(r.wide) && r.wide.tracks > 1 && r.restored === r.was;
+             sane(r.wide) && r.wide.tracks > 1 && r.wide.roomLeftForOneMore === false &&
+             r.restored === r.was;
   const say = (m) => m
     ? `${m.spines} spine(s) over ${m.tracks} track(s) on ${m.bands} band(s), one y per row ` +
       `(${m.flat}), x ascending (${m.ascending}), the line ${m.display} and ${m.lineH}px for a ` +
@@ -742,8 +752,11 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
     : "never wrapped";
   return { ok,
            detail: `two ribbons: ${say(r.two)} at ${r.two.row0}; three: ${say(r.three)}; ` +
-                   `${r.wide ? r.wide.asked : "?"} ribbons wrap: ${say(r.wide)}; ` +
-                   `the ${r.was} it started with are back (${r.restored})` };
+                   `${r.wide ? r.wide.asked : "?"} ribbons wrap: ${say(r.wide)}` +
+                   (r.wide ? `, and the first row is packed tight -- ${r.wide.slack}px left over ` +
+                             `for a ${r.wide.next}px next book (room for one more: ` +
+                             `${r.wide.roomLeftForOneMore})` : "") +
+                   `; the ${r.was} it started with are back (${r.restored})` };
 });
 
 /* github#6, design/0018, design/0019 */

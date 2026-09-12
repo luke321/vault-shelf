@@ -597,7 +597,8 @@ function mountVaultShelf(root, data, options) {
     }
 
     books.forEach(function (book) {
-      var w = widthOf(book, shelf) + SPINE_GAP;
+      /* github#48 -- measure a book the way it will be drawn: on its own shelf */
+      var w = widthOf(book, shelf || shelfById(book.shelfId)) + SPINE_GAP;
       var mine = book.plaque;
       if (!plaque || mine !== label) {
         closeRun();
