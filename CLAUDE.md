@@ -36,6 +36,14 @@ of measuring it.** Build the page, drive it, read the numbers.
   the room continues on the next row down.
 - **A filter narrows; the query marks.** A filter removes notes before books are built. The
   search query never does: every book stays on the shelf and draws forward or thins to a ghost.
+  **And it reads a catalogue, not prose**: a note matches on its title, on the **cover** of any
+  book it sits behind, or on its declared metadata — tags, people, folder. Body and path are
+  dropped, so `which` fell from 2,867 of 4,938 notes to 0 while `Aug 2026` — a name printed on a
+  spine and contained in no note — became findable at all. A cover is not a property of a note, so
+  `core.buildSearchIndex` folds each note's own text and every cover it stands behind into one
+  string, built once in `rebuild()` beside the vocabulary and never per keystroke; the box offers
+  a book by that same cover, so **the vocabulary and the search are one set** and every suggestion
+  marks a note by identity rather than by a pass that checks it. `design/0008`, `design/0026`.
 - **A filter changes membership and nothing else.** Shelf order and book addresses do not move.
 - **A hidden shelf keeps its definition and its books.** Hiding never deletes; hiding
   everything still offers a way back.

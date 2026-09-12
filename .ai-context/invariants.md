@@ -1538,6 +1538,47 @@ running against: hard-coding one passed on one fixture and, on another, asserted
 that a query finding nothing still drew something forward. Measured: **227** spines before,
 during and after, **193** drawn forward and **34** thinned to ghosts, none removed.
 
+## What the search reads
+
+`design/0008`, `github#58`. **A note matches if the needle is in its title, in the cover of any
+book it sits behind, or in its own declared metadata — tags, people, folder. The body and the path
+are dropped.** Reading prose made more than half the library answer to one word while the covers
+the shelf actually prints stayed unfindable; declared metadata is already first-class truth about a
+note (`decisions/0003`), so it matches whether or not somebody built a shelf out of it.
+
+**Covers alone was the other candidate and was rejected.** It makes the search *shelf-dependent*:
+`inbox` finds nothing in a library with no Folders shelf — which is the default one — and hiding a
+shelf quietly makes its notes unfindable.
+
+`"the search reads titles, covers and declared metadata, and never the body"` takes every needle
+from the vault it is running against. The name the generator writes only into prose is in **451**
+bodies and marks **0**; a whole note path marks **0**; the biggest cover no note spells — `No one
+named`, a **2,450**-note book — marks at least its own book; and the biggest folder marks all
+**1,204** of its notes with **0** Folders shelves on the rail, which is the case that decided the
+rule. It also asserts the room and the box **agree**: for a body-only word `#vs-hits` reads *0
+notes in 0 books* beside *Nothing in this vault spells that*, where it used to read 451 beside the
+same sentence — two true statements a few centimetres apart that read as a contradiction.
+
+Measured on the one vault, 4,938 notes: `which` **2,867 → 0**, `afternoon` 1,446 → 0, `agreed`
+1,842 → 0, `.md` 4,938 → 0; `garden` 1,462 → **1,459**, `mira` 631 → 621, `inbox` 192 → **192**,
+`project` 1,818 → **1,818**; `aug 2026` **0 → 285**, `sep 2026` 0 → 301, `undated` 0 → **531**. The
+noise goes to zero, the signal moves by 0.2%, and a book can be found by the name printed on it.
+
+**A cover is not a property of a note**, so `core.matchesQuery` cannot answer on its own: the
+covers a note stands behind are known only once the library is built. `core.buildSearchIndex` folds
+each note's own text and every cover it stands behind into **one string**, once, in `rebuild()`
+beside the vocabulary — never per keystroke — and `markMatches` reads a note **once per query**
+rather than once per each of the 7.6 books it stands in. Both hosts go through `core`, so the
+plugin and the exporter read the same rule.
+
+**`2026-08` stops matching where it used to** (114 → 89): a classifier key is not a cover. The
+label form more than replaces it, and both directions are in `changelog-detail.md`.
+
+**A single letter still matches almost everything** — `a` reaches **4,936 of 4,938**, because the
+Encyclopedia volume `A` is a real cover and every note behind it matches. Left as it is on purpose:
+`"a vocabulary that is not Latin is still offered"` types one character (`学`) and must still find
+its term.
+
 ## What the vault spells
 
 `design/0026`, `github#41`. The search box is a **combobox** over the vocabulary the classifiers
@@ -1547,7 +1588,7 @@ query still marks, so `design/0008`'s law is untouched.
 `"the search box offers what the vault spells, and says what kind each one is"` asserts the
 vocabulary carries all five kinds, that every row is labelled and counted, that **no spelling is
 offered twice**, and that at most **8** rows appear with at most **3** of them bare note titles.
-Measured on the one vault: **5,147 terms** — 25 people, 43 tags, 12 folders, **222 books** and
+Measured on the one vault: **5,151 terms** — 25 people, 43 tags, 12 folders, **226 books** and
 4,938 note titles — of which **68 are spelled by more than one kind**. That last number is what
 makes the kind label information rather than decoration: `garden` is one row reading `tag · book`,
 never two rows that would do the same thing.
@@ -1557,12 +1598,18 @@ invariant. It types thirteen probes drawn from the vault, picks **every** row ea
 asserts `#vs-hits` reads more than zero notes each time. **77 suggestions, 0 dead ends.**
 
 It failed the first time it ran, at **29 of 77**, and every failure was a book: `Aug 2026`,
-`No one named`, `#работа`. `core.labelFor` builds a *display* string while `matchesQuery` reads the
+`No one named`, `#работа`. `core.labelFor` builds a *display* string while `matchesQuery` read the
 note's title, path, tags, people and body — which carry the **key**. Offering a label was offering
-exactly the dead end this feature exists to remove. A book contributes `book.key` now, a key
-beginning with `-` is a sentinel rather than a word, and any key that no note of that book actually
-spells is dropped when the vocabulary is built. The invariant holds **by construction**; the check
-is what proves it stays that way.
+exactly the dead end this feature exists to remove, so `github#41` offered `book.key` instead.
+
+**`github#58` deleted that workaround, and the verification with it.** A book contributes
+`book.cover` now — the string a person reads on the spine — because the search reads covers, and
+the two are therefore **the same set**: every term the box offers marks at least one note *by
+identity*, not by a build-time pass that checks each one. `core.searchableBook` is the single
+definition both sides read, so they cannot drift: a visible shelf, not a reference, and a book with
+notes and a cover. The four terms that appear are the sentinel covers — `Undated`, `Unfiled`,
+`No one named`, `Untagged` — which `github#41` had to exclude because the *key* `-undated` is not a
+word. Measured over **all 5,151 terms**, not only the check's probes: **0 dead ends**.
 
 `"a typo that spells nothing says so, and offers nothing to pick"` types a string the vault cannot
 spell and asserts the list stays **open** with **0** `role="option"` rows and one non-pickable row
@@ -1586,16 +1633,17 @@ also put `garden/seeds` out of reach of somebody typing `seeds`.
 `"a vault with no vocabulary offers nothing"` asks `core` directly: `buildVocabulary([], [])` spells
 **0** terms and offers **0**, and one note with a title spells **2** and offers it.
 
-**Typing costs about two milliseconds more than it did.** The vocabulary is built once in
-`rebuild()`, where the books are built, never per keystroke. Measured on the one vault — 4,938 notes
-in 691 books, so **37,423 book-note slots** scanned per keystroke by `markMatches`, which is the
-cost that was already there:
+**Typing costs a tenth of what it did, and `github#58` is why.** The vocabulary is built once in
+`rebuild()`, where the books are built, never per keystroke — and so is the search index. Measured
+on the one vault, **33,871 book-note slots**, one run of 210 keystrokes on a growing word:
 
-| sustained typing, per keystroke | median |
-|---|---|
-| marking only, which is what this branch replaced | **15.1 ms** |
-| marking **and** offering the list | **17.4 ms** |
-| `core.suggest` over all 5,147 terms, on its own | **0.1–0.2 ms** |
+| sustained typing, per keystroke | before `github#58` | after |
+|---|---|---|
+| marking only | **11.8 ms** | **1.2 ms** |
+| marking **and** offering the list | 11.8 ms | **1.4 ms** |
+| `core.markMatches` alone, headless | 11.59 ms | **1.31 ms** |
+| `core.buildSearchIndex`, **once per rebuild** | — | **5.2 ms** |
+| `core.suggest` over all terms, on its own | 0.1–0.2 ms | **0.1–0.2 ms** |
 
 **Sustained means a growing word that is never cleared**, which is what a person types. An earlier
 reading of 14.5 → 29.5 ms was an artefact of a probe that emptied the box between every keystroke:

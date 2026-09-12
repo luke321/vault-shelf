@@ -76,9 +76,33 @@ vocabulary while the query is not normalised is precisely how a box comes to off
 that then marks nothing, and a locale-dependent fold makes two hosts disagree. Being consistent
 with the search that exists beats being cleverer than it.
 
+> **Amended 2026-09-12, `github#58`.** "Identical to" is now "the same function": `core.fold` lives
+> beside `matchesQuery` and `foldTerm` calls it. Two functions that must agree, and agreed only
+> because somebody kept them in step, are one drift away from the dead end this section is about.
+
 The invariant that falls out of this is worth more than the rule: **every suggestion the box offers
 marks at least one note when it is picked**, and a check asserts it by picking every row offered for
 twelve probes and requiring `#vs-hits` to be greater than zero.
+
+### A book is offered by its cover (2026-09-12, github#58)
+
+The honesty check failed on its first run at **29 of 77**, and every failure was a book: `Aug 2026`,
+`No one named`, `#работа`. The box was offering the string a spine *reads by*, while `matchesQuery`
+read the note's title, path, tags, people and body — which carry the **key**. The fix at the time
+was to offer `book.key` instead, and to verify at build time that no key is offered which no note of
+that book actually spells.
+
+**`github#58` makes the search read covers, so both halves of that workaround go.** A book
+contributes `book.cover`; the verification is deleted, because the vocabulary and the search are now
+*the same set* and the invariant holds by **identity** rather than by a pass that checks it. One
+function says which books either side reads — `core.searchableBook`: a visible shelf, not a
+reference, a book with notes and a cover — so the two cannot drift apart again.
+
+Four terms appear that `github#41` had to leave out: the **sentinel covers** `Undated`, `Unfiled`,
+`No one named` and `Untagged`. The old rule dropped any key beginning with `-` because `-undated` is
+not a word — true of the key, and not of the cover, which is printed on a spine in the room. Leaving
+them out would have left four words that show hits beside *Nothing in this vault spells that*, which
+is exactly the contradiction this issue dissolved.
 
 ### Offered on contains, ranked on prefix
 
@@ -132,12 +156,22 @@ only. That disagreement is `github#13`, and it is still open. Giving the second 
 before it is settled would bake the disagreement into a second surface and make `#13` twice as
 expensive to fix.
 
+> **Narrowed 2026-09-12, `github#58`.** `#vs-q` reads title, **covers** and declared metadata now,
+> so the gap between the two boxes is smaller and of a different kind: it is no longer *prose versus
+> titles*, it is *titles plus what the library declares* versus *titles*. `#vs-within` is still
+> untouched, and `github#13` still owns it.
+
 ## Consequences
 
 **Typing costs what it cost.** The vocabulary is built once, in `rebuild()`, where the books are
 built — never per keystroke. `suggest()` is one `indexOf` per term over 5,147 terms into four capped buckets -- no sort,
 because the vocabulary is already in rank order -- against the 37,423 note-body scans
 `markMatches` was already doing.
+
+> **Re-measured 2026-09-12, `github#58`**, which deleted those note-body scans. The search index is
+> built in the same place and for the same reason as the vocabulary, and a keystroke now costs
+> **1.2 ms** marking and **1.4 ms** marking and offering, against 11.8 ms for either before. The
+> table below is the `github#41` reading, kept as the baseline it was taken against.
 
 | sustained typing, per keystroke | median |
 |---|---|

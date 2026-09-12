@@ -1,5 +1,105 @@
 # Changelog detail
 
+## 2026-09-12 — The search reads titles, covers and declared metadata (github#58)
+
+> "just note titles and real book cover names, otherwise we match way too much…"
+
+`core.matchesQuery` read a note's title, **path**, tags, people and **body**. More than half the
+library answered to `which`, `#vs-hits` counted a number with no information in it, and — because
+the match was somewhere in the prose — opening a book told you nothing about why it had been drawn
+forward. The other half of the same fault: a cover a person can *read on a spine*, **Aug 2026**,
+could not be found at all, because `labelFor()` builds that string for reading and no note contains
+it.
+
+The rule, decided 2026-09-12: **a note matches if the needle is in its title, in the cover of any
+book it sits behind, or in its declared metadata — tags, people, folder. Body and path are
+dropped.** Covers alone was the other candidate and was rejected: it makes the search
+*shelf-dependent*, so `inbox` finds nothing in a vault with no Folders shelf — which is the default
+library — and hiding a shelf quietly makes its notes unfindable.
+
+Measured on the one vault, 4,938 notes in 687 books:
+
+| typed | before | after | why |
+|---|---|---|---|
+| `afternoon` | 1,446 | **0** | prose |
+| `which` | **2,867** | **0** | prose |
+| `agreed` | 1,842 | **0** | prose |
+| `Dagny Halvorsen` | 451 | **0** | the name the generator writes only into bodies |
+| `.md` | **4,938** | **0** | path |
+| a whole note path | 1 | **0** | path |
+| `garden` | 1,462 | **1,459** | tag · book — the signal moves by 0.2% |
+| `mira` | 631 | **621** | person |
+| `学び` | 137 | **136** | tag · book |
+| `inbox` | 192 | **192** | folder, with **no Folders shelf on the rail** |
+| `project` | 1,818 | **1,818** | folder and tag |
+| `aug 2026` | **0** | **285** | a cover became searchable |
+| `sep 2026` | **0** | **301** | a cover became searchable |
+| `undated` | **0** | **531** | so did a sentinel's cover |
+| `No one named` | **0** | **2,450** | so did that one |
+| `2026-08` | 114 | **89** | the **key** stops matching; the label more than replaces it |
+| `a` | 4,938 | 4,936 | the Encyclopedia volume `A` is a real cover |
+
+**The noise goes to zero and the signal does not move.** Every number in the issue's own table is
+reproduced exactly, which is what says the rule that shipped is the rule that was measured.
+
+### A cover is not a property of a note
+
+`matchesQuery(note, needle)` could no longer answer alone: the covers a note sits behind are known
+only once the library is built. Two candidates — resolve them per book inside `markMatches`, or
+build a note→covers index where the vocabulary is built. The index won, because `markMatches` walks
+**33,871 book-note slots** per keystroke and the per-book form does the same work 687 times over.
+
+`core.buildSearchIndex(views, notes)` folds each note's own text and every cover it stands behind
+into **one string**, once, in `rebuild()`. Matching is then one map lookup and one `indexOf`, and
+`markMatches` reads a note **once per query** rather than once per each of the 7.6 books it stands
+in. That is why the change is a speed-up rather than a cost:
+
+| sustained typing, per keystroke (one run, `project`, 210 keystrokes) | before | after |
+|---|---|---|
+| marking only | **11.8 ms** | **1.2 ms** |
+| marking and offering the list | 11.8 ms | **1.4 ms** |
+| `core.markMatches` alone, headless | 11.59 ms | **1.31 ms** |
+| `core.buildSearchIndex`, **once per rebuild** | — | **5.2 ms** |
+
+The old rule called `toLowerCase()` on 33,871 titles **and** 33,871 bodies on every key; the new one
+folds 4,938 strings once per rebuild and never again.
+
+### github#41's workaround is deleted, and its invariant is now true by identity
+
+The vocabulary offered a book by its **key** (`2026-08`) rather than the cover you read on the
+spine, precisely because a label matched nothing — that was the honesty check failing at 29 of 77
+on its first run. A book contributes `book.cover` now, and the build-time verification that no key
+is offered that no note spells is **gone**: with covers searchable, *the vocabulary and the search
+are the same set*, so every suggestion marks at least one note by construction rather than by a
+pass that checks it.
+
+| | before | after |
+|---|---|---|
+| terms the box knows | 5,147 | **5,151** |
+| — people / tags / folders / books / titles | 25 / 43 / 12 / 222 / 4,938 | 25 / 43 / 12 / **226** / 4,938 |
+| — spelled by more than one kind | 68 | **68** |
+| a suggestion that marks nothing, over all terms | not measured | **0 of 5,151** |
+| a suggestion that marks nothing, the check's probes | 0 of 73 | **0 of 73** |
+| `the shelf parts as you type` | 231 spines, 189 forward, 42 ghosts | **unchanged** |
+
+The four new book terms are the **sentinel covers** — `Undated`, `Unfiled`, `No one named`,
+`Untagged`. `github#41` excluded a key beginning with `-` because `-undated` is not a word; the key
+is no longer what is offered, and `Undated` is a cover you can read. Leaving them out would have
+left four words showing hits beside *Nothing in this vault spells that*, which is the wart this
+change exists to dissolve.
+
+**And it does dissolve it.** Typing a body-only word used to read *1446 notes in N books* in
+`#vs-hits` while the row a few centimetres away said *Nothing in this vault spells that* — two true
+statements that read as a contradiction. The room now says `0 notes in 0 books` beside it, and the
+new check asserts both halves together rather than either alone.
+
+### What was left alone
+
+`#vs-within` still matches titles only — the other half of `github#13`, out of scope by the issue's
+own line. A **one-character query** still offers and still marks: `a` reaches 4,936 of 4,938 through
+the Encyclopedia volume `A`, which is defensible, and suppressing single characters would break
+`a vocabulary that is not Latin is still offered`, which types one character (`学`) on purpose.
+
 ## 2026-09-12 — A lifted spine is painted whole (github#51)
 
 > "a book is cut off at the top when you hover it near the shelf header"
