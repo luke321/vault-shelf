@@ -5474,12 +5474,7 @@ check("the contents scroll to the current row after a tab, Previous and a ribbon
                    `ribbon from scrollTop ${ribbon.far} -> row ${back.index}, scrollTop ${back.scrollTop}, inside ${back.inside}` };
 });
 
-/* github#46 -- MOVING THE MARKER MOVES THE MARKER. A turn within one book changes nothing about
- * the list, so the list is not rebuilt: `aria-current` moves between rows that are already
- * standing there and the page keeps its scroll. Rebuilding emptied the `<ol>`, which collapsed
- * the left page's scrollHeight, clamped its scrollTop to 0, and left `revealCurrent` -- a nudge
- * measured FROM scrollTop -- computing against a baseline of zero, so a row already under the
- * pointer was parked at the bottom edge after an animation up from the top. */
+/* github#46, design/0026 */
 check("clicking a row in the index moves the mark and leaves the index where it stood", async (p) => {
   const opened = await p.j(`(function(){
     var biggest = null;
@@ -5488,17 +5483,13 @@ check("clicking a row in the index moves the mark and leaves the index where it 
     });
     __vs.openBook(biggest.id, null);
     var page = document.querySelector("#vs-reader .vs-page.vs-left");
-    /* halfway down a long index, which is where the report was made from */
+    /* github#46 -- halfway down a long index, where the report came from */
     var span = Math.max(0, page.scrollHeight - page.clientHeight);
     page.scrollTop = Math.round(span / 2);
     var rows = [].slice.call(document.querySelectorAll("#vs-contents button"));
-    /* A STAMP ON THE ROWS THEMSELVES. A rebuild makes new buttons, so a row that comes back
-     * without its stamp is a row that was replaced -- which is the cause, where the scroll is
-     * only the symptom, and is what stops this decaying into "rebuild, then put the scroll back". */
+    /* github#46 -- a row back without its stamp was replaced */
     rows.forEach(function (b, k) { b.__vs46 = k; });
-    /* A ROW A FULL ROW-HEIGHT CLEAR OF BOTH EDGES, and the nearest such row to the middle. One
-     * only part-way into view is nudged fully in by the focus the press itself gives it, and the
-     * release then lands on its neighbour -- measured, a press on row 1029 marked row 1060. */
+    /* github#46 -- a part-visible row is nudged in by the press's own focus */
     var pb = page.getBoundingClientRect();
     var mid = pb.top + pb.height / 2;
     var want = -1, best = Infinity, spot = null;
@@ -5521,13 +5512,7 @@ check("clicking a row in the index moves the mark and leaves the index where it 
                      `that scrolls ${opened.span}px with row ${opened.want} in the middle -- ` +
                      `nothing here to hold still` };
   }
-  /* A REAL PRESS, NOT `element.click()`, AND READ BETWEEN THE TWO HALVES OF IT. design/0026 --
-   * a programmatic click does not reproduce this at all: the clamp needs a layout taken while
-   * the <ol> is empty, and what forces one is the focus change when `clear()` removes the row
-   * the press had focused. The first check written for this ticket clicked in script, measured
-   * 30988 -> 30988 and passed, green, over a live bug. And the zero is only visible between
-   * press and release -- half a second later the smooth scroll has carried it part of the way
-   * back, and the number reads as merely wrong rather than as the diagnosis. */
+  /* design/0026 -- why element.click() measures this clean on broken code */
   const top = () =>
     p.j(`Math.round(document.querySelector("#vs-reader .vs-page.vs-left").scrollTop)`);
   const press = (type) => p.send("Input.dispatchMouseEvent",
@@ -5536,7 +5521,7 @@ check("clicking a row in the index moves the mark and leaves the index where it 
   const pressed = await top();
   await press("mouseReleased");
   const released = await top();
-  /* a wrong baseline ANIMATES, so give the smooth scroll its full chance to show itself */
+  /* github#46 -- a wrong baseline animates; let it finish */
   await sleep(600);
   const after = await p.j(`(function(){
     var page = document.querySelector("#vs-reader .vs-page.vs-left");
