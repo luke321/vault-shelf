@@ -5067,10 +5067,12 @@ check("a typo that spells nothing says so, and offers nothing to pick", async (p
     var options = list.querySelectorAll('[role="option"]').length;
     var said = empty ? empty.textContent.trim() : "";
     var hits = document.getElementById("vs-hits").textContent;
+    /* github#41 -- read before closing: this line used to sit in the return */
+    var listHidden = list.hidden;
     __vs.setQuery("");
     __vs.closeSuggest();
     return { open: shown.open, rows: shown.rows.length, options: options, said: said,
-             hits: hits, listHidden: list.hidden, shut: __vs.suggest().open };
+             hits: hits, listHidden: listHidden, shut: __vs.suggest().open };
   })()`);
   return { ok: r.open && r.rows === 0 && r.options === 0 && r.said.length > 0 &&
                !r.listHidden && r.shut === false,
@@ -5161,8 +5163,9 @@ check("the suggestion list is a combobox the keyboard can drive", async (p) => {
 check("a vocabulary that is not Latin is still offered", async (p) => {
   const r = await p.j(`(function(){
     var vocab = __vs.vocabulary();
+    /* github#41 -- a term whose FIRST character is outside Latin-1, so the probe is too. */
     var wide = vocab.filter(function (t) {
-      return /[^\\u0000-\\u00ff]/.test(t.text) && t.kinds.indexOf("note") < 0;
+      return /^[^\\u0000-\\u00ff]/.test(t.text) && t.kinds.indexOf("note") < 0;
     });
     if (!wide.length) return { none: true };
     var term = wide[0];

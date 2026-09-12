@@ -1,5 +1,5 @@
 import type { Note, ShelfView } from "./types";
-import { isReference } from "./shelves";
+import { isReference, matchesQuery } from "./shelves";
 
 /* ---- what the vault spells -----------------------------------------------
  * github#41, design/0026
@@ -67,7 +67,13 @@ export function buildVocabulary(views: ShelfView[], notes: Note[]): Term[] {
     for (const book of view.books) {
       /* design/0020 -- a reference is not a place a note lives; a made book is. */
       if (isReference(view.shelf, book)) continue;
-      add(book.label, "book", book.notes.map((n) => n.id));
+      /* github#41, design/0026 -- a book's KEY, not the label it reads by */
+      const text = (book.key || "").trim();
+      if (!text || text.charAt(0) === "-") continue;
+      const fold = foldTerm(text);
+      /* github#41, design/0026 -- never offer a key no note of the book actually spells */
+      if (!byFold.has(fold) && !book.notes.some((n) => matchesQuery(n, fold))) continue;
+      add(text, "book", book.notes.map((n) => n.id));
     }
   }
 
