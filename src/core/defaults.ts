@@ -184,7 +184,7 @@ export const LOOKS: { value: Look; name: string; shelved?: true }[] = [
   /* design/0017 -- SHELVED, NOT REMOVED. The stylesheet ships and every check still paints
    * it, but the selector does not offer it and a saved file asking for it comes up in leather
    * until the redesign lands. */
-  { value: "cyber", name: "Cyberpunk", shelved: true },
+  { value: "cyber", name: "Cyber", shelved: true },
 ];
 
 /** A look that exists: a stylesheet is shipped for it, whether or not it is offered. */
@@ -268,7 +268,7 @@ export function migrate(raw: unknown): Persisted {
      * decision -- the same argument `decadesOn` makes about plaques -- so it comes up in
      * leather, and one that already says 6 means what it says. Changing it back is one
      * selector in the top bar. */
-    /* Schema 9 shelved the cyberpunk look: a file that names a look the selector no longer
+    /* Schema 9 shelved the cyber look: a file that names a look the selector no longer
      * offers comes up in the default one, since a look a person cannot pick is not a
      * preference they can keep. */
     look: isOffered(data.look) ? (from >= 6 || data.look ? data.look : "leather") : base.look,

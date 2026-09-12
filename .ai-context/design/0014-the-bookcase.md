@@ -60,7 +60,7 @@ neither handler answers to the other's payload, and the take-off zone of `design
 floor grip explicitly.
 
 **The grip is laid over the floor, not built as one.** The floor is a background on `.vs-track`
-here and a walnut board in leather and an edge-lit strip in cyberpunk — three paintings of the
+here and a walnut board in leather and an edge-lit strip in cyber — three paintings of the
 same line. Rebuilding it as an element would mean editing all three stylesheets and keeping them
 in step forever. Instead there is one transparent `.vs-floorgrip` per row, sized from
 `--board` so it grows with whatever the look paints, standing a few pixels proud of it so it can

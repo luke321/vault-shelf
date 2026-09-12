@@ -1,4 +1,4 @@
-# 0017 — The cyberpunk look
+# 0017 — The cyber look
 
 A third look, asked for in one line:
 
@@ -182,3 +182,21 @@ all four dropdowns, chevron drawn, 28px high.
 
 `node scripts/smoke.mjs --look cyber` reaches a shelved look through that same handle now,
 since the selector no longer offers one; `--look modern` is the default look by name.
+
+## Addendum, 2026-09-12 — the name is Cyber
+
+> "disable cyberpunk for now, call it cyber aswell"
+
+`core.LOOKS` reads `{ value: "cyber", name: "Cyber", shelved: true }`, so the name a person would
+read matches the value the code has always used, and this record is `0017-the-cyber-look.md` with
+its number unchanged — every pointer cites `design/0017`, so none of them moved.
+
+**Nothing else moved either, because the string was already unreachable.** `core.offeredLooks()`
+filters shelved looks and `src/page.js`'s `fillLooks()` builds the selector from it, so no host has
+rendered `"Cyberpunk"` since the shelving the day before. The look check prints the look's *value*,
+not its name, and still reports `shelved: cyber`; the migration check still reads a file naming
+`cyber` coming up in leather. A rename with no measurement behind it is the whole of this one.
+
+**The genre keeps its own word.** *"Cyberpunk as a library, not as a poster"* above is what the
+look was briefed as, not what it is called; renaming it would leave the brief describing nothing.
+The two quoted asks stay verbatim for the same reason. `github#56`.

@@ -1,4 +1,4 @@
-/* THE CYBERPUNK LOOK -- opt-in, and every rule in this file is scoped under
+/* THE CYBER LOOK -- opt-in, and every rule in this file is scoped under
  * `.vault-shelf[data-look="cyber"]`. With another look selected, not one selector here
  * matches. scripts/check-scope.mjs reads this file the same way it reads page.css: an
  * unscoped rule in any of the three styles the whole of Obsidian.
