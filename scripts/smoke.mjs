@@ -5166,6 +5166,108 @@ check("the shelf parts as you type, and no book leaves the room", async (p) => {
                    `(hits read "${r.hits}")` };
 });
 
+/* github#13, design/0027 -- THE OTHER HALF OF design/0008: what the lit book says. */
+check("a book the search drew forward says which of its notes matched", async (p) => {
+  const r = await p.j(`(function(){
+    /* THE NEEDLE COMES FROM THE VAULT, as it does for the shelf's own half. */
+    var tags = {};
+    __vs.data().notes.forEach(function (n) {
+      n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+    });
+    var needle = Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] ||
+                 __vs.data().notes[0].title.slice(0, 4);
+    __vs.setQuery(needle);
+    var lit = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) {
+        if (!lit && b.matches > 0 && b.matches < b.notes.length) lit = b;
+      });
+    });
+    if (!lit) return { lit: false, needle: needle };
+    __vs.openBook(lit.id, null);
+    var open = __vs.readerMatches();
+    __vs.setQuery("");
+    var quiet = __vs.readerMatches();
+    __vs.closeReader();
+    return { lit: true, needle: needle, open: open, quiet: quiet };
+  })()`);
+  if (!r.lit) {
+    return { ok: false, detail: `no book on this vault is part-matched by "${r.needle}"` };
+  }
+  const o = r.open;
+  return { ok: o.marked === o.matches && o.marked > 0 && o.rows === o.notes &&
+               o.why.indexOf(o.matches + " of " + o.notes + " match") >= 0 &&
+               r.quiet.marked === 0 && r.quiet.rows === o.notes,
+           detail: `"${r.needle}" lit ${o.book}: ${o.marked} of ${o.rows} rows marked against ` +
+                   `${o.matches} matching notes, all ${o.notes} still in the index ` +
+                   `(it reads "${o.why}"); clearing the box leaves ${r.quiet.marked} marked ` +
+                   `and ${r.quiet.rows} rows` };
+});
+
+/* github#13, design/0027 -- ONE RULE: a book can no longer deny the shelf behind it. */
+check("every book the shelf draws forward finds the same needle in its own find box", async (p) => {
+  const r = await p.j(`(function(){
+    var tags = {};
+    __vs.data().notes.forEach(function (n) {
+      n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+    });
+    var needle = Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] ||
+                 __vs.data().notes[0].title.slice(0, 4);
+    __vs.setQuery(needle);
+    var lit = [];
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { if (b.matches > 0) lit.push(b); });
+    });
+    var box = document.getElementById("vs-within");
+    var tried = 0, denied = [];
+    lit.slice(0, 40).forEach(function (b) {
+      __vs.openBook(b.id, null);
+      box.value = needle;
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+      var r = __vs.readerMatches();
+      tried++;
+      if (r.empty || r.rows === 0 || r.rows > r.notes) denied.push(b.id + " (" + r.rows + " rows)");
+      box.value = "";
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    __vs.setQuery("");
+    __vs.closeReader();
+    return { needle: needle, lit: lit.length, tried: tried, denied: denied.slice(0, 3),
+             denials: denied.length };
+  })()`);
+  return { ok: r.tried > 0 && r.denials === 0,
+           detail: r.denials
+             ? `${r.denials} of ${r.tried} books denied the shelf: ${r.denied.join(", ")}`
+             : `"${r.needle}" drew ${r.lit} books forward; ${r.tried} of them were opened and ` +
+               `every one found it again in its own find box` };
+});
+
+/* github#13, design/0027 -- the rule and its explanation, kept in step by measurement. */
+check("a note has a reason to be marked exactly when it is marked", async (p) => {
+  const r = await p.j(`(function(){
+    var notes = __vs.data().notes;
+    var tags = {}, people = {};
+    notes.forEach(function (n) {
+      n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+      n.people.forEach(function (x) { people[x] = (people[x] || 0) + 1; });
+    });
+    var byUse = function (m) { return Object.keys(m).sort(function (a, b) { return m[b] - m[a]; }); };
+    var needles = [];
+    if (byUse(tags)[0]) needles.push(byUse(tags)[0]);
+    if (byUse(people)[0]) needles.push(byUse(people)[0].split(" ")[0]);
+    needles.push(notes[0].title.slice(0, 4));
+    needles.push(notes[0].folder.slice(0, 4));
+    needles.push("zz-nothing-spells-this");
+    return __vs.checkReasons(needles);
+  })()`);
+  const kinds = Object.keys(r.fields).length;
+  return { ok: r.disagree === 0 && r.matched > 0 && r.matched === r.reasoned && kinds >= 3,
+           detail: r.disagree
+             ? `${r.disagree} note/needle pairs disagree, e.g. ${r.sample.join("; ")}`
+             : `${r.needles} needles over ${r.notes} notes: ${r.matched} marked, ${r.reasoned} ` +
+               `with a reason, 0 disagreements (${JSON.stringify(r.fields)})` };
+});
+
 /* github#41, design/0026 -- WHAT THE VAULT SPELLS. The box knows the vocabulary now. */
 check("the search box offers what the vault spells, and says what kind each one is", async (p) => {
   const r = await p.j(`(function(){

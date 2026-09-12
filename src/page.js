@@ -229,7 +229,7 @@ function mountVaultShelf(root, data, options) {
   var bookIndex = {};
   /** The biggest book in the library, which every thickness is scaled against. */
   var thickest = 1;
-  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null }|null} */
+  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, lit?: string }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
   var history = [];
@@ -2108,6 +2108,9 @@ function mountVaultShelf(root, data, options) {
       ? totals.notes + (totals.notes === 1 ? " note" : " notes") + " in " +
         totals.books + (totals.books === 1 ? " book" : " books")
       : "";
+
+    /* github#13, design/0026, design/0027 -- an open book follows a CHANGED query */
+    if (reader && reader.lit !== needle) renderReader();
   }
 
   /* ---- what the vault spells ---------------------------------------------
@@ -2319,6 +2322,7 @@ function mountVaultShelf(root, data, options) {
       (book.bands.length ? " \u00b7 " + book.bands.length + " source folders" : "");
     /* github#13, design/0027 -- why this book was drawn forward, said on the page */
     var lit = litNeedle();
+    reader.lit = lit;
     var marked = lit ? reader.book.notes.filter(function (n) {
       return core.matchesQuery(n, lit);
     }).length : 0;
@@ -4565,6 +4569,33 @@ function mountVaultShelf(root, data, options) {
     made: function (shelfId) {
       var shelf = shelfById(shelfId);
       return shelf && shelf.made ? core.clone(shelf.made) : {};
+    },
+    /**
+     * github#13, design/0027 -- a reason exists exactly when there is a match
+     * @param {string[]} needles
+     */
+    checkReasons: function (needles) {
+      var disagree = 0, matched = 0, reasoned = 0;
+      /** @type {Record<string, number>} */
+      var fields = {};
+      /** @type {string[]} */
+      var sample = [];
+      needles.forEach(function (raw) {
+        var needle = String(raw).trim().toLowerCase();
+        notes.forEach(function (note) {
+          var hit = core.matchesQuery(note, needle);
+          var why = core.matchReasons(note, needle);
+          if (hit) matched++;
+          if (why.length) reasoned++;
+          why.forEach(function (r) { fields[r.field] = (fields[r.field] || 0) + 1; });
+          if (hit !== (why.length > 0)) {
+            disagree++;
+            if (sample.length < 3) sample.push(needle + " / " + note.id);
+          }
+        });
+      });
+      return { needles: needles.length, notes: notes.length, matched: matched,
+               reasoned: reasoned, disagree: disagree, fields: fields, sample: sample };
     },
     /* github#13, design/0027 -- what the open book says about the query */
     readerMatches: function () {
