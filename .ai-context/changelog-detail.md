@@ -44,6 +44,70 @@ length.
 | `smoke.mjs` | 94 → **95 checks**, 95 runs, **35s** wall over 3 Chromes |
 | the new check | **0.7s**, serial lane (it counts plates, so it reads the packing) |
 | suite | **95/95** on the vault |
+## 2026-09-12 — The plugin says what changed, once (github#33)
+
+Ported from Vault Graph's `github#83` / `design/0016`, which was written against the same problem
+in the same host: **Obsidian swaps `main.js` under a user silently.** A dismissible strip above
+the library, once, on the first open after a MINOR or MAJOR.
+
+The whole of `plugin/update-note.mjs` came across unchanged except for the control-id namespace
+(`^vg-` → `^vs-`). What did **not** come across is where the marker lives, and it is the only
+real engineering in the port.
+
+### `core.migrate()` would have eaten it
+
+Vault Graph merges its settings as `Object.assign({}, DEFAULTS, saved)`, so a key it has never
+heard of survives a round trip. Here `core.migrate()` returns a **fixed shape**
+(`decisions/0001`) and drops everything else — measured directly:
+
+| | |
+|---|---|
+| `core.migrate({ schema: 10, lastSeenVersion: "0.1.0" }).lastSeenVersion` | `undefined` |
+| `plugin.persisted().lastSeenVersion` | **`"0.1.0"`** |
+
+So `lastSeenVersion` inside `Persisted` would have been written once by `recordVersion()` and
+erased by the next settings change — and the strip would have come back on the open after that,
+which is the one thing the feature exists not to do. It is held on the plugin instead and merged
+back by `persisted()` on every `saveData`. The harness check *a settings write keeps the version
+the strip recorded* is the regression test.
+
+### What it cost
+
+| | before | after |
+|---|---|---|
+| `main.js` | 161 KB | **173 KB** |
+| `styles.css` | 125 KB | **127 KB** |
+| `release.ps1 -SelfTest` cases | 10 | **11** |
+| steps in the pre-push hook | 11 | **12** |
+| `check-comments` | 1500 / 1500 | **1500 / 1500** |
+
+The comment budget is worth a line of its own: that baseline is a **two-sided** ratchet sitting
+at exactly 1500, so the port arrived **19 over** and all nineteen lines became pointers. The
+reasoning is in `design/0023`, which is where `decisions/0007` says it belongs anyway.
+
+### The strip in a real Obsidian
+
+`scripts/update-note-check.mjs` drives one over CDP through seven seeded `data.json` states. Two
+departures from Vault Graph's harness. It asserts nothing about a canvas, a camera or
+`--vg-canvas-top` — the library is DOM, so the equivalent measurement is the room's own box with
+and without the strip. And the **multi-release chain is seeded** rather than read from
+`CHANGELOG.md`: this repo has one release, so the real chain can only be one link today. Which
+releases belong in a chain is the selftest's question; that they are *drawn* oldest first, each
+linking its own page, is the harness's.
+
+### Badges
+
+`README.md` gains release, license, stars and a Ko-fi badge on one line; `.github/FUNDING.yml`
+and `manifest.json`'s `fundingUrl` give GitHub and Obsidian their own Support buttons. **No
+Obsidian-downloads badge**: `obsidianmd/obsidian-releases`' `community-plugins.json` was read on
+2026-09-12 and lists `vault-graph` and not `vault-shelf`, so that badge would have rendered an
+error rather than a number. The Ko-fi tint is **`793b3d`**, leather's page accent — leather is
+the look a fresh library opens in and what the hero is shot in, and the dark side's `#d0b681` is
+too pale under white badge text.
+
+Three of the four badges are grey today: the repository is private and has no release yet, so
+shields has nothing to read. They start working the moment either changes, and neither is this
+ticket's to change.
 
 ## 2026-09-11 — Re-measured against the one vault (github#44, decisions/0014)
 

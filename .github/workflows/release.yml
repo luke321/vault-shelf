@@ -184,6 +184,8 @@ jobs:
         run: node scripts/check-pii.mjs
       - name: Comments are pointers
         run: node scripts/check-comments.mjs
+      - name: The update note decides the way it says
+        run: node scripts/update-note-selftest.mjs
       - name: The generated code map and index are current
         run: node scripts/code-map.mjs --check
 

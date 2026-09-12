@@ -162,6 +162,13 @@ function Invoke-SelfTest {
     # The overlay is committed and pushed, so the clone starts clean and on a main that is
     # exactly origin/main, which is what every case below breaks exactly one thing about.
     Copy-Item (Join-Path $Repo 'scripts\*') (Join-Path $clone 'scripts') -Recurse -Force
+    # github#33 -- and the update note, for the same reason: it is a file the guards now READ,
+    # so a clone of a main that predates it would measure the absence rather than the guard.
+    $wnSrc = Join-Path $Repo 'plugin\whats-new.md'
+    if (Test-Path -LiteralPath $wnSrc) {
+      New-Item -ItemType Directory -Path (Join-Path $clone 'plugin') -Force | Out-Null
+      Copy-Item $wnSrc (Join-Path $clone 'plugin\whats-new.md') -Force
+    }
     & $git @('add', '-A') | Out-Null
     & $git @('commit', '-q', '-m', 'selftest: the working tree scripts under test') | Out-Null
     $seeded = (& $git @('push', '-q', 'origin', 'HEAD:main'))
@@ -221,6 +228,18 @@ function Invoke-SelfTest {
     & $git @('commit', '-q', '-am', 'selftest: take the changelog section away') | Out-Null
     & $git @('push', '-q', 'origin', 'HEAD:main') | Out-Null
     & $runCase 'no CHANGELOG section'  @($manifestVersion, '-DryRun') 'has no'
+    & $git @('reset', '-q', '--hard', 'HEAD~1') | Out-Null
+    & $git @('push', '-q', '--force', 'origin', 'HEAD:main') | Out-Null
+
+    # github#33 -- an x.y.0 whose update note names another version. Same shape as the case
+    # above: the note is edited, committed and pushed, because an uncommitted edit would trip
+    # the dirty-tree guard first and prove nothing about this one.
+    $wn = Join-Path $clone 'plugin\whats-new.md'
+    $wnText = [IO.File]::ReadAllText($wn, [Text.Encoding]::UTF8)
+    [IO.File]::WriteAllText($wn, ($wnText -replace '(?m)^#\s+\d+\.\d+\.\d+\s*$', '# 9.9.9'), $noBom)
+    & $git @('commit', '-q', '-am', 'selftest: point the update note at another version') | Out-Null
+    & $git @('push', '-q', 'origin', 'HEAD:main') | Out-Null
+    & $runCase 'the update note is for another version' @($manifestVersion, '-DryRun') 'ships an update note'
     & $git @('reset', '-q', '--hard', 'HEAD~1') | Out-Null
     & $git @('push', '-q', '--force', 'origin', 'HEAD:main') | Out-Null
 
@@ -433,6 +452,36 @@ try {
   }
   # Everything from this version's heading to the next one.
   $section = [regex]::Match($changelog, "(?s)##\s+" + [regex]::Escape($Version) + ".*?(?=\r?\n## |\z)").Value.Trim()
+
+  # THE UPDATE NOTE IS PART OF A MINOR OR MAJOR (github#33). The plugin shows
+  # plugin/whats-new.md once, on the first open after such an update -- but only when the
+  # note's version matches the installed one, so a release that forgot to write it would
+  # ship silently: nothing fails, the strip never appears, and nobody is told. A PATCH shows
+  # nothing by design and keeps the previous note in place, so only x.y.0 is checked here.
+  # A MISSING file is the same refusal as a stale one, not a crash: it is exactly the state a
+  # repository is in before the first note is written, and the self-test stands in it.
+  $notePath = Join-Path $repo 'plugin\whats-new.md'
+  $noteVersion = ''
+  if (Test-Path -LiteralPath $notePath) {
+    $noteText = [IO.File]::ReadAllText($notePath, [Text.Encoding]::UTF8)
+    $noteVersion = [regex]::Match($noteText, '(?m)^#\s+(\d+\.\d+\.\d+)\s*$').Groups[1].Value
+  }
+  if ($Version -match '\.0$' -and $noteVersion -ne $Version) {
+    $has = if ($noteVersion) { "is for '$noteVersion'" } else { 'names no version' }
+    throw "plugin/whats-new.md $has, not $Version. A MINOR or MAJOR ships an update note (github#33) -- write it first."
+  }
+
+  # AND IT HAS TO BE LOOKED AT (github#33). The guard above proves the note EXISTS and is for
+  # this version; it proves nothing about what a user will actually see. The strip is a
+  # user-facing surface that ships in the release, and numbers cannot see it.
+  # scripts/update-note-check.mjs mounts it in a real Obsidian and writes 01-strip-up.png;
+  # this only names the command, because it drives Obsidian on a display and claims
+  # screen-left, which is not something to do from inside a release script.
+  if ($Version -match '\.0$') {
+    Write-Host "`n=== update strip ===" -ForegroundColor Cyan
+    Write-Host "  plugin/whats-new.md is for $noteVersion. RENDER IT AND LOOK BEFORE YOU TAG:" -ForegroundColor Yellow
+    Write-Host "    node scripts/update-note-check.mjs --out <dir>   # 01-strip-up.png" -ForegroundColor DarkGray
+  }
 
   Write-Host "`n=== release notes ===" -ForegroundColor Cyan
   Write-Host $section -ForegroundColor DarkGray

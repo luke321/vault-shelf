@@ -61,6 +61,8 @@ changing what a shelf contains or how a book is addressed.
 | `0019-the-favourites-shelf` | The shelf at the top that holds references to other shelves' books: why a favourite is an address rather than a copy, and why the reader is never told about it |
 | `0020-a-book-made-on-the-shelf` | A book made on a pick shelf by right-clicking empty space: a saved query with an address of its own, why it is a place a note lives when a reference is not, and why off the rail means delete |
 | `0021-one-geometry-three-faces` | Where the line between a face and a box falls, the audit of every geometry and part declaration in the two look sheets, and the walk over every element that replaced a list of 38 named controls |
+| `0022-a-hovered-swatch-paints-the-room` | A hovered colour previews on the library itself, not in a sample: what the trial object is, and why a preview may paint and nothing else |
+| `0023-the-update-note` | The strip the plugin shows once after a MINOR or MAJOR: the note's grammar, the decision table, why the chain is parsed out of the CHANGELOG at build time, and why the marker cannot live in the core's settings |
 
 **ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
 it explains *why not the other thing*. A DDR describes how a part actually works and the

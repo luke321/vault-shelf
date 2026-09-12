@@ -1,5 +1,7 @@
 # Vault Shelf
 
+[![Latest release](https://img.shields.io/github/v/release/luke321/vault-shelf?label=release)](https://github.com/luke321/vault-shelf/releases/latest) [![License: MIT](https://img.shields.io/github/license/luke321/vault-shelf)](LICENSE) [![GitHub stars](https://img.shields.io/github/stars/luke321/vault-shelf)](https://github.com/luke321/vault-shelf/stargazers) [![Ko-fi](https://img.shields.io/badge/Ko--fi-support-793b3d?logo=ko-fi&logoColor=white)](https://ko-fi.com/luke321)
+
 **Your Obsidian vault as a browsable library.** Shelves of books built from titles, dates,
 people, tags, folders or any note property — read as a two-page spread, with an index down the
 right edge and a bookmark that survives the shelf being rearranged.

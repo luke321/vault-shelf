@@ -1574,6 +1574,52 @@ and both land inside the page. The vault's own `appearance.json` does not do it 
 written, it is copied, and Obsidian starts dark anyway. Measured under cyber with a light host:
 body `theme-light`, the app's ground `rgb(255,255,255)`, the page reading `data-theme="light"`
 under `data-look="cyber"`, note ink `rgb(232,245,255)`.
+## The plugin says what changed, once
+
+`node scripts/update-note-selftest.mjs` — **51 cases**, pure Node, in the pre-push hook and in
+`release.yml` with no skip flag. `github#33`, `design/0023`.
+
+Twelve of them are the decision table itself, and they are the ones worth naming: a **fresh
+install** shows nothing and records the version; a `data.json` with **no marker** shows the note
+(somebody who had the plugin before update notes existed); a **MINOR or MAJOR** shows it and
+records nothing until it is dismissed; a **PATCH** shows nothing and records; the **same**
+version shows nothing and writes nothing at all; a **downgrade** records; and a MINOR whose note
+is for **another version** shows nothing rather than a stale note — which is what `release.ps1`
+refuses an `x.y.0` over.
+
+The other thirty-nine are the grammar and the chain. **Any problem is no note**: no heading, a
+heading without a patch number, no bullets, prose outside a bullet, a second heading, six
+bullets, a 161-character bullet, 5 KB of file, markup, a `data:` URI, a control id outside the
+`vs-` namespace, five controls. And *a < b, and 3 > 2* is fine while `<img src=x>` is not,
+because the markup test is `<` followed by a letter, `!` or `/`. The chain lists every `x.y.0`
+strictly after the version last seen, oldest first, **patches left out**, the note's own version
+last, `CHAIN_MAX` 8 before the rest collapse into a single `…`.
+
+The constants are `NOTE_MAX_BYTES` **4096**, `NOTE_MAX_LINES` **5**, `NOTE_MAX_LINE_CHARS`
+**160**, `POINTS_MAX` **4**, `CHAIN_MAX` **8**. `scripts/build-plugin.mjs` enforces every one of
+them at build time and additionally refuses a `>` id that is no `id="…"` in `src/page.html`, so
+a note the plugin could not show is a build that does not finish. 0.1.0's note measures **5
+lines, 1,895 bytes, pointing at nothing**, and **1 release** is parsed out of `CHANGELOG.md`
+into `vs:releases`.
+
+**The marker is not in the core.** `core.migrate()` returns a fixed shape (`decisions/0001`) and
+drops what it does not know, so `lastSeenVersion` inside `Persisted` would be erased by the next
+settings write and the strip would come back. It is held on the plugin and merged back by
+`persisted()` on every `saveData`; the harness check named *a settings write keeps the version
+the strip recorded* is what pins that, and it is the one thing in this port that is not Vault
+Graph's code.
+
+`node scripts/update-note-check.mjs` — **31 checks** in a real Obsidian over seven seeded
+`data.json` states, claiming `screen-left` (`github#37`, `decisions/0012`). Run by hand, like
+the other browser gates; `release.ps1` names it on every `x.y.0` because **numbers cannot see**
+and the strip is a user-facing surface that ships. Measured 2026-09-12 against the 4,938-note
+vault, Obsidian at 1600×1000: the strip is **164.13px** tall with five bullets, and the library
+goes **757.44 → 921.56px** when it is dismissed — the room takes the height back within a
+pixel. **The width does not move**: 1556px either way, in a 922px view. It writes
+`01-strip-up.png`, `02-dismissed.png`, `03-chain.png` and `04-pulse.png`. Past `CHAIN_MAX`
+the oldest links collapse: **11 releases behind draws 9 links** — one `…` to the releases page,
+then the newest eight.
+
 ## No two suite runs, no two windows on one screen, and no fixture pulled out from under one
 
 Not a check in `smoke.mjs` but a property of the harness, held by driving the runs themselves.
@@ -1790,17 +1836,18 @@ re-measurement has something to diff rather than a number to argue with.
 ## Every release guard fires, and none of them writes a tag
 
 `.\scripts
-elease.ps1 -SelfTest` — **10 cases**. A throwaway bare repository stands in for
+elease.ps1 -SelfTest` — **11 cases**. A throwaway bare repository stands in for
 `origin` (the guards *fetch* `origin/main`, so a self-test that faked the ref in a clone of the
 real repo would have it overwritten mid-run), a clone of it carries the working tree's
 `scripts/`, and each case breaks exactly one thing: a `v` prefix, a malformed version, a
-manifest that disagrees, a missing CHANGELOG section, a branch other than `main`, a `main` one
-commit **ahead** of `origin/main`, a `main` one commit **behind**, a HEAD **off
-`origin/main`'s first-parent line** (built as a real `--no-ff` merge and reached with
-`-AllowAnyBranch`, which is vault-graph#47's 1.8.0 exactly), and a dirty tree. The tenth case
-breaks nothing and is asserted on reaching the lint gate.
+manifest that disagrees, a missing CHANGELOG section, **an update note that names another
+version** (`github#33`), a branch other than `main`, a `main` one commit **ahead** of
+`origin/main`, a `main` one commit **behind**, a HEAD **off `origin/main`'s first-parent line**
+(built as a real `--no-ff` merge and reached with `-AllowAnyBranch`, which is vault-graph#47's
+1.8.0 exactly), and a dirty tree. The eleventh case breaks nothing and is asserted on reaching
+the lint gate.
 
-Every case asserts the tag count **before and after**, and all ten are `0 -> 0`: a guard that
+Every case asserts the tag count **before and after**, and all eleven are `0 -> 0`: a guard that
 fires after a tag has been written is not a guard, and a published tag cannot be moved.
 ## A native drag is the one gesture the harness cannot drive
 
