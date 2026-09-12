@@ -194,6 +194,8 @@ const SHOT_NOTE = arg("shot-note", "");
  * shows none of the marks the block exists to show; both are put back before the sheet closes.
  * github#44 -- `swatch` shoots a live preview with one of them hovered */
 const SHOT_OPEN = arg("shot-open", "");
+/* github#13 -- --shot-query shoots a room and a book mid-search */
+const SHOT_QUERY = arg("shot-query", "");
 /* github#11 */
 const SHOT_BOOK = arg("shot-book", "");
 const SHOT_TAB = arg("shot-tab", "");
@@ -7724,6 +7726,8 @@ async function capture(page, out) {
     console.log("wrote " + file);
   };
   await page.eval('__vs.closeReader(); document.getElementById("vs-library").scrollTop = 0; void 0');
+  /* github#13, design/0027 -- the search is live in both pictures, or in neither */
+  await page.eval(`__vs.setQuery(${JSON.stringify(SHOT_QUERY)}); void 0`);
   if (SHOT_SHELF) {
     await page.eval(`(function(){
       var lib = document.getElementById("vs-library");
@@ -7807,7 +7811,16 @@ async function capture(page, out) {
           }); });
           return __vs.openBook(pick ? pick.id : want, null);
         })()`)
-      : await page.j('__vs.openBook(__vs.addresses()[0], null)');
+      : SHOT_QUERY
+        ? await page.j(`(function(){
+            /* github#13 -- a book the query LIT, or the picture shows nothing of it */
+            var pick = null;
+            __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+              if (!pick && b.matches > 0 && b.matches < b.notes.length && b.notes.length > 8) pick = b;
+            }); });
+            return pick ? __vs.openBook(pick.id, null) : __vs.openBook(__vs.addresses()[0], null);
+          })()`)
+        : await page.j('__vs.openBook(__vs.addresses()[0], null)');
   if (opened) {
     /* WITH RIBBONS IN IT. A reader with none shows an empty strip where the feature is, which
      * is a picture of the wrong thing; two are marked for the shot and taken out again. */
