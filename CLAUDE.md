@@ -178,7 +178,7 @@ of measuring it.** Build the page, drive it, read the numbers.
   like a worktree. **Both repos' orchestrators share the name on purpose** — Lukas addresses the
   role, not the instance (*"when I tell you to tell something to jarvis send it with orca send
   to all jarvis running"*), so a message for Jarvis goes to **every** running Jarvis and the
-  worktree path is what tells two of them apart afterwards. The session in the SecondBrain vault
+  worktree path is what tells two of them apart afterwards. The session in the notes vault
   checkout is **Alfred**, and is the one that does that sending.
 - **Only the orchestrator session pushes to `develop` or cuts a release.** A dispatched
   worktree — an Orca worktree of its own, never a child of the orchestrator's, one per piece of

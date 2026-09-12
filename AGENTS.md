@@ -10,7 +10,7 @@ different rules.
 pushes and releases, and it never implements. A session in an Orca worktree is a worker: it
 implements one piece of work, runs its own gates, and stops at its own branch. Say which one
 you are before you start, and if you are the orchestrator, **take the name**: `/rename Jarvis`,
-so a session in the sister repo — or Alfred, in the SecondBrain vault — can address you. Every
+so a session in the sister repo — or Alfred, in the notes vault — can address you. Every
 orchestrator in every repo is `Jarvis`; a message for Jarvis goes to all of them.
 
 Five things are worth knowing before you touch anything, all expanded in `CLAUDE.md`:
