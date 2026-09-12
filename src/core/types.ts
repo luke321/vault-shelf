@@ -18,6 +18,13 @@ export interface Note {
   body: string;
 }
 
+/** github#13, design/0027 -- one surface the needle was found in. */
+export interface MatchReason {
+  field: "title" | "tag" | "person" | "folder" | "path" | "body";
+  /** github#13 -- what to show, empty where there is nothing to point at. */
+  value: string;
+}
+
 export interface FolderInfo {
   path: string;
   count: number;

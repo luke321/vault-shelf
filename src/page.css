@@ -1169,6 +1169,20 @@
   background: color-mix(in srgb, var(--accent) 8%, transparent);
   box-shadow: inset 3px 0 var(--accent);
 }
+/* github#13, design/0027 -- a row the library's query marked, and the needle inside it.
+ * Colour only: a marked row is the same box as an unmarked one, so nothing in the index
+ * shifts when the query changes under it. */
+.vault-shelf .vs-contents button[data-match="1"] {
+  color: var(--text-1);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.vault-shelf .vs-contents button[data-match="1"] .vs-when { color: var(--text-2); }
+.vault-shelf .vs-hit {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  color: var(--text-1);
+}
+.vault-shelf .vs-why { color: var(--accent); }
+
 .vault-shelf .vs-contents .vs-t { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vault-shelf .vs-contents .vs-leader {
   flex: 1 1 auto;

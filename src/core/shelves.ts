@@ -1,4 +1,4 @@
-import type { Book, ClassifierKind, ColorRule, Filters, Note, Shelf, ShelfView, Source } from "./types";
+import type { Book, ClassifierKind, ColorRule, Filters, MatchReason, Note, Shelf, ShelfView, Source } from "./types";
 import { isoWeekOf, monthLabel, monthOf, weekLabel, yearOf } from "./dates";
 import type { NoteOrder } from "./defaults";
 
@@ -588,6 +588,29 @@ export function matchesQuery(note: Note, needle: string): boolean {
   if (note.tags.some((t) => t.toLowerCase().indexOf(needle) >= 0)) return true;
   if (note.people.some((p) => p.toLowerCase().indexOf(needle) >= 0)) return true;
   return note.body.toLowerCase().indexOf(needle) >= 0;
+}
+
+/* github#13, design/0027 -- the same rule, said out loud instead of answered yes or no */
+export function matchReasons(note: Note, needle: string): MatchReason[] {
+  const out: MatchReason[] = [];
+  if (!needle) return out;
+  if (note.title.toLowerCase().indexOf(needle) >= 0) out.push({ field: "title", value: note.title });
+  for (const t of note.tags) {
+    if (t.toLowerCase().indexOf(needle) >= 0) out.push({ field: "tag", value: t });
+  }
+  for (const p of note.people) {
+    if (p.toLowerCase().indexOf(needle) >= 0) out.push({ field: "person", value: p });
+  }
+  /* github#13, design/0027 -- the folder is the part of a path a reader can see */
+  if (note.folder && note.folder.toLowerCase().indexOf(needle) >= 0) {
+    out.push({ field: "folder", value: note.folder });
+  }
+  /* github#13, design/0027 -- the rest of the path only when it is the whole story */
+  if (!out.length && note.path.toLowerCase().indexOf(needle) >= 0) {
+    out.push({ field: "path", value: note.path });
+  }
+  if (note.body.toLowerCase().indexOf(needle) >= 0) out.push({ field: "body", value: "" });
+  return out;
 }
 
 /**

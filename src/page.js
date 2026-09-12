@@ -2317,6 +2317,15 @@ function mountVaultShelf(root, data, options) {
       (book.notes.length === 1 ? " note" : " notes") +
       (book.holds ? " across " + book.holds + (book.holds === 1 ? " book" : " books") : "") +
       (book.bands.length ? " \u00b7 " + book.bands.length + " source folders" : "");
+    /* github#13, design/0027 -- why this book was drawn forward, said on the page */
+    var lit = litNeedle();
+    var marked = lit ? reader.book.notes.filter(function (n) {
+      return core.matchesQuery(n, lit);
+    }).length : 0;
+    if (lit) {
+      $("bookmeta").appendChild(el("span", "vs-why", " \u00b7 " + marked + " of " +
+        book.notes.length + " match \u201c" + query.trim() + "\u201d"));
+    }
     $("prevcollection").disabled = !history.length;
 
     renderContents();
@@ -2411,18 +2420,45 @@ function mountVaultShelf(root, data, options) {
     box.appendChild(stub);
   }
 
+  /**
+   * github#13, design/0027 -- the needle, marked where it sits
+   * @param {HTMLElement} host @param {string} text @param {string} needle @returns {HTMLElement}
+   */
+  function litText(host, text, needle) {
+    var low = needle ? text.toLowerCase() : "";
+    var at = 0;
+    var i = needle ? low.indexOf(needle) : -1;
+    while (i >= 0) {
+      if (i > at) host.appendChild(DOC.createTextNode(text.slice(at, i)));
+      host.appendChild(el("span", "vs-hit", text.slice(i, i + needle.length)));
+      at = i + needle.length;
+      i = low.indexOf(needle, at);
+    }
+    if (at < text.length) host.appendChild(DOC.createTextNode(text.slice(at)));
+    return host;
+  }
+
+  /* github#13, design/0027 -- what the library is asking, read live */
+  function litNeedle() {
+    return query.trim().toLowerCase();
+  }
+
   function renderContents() {
     var box = $("contents");
     clear(box);
     var needle = reader.within.trim().toLowerCase();
+    /* github#13, design/0027 -- ONE RULE: the box can no longer deny the shelf */
+    var lit = litNeedle();
     reader.book.notes.forEach(function (note, i) {
-      if (needle && note.title.toLowerCase().indexOf(needle) < 0) return;
+      if (needle && !core.matchesQuery(note, needle)) return;
       var li = el("li");
       var b = el("button");
       b.type = "button";
       /* github#46 -- the row says which note it is */
       b.setAttribute("data-note", note.id);
-      b.appendChild(el("span", "vs-t", note.title));
+      /* github#13, design/0027 -- and whether the library's query marked it */
+      if (lit && core.matchesQuery(note, lit)) b.setAttribute("data-match", "1");
+      b.appendChild(litText(el("span", "vs-t"), note.title, needle || lit));
       /* design/0012 -- a leader exists because there is something at the end of it. A row with
        * no date to lead to just stops, the way a printed index does. */
       if (note.date && note.title.indexOf(note.date) !== 0) {
@@ -2752,14 +2788,33 @@ function mountVaultShelf(root, data, options) {
   function renderMeta(note) {
     var box = $("notemeta");
     clear(box);
-    box.appendChild(el("strong", "", note.title));
+    /* github#13, design/0027 -- the details are marked where the needle sits in them */
+    var lit = litNeedle();
+    box.appendChild(litText(el("strong"), note.title, lit));
     /** @type {string[]} */
     var meta = [];
     if (note.date && note.title.indexOf(note.date) !== 0) meta.push(note.date);
     if (note.folder) meta.push(note.folder);
     if (note.people.length) meta.push(note.people.join(", "));
     if (note.tags.length) meta.push(note.tags.map(function (t) { return "#" + t; }).join(" "));
-    if (meta.length) box.appendChild(el("span", "", "  " + meta.join(" \u00b7 ")));
+    /* github#13, design/0027 -- a match with no detail to point at says so instead */
+    var reasons = lit ? core.matchReasons(note, lit) : [];
+    var unseen = reasons.length > 0 && !reasons.some(function (r) {
+      return r.field !== "body" && r.field !== "path";
+    });
+    if (!meta.length && !unseen) return;
+    var line = el("span");
+    line.appendChild(DOC.createTextNode("  "));
+    meta.forEach(function (text, i) {
+      if (i) line.appendChild(DOC.createTextNode(" \u00b7 "));
+      litText(line, text, lit);
+    });
+    if (unseen) {
+      if (meta.length) line.appendChild(DOC.createTextNode(" \u00b7 "));
+      line.appendChild(el("span", "vs-why", reasons.some(function (r) { return r.field === "body"; })
+        ? "matches in the text" : "matches in the path"));
+    }
+    box.appendChild(line);
   }
 
   /**
@@ -4510,6 +4565,25 @@ function mountVaultShelf(root, data, options) {
     made: function (shelfId) {
       var shelf = shelfById(shelfId);
       return shelf && shelf.made ? core.clone(shelf.made) : {};
+    },
+    /* github#13, design/0027 -- what the open book says about the query */
+    readerMatches: function () {
+      if (!reader) return null;
+      var lit = litNeedle();
+      var box = $("contents");
+      return {
+        book: reader.book.id,
+        notes: reader.book.notes.length,
+        matches: lit ? reader.book.notes.filter(function (n) {
+          return core.matchesQuery(n, lit);
+        }).length : 0,
+        rows: box.querySelectorAll("button").length,
+        marked: box.querySelectorAll('button[data-match="1"]').length,
+        hits: root.querySelectorAll("#" + ID + "reader .vs-hit").length,
+        why: $("bookmeta").textContent,
+        meta: $("notemeta").textContent,
+        empty: box.textContent.indexOf("Nothing in this book matches.") >= 0
+      };
     },
     /** Every book's address, so a check can assert they are stable across a rebuild. */
     addresses: function () {
