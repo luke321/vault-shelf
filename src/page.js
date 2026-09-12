@@ -229,7 +229,7 @@ function mountVaultShelf(root, data, options) {
   var bookIndex = {};
   /** The biggest book in the library, which every thickness is scaled against. */
   var thickest = 1;
-  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null }|null} */
+  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, land?: "top"|"bottom"|null }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
   var history = [];
@@ -2282,7 +2282,10 @@ function mountVaultShelf(root, data, options) {
     persist();
     markWear(worn);
     $("reader").hidden = false;
+    /* github#40 -- a book opens at the top of its note */
+    reader.land = "top";
     renderReader();
+    landOn("top");
     node("reader").focus();
   }
 
@@ -2301,6 +2304,7 @@ function mountVaultShelf(root, data, options) {
     if (!reader) return;
     var opener = reader.opener;
     reader = null;
+    pushStop();   // github#40 -- no band outlives the book it was in
     history.length = 0;
     $("reader").hidden = true;
     if (opener && root.contains(opener)) opener.focus();
@@ -2703,6 +2707,9 @@ function mountVaultShelf(root, data, options) {
       return;
     }
     reader.noteId = note.id;
+    /* github#40 -- consumed once; a stale landing moves a refresh */
+    var land = reader.land;
+    reader.land = null;
     field("prevnote").disabled = reader.index <= 0;
     field("nextnote").disabled = reader.index >= reader.book.notes.length - 1;
     /* github#36, design/0025 */
@@ -2716,7 +2723,14 @@ function mountVaultShelf(root, data, options) {
     var host = el("div");
     box.appendChild(host);
     if (opts.renderNote) {
-      attempt(function () { void opts.renderNote(host, note); });
+      /* github#40, design/0028 -- the host's renderer settles after goTo has returned */
+      attempt(function () {
+        var done = opts.renderNote(host, note);
+        if (!land || !done || typeof done.then !== "function") return;
+        done.then(function () {
+          if (reader && reader.noteId === note.id) landOn(land);
+        }, function () {});
+      });
     } else {
       renderMarkdownInto(host, note);
     }
@@ -2843,10 +2857,12 @@ function mountVaultShelf(root, data, options) {
     }
   }
 
-  /** @param {number} index */
-  function goTo(index) {
+  /** @param {number} index @param {"top"|"bottom"} [land] */
+  function goTo(index, land) {
     if (!reader) return;
     reader.index = Math.max(0, Math.min(index, reader.book.notes.length - 1));
+    /* github#40, design/0028 -- every move arrives at the top unless it asks for the bottom */
+    reader.land = land || "top";
     /* THE CONTENTS MARK `reader.noteId`, AND `renderNote` IS WHERE IT WAS SET -- which runs
      * after them. So the first click drew the index against the note you had just left and
      * the second one caught up, which is why it took two clicks to highlight one row. */
@@ -2863,6 +2879,160 @@ function mountVaultShelf(root, data, options) {
     renderMarks();
     renderTabs();
     renderNote();
+    landOn(land === "bottom" ? "bottom" : "top");
+  }
+
+  /* ---- reading off the bottom turns the page ---------------------------------
+   * github#40, design/0028 -- 85% of notes never overflow, so the push is uniform
+   * github#40, design/0028 -- one flick turns one page: the latch clears on quiet
+   * github#40, design/0028 -- D-3: the right page only; the contents never turns
+   */
+
+  /* github#40, design/0028 -- the threshold, the band, and two silences */
+  var PUSH_TURN = 240, PUSH_QUIET = 140, PUSH_HOLD = 600;
+  var PUSH_BAND = 26, PUSH_BAND_END = 9, PUSH_SETTLE = 180;
+
+  /** github#40 -- the direction being pushed, 0 when nothing is @type {number} */
+  var pushDir = 0;
+  /** github#40 -- px pushed past the limit that way @type {number} */
+  var pushAt = 0;
+  /** github#40, design/0028 -- a turn has fired; swallow the flick's tail */
+  var pushSpent = false;
+  /** github#40 -- the silence that clears the spent latch @type {number} */
+  var pushQuiet = 0;
+  /** github#40, design/0028 -- the longer silence that lets a push go @type {number} */
+  var pushHold = 0;
+  /** github#40 -- the band's spring-back, seen by atRest @type {number} */
+  var pushSettle = 0;
+
+  /** github#40 -- the page the note is on @returns {HTMLElement|null} */
+  function rightPage() {
+    return /** @type {HTMLElement|null} */ (
+      root.querySelector("#" + ID + "reader .vs-page.vs-right"));
+  }
+
+  /** github#40, design/0028 -- where a turn arrives @param {"top"|"bottom"} land */
+  function landOn(land) {
+    var page = rightPage();
+    if (!page) return;
+    page.scrollTop = land === "bottom"
+      ? Math.max(0, page.scrollHeight - page.clientHeight) : 0;
+  }
+
+  /**
+   * github#40, design/0028 -- the leaf moving IS the indicator, and the only one
+   * @param {number} frac @param {number} dir @param {boolean} ends
+   */
+  function paintPush(frac, dir, ends) {
+    var page = rightPage();
+    if (!page || !$("leaf")) return;
+    var reach = (ends ? PUSH_BAND_END : PUSH_BAND) * frac;
+    page.setAttribute("data-push", "1");
+    page.removeAttribute("data-settling");
+    if (pushSettle) { WIN.clearTimeout(pushSettle); pushSettle = 0; }
+    node("leaf").style.setProperty("--vs-band", (dir > 0 ? -reach : reach) + "px");
+  }
+
+  /**
+   * github#40, design/0028 -- the band lets go, and says so until it has
+   * @param {boolean} [snap] github#40 -- a turn has no rubber left to spring
+   */
+  function releasePush(snap) {
+    var page = rightPage();
+    /* github#40 -- one spring at a time, and none outliving this call */
+    if (pushSettle) { WIN.clearTimeout(pushSettle); pushSettle = 0; }
+    if (!page || !$("leaf")) return;
+    var leaf = node("leaf");
+    var was = leaf.style.getPropertyValue("--vs-band");
+    page.removeAttribute("data-push");
+    /* github#40 -- back to the stylesheet's own 0px, rather than a literal here */
+    leaf.style.removeProperty("--vs-band");
+    /* github#40 -- a closed book snaps, and so does reduced motion */
+    if (snap || !was || parseFloat(was) === 0 || reduceMotion || !reader) {
+      page.removeAttribute("data-settling");
+      return;
+    }
+    page.setAttribute("data-settling", "1");
+    pushSettle = WIN.setTimeout(function () {
+      pushSettle = 0;
+      var now = rightPage();
+      if (now) now.removeAttribute("data-settling");
+    }, PUSH_SETTLE);
+  }
+
+  /* github#40, design/0028 -- the accumulation goes; the latch is not the accumulation */
+  function abandonPush() {
+    if (!pushDir) return;
+    pushDir = 0;
+    pushAt = 0;
+    releasePush();
+  }
+
+  /** github#40 -- every exit path lands here, teardown included */
+  function pushStop() {
+    if (pushQuiet) WIN.clearTimeout(pushQuiet);
+    if (pushHold) WIN.clearTimeout(pushHold);
+    pushQuiet = 0;
+    pushHold = 0;
+    pushSpent = false;
+    pushDir = 0;
+    pushAt = 0;
+    releasePush();
+  }
+
+  /** github#40, design/0028 -- two silences, and only one of them is the latch's */
+  function armPush() {
+    if (pushQuiet) WIN.clearTimeout(pushQuiet);
+    pushQuiet = WIN.setTimeout(function () {
+      pushQuiet = 0;
+      pushSpent = false;
+    }, PUSH_QUIET);
+    if (pushHold) WIN.clearTimeout(pushHold);
+    pushHold = WIN.setTimeout(function () { pushHold = 0; abandonPush(); }, PUSH_HOLD);
+  }
+
+  /**
+   * github#40 -- px, whatever unit the wheel chose to speak in
+   * @param {WheelEvent} we @param {HTMLElement} page @returns {number}
+   */
+  function wheelPx(we, page) {
+    if (we.deltaMode === 1) return we.deltaY * 16;
+    if (we.deltaMode === 2) return we.deltaY * page.clientHeight;
+    return we.deltaY;
+  }
+
+  /** github#40, design/0028 -- the whole gesture @param {Event} e */
+  function onPush(e) {
+    if (!reader) return;
+    var page = rightPage();
+    var target = e.target instanceof Element ? e.target.closest(".vs-page") : null;
+    /* github#40 -- D-3: the contents scrolls and never turns */
+    if (!page || target !== page) return;
+    var we = /** @type {WheelEvent} */ (e);
+    /* github#40 -- ctrl/cmd+wheel is a zoom, and it belongs to the host */
+    if (we.ctrlKey || we.metaKey) { abandonPush(); return; }
+    var dy = wheelPx(we, page);
+    if (!dy) return;
+    /* github#40, design/0028 -- every notch re-arms, so one latch spans one whole flick */
+    armPush();
+    var dir = dy > 0 ? 1 : -1;
+    var span = page.scrollHeight - page.clientHeight;
+    /* github#40, design/0028 -- D-1: a page that cannot scroll is already at its limit */
+    var atLimit = dir > 0 ? page.scrollTop >= span - 1 : page.scrollTop <= 0;
+    if (!atLimit) { abandonPush(); return; }
+    e.preventDefault();
+    if (pushSpent) return;
+    if (dir !== pushDir) { pushDir = dir; pushAt = 0; }
+    pushAt += Math.abs(dy);
+    var ends = dir > 0
+      ? reader.index >= reader.book.notes.length - 1 : reader.index <= 0;
+    var frac = Math.min(1, pushAt / PUSH_TURN);
+    if (ends || frac < 1) { paintPush(frac, dir, ends); return; }
+    /* github#40, design/0028 -- forward arrives at the top, back at the bottom */
+    pushSpent = true;
+    pushAt = 0;
+    releasePush(true);
+    goTo(reader.index + dir, dir > 0 ? "top" : "bottom");
   }
 
   /**
@@ -4219,6 +4389,10 @@ function mountVaultShelf(root, data, options) {
 
   on($("prevnote"), "click", function () { goTo(reader.index - 1); });
   on($("nextnote"), "click", function () { goTo(reader.index + 1); });
+  /* github#40, design/0028 -- on the right page; the contents cannot reach it */
+  on(/** @type {EventTarget} */ (rightPage()), "wheel", onPush);
+  /* github#40 -- no timer outlives the mount, on edgeStop's precedent */
+  onDestroy.push(pushStop);
   on($("within"), "input", function () {
     reader.within = field("within").value;
     renderContents();
@@ -4348,6 +4522,23 @@ function mountVaultShelf(root, data, options) {
         speed: edgeSpeed,
         top: lib ? lib.scrollTop : 0,
         max: lib ? Math.max(0, lib.scrollHeight - lib.clientHeight) : 0
+      };
+    },
+    /** github#40, design/0028 -- the push, the band, and whether either is still going */
+    overscroll: function () {
+      var page = rightPage();
+      return {
+        dir: pushDir,
+        at: pushAt,
+        turn: PUSH_TURN,
+        quiet: PUSH_QUIET,
+        hold: PUSH_HOLD,
+        spent: pushSpent,
+        pushing: !!(page && page.hasAttribute("data-push")),
+        settling: !!pushSettle,
+        band: page ? parseFloat(node("leaf").style.getPropertyValue("--vs-band")) || 0 : 0,
+        top: page ? page.scrollTop : 0,
+        span: page ? Math.max(0, page.scrollHeight - page.clientHeight) : 0
       };
     },
     /** design/0008 -- what the room currently looks like it has been used for. */

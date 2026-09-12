@@ -17,7 +17,7 @@ apply; add a row per polish ask the release picked up.
 | 3 | `CHANGELOG.md` section for `<version>`, written as the release body | |
 | 4 | Version bump: `manifest.json` → `<version>` | |
 | 5 | Release name — propose 2-4 candidates, the owner picks | |
-| 6 | Re-record every clip the change touched, and the hero if the page moved (`record-demo.mjs`, headless, no lock) — before the merge, so the clips show the merged tree | |
+| 6 | Re-record every clip the change touched, and the hero if the page moved (`record-demo.mjs`, headless, no lock) — before the merge, so the clips show the merged tree | | **Then run the `review-clips` skill and look at the page** (`& "$env:USERPROFILE\.claude\skills\review-clips\build-clip-review.ps1" -Repo . -Open`) — it reads the storyboard itself and prints `clips present N/N` with the missing act names, so the recording step is confirmed rather than assumed. Do not eyeball a diff to decide what was re-recorded.
 | 7 | Read the whole branch: every doc naming the version, every link, the README's install block | |
 | 8 | **Review the release body before the tag** — the `## <version>` section, read as the page it becomes | |
 | 9 | `release.ps1 <version> -DryRun -AllowAnyBranch` on the branch — the run that pays the suite and stamps the tree | |

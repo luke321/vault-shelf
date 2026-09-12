@@ -832,6 +832,69 @@ at **1**, and the same key dispatched on the reader itself turns back to **0**. 
 so `"previous and next walk the book and stop at its ends"` reads identically on both sides of the
 change. `github#36`, `design/0025`.
 
+`"pushing past the end of a page turns it, and one hard flick turns one page"` is the gesture, and
+every number in it is measured rather than chosen. The push threshold is **240px** — between two
+and three notches of a mouse wheel, which Chrome delivers as 100px each — so the check asserts that
+**100px and then 200px of push turn nothing** and the third notch turns, on a note with **0px of
+overscroll**: 85% of this vault's notes never scroll at all (27 of 186 sampled do), which is why a
+page that cannot scroll counts as already at its limit. The band reaches **26px** at the threshold,
+and the check asserts it between **−15px and −26px** after two notches. Then the momentum case:
+**one flick of 40 notches turns exactly 1 page**, with the arriving page driven to its own bottom
+between every notch, and the latch still held at the end; after **140ms** of silence a fresh push
+turns again. `github#40`, `design/0028`.
+
+`"a push made slowly still turns, and the latch still clears on its own"` pins the **two silences**
+against each other: the spent latch clears after **140ms** and the accumulator holds its push for
+**600ms**. Three notches **220ms** apart — further apart than the latch's silence — accumulate
+100px then 200px and turn the page, which turned **nothing at all** while one timer did both jobs;
+after **800ms** of silence a fresh notch starts again at **100px**, so a push is not remembered for
+ever. Measured with real wheel input: at 34ms, 44ms and 93ms between notches a flick turns
+**1** page, and a slow 229ms spin of 12 notches turns **3** — where one timer turned **0, ever**.
+`github#40`, `design/0028`.
+
+`"a turn arrives at the top going forward and the bottom going back"` finds a note whose page
+actually overflows (**more than 80px**, since most have none) and asserts that pushing up off the
+note after it lands at `scrollTop` **equal to the full span**, and pushing down again lands at
+**0**. A turn is a reading motion, not a teleport. `github#40`, `design/0028`.
+
+`"every way to another note starts at the top of it"` scrolls a note to the bottom of its **188px**
+and then leaves it by each route in turn, asserting **scrollTop 0** every time: `Next`, `Previous`,
+the arrow key, a contents row, and `openBook`. `goTo` reset no offset at all before this, so a move
+landed wherever the browser left the box; `"top"` is its default now and only a backward push asks
+for `"bottom"`. `github#40`, `design/0028`.
+
+`"the push resists at both ends of the book and never turns"` asserts the band gives **9px** —
+about a third of its mid-book 26px — at note **0** pushing up and at the last note pushing down,
+that neither push moves the reader, that `Previous` and `Next` are already `disabled` there, and
+that **0** strip elements exist on the page. The leaf moving is the whole indicator (D-6): nothing
+is drawn at an end or mid-book, so an end is a band that gives less and never resolves.
+`github#40`, `design/0028`.
+
+`"the contents never turns the page, and nor does a key that scrolls one"` asserts that **twelve**
+notches off the bottom of the contents leave the reader where it was with the push at **0px**,
+never engaging at all; that `PageDown`, `space` and `PageUp` leave it there too (`design/0025`
+stands unamended); and that the right arrow still turns it **at once**, with no resistance to push
+through. `github#40`, `design/0028`.
+
+`"a wheel on the spread stays smooth in every look"` holds the **same p95 budget of 34ms** as
+`"scrolling the library stays smooth in every look"`, and measures it where the push **cannot**
+turn — the last note, pushing down — because a page turn inside the sampled frames is a different
+cost. Measured: p95 **18.9 / 18.2 / 18.3ms** for leather / modern / cyber, against the library
+scroll's own 18.5ms, and one whole turn timed separately at **2–3ms** in every look. `github#40`,
+`design/0026`.
+
+**This feature adds nothing to either look check, because it draws nothing.** The push is a
+`translateY` on `.vs-leaf` and a transform does not affect layout, so the same-size check stays at
+**40** controls and `a look moves nothing on the page` at **4,226** elements — both back where they
+were before the strip existed (42 and 4,229 while it did). No look file changed. `github#40`,
+`design/0021`, `design/0026`.
+
+**`prefers-reduced-motion` keeps the offset and drops only the spring.** With nothing drawn,
+suppressing the band as well would leave no indicator at all, which fails the issue's own
+constraint that the threshold still be legible; the band tracks the wheel directly with no
+transition, which is direct manipulation rather than animation, and what reduced motion removes is
+the spring back — it snaps. `github#40`, `design/0028`.
+
 `"a wikilink in a book goes to that note in this book, this shelf, or the nearest"` opens a
 Months book holding a note that links to a person's note but not the person's note itself,
 clicks the link, and asserts the reader is now on that note **in another Months book**; opens a

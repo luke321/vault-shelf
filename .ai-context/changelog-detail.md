@@ -3290,3 +3290,104 @@ over a library scrolling by itself. `settlePage()` dispatches a `dragend` on the
 
 Comment budget unchanged at **1500/1500** — every new comment is pointer-shaped, and the
 reasoning is in `design/0024`.
+
+## 2026-09-12 — reading off the bottom of a page turns it (`github#40`, `design/0028`)
+
+Both halves of the spread are `overflow-y: auto`, so reaching the bottom of a note stopped dead:
+nothing said the page had ended or that there was a next one, and the only ways on were the arrow
+keys and the footer buttons. Keeping the wheel going now meets **resistance** — a rubber band and a
+filling strip — and past a threshold the page **turns**, arriving at the top of the next note, or
+at the bottom of the previous one going back.
+
+| | before | after |
+|---|---|---|
+| ways to turn a page | 2 (arrow keys, footer buttons) | **3** |
+| notes the gesture exists on | — | **all of them** (85% never overflow) |
+| `goTo` scroll arrival | none — wherever the browser left the box | **top forward, bottom back** |
+| every other way to a note | wherever the browser left the box | **scrollTop 0** |
+| push to turn | — | **240px** (2 notches never, 3 always) |
+| band, mid-book / at the ends | — | **26px / 9px** |
+| latch clears after | — | **140ms** of silence |
+| a push is held for | — | **600ms** |
+| one 40-notch flick turns | — | **1 page** |
+| a slow 229ms spin, 12 notches | — | **3 pages** (was 0, ever) |
+| p95 frame while pushing, leather/modern/cyber | — | **18.9 / 18.2 / 18.3ms** (budget 34) |
+| one whole turn, timed | — | **2–3ms** in every look |
+| same-size controls measured | 40 | **40** — this draws nothing |
+| look files changed | — | **none** |
+
+**The trap the issue listed fifth was the dominant case.** Probed before any code was written — 40
+books sampled every 17th, 186 notes opened — **only 27 of 186 notes overflow their page at all**,
+the median slack is **0px**, p90 **75px**. A gesture that needs real overscroll would not exist for
+85% of the library, and a reader cannot tell why it works on one note and not the next. So a page
+that cannot scroll counts as already at its limit, and the push starts on the first notch.
+
+**One flick, one page — and the first version got it wrong in a way synthetic events could not
+see.** The latch was released as soon as the *arriving* page was not at its own limit, which is the
+ordinary case when you turn onto a long note: a real wheel would scroll that note to its bottom and
+turn again. Synthetic `WheelEvent`s do not scroll natively, so every early check passed. The fix is
+that **every notch re-arms the quiet timer**, absorbed or not, so one latch spans one whole flick
+however long its tail runs; the check now drives the arriving page to its own bottom between all 40
+notches and asserts exactly one turn.
+
+**The gesture had a speed floor, and only real wheel input showed it.** The spent latch and the
+push accumulator were one timer, so notches further apart than **140ms** reset the accumulation and
+it never reached the threshold: driven with real CDP wheel input, a slow deliberate spin of 12
+notches **229ms apart turned 0 pages, ever**, while every flick turned exactly 1. Synthetic
+`WheelEvent`s dispatched in a loop cannot show this — their spacing is the harness's, not a hand's.
+The two are different questions, so they are two numbers now (**D-5**, asked rather than decided):
+the latch only has to outlast a flick's momentum tail (140ms), while a push a person is making
+slowly is still one push (600ms). The same slow spin now turns **3** pages and every flick still
+turns exactly **1**.
+
+**The settle diagnostic caught the second defect.** `atRest()` learned `pushing` and `settling`
+from `__vs.overscroll()`, and immediately failed two of the new checks with `an overscroll band
+still springing back`: a **turn** was starting a spring-back, and the settle timer handle survived
+`closeReader`. A turn now snaps — the band belongs to the page being left — and `releasePush`
+clears any pending spring before deciding whether to start one. `decisions/0013` working exactly as
+intended, on the run that introduced the thing it caught.
+
+**The smoothness number was two costs added together.** The first version of `a wheel on the spread
+stays smooth in every look` read leather p95 **53.9ms** with a 264ms worst against modern's 18.4,
+because a single page turn — a full `renderContents`/`renderMarks`/`renderTabs`/`renderNote` —
+landed inside the sampled frames. Measured where the push cannot turn (the last note, pushing
+down), leather reads **18.9ms** against the library scroll's own 18.5ms on the same machine, and
+the turn is a separate **2–3ms**. leather's remaining 268ms worst frame is the first look measured
+paying for its stylesheet's first application — the existing library check reports 158ms there for
+the same reason, and p95 is the assertion in both.
+
+**And one found by a blank screenshot.** The per-look stills of the strip came back empty: each
+one opened a note while the right page was still scrolled from the previous shot, so the push was
+never at its limit and painted nothing. The harness was right and the page was wrong — `goTo` reset
+no offset for *any* of its six callers, nor did `openBook`, which is the rest of what the issue
+meant by *"a turn today does not even reliably start you at the top of the note you turned to"*.
+`"top"` is the default now, and `Next`, `Previous`, the arrow key, a contents row and `openBook` all
+arrive at **scrollTop 0** from a note scrolled to its bottom.
+
+**Two defects found by reading the diff rather than by a check.** `reader.land` was set and never
+consumed, so a `refresh()` after a back-turn would have re-applied the landing and jumped the page
+to its bottom; and `ctrl`/`cmd` + wheel — a zoom gesture that belongs to the host — was being
+absorbed into the push.
+
+**The strip came out after the review, at Lukas's word.** He used the build and said *"remove the
+bar and shadow animation that the text moves is indicator enough"*, so the fill bar, the ground
+under it and the words `The book ends here` all went (**D-6**). That removes a whole class of
+question rather than just some CSS: with nothing drawn there is no absolutely-positioned decoration
+to keep out of the layout, nothing to add to the same-size list, and no per-look paint to verify.
+The same-size check went back from **42** controls to **40** and the look-walker from **4,229**
+elements to **4,226**.
+
+It was put to him first that an end-of-book push then looks like a mid-book push that is not
+working — the reading `github#40` explicitly warns against — and he chose it anyway, so the refusal
+is carried by the shorter **9px** band plus a disabled `Next` rather than by a sentence. The first
+version is in `design/0026`'s history if it ever reads as broken.
+
+**One consequence had to be taken rather than asked.** The band was suppressed under
+`prefers-reduced-motion` because the strip carried the threshold alone; with the strip gone that
+left **no indicator at all**, which fails the issue's own *"can still exist and still be legible"*.
+Reduced motion now keeps the **offset** and drops only the **spring** — the band tracks the wheel
+directly with no transition, which is direct manipulation rather than animation, on the same
+reasoning `design/0024` used for the edge scroll being the gesture's reach rather than decoration.
+
+Comment budget unchanged at **1500/1500**: the blocks written for this landed 15 lines over, and
+the reasoning moved to `design/0026` rather than the baseline moving.

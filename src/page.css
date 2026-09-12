@@ -1096,7 +1096,18 @@
   min-height: 0;
   min-width: 0;
   position: relative;
+  /* github#40 -- the push stays in the book; the host never scrolls */
+  overscroll-behavior: contain;
 }
+
+/* github#40, design/0028 -- the leaf the band moves, and nothing else */
+.vault-shelf .vs-leaf {
+  --vs-band: 0px;
+  transform: translateY(var(--vs-band));
+}
+.vault-shelf .vs-page[data-push] .vs-leaf { transition: none; }
+.vault-shelf .vs-page[data-settling] .vs-leaf { transition: transform 180ms ease-out; }
+
 
 /* the gutter: both inner edges fall away toward the fold */
 .vault-shelf .vs-page::after {
@@ -1891,6 +1902,8 @@
   .vault-shelf .vs-spine:hover, .vault-shelf .vs-spine:focus-visible { transform: none; }
   .vault-shelf[data-query="1"] .vs-spine[data-match="1"] { transform: none; }
   .vault-shelf .vs-shelfhead .vs-mini { transition: none; }
+  /* github#40 -- no spring; the offset stays, or nothing shows the push at all */
+  .vault-shelf .vs-page[data-settling] .vs-leaf { transition: none; }
 }
 
 /* design/0008 -- THE RIBBONS AN OPEN BOOK HOLDS, hanging out of the top of it.
