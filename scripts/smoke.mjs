@@ -2282,9 +2282,9 @@ check("a book is made on any shelf arranged by hand, and a plus stands where the
   };
 });
 
-/* github#34, design/0023 -- the pointer is dispatched ONCE and then never moves again: what
- * makes the room keep scrolling is the loop, not the events, and a check that kept nudging
- * the pointer would prove nothing about the thing this ticket is. */
+/* github#34, design/0023 -- the pointer is dispatched ONCE
+ * github#34, design/0023 -- what moves the room is the loop, not the events
+ */
 check("a drag that reaches the edge scrolls the room, and stops at the ends", async (p) => {
   const set = await p.j(`(function(){
     var lib = document.getElementById("vs-library");
@@ -2332,10 +2332,10 @@ check("a drag that reaches the edge scrolls the room, and stops at the ends", as
     return { lifted: spine.getAttribute("data-dragging"), running: e.running,
              speed: Math.round(e.speed * 10) / 10, top: e.top };
   })()`);
-  /* THE POINTER IS NOW STILL. Everything below happens with no further event.
-   * github#21 -- and the rail keeps MOVING AWAY while it does: an off-screen shelf's height
-   * is a guess until it renders, so the gap grows as the room scrolls into it. A fixed wait
-   * would be racing that; the loop is what is under test, so wait for it to win. */
+  /* github#34 -- THE POINTER IS NOW STILL from here on
+   * github#21 -- and the rail keeps MOVING AWAY as shelves render under it
+   * github#34 -- so wait for the loop to win rather than a fixed sleep
+   */
   const seen = [lift.top];
   let reach = null;
   for (let i = 0; i < 24 && !reach; i++) {
@@ -2353,7 +2353,7 @@ check("a drag that reaches the edge scrolls the room, and stops at the ends", as
   }
   const a = seen[1];
   const b = { top: seen[seen.length - 1], reached: !!reach };
-  /* Now move to the rail that the scroll brought into reach, and drop on it. */
+  /* github#34 -- move to the rail the scroll brought into reach */
   const landed = await p.j(`(function(){
     var rail = document.querySelector('[data-shelf="edge-landing"] .vs-track');
     var rb = rail.getBoundingClientRect();
@@ -2371,8 +2371,8 @@ check("a drag that reaches the edge scrolls the room, and stops at the ends", as
              marksLeft: document.querySelectorAll(
                "#vs-shelves [data-drop], #vs-shelves [data-dragging]").length };
   })()`);
-  /* Both ends: at the foot it clamps, at the head it goes back up. */
-  const ends = await p.j(`(function(){
+  /* github#34 -- both ends: it clamps at the foot, and goes back up */
+  await p.j(`(function(){
     var lib = document.getElementById("vs-library");
     var lb = lib.getBoundingClientRect();
     var spine = document.querySelector("#vs-shelves .vs-spine");
@@ -2436,8 +2436,9 @@ check("a drag that reaches the edge scrolls the room, and stops at the ends", as
   };
 });
 
-/* github#34, design/0023 -- a shelf carried by its floor scrolls the same way, and Escape
- * is the path that leaves a loop running if every exit is not covered. */
+/* github#34, design/0023 -- a carried shelf scrolls the same way
+ * github#34, design/0023 -- and Escape is the exit path that leaks a loop
+ */
 check("a carried shelf scrolls the room, and Escape leaves nothing behind", async (p) => {
   const lift = await p.j(`(function(){
     var lib = document.getElementById("vs-library");
