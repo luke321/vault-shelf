@@ -482,3 +482,151 @@ Membership, addresses, counts and `src/core` — all identical, and the existing
 465 / 194 / 709 addresses under every look, a book the same size in a room of the same width.
 `cyber.css` was edited for the law only and not repainted; `github#28` is rebuilding that look.
 `github#9`, which `github#16` says it sits on top of, had already landed.
+
+## Amendment, github#51 — a lift is geometry too, and the clip edge has to be declared
+
+`page.css` owns the geometry and a look owns the paint. That division had a gap in it: the
+**lift** is neither, quite. It is a transform, so it reflows nothing and reads as paint; but it
+moves a spine out of its track's box, and whether the pixels survive that is the *track's*
+business. Nothing tied the two together, so the track contained its paint and no spine had any
+room above it.
+
+### What was cut, and it was never only hover
+
+`.vs-track` has `contain: layout paint`, which clips every descendant pixel to the track's
+overflow clip edge. The track's `min-height: calc(var(--spine-h) + 34px)` with
+`align-items: flex-start` puts **all** of its slack below, for the board and the plaque — so the
+room above a spine was `0px`, and every one of the five lifts painted outside the box:
+
+| state | rung | what was cut |
+|---|---|---|
+| a worn spine at rest, `[data-wear="2"]` | 1px | 1px, **with nobody hovering** |
+| a worn spine at rest, `[data-wear="3"]` | 2px | 2px, with nobody hovering |
+| a worn spine hovered | 5px (6px in cyber) | 5px |
+| `:hover` / `:focus-visible` | 6px | 6px |
+| a search match, `[data-query="1"] [data-match="1"]` | **7px** | **7px, on every match while a query is live** |
+
+Two of those are not hover states. A shelf with wear on it was drawn with its worn books
+permanently shaved, and the law *a filter narrows; the query marks* promises a matching book
+draws **forward** — forward with its head sliced off is not what that promises.
+
+### The fix is a clip margin, and it is the only option that moves nothing
+
+`overflow-clip-margin` moves the overflow clip edge outward. Measured headless on the one vault,
+a spine lifted 20px and how far above its track it was actually **painted**:
+
+| track | painted above |
+|---|---|
+| `contain: layout paint` (as shipped) | 0px |
+| `+ overflow-clip-margin: 0px` | 0px |
+| `+ overflow-clip-margin: 7px` | **7px** |
+| `+ overflow-clip-margin: 13px` | 13px |
+| `+ overflow-clip-margin: 40px` | **20px — the lift, not the margin** |
+| `contain: layout` (paint dropped) | 20px |
+
+The last two rows are the whole argument: **the clip is still a clip.** A margin wider than any
+lift does not leak anything, it simply stops biting before the head. So containment survives
+intact, and because a clip margin is not padding, **nothing on the page moves** — no spine, no
+board, no plaque, no `min-height`, no `background-position`, and no layout golden.
+
+The two options the issue costed were both real and both more expensive:
+
+- **7px of `padding-top`** works (cut 6px → 0px) but pushes every shelf down 7px — about 105px of
+  extra scroll over fifteen shelves — and rewrites every golden in `scripts/layout-snapshots/`.
+  A paint bug should not move the furniture.
+- **Dropping `paint`** also works, and its cost turned out not to be measurable on this vault:
+  scrolling the whole library, p50/p95/worst ms per frame, shipped
+  `leather 17.6/18.4/21 · modern 17.6/18.3/19 · cyber 17.6/18.4/18` against paint-dropped
+  `leather 17.6/18.4/22 · modern 17.6/18.4/20 · cyber 17.4/18.3/19`. Indistinguishable —
+  `.vs-shelf`'s `content-visibility: auto` is carrying `design/0014`'s win now, not the track's
+  `paint`. But *not measurable on one vault on one machine* is not *free*, and there is no reason
+  to spend it when the clip margin is free.
+
+No new browser floor: `overflow-clip-margin` is Chrome 90, and the page already requires
+`color-mix()` (111) and `content-visibility` (85).
+
+### The room is the ladder's top rung, by identity — and why it is not `max()`
+
+The five lifts are declared as a ladder on `.vault-shelf`, and `--spine-lift-max` is both the
+tallest rung and the room:
+
+```css
+--spine-lift-worn: 1px;
+--spine-lift-worn-more: 2px;
+--spine-lift-worn-hover: 5px;
+--spine-lift-hover: 6px;
+--spine-lift-max: 7px;
+--spine-lift-match: var(--spine-lift-max);
+```
+
+This wanted to be `--spine-lift-max: max(<all five rungs>)`, so that *any* rung raised past the
+room would move the room with it. It cannot be. Measured in this Chrome,
+**`overflow-clip-margin` takes a bare `<length>` and rejects every math function**:
+
+| declaration | computed `overflow-clip-margin` |
+|---|---|
+| `7px` | 7px |
+| `max(1px, 7px)` | **0px** |
+| `calc(max(1px, 7px))` | **0px** |
+| `var(--m)` where `--m: max(1px, 7px)` | **0px** |
+| `var(--m)` where `--m: calc(max(1px, 7px))` | **0px** |
+| `var(--m)` where `--m: 7px` | 7px |
+| `@property --m { syntax: "<length>" }` then `--m: max(1px, 7px)` | 7px |
+
+Silently 0px, which puts the clip straight back to biting. Only an `@property` registration makes
+the `max()` compute down to a length before substitution — and an `@property` registration is
+**document-global**, where every rule in this sheet is scoped under `.vault-shelf`. `check-scope`
+would not have caught it either: it skips any line starting with `@`, which is a gap in the check
+rather than permission.
+
+So the relationship is an identity instead — the top rung *is* the room — and the gap that leaves
+(a **lesser** rung raised past the room, which CSS here cannot notice) is closed by a check that
+names the look and the shortfall in pixels on every push.
+
+**A look that lifts further moves its rung, on the room and not on the spine.** cyber restated two
+lifts, one of them larger than `page.css`'s — a worn cartridge comes out the full 6px where
+`page.css` stops a worn book at 5px. It now sets `--spine-lift-worn-hover` on
+`.vault-shelf[data-look="cyber"]`, which is above the track, so `--spine-lift-max` re-derives on
+the same element and the clip edge travels with the look. Setting it on the spine would not work:
+the room above a book is the *track's* to allow, and the track is the spine's ancestor.
+
+### Two checks, because each has the other's blind spot
+
+**`a lifted spine is painted whole, in every look`** reads painted pixels, because this defect is
+invisible to geometry — `getBoundingClientRect` reported the lifted spine at `y=160` whether it
+was clipped or not. It lifts a spine **20px**, far past any rung, and asks how far above its track
+it is actually painted. One over-lift answers two questions: the clip grants exactly the room
+`page.css` declares (7px of 7px, all three looks), and the clip is still biting (20px of lift
+paints 7, never 20). Then one real state end to end — a search match, the top rung, lifted by the
+**query** rather than the pointer.
+
+Two earlier forms of that check were wrong, and both were wrong in ways that passed:
+
+- **Driving all five states with a real hover and real wear.** The worn-at-rest rungs are a one
+  and two pixel shift over a textured, sub-pixel-aligned ground, and it flaked outright: the same
+  build came back `0/0/94/96` on one run and `104/104/101/176` on the next. A 20px over-lift moves
+  a hundred units either way.
+- **Differencing against the spine put back down.** Lowering a spine by its lift and comparing
+  looked like a clean reference and is not one: shifting leather's steep gilt head by a pixel moves
+  those pixels by more than any threshold *whether the head was clipped or not*, so the
+  worn-at-rest cell read "painted" in a build where it demonstrably was not. The reference has to
+  be the spine **absent** (`visibility: hidden`), which is the bare room.
+
+And it samples the spine's **whole width**, never one column down its middle: a look's top hairline
+can sit within a unit or two of the ground it stands on — leather's does — and one pixel there
+cannot be told from dither. Across the full width the rounded corner, the side rules and the
+closing border are all in the row.
+
+**`the room above a spine is the largest lift, in every look`** is the arithmetic the pixels cannot
+state: the room the track grants **is** the ladder's tallest rung, containment still includes
+`paint`, and the box still has `0px` of slack above a spine. It costs milliseconds, it reads the
+product's own tokens rather than a copy of them, and it is the only thing that catches a lesser
+rung raised past the room. Without the fix it reports `SHORT: leather by 7px, modern by 7px,
+cyber by 7px`.
+
+### What this did not touch
+
+No lift value changed. No `padding-top`, `min-height` or `background-position` on the track. The
+hover peek is not inside the track and was never clipped. The goldens in
+`scripts/layout-snapshots/` are **unchanged**, which is the fix's central claim and the reason
+`the shelves are packed the way the golden snapshot says` was read after it rather than rewritten.

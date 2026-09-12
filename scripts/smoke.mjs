@@ -6059,6 +6059,232 @@ check("a hovered spine shows one peek, big enough to read, and short labels stan
   };
 });
 
+/* github#51, design/0021 -- pixels: a clipped spine's rect reads whole. */
+check("a lifted spine is painted whole, in every look", async (p) => {
+  await p.j(`(function(){
+    var s = document.createElement("style");
+    s.id = "vs-probe-51";
+    document.head.appendChild(s);
+    return 1;
+  })()`);
+
+  /* github#51 -- past a PAINT, or both captures come back identical. */
+  const sheet = (text) => p.eval(`(async function(){
+    document.getElementById("vs-probe-51").textContent = ${JSON.stringify(text)};
+    await new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); });
+    return 1;
+  })()`);
+
+  /* github#51 -- the whole width, never one column down the middle. */
+  const band = async (x, y, w, rows) => {
+    const shot = await p.send("Page.captureScreenshot",
+      { format: "png", captureBeyondViewport: false,
+        clip: { x, y, width: w, height: rows, scale: 1 } });
+    return p.eval(`(async function(){
+      var img = new Image();
+      img.src = "data:image/png;base64," + ${JSON.stringify(shot.data)};
+      await img.decode();
+      var c = document.createElement("canvas");
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      var g = c.getContext("2d");
+      g.drawImage(img, 0, 0);
+      var d = g.getImageData(0, 0, c.width, c.height).data, out = [];
+      for (var y = 0; y < c.height; y++) {
+        var row = [];
+        for (var x = 0; x < c.width; x++) {
+          var i = (y * c.width + x) * 4;
+          row.push(d[i], d[i + 1], d[i + 2]);
+        }
+        out.push(row);
+      }
+      return out;
+    })()`);
+  };
+
+  /* github#51 -- never the first shelf: the top bar is above it. */
+  const pick = (sel) => p.j(`(function(){
+    [].slice.call(document.querySelectorAll("#vs-app [data-probe51]"))
+      .forEach(function (el) { el.removeAttribute("data-probe51"); });
+    var shelves = document.querySelectorAll("#vs-shelves .vs-shelf");
+    var sp = null;
+    for (var i = 1; i < shelves.length && !sp; i++) sp = shelves[i].querySelector(${JSON.stringify(sel)});
+    if (!sp) return null;
+    sp.setAttribute("data-probe51", "1");
+    var track = sp.closest(".vs-track");
+    var r = sp.getBoundingClientRect(), t = track.getBoundingClientRect();
+    var cs = getComputedStyle(track);
+    return { left: r.left, w: r.width, top: r.top, trackTop: t.top,
+             contain: cs.contain, declared: parseFloat(cs.overflowClipMargin) || 0 };
+  })()`);
+
+  const MOVED = 6;   /* github#51 -- dither is a unit; an arriving edge moves one by tens */
+  const REACH = 26;  /* github#51 -- read UP, so the answer is a height */
+
+  /* github#51 -- how far above its track a spine is PAINTED. */
+  const paintedAbove = async (g) => {
+    const x = Math.round(g.left);
+    const w = Math.max(2, Math.round(g.w));
+    const y = Math.floor(g.trackTop) - REACH;
+    const there = await band(x, y, w, REACH);
+    await sheet(" #vs-app [data-probe51] { visibility: hidden !important; }");
+    const bare = await band(x, y, w, REACH);
+    await sheet("");
+    const moves = there.map((row, i) =>
+      row.reduce((most, v, k) => Math.max(most, Math.abs(v - bare[i][k])), 0));
+    const first = moves.findIndex((m) => m > MOVED);
+    return { above: first < 0 ? 0 : REACH - first,
+             moves: moves.slice(Math.max(0, (first < 0 ? REACH : first) - 1)).join("/") };
+  };
+
+  const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
+  const was = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
+  const OVER = 20;   /* github#51 -- far past any rung, so the answer is the clip's */
+  const granted = [];
+  const matched = [];
+
+  for (const look of looks) {
+    await p.j(`(__vs.setLook(${JSON.stringify(look)}), 1)`);
+    await sleep(140);
+    const name = look || "modern";
+
+    /* github#51 -- 1. the room granted, against the room declared. */
+    await sheet("");
+    if (!(await pick(".vs-spine"))) {
+      granted.push({ look: name, declared: null, got: null, contain: null, moves: "" });
+      matched.push({ look: name, needle: "", lift: null, painted: null, moves: "" });
+      continue;
+    }
+    await sheet(` #vs-app [data-probe51] { transform: translateY(-${OVER}px) !important; }`);
+    const over = await pick(".vs-spine");
+    const r = await paintedAbove(over);
+    await sheet("");
+    granted.push({ look: name, declared: over.declared, got: r.above, contain: over.contain,
+                   moves: r.moves });
+
+    /* github#51 -- 2. one real state, query-lifted: no hover to race. */
+    const needle = await p.j(`(function(){
+      var tags = {};
+      __vs.data().notes.forEach(function (n) {
+        n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+      });
+      var n = Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] ||
+              __vs.data().notes[0].title.slice(0, 4);
+      __vs.setQuery(n);
+      return n;
+    })()`);
+    await sleep(260);
+    const m = await pick('.vs-spine[data-match="1"]');
+    if (m) {
+      const lift = +(m.trackTop - m.top).toFixed(1);
+      const mr = await paintedAbove(m);
+      matched.push({ look: name, needle, lift, painted: mr.above, moves: mr.moves });
+    } else {
+      matched.push({ look: name, needle, lift: null, painted: null, moves: "" });
+    }
+    await p.j(`(__vs.setQuery(""), 1)`);
+    await sleep(220);
+  }
+
+  await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
+  await sleep(140);
+  await p.j(`(function(){
+    [].slice.call(document.querySelectorAll("#vs-app [data-probe51]"))
+      .forEach(function (el) { el.removeAttribute("data-probe51"); });
+    var s = document.getElementById("vs-probe-51");
+    if (s) s.remove();
+    return 1;
+  })()`);
+
+  /* github#51 -- not less, which cuts a head; not more, which drifts. */
+  const wrongRoom = granted.filter((x) => x.got !== x.declared);
+  const notClipping = granted.filter((x) => x.got >= OVER);   /* github#51 -- 20px of lift paints 7, never 20 */
+  const loose = granted.filter((x) => (x.contain || "").indexOf("paint") < 0);
+  const cutShort = matched.filter((x) => x.painted === null || x.lift === null ||
+                                         x.painted < x.lift);
+  const ok = wrongRoom.length === 0 && notClipping.length === 0 && loose.length === 0 &&
+             cutShort.length === 0 && granted.length === looks.length &&
+             matched.length === looks.length && granted.every((x) => x.declared > 0);
+  return {
+    ok,
+    detail: `a spine lifted ${OVER}px paints this far above its track, against the room page.css ` +
+            `declares -- ` +
+            granted.map((x) => `${x.look} ${x.got}px of ${x.declared}px` +
+              ((x.contain || "").indexOf("paint") < 0 ? " (CONTAINMENT OFF)" : "")).join(", ") +
+            `; and a real search match, lifted by the query rather than the pointer, is painted ` +
+            `to its own top edge -- ` +
+            matched.map((x) => `${x.look} "${x.needle}" lifted ${x.lift}px, painted ${x.painted}px`)
+              .join(", ") +
+            (wrongRoom.length
+              ? ` -- ROOM NOT GRANTED: ` + wrongRoom.map((x) =>
+                  `${x.look} declares ${x.declared}px and paints ${x.got}px ` +
+                  `(rows moved by ${x.moves})`).join(", ")
+              : "") +
+            (notClipping.length
+              ? ` -- THE CLIP STOPPED CLIPPING in ${notClipping.map((x) => x.look).join(", ")}: ` +
+                `a ${OVER}px lift painted all ${OVER}px`
+              : "") +
+            (cutShort.length
+              ? ` -- HEAD CUT: ` + cutShort.map((x) =>
+                  `${x.look} lifted ${x.lift}px but painted only ${x.painted}px ` +
+                  `(rows moved by ${x.moves})`).join(", ")
+              : "")
+  };
+});
+
+/* github#51, design/0021 -- the arithmetic, and a lesser rung. */
+check("the room above a spine is the largest lift, in every look", async (p) => {
+  const r = await p.eval(`(async function(){
+    var root = document.getElementById("vs-app");
+    var core = window.VaultShelfCore;
+    var looks = core.LOOKS.map(function (l) { return l.value; });
+    var was = root.getAttribute("data-look") || "";
+    var px = function (v) { return parseFloat(v) || 0; };
+    var out = [];
+    for (var i = 0; i < looks.length; i++) {
+      __vs.setLook(looks[i]);
+      await new Promise(function (r) { setTimeout(r, 120); });
+      /* github#51 -- setLook rebuilds; a detached node reads all zeroes. */
+      var track = document.querySelector("#vs-shelves .vs-track");
+      var spine = document.querySelector("#vs-shelves .vs-spine");
+      var cs = getComputedStyle(track);
+      var rungs = ["--spine-lift-worn", "--spine-lift-worn-more", "--spine-lift-worn-hover",
+                   "--spine-lift-hover", "--spine-lift-match"].map(function (n) {
+        return { name: n.replace("--spine-lift-", ""), px: px(cs.getPropertyValue(n)) };
+      });
+      var tallest = rungs.reduce(function (a, b) { return b.px > a.px ? b : a; });
+      /* github#51 -- off the track, not the token: a look could set it. */
+      var room = px(cs.overflowClipMargin);
+      /* github#51 -- containment is still ON: a margin, not a dropped clip. */
+      var contains = (cs.contain || "").indexOf("paint") >= 0;
+      /* github#51 -- the slack that made the clip bite: still zero. */
+      var above = +(track.getBoundingClientRect().top - spine.getBoundingClientRect().top).toFixed(1);
+      out.push({ look: looks[i] || "modern", room: room, tallest: tallest.px,
+                 by: tallest.name, contains: contains, slackAbove: -above,
+                 rungs: rungs.map(function (x) { return x.name + " " + x.px; }).join("/") });
+    }
+    __vs.setLook(was);
+    await new Promise(function (r) { setTimeout(r, 120); });
+    return out;
+  })()`);
+  const short = r.filter((x) => x.room < x.tallest);
+  const loose = r.filter((x) => !x.contains);
+  /* github#51 -- IS the tallest rung, not merely at least it. */
+  const adrift = r.filter((x) => x.room !== x.tallest);
+  const ok = short.length === 0 && loose.length === 0 && adrift.length === 0 && r.length >= 3 &&
+             r.every((x) => x.tallest > 0 && x.slackAbove === 0);
+  return {
+    ok,
+    detail: r.map((x) => `${x.look}: room ${x.room}px for a tallest lift of ${x.tallest}px ` +
+                         `(${x.by}), containment ${x.contains ? "on" : "OFF"}, ` +
+                         `${x.slackAbove}px of box above a spine`).join("; ") +
+            ` -- rungs ${r[0].rungs}` +
+            (short.length ? ` -- SHORT: ${short.map((x) => `${x.look} by ${x.tallest - x.room}px`).join(", ")}` : "") +
+            (adrift.length && !short.length
+              ? ` -- ADRIFT: ${adrift.map((x) => `${x.look} allows ${x.room}px for ${x.tallest}px`).join(", ")}` : "") +
+            (loose.length ? ` -- CONTAINMENT DROPPED in ${loose.map((x) => x.look).join(", ")}` : "")
+  };
+});
+
 /* github#47, design/0021 -- one face decides it, and it walks core.LOOKS. */
 check("a short cover is stood upright by one face, not the look's", async (p) => {
   const r = await p.j(`(function(){
