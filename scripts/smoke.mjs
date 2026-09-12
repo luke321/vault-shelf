@@ -125,10 +125,7 @@ for (const sig of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {
 }
 
 const PINNED_PORT = arg("port", "") ? Number(arg("port", "")) : 0;
-/* github#50 -- `--headed` lives in chrome.mjs now and finally does something: it is what stops
- * the run being headless. It was parsed here and never read, and the VS_HEADED it wrote was
- * read by nothing -- a switch that reads as the control for the foreground theft and was inert,
- * which is worse than no switch at all. */
+/* github#50, design/0006 -- --headed lives in chrome.mjs, and now does something */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function freePorts(k) {
@@ -6562,10 +6559,7 @@ async function runOne(vault, work) {
   const profile = mkdtempSync(join(tmpdir(), "vs-smoke-"));
   const chrome = spawn(findChrome(), harnessChromeArgs({
     port: PORT, profile, url,
-    /* design/0006 -- ON THE LEFT SCREEN when there is a window to place. github#50: there
-     * usually is not any more, and the size still decides the layout, so both are passed in
-     * either mode and Chrome ignores the position it cannot use. Placement was only ever half
-     * of this: a window put politely on the left screen still takes the keyboard. */
+    /* design/0006, github#50 -- placement is not activation; headless takes the size only */
     window: [
       ...(slot ? [`--window-position=${slot.x},${slot.y}`] : [leftWindowPos()]),
       slot ? `--window-size=${slot.w},${slot.h}` : "--window-size=1600,1000",
@@ -7034,20 +7028,8 @@ async function main() {
   // github#5, decisions/0010
   // github#27
   const lost = FIXTURE_NAMES.filter((n) => !vaults.some((v) => v.fixture && v.fixture.name === n));
-  /* github#50, decisions/0010 -- THE RUN SHAPE, and any delta from it suppresses the stamp.
-   * A changed shape invalidates the measurement, so a stamp that names the tree and the
-   * fixtures but not the shape would quietly start lying the moment a flag changed what was
-   * measured -- which is exactly what wiring --headed did. Naming the shape once is why the
-   * next such flag is covered without anyone remembering to extend a list.
-   *
-   * Fail-closed rather than truthful: a stamp that recorded its shape would only help if every
-   * consumer remembered to compare it, and here that is the pre-push hook, release.ps1 and
-   * whatever reads it next. A run with a delta writes no stamp, so they find none and run the
-   * suite.
-   *
-   * What is deliberately NOT shape: --jobs (CLAUDE.md prescribes `--jobs 1` as the quiet run
-   * beside a recording -- a full suite, and it must still stamp), --no-lock (every gated push
-   * passes it), --port, --chrome and --shot. None of them changes what is measured. */
+  /* github#50, decisions/0010 -- the run shape; any delta suppresses the stamp */
+  /* design/0006 -- what is not shape, and why, is recorded there */
   const SHAPE = {
     "--only": [ONLY.join(","), ""],
     "--vault": [argAll("vault").join(","), ""],
