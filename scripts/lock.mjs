@@ -7,11 +7,14 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 
+// github#25 -- the selftest points every root somewhere throwaway
+const HOME = process.env.VAULT_LOCKS_HOME || tmpdir();
+
 // github#8, decisions/0011 -- one root for every sister project
-const ROOT = join(tmpdir(), "obsidian-vault-locks");
+const ROOT = join(HOME, "obsidian-vault-locks");
 
 // github#8 -- the per-repo roots this replaced
-const LEGACY_ROOTS = [join(tmpdir(), "vault-graph-locks"), join(tmpdir(), "vault-shelf-locks")];
+const LEGACY_ROOTS = [join(HOME, "vault-graph-locks"), join(HOME, "vault-shelf-locks")];
 
 // github#37, decisions/0012 -- a lock names the resource, not the job
 const SCREENS = ["screen-left", "screen-right", "screen-primary"];
@@ -28,7 +31,9 @@ const DEFAULT_STALE = 20 * 60 * 1000;
 const DEFAULT_TIMEOUT = 45 * 60 * 1000;
 const POLL_MS = 5000;
 // github#25 -- a hold is refreshed far inside the shortest stale window
-const BEAT_MS = 30 * 1000;
+const BEAT_MS = Number(process.env.VAULT_LOCKS_BEAT_MS) || 30 * 1000;
+// github#25 -- ten missed beats, not half an hour
+const BEAT_STALE_MS = 5 * 60 * 1000;
 
 // github#37 -- a holder names itself, so a blocked run can say who
 /** @param {string} what @returns {string} */
@@ -63,6 +68,12 @@ function ageOf(meta) {
   return meta && meta.at ? Date.now() - meta.at : Infinity;
 }
 
+// github#25 -- a hold that beats goes stale in minutes; one that cannot keeps its name's window
+/** @param {string} n @param {Record<string, any> | null} meta @returns {number} */
+function staleFor(n, meta) {
+  return meta && meta.holder === "process" ? BEAT_STALE_MS : staleWindow(n);
+}
+
 // github#25 -- only a hold naming a live process can be asked
 /** @param {Record<string, any> | null} meta @returns {boolean} */
 function holderGone(meta) {
@@ -78,7 +89,7 @@ function legacyHold(n) {
       try { return JSON.parse(readFileSync(join(root, n + ".lock", "owner.json"), "utf8")); }
       catch { return null; }
     })();
-    if (meta && meta.at && Date.now() - meta.at <= staleWindow(n)) return { root, meta };
+    if (meta && meta.at && Date.now() - meta.at <= staleFor(n, meta)) return { root, meta };
   }
   return null;
 }
@@ -90,7 +101,7 @@ function aliasHold(n) {
     const legacy = legacyHold(a);
     if (legacy) return { name: a, root: legacy.root, meta: legacy.meta };
     const meta = readMeta(a);
-    if (meta && !holderGone(meta) && ageOf(meta) <= staleWindow(a)) {
+    if (meta && !holderGone(meta) && ageOf(meta) <= staleFor(a, meta)) {
       return { name: a, root: ROOT, meta: meta };
     }
   }
@@ -188,7 +199,7 @@ export async function acquire(name, opts) {
       continue;
     }
 
-    if (age > staleWindow(name)) {
+    if (age > staleFor(name, meta)) {
       say("BREAKING stale " + name + " lock (age " + Math.round(age / 1000) + "s, owner " +
           ((meta && meta.owner) || "unknown") + ")");
       try { rmSync(dir, { recursive: true, force: true }); } catch { void 0; }
@@ -206,19 +217,18 @@ export async function acquire(name, opts) {
   }
 }
 
-// github#25
+// github#25 -- the beat is what keeps a hold alive and says when it is lost
 /**
- * @param {string} name @param {string} owner @param {boolean} asCli
- * @param {((who: string) => void) | undefined} onLost @param {(line: string) => void} say
- * @returns {Hold}
+ * @param {string} name @param {string} owner
+ * @param {((who: string) => void) | undefined} onLost
+ * @returns {() => void}
  */
-function hold(name, owner, asCli, onLost, say) {
+function beat(name, owner, onLost) {
   let lost = false;
-  if (asCli) return { name: name, owner: owner, release: () => releaseNamed(name, owner, say) };
-  const beat = setInterval(() => {
+  const t = setInterval(() => {
     const meta = readMeta(name);
     if (!meta || meta.owner !== owner) {
-      clearInterval(beat);
+      clearInterval(t);
       if (lost) return;
       lost = true;
       if (onLost) onLost((meta && meta.owner) || "nobody -- the lock is gone");
@@ -226,13 +236,51 @@ function hold(name, owner, asCli, onLost, say) {
     }
     try { writeMeta(name, { ...meta, at: Date.now() }); } catch { void 0; }
   }, BEAT_MS);
-  beat.unref();
+  t.unref();
+  return () => clearInterval(t);
+}
+
+// github#25
+/**
+ * @param {string} name @param {string} owner @param {boolean} asCli
+ * @param {((who: string) => void) | undefined} onLost @param {(line: string) => void} say
+ * @returns {Hold}
+ */
+function hold(name, owner, asCli, onLost, say) {
+  if (asCli) return { name: name, owner: owner, release: () => releaseNamed(name, owner, say) };
+  const stop = beat(name, owner, onLost);
   return {
     name: name,
     owner: owner,
+    release: () => { stop(); releaseNamed(name, owner, say); }
+  };
+}
+
+// github#25 -- a CLI hold beats for as long as a run is under it
+/**
+ * @param {string} name
+ * @param {{ onLost?: (who: string) => void, say?: (line: string) => void }} [opts]
+ * @returns {Hold | null}
+ */
+export function adopt(name, opts = {}) {
+  const meta = readMeta(name);
+  if (!meta || !meta.owner) return null;
+  const say = opts.say || ((l) => console.log(l));
+  const was = meta.holder;
+  writeMeta(name, { ...meta, at: Date.now(), pid: process.pid, holder: "process" });
+  say("ADOPTED " + name + " -- beating the hold of " + meta.owner + " for this run");
+  const stop = beat(name, meta.owner, opts.onLost);
+  return {
+    name: name,
+    owner: meta.owner,
+    // the caller still owns the release, so put its own shape back
     release: () => {
-      clearInterval(beat);
-      releaseNamed(name, owner, say);
+      stop();
+      const now = readMeta(name);
+      if (!now || now.owner !== meta.owner) return;
+      const back = { ...now, at: Date.now(), holder: was };
+      if (was !== "process") delete back.pid;
+      try { writeMeta(name, back); } catch { void 0; }
     }
   };
 }
@@ -289,7 +337,7 @@ function status() {
     const since = meta && meta.since ? "  held=" + Math.round((Date.now() - meta.since) / 1000) + "s" : "";
     console.log(n + "  owner=" + ((meta && meta.owner) || "unknown") +
                 "  seen=" + Math.round(ageOf(meta) / 1000) + "s ago" + since + live +
-                (ageOf(meta) > staleWindow(n) ? "  STALE" : ""));
+                (ageOf(meta) > staleFor(n, meta) ? "  STALE" : ""));
   }
 }
 
