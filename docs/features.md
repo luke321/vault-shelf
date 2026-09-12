@@ -308,8 +308,9 @@ feeling the product is after is *returning to a familiar place*, and a library t
 to the top every time you close a book does not have it. Escape closes it and puts focus back
 on the spine that opened it.
 
-**Left**: the collection's title, its note count and source mix, a *find within this book* box,
-and the contents. **Right**: the note.
+**Left**: the collection's title, its note count and source mix — and, while a search is live,
+how many of its notes match it — a *find within this book* box, and the contents. **Right**: the
+note.
 
 It reads as a book because of its geometry, not because of a texture. Both inner edges darken
 toward the fold; both outer edges carry a repeating 1px-on-2px-off gradient — the stack of
@@ -474,10 +475,24 @@ notes *before* the books are built, so the shelf genuinely has less on it. The q
 addresses while you type. Nothing is rebuilt and nothing is removed — which is what makes the
 movement read as the room parting rather than as a new room arriving.
 
-The reader's *find within this book* is a different thing in a different place: it filters that
-book's contents list only.
+### The book says why it was lit
 
-`design/0008`
+Open a book the search drew forward and it tells you what it found. The head of the left page
+reads *6 of 36 match "garden"*, the matching rows in the contents wear the accent, and the note
+you turn to marks the needle **where it sits** — inside the title, the folder, a person, or the
+tag `#garden/seeds`. Nothing is removed from the index by the library's query: the query marks
+here exactly as it marks out on the shelf.
+
+The reader's *find within this book* is a different thing in a different place — it **filters**
+that book's contents list where the library's query only marks. But it filters by the **same
+rule** the library searches with, so a book can never deny the shelf it is standing on. It used
+to test titles alone, which meant a book drawn forward on a tag answered *"Nothing in this book
+matches."* to the very word that lit it.
+
+A searched book still opens on its oldest note, and the find box is never filled in for you.
+Both would quietly turn a mark into a filter.
+
+`design/0008`, `design/0027`
 
 ---
 

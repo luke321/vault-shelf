@@ -3290,3 +3290,54 @@ over a library scrolling by itself. `settlePage()` dispatches a `dragend` on the
 
 Comment budget unchanged at **1500/1500** — every new comment is pointer-shaped, and the
 reasoning is in `design/0024`.
+
+## 2026-09-12 — why this book is lit (`github#13`, `design/0027`)
+
+The shelf said *which* books matched and the reader said nothing. A book drawn forward on a tag
+opened on an unmarked index, and retyping the same needle into *Find within this book* — which
+tested **titles only** while the library tested title, path, tags, people and body — printed
+*"Nothing in this book matches."* under a spine that was drawn as a match.
+
+**The book no longer denies the shelf.** *Find within this book* narrows by `core.matchesQuery`,
+the same function `applyQuery` calls. On `Encyclopedia I` with `garden` live — 36 notes, 6
+matching, every one of them on a tag:
+
+| | before | after |
+|---|---|---|
+| rows on open | 36, **0 marked** | 36, **6 marked** |
+| the head reads | `36 notes · 8 source folders` | `… · 6 of 36 match “garden”` |
+| typing `garden` in the find box | **0 rows**, *"Nothing in this book matches."* | **6 rows**, no such sentence |
+| the matched note's details | `#garden/seeds`, unmarked | `#garden/seeds` with `garden` on a ground |
+
+Across the vault: `project/website-migration` drew **475** books forward and **40 of 40** opened
+found it again in their own box. On `favourites/years/2026`, **304 of 1,755** rows marked against
+**304** matching notes with all **1,755** still in the index; the box cleared leaves **0** marked
+and **1,755** rows.
+
+**The cost of one rule, stated.** With body matching still in the scope rule, the find box returns
+many more rows than it used to: `garden` on `favourites/years/2026` goes **10 → 497**. `github#58`
+does not remove that — those are tag matches and it keeps tags. The judgement is that a narrow
+reader rule compensating for a broad library rule is the wrong layer; the breadth is `github#58`'s
+ticket, and a second rule in here only hides it while making the book lie.
+
+**`matchReasons` mirrors `matchesQuery` rather than replacing it.** The boolean stays a fast early
+return — it runs over every note of every book on every keystroke, millions of calls on this vault
+— and a check holds the two in step instead of a refactor making it structural: **4,938 notes × 5
+needles, 1,700 marked, 1,700 with a reason, 0 disagreements** over `tag` 876, `person` 620,
+`folder` 192, `title` 43, `body` 11.
+
+**A third rebuild path, and the guard that keeps it from being a fourth.** The library's search
+box stays in the tab order behind the open reader, so the query really can move under an open
+book. `renderReader` records the needle it drew against; `applyQuery` re-renders only when it
+differs. Every other caller — a ribbon toggled, a dye picked, a shelf moved — leaves the index
+standing, so `design/0026`'s un-rebuilt list still measures **2,450 of 2,450 rows the same nodes**.
+
+**Found only by looking.** The first pass tinted a marked row at **8%** of the accent, which on
+leather's paper is invisible. The check read `data-match` and passed; the screenshot showed an
+unmarked index. It ships at **15%** with the title in the accent at 600, above `aria-current` so
+the row being read keeps its own mark, and the needle inside a detail on a **34%** ground. Fourth
+entry in this file whose cause was a picture.
+
+Checks **114 → 117**. Comment budget unchanged at **1490/1490** — every new comment is
+pointer-shaped and the reasoning is here and in `design/0027`. `--shot-query <needle>` is new:
+the search live in both pictures, and the reader opened on a book the query actually lit.
