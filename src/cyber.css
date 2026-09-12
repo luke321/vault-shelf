@@ -199,31 +199,10 @@
     0 0 12px rgba(53, 240, 208, 0.35);
 }
 
-/* The jump chips as key caps on a console.
- *
- * NOT UPPERCASE, and not because it would look wrong. The chips live in a flex strip that
- * scrolls (`#vs-jump`), so widening every one of them does not wrap -- it pushes the rest
- * off the end. Uppercase at 0.14em took the strip from five chips visible to one and a half:
- * 141px of content shown out of 434px. A look may repaint the shelf list; it may not shorten
- * it. */
-.vault-shelf[data-look="cyber"] .vs-jump {
-  color: var(--text-2);
-  background: linear-gradient(180deg, rgba(31, 52, 86, 0.7), rgba(12, 20, 36, 0.7));
-  border: 1px solid #24395e;
-  border-radius: 2px;
-}
-
-.vault-shelf[data-look="cyber"] .vs-jump:hover {
-  color: var(--vs-neon-hot);
-  background: linear-gradient(180deg, rgba(46, 78, 122, 0.8), rgba(16, 28, 48, 0.8));
-  border-color: var(--vs-neon-dim);
-  box-shadow: 0 0 10px rgba(53, 240, 208, 0.3);
-}
-
-.vault-shelf[data-look="cyber"] .vs-jump .vs-n {
-  color: var(--vs-neon-dim);
-  font-family: var(--vs-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-}
+/* github#38 -- the key-cap chips went with `#vs-jump`. This look's whole note about them was
+ * that a strip which scrolls cannot afford uppercase, which is a problem the rail no longer
+ * has; the Manage row's name takes their place and needs nothing said here, because
+ * page.css paints it from --text-1, --surface-2 and --border, which are this look's own. */
 
 /* ---- buttons, boxes and the sheets ---------------------------------------
  * Obsidian's app.css centres every `button` and gives it a box-shadow (design/0016). Every

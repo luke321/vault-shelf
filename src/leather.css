@@ -112,12 +112,11 @@
   border-color: var(--vs-gilt-dim);
 }
 
-.vault-shelf[data-look="leather"] .vs-jump {
+/* github#38 -- a Manage row's name where the jump chip used to be: not a plate here either. */
+.vault-shelf[data-look="leather"] .vs-managerow .vs-name {
   background: transparent;
   border-color: transparent;
 }
-
-.vault-shelf[data-look="leather"] .vs-jump .vs-n { color: var(--text-3); }
 
 /* github#2 -- background-color, never the shorthand: the dropdown's chevron is a background
  * image page.css paints from --vs-chevron, and `background:` would wipe it. */

@@ -143,6 +143,57 @@ label's width along its own text is the face's (`design/0021`).
 
 `PageUp`, `PageDown`, `space`, `j` and `k` were considered and deliberately left alone;
 `design/0025` says why.
+## 2026-09-12 — The jump strip comes out of the rail (github#38, design/0009)
+
+*"i think the navigation to shelfs at the top needs to go"*. `#vs-jump` was the only child of the
+top rail that grew (`flex: 1 1 auto`) and the only one that scrolled (`overflow-x: auto`). Measured
+with `"the rail is fixed controls, and nothing in it scrolls sideways"`, which was written before
+the removal so both readings come off the same instrument.
+
+**At 1180px, the measure:**
+
+| | before | after |
+|---|---|---|
+| the rail | 1 row, 47px | 1 row, **47px** |
+| the vault's name | 102px, **clipped** | **116px**, whole |
+| the shelf strip | **421px** of 1148px, scrolling | **gone** |
+| the search box | 232px | 232px |
+| the hit count | 96px | 96px |
+| the gap | none | **407px**, as one `.vs-spacer` |
+| order / look / Manage | 92 / 71 / 63 | 92 / 71 / 63 |
+| sideways scrollers | **1** | **0** |
+
+**At 860px, the narrow breakpoint:**
+
+| | before | after |
+|---|---|---|
+| the rail | **2 rows, 93px** | **1 row, 51px** |
+| the strip's own row | 828px wide, **overflowing by 57px** | — |
+| the vault's name | 116px | 116px |
+| the search box | 455px | 455px |
+| sideways scrollers | **1** | **0** |
+
+So the space went three ways: **407px** of deliberate gap between the search and the controls at
+the measure, **14px** back to the vault's name, which the strip had been squeezing into an
+ellipsis, and at 860px **a whole row of rail — 42px — back to the library**.
+
+The 57px is the finding worth keeping: at **seven** shelves the strip already could not show itself
+at 860px, and the builder makes twenty easy. That is why the check reads computed `overflow-x`
+rather than only measuring today's boxes.
+
+**Everything else held still.** The layout goldens do not move (6 shelves, 10 rows, 227 spines,
+52 plaques, a 1125px room, in all three looks). `"a look moves nothing on the page"` walks
+**4,221** elements in four states across three looks: 0 moved, 0 resized, 0 present in one look and
+not another. `"the furniture is one material"` still reads **56** controls against the plaque with a
+lowest contrast of **5.77:1** — the Manage row's name took the jump chip's place in the list of
+things that must not wear a plate, so the count did not move. `"every control is the same size in
+every look"` went **37 → 38** on the vault, because one chip left the list and the row's name and
+its action button both joined it.
+
+| | before | after |
+|---|---|---|
+| `__vs.counts()` keys | includes `jump` | `jump` gone |
+| a pick shelf's count, read from | `#vs-jump [data-jump] .vs-n` → `"2"` | the shelf's own head → `"2 books · 135 notes"` |
 
 ## 2026-09-11 — Re-measured against the one vault (github#44, decisions/0014)
 

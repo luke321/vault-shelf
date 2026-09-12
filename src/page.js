@@ -327,25 +327,13 @@ function mountVaultShelf(root, data, options) {
   }
 
   /* ================================================================= the rail ==
-   * design/0009 -- the only chrome in the room. A shelf jump-list, a search box, and the
+   * design/0009 -- the only chrome in the room. The vault's name, a search box and the
    * number the search found; no panel, no filters, no calendar.
+   * github#38, design/0009 -- and no shelf list: every control in here is a fixed width.
    */
 
   function renderRail() {
     $("vname").textContent = data.vault || "Vault Shelf";
-
-    var jump = $("jump");
-    clear(jump);
-    views.forEach(function (view) {
-      if (view.shelf.hidden) return;
-      var b = el("button", "vs-jump");
-      b.type = "button";
-      b.setAttribute("data-jump", view.shelf.id);
-      b.appendChild(el("span", "", view.shelf.name));
-      b.appendChild(el("span", "vs-n", String(view.books.length)));
-      on(b, "click", function () { scrollToShelf(view.shelf.id); });
-      jump.appendChild(b);
-    });
   }
 
   /* ---- the reading shelf --------------------------------------------------
@@ -3127,7 +3115,22 @@ function mountVaultShelf(root, data, options) {
     var ordered = settings.shelves.slice().sort(function (a, b) { return a.position - b.position; });
     ordered.forEach(function (shelf, i) {
       var row = el("div", "vs-managerow");
-      row.appendChild(el("span", "vs-name", shelf.name));
+      /* github#38, design/0009 -- where the jump strip's one job went */
+      var go = el("button", "vs-name", shelf.name);
+      go.type = "button";
+      go.setAttribute("data-go", shelf.id);
+      /* github#38 -- a hidden shelf is not there to be scrolled to */
+      go.disabled = !!shelf.hidden;
+      go.title = shelf.hidden ? "Hidden: switch Shown on to put it back in the library"
+                              : "Go to this shelf";
+      go.setAttribute("aria-label", "Go to " + shelf.name);
+      /* github#38 -- focus goes where Done and Escape put it */
+      on(go, "click", function () {
+        $("manage").hidden = true;
+        node("library").focus();
+        scrollToShelf(shelf.id);
+      });
+      row.appendChild(go);
       row.appendChild(el("span", "vs-meta", shelf.classifier));
 
       var up = el("button", "", "\u2191");
@@ -4311,7 +4314,6 @@ function mountVaultShelf(root, data, options) {
         books: views.reduce(function (n, v) { return n + v.books.length; }, 0),
         spines: root.querySelectorAll("#" + ID + "shelves .vs-spine").length,
         plaques: root.querySelectorAll("#" + ID + "shelves .vs-plaque").length,
-        jump: root.querySelectorAll("#" + ID + "jump .vs-jump").length,
         newshelf: root.querySelectorAll("#" + ID + "library .vs-newshelf").length,
         readingShelf: root.querySelectorAll('#' + ID + 'shelves [data-shelf="-reading"]').length
       };
