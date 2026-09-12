@@ -5390,6 +5390,89 @@ check("a vault with no vocabulary offers nothing", async (p) => {
              : `an empty vault spelled ${r.terms} terms and offered ${r.offered}` };
 });
 
+/* github#58, design/0008 -- WHAT THE SEARCH READS. Every needle comes from the vault. */
+check("the search reads titles, covers and declared metadata, and never the body", async (p) => {
+  const r = await p.j(`(function(){
+    var notes = __vs.data().notes;
+    var hits = function (q) {
+      __vs.setQuery(q);
+      return parseInt(document.getElementById("vs-hits").textContent, 10) || 0;
+    };
+
+    /* A NEEDLE THE PROSE SPELLS AND NOTHING ELSE DOES. The generator writes this name into
+     * note bodies and never into a people property, which is what makes it the honest probe. */
+    var prose = ${JSON.stringify(PROSE_ONLY)};
+    var inProse = notes.filter(function (n) {
+      return n.body.toLowerCase().indexOf(prose.toLowerCase()) >= 0;
+    }).length;
+
+    /* A PATH IS NOT A TITLE AND NOT A FOLDER, so a whole path spells nothing on its own. */
+    var path = notes[0].path;
+
+    /* A COVER NO NOTE SPELLS: the string a person reads on a spine and nowhere else. */
+    var spelt = {};
+    notes.forEach(function (n) {
+      spelt[n.title.toLowerCase()] = 1;
+      spelt[n.folder.toLowerCase()] = 1;
+      n.tags.forEach(function (t) { spelt[t.toLowerCase()] = 1; });
+      n.people.forEach(function (x) { spelt[x.toLowerCase()] = 1; });
+    });
+    var keys = Object.keys(spelt);
+    var spellsIt = function (needle) {
+      return keys.some(function (k) { return k.indexOf(needle) >= 0; });
+    };
+    var cover = null, coverNotes = 0, folderShelves = 0;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.hidden) return;
+      if (v.shelf.classifier === "folder") folderShelves++;
+      v.books.forEach(function (b) {
+        var text = (b.cover || "").trim();
+        if (!text || !b.notes.length) return;
+        if (spellsIt(text.toLowerCase())) return;
+        if (b.notes.length > coverNotes) { cover = text; coverNotes = b.notes.length; }
+      });
+    });
+
+    /* DECLARED METADATA STANDS WITHOUT A SHELF: the biggest folder, which nothing classifies. */
+    var byFolder = {};
+    notes.forEach(function (n) { byFolder[n.folder] = (byFolder[n.folder] || 0) + 1; });
+    var folder = Object.keys(byFolder).sort(function (a, b) {
+      return byFolder[b] - byFolder[a];
+    })[0] || "";
+
+    /* THE WART github#41 SHIPPED: the room and the box said opposite things a few cm apart. */
+    __vs.typeQuery(prose);
+    var rows = __vs.suggest().rows.length;
+    var said = document.querySelector("#vs-suggest .vs-sugempty");
+    var agree = rows === 0 && !!said && hits(prose) === 0;
+    __vs.setQuery("");
+    __vs.closeSuggest();
+
+    var out = { inProse: inProse, prose: hits(prose), path: hits(path),
+                cover: cover, coverHits: cover ? hits(cover) : 0, coverNotes: coverNotes,
+                folder: folder, folderHits: folder ? hits(folder) : 0,
+                folderNotes: byFolder[folder] || 0, folderShelves: folderShelves,
+                title: hits(notes[0].title), agree: agree };
+    __vs.setQuery("");
+    out.cleared = document.getElementById("vs-hits").textContent;
+    return out;
+  })()`);
+  const ok = r.inProse > 0 && r.prose === 0 && r.path === 0 && r.title > 0 &&
+             !!r.cover && r.coverNotes > 0 && r.coverHits >= r.coverNotes &&
+             r.folderNotes > 0 && r.folderHits >= r.folderNotes && r.agree && r.cleared === "";
+  return { ok,
+           detail: r.prose > 0
+             ? `"${PROSE_ONLY}" is in ${r.inProse} bodies and still marked ${r.prose} note(s)`
+             : r.path > 0
+               ? `a whole path still marked ${r.path} note(s); the path is meant to be dropped`
+               : !r.agree
+                 ? `the room read ${r.prose} notes while the box said nothing spells it`
+                 : `"${PROSE_ONLY}" is in ${r.inProse} bodies and marks ${r.prose}, a whole ` +
+                   `path marks ${r.path}; the cover "${r.cover}" marks ${r.coverHits} for its ` +
+                   `${r.coverNotes}-note book, and "${r.folder}" marks ${r.folderHits} of ` +
+                   `${r.folderNotes} with ${r.folderShelves} folder shelf on the rail` };
+});
+
 /* design/0009 -- A ROOM HAS A WIDTH. Measured by overriding the viewport rather than by
  * resizing a window, so the number is the same on a laptop and on the WQHD screen this was
  * reported from. */

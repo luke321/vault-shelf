@@ -596,13 +596,13 @@ export function noteText(note: Note): string {
               note.tags.join("\n") + "\n" + note.people.join("\n"));
 }
 
-/** github#58, design/0026 -- the one definition of a book the box and the search both read. */
+/** github#58, design/0026 -- what the box and the search both read. */
 export function searchableBook(shelf: Shelf, book: Book): boolean {
   if (shelf.hidden || isReference(shelf, book)) return false;
   return book.notes.length > 0 && (book.cover || "").trim().length > 0;
 }
 
-/** github#58 -- note id to everything that note is searchable by, folded once. */
+/** github#58 -- note id to what that note is searchable by, folded. */
 export type SearchIndex = Map<string, string>;
 
 /**
@@ -631,7 +631,7 @@ export function buildSearchIndex(views: ShelfView[], notes: Note[]): SearchIndex
   return index;
 }
 
-/** github#58 -- `needle` arrives folded; an index adds the covers a note sits behind. */
+/** github#58 -- a folded needle; an index adds the note's covers. */
 export function matchesQuery(note: Note, needle: string,
                              index?: SearchIndex | null): boolean {
   if (!needle) return false;
@@ -648,7 +648,7 @@ export function markMatches(views: ShelfView[], query: string,
                             index?: SearchIndex | null): { books: number; notes: number } {
   const needle = fold(query.trim());
   const seen = new Set<string>();
-  /* github#58 -- a note stands in 7.6 books here; it is read once, not once per book. */
+  /* github#58 -- a note in 7.6 books is read once, not 7.6 times. */
   const missed = new Set<string>();
   const hit = (note: Note): boolean => {
     if (seen.has(note.id)) return true;
