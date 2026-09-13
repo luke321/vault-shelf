@@ -111,10 +111,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 - `node scripts/smoke.mjs --only "<substring>"` is the iteration loop. The full suite runs on
   the push to `develop` (the pre-push hook); do not run it by hand unless asked.
 - **Two Chromes at once, and two is a ceiling.** `--jobs` clamps to 2 and says so; `--jobs 1` is
-  the quiet run, and is what to use beside a recording. Four was the default until github#39, and
-  it is the load that hard-restarted the sister repo's machine across six worktrees. **The cap
-  costs time and is worth it anyway**: 78 s at four lanes against 90 s at two, before the fixture
-  audit took the whole run to 41-43 s. **A check declares which shapes it needs** — `check(name, fn, { on: "demo" })`, or a
+  the quiet run, and is what to use beside a recording (`github#39`). **A check declares which shapes it needs** — `check(name, fn, { on: "demo" })`, or a
   list of fixture names — and **the default is all three**, deliberately the opposite of
   `vault-graph#113`: a forgotten annotation must cost time, not coverage. **A check that returns
   with the page still moving fails**, naming what it left open or in flight. `decisions/0013`.
@@ -149,8 +146,8 @@ of measuring it.** Build the page, drive it, read the numbers.
   so it is the one that gets wrapped by reflex.** `.githooks/pre-push` takes the `suite` lock
   itself around the run it makes and releases it on every way out. Wrap the push in an outer
   acquire/release and the hook's own attempt blocks on yours, and the push hangs until the
-  outer lock's stale window expires. The sister repo hit that live, pushing a release
-  (`vault-graph@f9a167a`). A plain `git push origin develop` is correctly gated on its own.
+  outer lock's stale window expires (`vault-graph@f9a167a`). A plain `git push origin develop`
+  is correctly gated on its own.
 
   **And the screen is claimed by whatever parks a window on it** (`github#37`), which is every
   one of `smoke.mjs`, `refresh-check.mjs`, `teardown-check.mjs`, `check-data-escape --browser`
@@ -167,64 +164,28 @@ of measuring it.** Build the page, drive it, read the numbers.
   ```
 
   The lock lives in the OS temp dir under one root for **every sister project** —
-  `obsidian-vault-locks` — so a Vault Graph suite and a Vault Shelf suite block each other.
-  They did not until 2026-09-10: each repo had its own directory, so each held a lock the
-  other could not see and the two ran together anyway. A machine has one Chrome and one
-  screen no matter which repository the suite belongs to. The root was never enough on its own:
-  contention is by **name**, so until `github#37` a Vault Graph recording on the left screen and
-  a Vault Shelf harness on the same screen asked for nothing the other held.
-  `--shot` is part of a suite run, so it is inside the lock like everything else.
+  `obsidian-vault-locks` — so a Vault Graph suite and a Vault Shelf suite block each other. A
+  machine has one Chrome and one screen no matter which repository the suite belongs to; and
+  contention is by **name** (`github#37`), so `--shot` is part of a suite run and is inside the
+  lock like everything else.
 - **The fixture store is shared and content-addressed, and nothing prunes a sibling.** Every
   worktree resolves the same `.fixtures` through git's common dir, so a fixture directory is
   named after the digest of the generators that built it, and two digests coexist. A run
   collects only what is provably finished with: a fixture older than the refresh window, and an
-  abandoned build directory. It used to delete every other digest of a fixture on a miss, which
-  pulled the vault out from under five other running suites every time somebody edited a
-  generator. `github#8`.
-- `git push` and merging into `develop` are separate asks, every time. `main` only ever
-  receives `develop`.
-- **Which session is the orchestrator is decided by where it stands.** A session opened in the
-  main checkout (`C:\git-personal\vault-shelf`, on `develop` or an integration branch) *is* the
-  orchestrator, and says so at the start rather than waiting to be told; a session opened in an
-  Orca worktree is a worker, and never becomes an orchestrator by finishing well. The checkout
-  is the role, so the answer never depends on who remembered to mention it. **And it says so
-  in its name: every orchestrator is called `Jarvis`.** `/rename Jarvis` at the start, or
-  `claude -n Jarvis` at launch. Named 2026-09-11 by Lukas, replacing `vault-shelf-orchestrator`.
-  A sister session with something to say about the shared mutex has to be able to find it in a
-  list of sixty, and one capitalised word does that better than a 22-character slug that reads
-  like a worktree. **Both repos' orchestrators share the name on purpose** — Lukas addresses the
-  role, not the instance (*"when I tell you to tell something to jarvis send it with orca send
-  to all jarvis running"*), so a message for Jarvis goes to **every** running Jarvis and the
-  worktree path is what tells two of them apart afterwards. The session in the notes vault
-  checkout is **Alfred**, and is the one that does that sending.
-- **Only the orchestrator session pushes to `develop` or cuts a release.** A dispatched
-  worktree — an Orca worktree of its own, never a child of the orchestrator's, one per piece of
-  work — implements, runs its own gates, and stops at its own branch: it never pushes past that
-  branch, never merges into `develop`, and never tags, no matter how clean the result.
-  Integrating finished branches and shipping them is the orchestrator's job alone, so one place
-  is answerable for what is actually on `develop` and what a release contains. The orchestrator
-  itself never implements: it stays on the integration branch, surveys, dispatches, reviews and
-  merges. **A merge is always an ask, never an initiative**: "merge N" authorises that one local
-  merge and nothing more, the push is its own ask again, and no branch is merged because it
-  looks finished. **The rule bites at `git merge`, not at the commit** — not a trial merge, not
-  `--no-commit` to see whether it conflicts, not "just to run the suite on it". An unasked merge
-  is a mistake the moment it starts, and aborting it is damage control rather than a defence.
-  **A worker's handover is a claim, not a verdict** — a green gate table and "stopped at the
-  branch" say the worker believes it is done, which is not the same as it being done, and the
-  orchestrator has no standing to decide that on its own. **At most six Orca worktrees work at once**: when six are in progress the orchestrator
-  spawns nothing more — it files the issue and the brief, and dispatches when one has finished
-  and been merged. (Copied from Vault Graph, 2026-09-11; the cap added the same day.)
-- **Every issue the orchestrator files carries a label, and "unsure" is a question for Lukas, not
-  a reason to skip it.** `gh issue create` without `--label` silently succeeds, so an unlabelled
-  issue is never caught at filing time — and unlabelled is what this backlog already is: **31 of
-  31 open issues carried no label on 2026-09-11**, which is how a label stops being worth
-  filtering on at all. The set is the GitHub default: `bug`, `enhancement`, `documentation`,
-  `accessibility`, `question`, plus `duplicate` / `invalid` / `wontfix` for closing. Most work
-  here is `bug` or `enhancement`, and the split is about what the issue *claims*: something the
-  library already promises and does not do is a `bug`; something it does not promise yet is an
-  `enhancement`. **When it is genuinely either — a behaviour that is defensible as designed but
-  reads as broken — ask Lukas which, and file after the answer.** Do not guess and do not file
-  bare. (Copied from Vault Graph, 2026-09-11.)
+  abandoned build directory. `github#8`.
+- `git push` and merging into `develop` are separate asks, every time; only the orchestrator
+  does either. `main` only ever receives `develop`. (Orchestrator role and rules: `~/.claude/CLAUDE.md`;
+  dispatch/merge/cleanup mechanics: the `orchestrator-brief` skill.)
+- **Every issue the orchestrator files carries a label, and "unsure" is a question for the
+  maintainer, not a reason to skip it.** `gh issue create` without `--label` silently succeeds,
+  so an unlabelled issue is never caught at filing time. The set is the GitHub default: `bug`,
+  `enhancement`, `documentation`, `accessibility`, `question`, plus `duplicate` / `invalid` /
+  `wontfix` for closing. Most work here is `bug` or `enhancement`, and the split is about what
+  the issue *claims*: something the library already promises and does not do is a `bug`;
+  something it does not promise yet is an `enhancement`. **When it is genuinely either — a
+  behaviour that is defensible as designed but reads as broken — ask the maintainer, or raise it
+  on the issue, and file after the answer.** Do not guess and do not file bare. (Copied from
+  Vault Graph, 2026-09-11.)
 - **A release is the range, not the work in hand.** Everything it needs — a `CHANGELOG.md`
   section accounting for every merge since the last tag, every clip it embeds, every doc naming
   the version, the release body itself — is finished on `release/<version>` and read there
@@ -238,9 +199,8 @@ of measuring it.** Build the page, drive it, read the numbers.
 - **One vault, and it is generated.** `scripts/make-vault.mjs` in the shared store — 5,000
   notes over eleven years ending today, every classifier populated, a recent year that is
   genuinely active, a 760-day hole so one calendar year comes out empty, a fifth of the
-  non-daily notes undated, and a handful in eleven books at once. It replaced three fixtures
-  (`decisions/0014`), which is why nothing here says "the demo vault" any more. Never a real
-  vault, never a built `vault-shelf.html`, in anything that reaches the repo.
+  non-daily notes undated, and a handful in eleven books at once (`decisions/0014`). Never a
+  real vault, never a built `vault-shelf.html`, in anything that reaches the repo.
 - **The generator proves its own declaration.** It refuses to finish if a month in the last
   three years is empty, if a week in the last year is empty, if no whole calendar year fell in
   the hole, if a sentinel is missing or if the people tail flattened — the mirror's pattern,

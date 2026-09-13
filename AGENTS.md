@@ -5,13 +5,8 @@ exists so an agent that looks for `AGENTS.md` by convention finds its way there 
 guessing, and it deliberately does not restate the laws: two copies of a rule become two
 different rules.
 
-**Where you are decides what you are.** A session in the main checkout
-(`C:\git-personal\vault-shelf`) is the orchestrator: it surveys, dispatches, reviews, merges,
-pushes and releases, and it never implements. A session in an Orca worktree is a worker: it
-implements one piece of work, runs its own gates, and stops at its own branch. Say which one
-you are before you start, and if you are the orchestrator, **take the name**: `/rename Jarvis`,
-so a session in the sister repo — or Alfred, in the notes vault — can address you. Every
-orchestrator in every repo is `Jarvis`; a message for Jarvis goes to all of them.
+**Read `CLAUDE.md` for the orchestrator/worker split** — this file doesn't restate it. Pushing
+and merging are each a separate ask, every time, no matter who is asking or how the last one went.
 
 Five things are worth knowing before you touch anything, all expanded in `CLAUDE.md`:
 

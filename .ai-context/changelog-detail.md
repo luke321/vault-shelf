@@ -1,5 +1,41 @@
 # Changelog detail
 
+## 2026-09-13 - Context-budget cleanup: history moved out of CLAUDE.md
+
+Phase 3 of Lukas's context-budget cleanup (via Alfred) pulled the following history clauses out
+of `CLAUDE.md`'s "How to work here" section, leaving each rule in place with its `github#N` /
+`decisions/NNNN` pointer intact. Nothing here changed behavior; this is where the *why*
+now lives instead of inline in the tracked brief.
+
+**The suite jobs cap (`github#39`).** Four Chrome lanes was the default before this issue; it
+is the load that hard-restarted the sister repo's machine across six worktrees. The cap to two
+costs real time — 78s at four lanes against 90s at two — before the fixture audit brought the
+whole run down to 41-43s regardless.
+
+**The push-hang incident (`vault-graph@f9a167a`).** The sister repo hit this live, pushing a
+release: wrapping a `git push` to `develop`/`main` in an outer `lock.mjs acquire`/`release`
+makes the pre-push hook's own internal lock acquisition block on the outer one, and the push
+hangs until the outer lock's stale window expires.
+
+**Separate lock roots, pre-2026-09-10.** Vault Graph and Vault Shelf originally kept their own
+lock directories, so each held a `screen-left` / `suite` lock the other could not see and the
+two suites ran concurrently anyway despite sharing one machine, one Chrome and one screen. Fixed
+by moving both onto one shared root, `obsidian-vault-locks` (`github#37`).
+
+**The old fixture-pruning behaviour (`github#8`).** The fixture store used to delete every
+other digest of a fixture on a miss, which pulled the vault out from under up to five other
+suites running concurrently every time somebody edited a generator. It now only collects
+fixtures provably finished with (older than the refresh window) and abandoned build
+directories.
+
+**Issue labelling before the label rule (2026-09-11).** The rule that every filed issue must
+carry a label exists because the backlog it was written for had **31 of 31 open issues
+carrying no label** at the time — labelling had stopped being worth filtering on at all.
+
+**The generated-vault fixture consolidation (`decisions/0014`).** `scripts/make-vault.mjs`
+replaced three separate fixture generators with the one 5,000-note generated vault the suite
+now measures against exclusively.
+
 ## 2026-09-13 - Keep builder source choices while previewing
 
 Two demo users reported that choosing a tag or folder while creating books jumped the picker
