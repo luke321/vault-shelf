@@ -26,7 +26,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 |---|---|
 | Introduced in | `1.0.0` |
 | Last re-recorded | `1.0.0 - 2026-09-13` |
-| Review | Approved by the user on 2026-09-13 |
+| Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 5 seconds |
 | WebP | 2 frames; 43,102 bytes |
 | Frame | 1000 × 1000 |

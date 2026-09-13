@@ -50,7 +50,8 @@ and Alt+Left return.
 
 **Keep your place.** Saved notes leave ribbons in the books that hold them, and the Reading
 shelf gathers your marked books. Reading places survive a rebuild or rearrangement. Books
-carry their age from the first visit, and show more wear as you return to them.
+show their age, entries and visits: existing notes count once per book, then new entries and
+visits add activity. Each book remembers when you last opened it; an unvisited book starts at never.
 
 **Find and organise.** Search titles, book covers, tags, people and folders. Matching books
 come forward while the rest stay on their shelves; inside a book, marked contents rows and

@@ -41,7 +41,7 @@ Favourites starts empty. Encyclopedia, Years, Months, People and Tags each organ
 
 ![A closer look at a spine](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/peek.webp)
 
-A thicker spine holds more notes. Hover to read its title, note count, source folders and a few of the notes inside.
+A thicker spine holds more notes. Hover to read its title, note count, entries and visits, source folders and a few of the notes inside.
 
 [Clip recipe](https://github.com/luke321/vault-shelf/blob/1.0.0/docs/features/peek.md) · `design/0011`
 
@@ -213,7 +213,7 @@ Save a note and ribbons hang from the books that contain it. The Reading shelf g
 
 ![Books carry their age and use](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/wear.webp)
 
-Older books arrive with faded edges, even when you first open the vault. Their newest dated note sets the age: a little wear after one year, more after three and seven. Active collections stay fresh; undated books are not guessed. Returning to a book adds reading wear, and your bindings and reading history stay intact.
+Books show their age, entries and visits. Existing notes count once per book; a newly added note or a visit adds to its activity. Reopening the vault or removing and restoring the same note does not count that entry again. Age also adds wear after one, three and seven years, measured from the newest dated note. Each book remembers its last actual visit; until then, its last-opened value is never. Your bindings and earlier visit counts stay intact.
 
 [Clip recipe](https://github.com/luke321/vault-shelf/blob/1.0.0/docs/features/wear.md) · `design/0008`
 

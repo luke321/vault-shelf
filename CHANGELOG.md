@@ -30,7 +30,7 @@ The measurements behind each entry are in
 
 - Fourteen colours and six leather bindings: Original, Minimal, Gilt, Morocco, Vellum and Aged. Preview them on a book, a plaque's run or a whole shelf before choosing.
 - Coordinate colours and bindings by book, year or decade. Edit book and ribbon colours in Manage, with resets whenever you want the defaults back.
-- The room opens in leather, with walnut boards, brass plaques and ivory pages. Older books start with faded edges, even in a new vault; the newest note sets their age, and real reading adds wear.
+- The room opens in leather, with walnut boards, brass plaques and ivory pages. Books show age, entries and visits: existing notes count once per book, then new notes and visits add activity. The newest dated note sets their age.
 
 ### Favourites and books of your own
 
@@ -72,4 +72,5 @@ The measurements behind each entry are in
 - Page turns keep the contents list steady. Wide tables scroll inside the note; lifted spines remain visible; multiple Reading books share a board; clicking the turn footer keeps the book open.
 - Keyboard controls, named buttons, visible focus, reduced motion and a plain list mode are included. Search suggestions complete text; note bodies and file paths are outside the catalogue search.
 - The plugin follows changes in your vault, writes nothing to your notes and makes no network requests. A standalone exporter produces the library as one HTML file; the docs site includes a generated-vault demo.
+- Each book remembers when you last opened it; unvisited books start at never. Existing visit counts survive the update, and rebuilding does not recount entries.
 - Update notes explain future minor and major releases inside the plugin. Automated checks cover layout, saved places, metadata escaping, refresh and cleanup; release builds carry provenance attestations.

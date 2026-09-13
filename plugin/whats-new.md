@@ -21,6 +21,6 @@
 # 1.0.0
 - Your vault becomes a library. Browse by title, date, person or tag, and build shelves of your own without moving a note.
 - Collect books on Favourites, arrange them by hand, or make a book from a folder, tag, person or the whole vault.
-- Choose six bindings and fourteen colours. Older books start worn; returning to them adds reading wear.
+- Choose six bindings and fourteen colours. Books show their age, note entries and visits, and remember when you last opened them.
 - Read a two-page spread, choose A-Z or Date for its contents, and push past a note's end to turn the page.
 - Leave a ribbon to keep your place. The Reading shelf brings your marked books together for an easy return.
