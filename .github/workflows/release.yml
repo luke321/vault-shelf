@@ -30,12 +30,13 @@ name: release
 
 on:
   push:
-    # A push to a release branch is a DRY RUN: the whole publishing half runs -- gates, build,
-    # attestation -- and no Release is created. workflow_dispatch cannot start a workflow that
-    # is not yet on the default branch, so this is how a new or changed release.yml gets its
-    # first run before any tag exists.
+    # A push to a release or hotfix branch is a DRY RUN: the whole publishing half runs --
+    # gates, build, attestation -- and no Release is created. workflow_dispatch cannot start a
+    # workflow that is not yet on the default branch, so this is how a new or changed
+    # release.yml gets its first run before any tag exists.
     branches:
       - 'release/*'
+      - 'hotfix/*'
     tags:
       # BARE SEMVER ONLY. Obsidian installs a plugin by matching the release tag against
       # manifest.json's version, which cannot carry a prefix, so a v-tagged release is one
@@ -152,25 +153,30 @@ jobs:
           fi
           echo "manifest and version agree on $VERSION, and the CHANGELOG has a section for it"
 
-      # main only ever receives develop, and a release is tagged on main. A tag can be pushed by
-      # hand with none of release.ps1's guards, so the rule is enforced here too. Skipped on a
-      # dry run, whose whole point is a branch.
-      - name: The tagged commit must be on main
+      # A normal release is tagged on main; a hotfix may be tagged on a pushed hotfix branch.
+      # A tag can be pushed by hand with none of release.ps1's guards, so the rule is enforced
+      # here too. Skipped on a dry run, whose whole point is a branch.
+      - name: The tagged commit must be on main or a hotfix branch
         if: env.DRY_RUN != 'true'
         run: |
           set -euo pipefail
           git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          git fetch --no-tags origin '+refs/heads/hotfix/*:refs/remotes/origin/hotfix/*' || true
           sha=$(git rev-parse HEAD)
           if git merge-base --is-ancestor "$sha" refs/remotes/origin/main; then
             echo "$sha is in origin/main's history"
             exit 0
           fi
-          echo "::error::$sha is not on main. main is what the Obsidian directory installs from,"
-          echo "::error::and a tag cut elsewhere stays off main's history for good."
-          echo "::error::main receives develop through a pull request merged on the website, and"
-          echo "::error::release.ps1 refuses to tag a main that is not already exactly origin/main --"
-          echo "::error::so a tag that reaches here off main was pushed by hand. Merge develop into"
-          echo "::error::main on the website first, then re-cut. Nothing was published."
+          for ref in $(git for-each-ref --format='%(refname)' refs/remotes/origin/hotfix); do
+            if git merge-base --is-ancestor "$sha" "$ref"; then
+              echo "$sha is in $ref's history"
+              exit 0
+            fi
+          done
+          echo "::error::$sha is not on main or a pushed hotfix branch."
+          echo "::error::Normal releases are tagged from main; urgent patch releases may be tagged"
+          echo "::error::from hotfix/* after that branch has run this workflow as a dry run."
+          echo "::error::Nothing was published."
           exit 1
 
       # The static gates, the same ones .githooks/pre-push runs on a push to develop or main.

@@ -7822,6 +7822,32 @@ check("a saved reading place re-resolves after its own book is gone", async (p) 
 check("the builder previews the shelf it would actually save", async (p) => {
   const r = await p.j(`(function(){
     document.getElementById("vs-newshelf").click();
+    var source = document.getElementById("vs-bsource");
+    var sourceVal = document.getElementById("vs-bsourceval");
+    source.value = "folder";
+    source.dispatchEvent(new Event("change", { bubbles: true }));
+    var folderOptions = [].slice.call(sourceVal.options).map(function (o) { return o.value; });
+    var folder = folderOptions[Math.min(1, folderOptions.length - 1)] || "";
+    sourceVal.value = folder;
+    sourceVal.dispatchEvent(new Event("change", { bubbles: true }));
+    var folderStayed = sourceVal.value === folder;
+    source.value = "tag";
+    source.dispatchEvent(new Event("change", { bubbles: true }));
+    var tagOptions = [].slice.call(sourceVal.options).map(function (o) { return o.value; });
+    var tag = tagOptions[Math.min(1, tagOptions.length - 1)] || "";
+    sourceVal.value = tag;
+    sourceVal.dispatchEvent(new Event("change", { bubbles: true }));
+    var tagStayed = sourceVal.value === tag;
+    var property = document.getElementById("vs-bproperty");
+    document.getElementById("vs-bclassifier").value = "property";
+    document.getElementById("vs-bclassifier").dispatchEvent(new Event("change", { bubbles: true }));
+    var propertyOptions = [].slice.call(property.options).map(function (o) { return o.value; });
+    var prop = propertyOptions[Math.min(1, propertyOptions.length - 1)] || "";
+    property.value = prop;
+    property.dispatchEvent(new Event("change", { bubbles: true }));
+    var propertyStayed = property.value === prop;
+    source.value = "all";
+    source.dispatchEvent(new Event("change", { bubbles: true }));
     document.getElementById("vs-bclassifier").value = "person";
     document.getElementById("vs-bclassifier").dispatchEvent(new Event("change", { bubbles: true }));
     var text = document.getElementById("vs-previewcount").textContent;
@@ -7829,13 +7855,18 @@ check("the builder previews the shelf it would actually save", async (p) => {
     var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
     document.getElementById("vs-bcancel").click();
     return { text: text, spines: spines, real: people.books.length,
+             folder: folder, folderStayed: folderStayed, tag: tag, tagStayed: tagStayed,
+             property: prop, propertyStayed: propertyStayed,
              cancelled: document.getElementById("vs-builder").hidden,
              shelves: __vs.settings().shelves.length };
   })()`);
   const previewed = Number((/(\d+) books?/.exec(r.text) || [0, 0])[1]);
-  return { ok: previewed === r.real && r.spines > 0 && r.cancelled,
+  return { ok: previewed === r.real && r.spines > 0 && r.cancelled &&
+                r.folder && r.folderStayed && r.tag && r.tagStayed && r.property && r.propertyStayed,
            detail: `preview said "${r.text}" against a real People shelf of ${r.real} books; ` +
-                   `${r.spines} spines drawn; cancel left ${r.shelves} shelves` };
+                   `${r.spines} spines drawn; folder "${r.folder}" stayed ${r.folderStayed}, ` +
+                   `tag "${r.tag}" stayed ${r.tagStayed}, property "${r.property}" stayed ` +
+                   `${r.propertyStayed}; cancel left ${r.shelves} shelves` };
 });
 
 check("a saved shelf gets a stable id and joins the library", async (p) => {

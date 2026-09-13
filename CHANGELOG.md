@@ -12,6 +12,21 @@ The measurements behind each entry are in
 
 ---
 
+## 1.0.1 — "Source picker" — 2026-09-13
+
+**Source picker. This hotfix keeps the tag, folder and property choices you make while building a shelf instead of snapping the dropdown back to the first value.**
+
+### Fixed
+
+- Building a shelf from a tag, folder or person now preserves the selected value while the preview refreshes.
+- Property shelves keep the chosen property for the same reason: the form reads the selection before rebuilding any dependent dropdown.
+- Release dry runs and branch policy now recognize `hotfix/*` branches for urgent patch releases.
+
+### For the record
+
+- The builder smoke check now chooses non-first folder, tag and property values and verifies that each one stays selected after the form handler runs.
+- No demo recordings were updated for this patch hotfix.
+
 ## 1.0.0 — "Vault Shelf" — 2026-09-13
 
 **Vault Shelf. Your notes become a library: build your shelves, bind your books, and read with a ribbon keeping your place. The files never move.**

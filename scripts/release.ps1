@@ -5,9 +5,9 @@
 
 .DESCRIPTION
   Refuses a v-prefixed or non-semver version, a version the manifest does not claim, a
-  version with no CHANGELOG section, a branch other than main, a HEAD that is not on
-  origin/main's first-parent line (github#5, after vault-graph#47), a main that is not
-  exactly origin/main (after vault-graph#94) and a dirty tree; prints the hero and
+  version with no CHANGELOG section, a branch other than main or hotfix/*, a HEAD that is
+  not on origin/main's first-parent line when it is already in main's history (github#5,
+  after vault-graph#47), a main that is not exactly origin/main (after vault-graph#94) and a dirty tree; prints the hero and
   feature-clip warnings; runs lint; builds the plugin once as a pre-flight; runs the
   invariant suite unless HEAD's tree already carries a pass stamp from an earlier full run
   (github#5, decisions/0010; -ForceSuite runs it anyway); then writes the annotated tag and
@@ -27,7 +27,7 @@
   Tag a dirty tree anyway.
 
 .PARAMETER AllowAnyBranch
-  Tag off main anyway; the workflow's main-ancestry guard will then refuse to publish.
+  Tag off main or hotfix/* anyway; the workflow's ancestry guard may still refuse to publish.
 
 .PARAMETER ForceSuite
   Run the invariant suite even when HEAD's tree already carries a pass stamp.
@@ -65,10 +65,10 @@ param(
   # be quietly fixed after it has been seen.
   [switch] $DryRun,
   [switch] $AllowDirty,
-  # Cut the release from wherever HEAD is standing, instead of requiring main. The escape
-  # hatch for the branch guard below, shaped like -AllowDirty: there is a legitimate case
-  # (a hotfix line that never reaches main, say), and the guard exists to stop the ACCIDENT,
-  # not to make the deliberate thing impossible.
+  # Cut the release from wherever HEAD is standing, instead of requiring main or hotfix/*.
+  # The escape hatch for the branch guard below is shaped like -AllowDirty: there can be a
+  # legitimate special case, and the guard exists to stop the ACCIDENT, not to make the
+  # deliberate thing impossible.
   #
   # IT DOES NOT REACH THE FIRST-PARENT GUARD, and that is the point of having both. See the
   # comment on that guard: a commit main MERGED is the one case where "I know what I am
@@ -333,18 +333,19 @@ try {
     throw "manifest.json says $($manifest.version), you asked for $Version. Bump the manifest first."
   }
 
-  # THE TAG BELONGS ON MAIN. main is what the Obsidian directory installs from and what a
-  # release is tagged on -- CONTRIBUTING states it -- and a script that tags wherever HEAD
-  # happens to be will eventually tag a develop commit. The sister repo did exactly that
+  # THE TAG BELONGS ON MAIN OR A HOTFIX BRANCH. main is the normal line; hotfix/* is the
+  # explicit urgent patch lane. A script that tags wherever HEAD happens to be will eventually
+  # tag a develop commit. The sister repo did exactly that
   # once (vault-graph#47): 1.8.0's tag sits three commits back from main's own history,
   # `git log main` does not show where that release was cut, and a published tag cannot be
   # moved afterwards without breaking every link to it. So this is a class of mistake that
   # has to be caught BEFORE the tag exists, which is the one moment it is still free to fix.
   $branch = (& git rev-parse --abbrev-ref HEAD).Trim()
-  if ($branch -ne 'main' -and -not $AllowAnyBranch) {
-    throw ("On '$branch', not main. main is what the Obsidian directory installs from and " +
-           "what a release is tagged on, and a tag cut elsewhere sits off main's history " +
-           "permanently. Merge into main first, or pass -AllowAnyBranch if you know why.")
+  $hotfixBranch = $branch -like 'hotfix/*'
+  if ($branch -ne 'main' -and -not $hotfixBranch -and -not $AllowAnyBranch) {
+    throw ("On '$branch', not main or hotfix/*. Normal releases are tagged on main; urgent " +
+           "patch releases may be tagged on hotfix/*. Merge into main first, switch to a " +
+           "hotfix branch, or pass -AllowAnyBranch if you know why.")
   }
 
   # ORIGIN/MAIN IS FETCHED ONCE, HERE, because both guards below measure against it and
