@@ -38,6 +38,23 @@ three ribboned books share one board, with legible labels, visible ribbons and t
 small wear lift. Only the harness and its documentation change; product appearance and
 approved recordings are unchanged. No full suite ran.
 
+## 2026-09-13 - Settle the index test's restored viewport
+
+The release run's index/icon check passed every geometry and action assertion but failed
+its cleanup gate with a pending room measure. Clearing emulation and sleeping 150ms did not
+prove that the resize observer and its 60ms timer had finished. The harness now saves the
+original viewport, explicitly restores its exact width and height, and requires five
+consecutive idle samples at each requested size. Product code and all existing assertions
+are unchanged.
+
+The affected check and its immediately following biggest-book index check pass **2/2**.
+The 25 letter tabs still measure **25.4375px** high at 1180x1000 and **6.71875px** at
+1180x480, with zero overflow; the fixed controls remain **28px**, the strip **56px**.
+Cleanup restored the captured **1584x961** viewport with **pending: 0**. The following
+2,450-note book retained its 11 tabs. Inspected `dist/index-settle-vault-reader.png`; the
+spread and index are visible and unclipped. Syntax, strict lint and generated-map checks
+pass. Only these two browser checks ran; no product or approved media changed.
+
 ## 2026-09-13 - Approve the complete Vault Shelf 1.0.0 release preparation
 
 The owner approved hero v5, all 24 feature clips, the release body and actual update strip.

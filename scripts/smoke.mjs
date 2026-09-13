@@ -6482,6 +6482,19 @@ check("the date index is layered: years over months over days, each only where i
 
 /* design/0032 */
 check("index tabs compress without scrolling and shelf icons edit and hide", async (p) => {
+  const original = await p.j("({width:innerWidth,height:innerHeight})");
+  const resize = async (width, height) => {
+    await p.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+    await p.eval("window.dispatchEvent(new Event('resize')); void 0");
+    let stable=0;
+    for (let i=0;i<60;i++) {
+      const ready=await p.j(`innerWidth===${width} && innerHeight===${height} && !__vs.room().pending`);
+      stable=ready?stable+1:0;
+      if(stable>=5) return;
+      await sleep(50);
+    }
+    throw new Error('Index viewport did not settle at '+width+'x'+height);
+  };
   const read = () => p.j(`(function(){
     var nav=document.getElementById('vs-tabs'), bounds=nav.getBoundingClientRect();
     var tabs=Array.from(nav.querySelectorAll('.vs-indextab'));
@@ -6509,20 +6522,20 @@ check("index tabs compress without scrolling and shelf icons edit and hide", asy
       if(document.querySelector('.vs-indextoggle').dataset.indexMode!=='az')document.querySelector('.vs-indextoggle').click();
       return {count:buttons.length,matched:matched,dots:dots,edits:edits,hides:hides,keeps:keeps};
     })()`);
-    await p.send('Emulation.setDeviceMetricsOverride',{width:1180,height:1000,deviceScaleFactor:1,mobile:false});
+    await resize(1180,1000);
     tall=await read();
-    await p.send('Emulation.setDeviceMetricsOverride',{width:1180,height:480,deviceScaleFactor:1,mobile:false});
+    await resize(1180,480);
     short=await read();
     await p.eval(`document.querySelector('.vs-indextoggle').click();`);
     date=await read();
   } finally {
     await p.eval(`__vs.closeReader();Object.assign(__vs.settings(),window.__savedIndexSettings);delete window.__savedIndexSettings;__vs.setFilters({});`);
-    await p.send('Emulation.clearDeviceMetricsOverride');await sleep(150);
+    await resize(original.width,original.height);
   }
   return {ok:icons.count===2&&['matched','dots','edits','hides','keeps'].every(k=>icons[k])&&
     [tall,short,date].every(r=>r.count>0&&r.fits&&r.scroll<=1&&r.width===56)&&short.height<tall.height&&
     JSON.stringify(tall.controls)===JSON.stringify(short.controls)&&JSON.stringify(short.controls)===JSON.stringify(date.controls),
-    detail:JSON.stringify({icons,tall,short,date})};
+    detail:JSON.stringify({icons,tall,short,date,restored:await p.j("({width:innerWidth,height:innerHeight,pending:__vs.room().pending})"),original})};
 });
 
 check("the reader's index tabs stay countable on the biggest book", async (p) => {
