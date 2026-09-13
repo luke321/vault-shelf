@@ -1,5 +1,18 @@
 # 0033 — Books carry their age as well as their reading
 
+### Last opened, requested 2026-09-13
+
+Actual book opens also persist `lastOpened[sourceAddress]` as an ISO UTC timestamp with
+milliseconds, beside the existing `wear` count. The sparse map starts empty;
+`lastOpenedAt(settings, address)` returns `never` when no stamp exists. Migration retains
+only valid canonical timestamps and never invents history for an older settings file.
+This additive field keeps schema 10, as the existing settings migration supplies defaults.
+
+Favourites record against the source book; made books and virtual plaques keep their stable
+addresses. Page turns, search, rebuilds and adding notes do not change this timestamp.
+Deletion removes it wherever the corresponding wear count is removed, and a full reset
+returns to the empty map. Persistence adds no visual treatment, tooltip or control.
+
 Requested 2026-09-13: older books should look worn, including the first time the plugin opens
 in a new vault. Opening history cannot answer age: a ten-year-old journal and today's notes
 both used to start at level zero.

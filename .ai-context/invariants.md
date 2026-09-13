@@ -2628,6 +2628,13 @@ uses the plus spine; shelf headers no longer contain a separate New book button.
 
 ## Age wear on a fresh library
 
+`lastOpened` is a separate sparse ISO UTC map keyed by the same source address as `wear`.
+An absent stamp means `never`, including migrated settings with existing opening counts.
+Only actual book opens update it; favourites share the source entry. Saves and rebuilds
+retain it, while made-book deletion, shelf deletion and reset clean it with the counts.
+`last opened defaults to never and persists actual source-book opens` measures those paths;
+`scripts/check-age-wear.mjs` validates fresh/legacy defaults and rejects invalid timestamps.
+
 `design/0033`. A book's displayed wear is max(real-opening level, age floor). Real openings
 remain the saved count with thresholds 2/5/12. The age floor is 1/2/3 after 1/3/7 completed years
 since the newest resolved date among its notes, measured against the library's generated day.

@@ -99,10 +99,11 @@ export interface Persisted {
   reading: { noteId: string; shelfId: string; bookId: string; at: number }[];
   /**
    * design/0008 -- how many times each book has been opened, keyed by its stable address.
-   * This is the only state the library keeps ABOUT you rather than about your notes, and it
-   * is what makes a shelf look handled instead of printed.
+   * Alongside lastOpened, this records reading activity rather than note metadata.
    */
   wear: Record<string, number>;
+  /** design/0033 */
+  lastOpened: Record<string, string>;
   dateFields: string[];
   /**
    * decisions/0003 -- the frontmatter properties that name people, tried in order and merged.
@@ -215,6 +216,7 @@ export function emptySettings(): Persisted {
     shelves: defaultShelves(),
     reading: [],
     wear: {},
+    lastOpened: {},
     dateFields: ["date", "created"],
     peopleFields: ["people", "attendees", "person"],
     personNote: "type: people",
@@ -249,6 +251,7 @@ export function migrate(raw: unknown): Persisted {
       : base.shelves,
     reading: Array.isArray(data.reading) ? data.reading.filter(isMark) : [],
     wear: wearOf(data.wear),
+    lastOpened: lastOpenedOf(data.lastOpened),
     dateFields: Array.isArray(data.dateFields) && data.dateFields.length
       ? data.dateFields.filter((f): f is string => typeof f === "string")
       : base.dateFields,
@@ -514,6 +517,23 @@ export function wearLevel(opens: number): 0 | 1 | 2 | 3 {
   if (opens >= 5) return 2;
   if (opens >= 2) return 1;
   return 0;
+}
+
+/** design/0033 */
+export function lastOpenedAt(settings: Pick<Persisted, "lastOpened">, bookId: string): string {
+  return settings.lastOpened[bookId] || "never";
+}
+
+/** design/0033 */
+function lastOpenedOf(raw: unknown): Record<string, string> {
+  const entries: [string, string][] = [];
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) continue;
+    const time = Date.parse(value);
+    if (Number.isFinite(time) && new Date(time).toISOString() === value) entries.push([key, value]);
+  }
+  return Object.fromEntries(entries);
 }
 
 function isShelf(value: unknown): value is Shelf {
