@@ -1,5 +1,25 @@
 # Changelog detail
 
+## 2026-09-13 - Wait for the requested contents row during integration checks
+
+The combined age-wear/first-finding run caught the test sampling a long smooth Next scroll
+before it started: the Date contents remained near **31,418px**, although the right note
+had correctly advanced to index **1**. The bounded waiter now requires the intended row
+to be visible and its scroll position stable before proceeding. Product behavior and the
+assertions are unchanged; a query update cannot complete the navigation on the test's behalf.
+
+The exact combined run passes **2/2 in 13 seconds wall**. Date Next independently reaches
+**138px in 1,694ms**, and A-Z reaches **155px in 1,691ms**, before query changes. Initial
+matching row **1,225** remains visible without changing note index **0**; no-hit, blank-query
+and explicit-note fallbacks pass. Age wear remains **3** for 2015 versus **0** for 2026 with
+zero saved opens. Existing tab/Previous/ribbon, index-click and page-turn checks also pass.
+Strict lint and syntax checks pass. Inspected `dist/age-search-integration-final-first-match.png`:
+the matching row is visible near the left page's top while the original note stays on the right.
+
+An earlier overbroad targeted selection separately found the look-invariance check failing:
+Leather's Manage rows grew by **42px**, with **728 moved / 16 resized** elements. This is
+reported separately for release review; this test-wait repair does not resolve it.
+
 ## 2026-09-13 - A searched book reveals its first matching contents row
 
 An ordinary book open now places the first matching row near the top of the left contents
@@ -3850,3 +3870,41 @@ oldest (`design/0018`), which need not be one of them. The check now clicks a ma
 **And the picture was taken.** `782 of 1,755 match “No one named”` in the head, the matched rows
 painted, and the detail line ending `· on the shelf as “No one named”` — the fifth time this file
 records that a number could not have seen it.
+
+## 2026-09-13 — Older books start worn, including the first launch
+
+User ask: make old books look older, also when a new vault first opens. Worker
+`luke321/older-book-wear`, based on product commit `e67aa0d`; `design/0033` records the rule.
+
+| Measurement | Before | After |
+|---|---|---|
+| Fresh 2015 yearbook, zero saved opens | Level 0 from real-opening rule | Age floor 3 |
+| Fresh 2026 yearbook, zero saved opens | Level 0 | Level 0 |
+| Persisted fake opens needed for age | None existed | None written: 0 wear keys on fresh mount |
+| Leather fade on a level 3 specimen | 0.16 old stylesheet; 0 with no wear attribute | 0.30; removing the wear attribute restores 0 |
+| Existing source with 2 actual opens | Opening level 1 | Age level 3; one real open leaves saved count 3 |
+| Recent source with 12 opens | Level 3 | Level 3 |
+| Vellum selection and hidden-source favourite | Source-owned | Binding vellum retained; both source/reference level 3 |
+| Layout dimensions on age toggling | Baseline boxes | Offset/width/height identical |
+| Common spines across a date filter | 110 | 110 unchanged wear levels |
+| Golden packing at 1180px | 6 shelves, 10 rows, 227 spines, 52 plaques, 1125px room |Unchanged in all 3 looks |
+| Binding preview ink census on old month | 5 unaged; 2 when old fixed worn-ink override applied | 5 after preserving each binding's ink |
+
+The first broad targeted pass found two existing assumptions exposed by applying wear on first
+load. The oldest Months book's fixed level 3 ink flattened binding choices to two inks; mixing
+its binding-specific ink repaired this, and the original five-ink assertion passed unchanged.
+The clearance check's first unlifted book became a shorter Morocco binding with 4px of natural
+height trim; measuring trim separately restores its zero-extra-room assertion without hiding
+actual padding or dropped containment. The largest allowed clip lift remains 7px in every look.
+
+Five targeted browser checks passed: age wear, actual opening history, leather binding preview,
+clip clearance and golden packing. The run used `--jobs 1`, so its two Chrome jobs ran serially
+alongside the owner's separate preview; it never attached to or closed that preview. No full
+suite or stamp is claimed. An initial screenshot run needed the ignored dist directory created;
+a test cleanup was also corrected to explicitly clear date filters before the final screenshots.
+
+The worker inspected `dist/age-wear-vault.png`: the old year/month spines show softened, faded
+edges; recent books stay darker and fresh; all chosen bindings remain recognisable. The picture
+shows all 4,938 fixture notes after filter cleanup, with the Years row and multiple Months rows.
+Reader screenshot is beside it. Core boundary/parity/immutability checks, lint/typecheck and
+static release gates are recorded in the worker handover after the final pass.

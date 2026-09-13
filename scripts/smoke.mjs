@@ -254,6 +254,7 @@ const POINTER_DRIVEN = [
   /* github#44, design/0022 -- it reads every spine's box, before and after a hover. */
   "hovered swatch",
   "leather bindings",
+  "older books wear",
   "manage colour rules",
   "automatic keeps",
   "a right-click dyes",
@@ -5288,6 +5289,71 @@ check("a book with several ribbons in it shows them side by side", async (p) => 
   };
 });
 
+/* design/0033 */
+check("older books wear on first launch without invented reading history", async (p) => {
+  const r = await p.j(`(function(){
+    var core=window.VaultShelfCore, saved=JSON.parse(JSON.stringify(__vs.settings()));
+    __vs.closeReader();
+    try {
+      __vs.setFilters({from:null,to:null,folders:[]});
+      window.vsHandle.setSettings(core.emptySettings());
+      var years=__vs.views().find(function(v){return v.shelf.id==='years';});
+      var now=Number(__vs.data().generated.slice(0,4));
+      var old=years.books.find(function(b){return /^[0-9]{4}$/.test(b.key) && Number(b.key)<now-7;});
+      var recent=years.books.find(function(b){return b.key===String(now);});
+      if(!old || !recent) return {found:false};
+      var find=function(id){return document.querySelector('[data-book="'+id+'"]');};
+      var level=function(id){var el=find(id);return el ? Number(el.getAttribute('data-wear')||0) : -1;};
+      var fresh={old:level(old.id),recent:level(recent.id),saved:Object.keys(__vs.settings().wear).length};
+      var el=find(old.id);
+      el.scrollIntoView({block:'center'});
+      var box=function(){return [el.offsetLeft,el.offsetTop,el.offsetWidth,el.offsetHeight];};
+      var before=box(), paint=getComputedStyle(el).getPropertyValue('--vs-wear');
+      el.removeAttribute('data-wear');
+      var withoutAgePaint=getComputedStyle(el).getPropertyValue('--vs-wear');
+      var sameBox=JSON.stringify(before)===JSON.stringify(box());
+      el.setAttribute('data-wear','3');
+      var existing=JSON.parse(JSON.stringify(__vs.settings()));
+      existing.wear[old.id]=2;
+      existing.wear[recent.id]=12;
+      existing.bookSpines[old.id]='vellum';
+      existing.shelves[0].picks=[old.id];
+      window.vsHandle.setSettings(existing);
+      var pick=document.querySelector('[data-source="'+old.id+'"]');
+      var oldLevel=level(old.id), oldBinding=find(old.id).getAttribute('data-binding');
+      var reference=pick && Number(pick.getAttribute('data-wear'))===oldLevel;
+      var currentLevel=level(recent.id);
+      __vs.openBook(old.id,null); __vs.closeReader();
+      var actualOpens=__vs.settings().wear[old.id], afterOpen=level(old.id);
+      var levels={};
+      document.querySelectorAll('#vs-shelves .vs-spine[data-book]').forEach(function(sp){
+        levels[sp.getAttribute('data-book')]=sp.getAttribute('data-wear')||'0';
+      });
+      __vs.setFilters({to:String(now-8)+'-12-31'});
+      var filterStable=true, compared=0;
+      document.querySelectorAll('#vs-shelves .vs-spine[data-book]').forEach(function(sp){
+        var id=sp.getAttribute('data-book');
+        if(levels[id]!==undefined){compared++;if((sp.getAttribute('data-wear')||'0')!==levels[id])filterStable=false;}
+      });
+      __vs.setFilters({from:null,to:null,folders:[]});
+      var restored=JSON.parse(JSON.stringify(__vs.settings()));
+      restored.shelves.find(function(s){return s.id==='years';}).hidden=true;
+      window.vsHandle.setSettings(restored);
+      pick=document.querySelector('[data-source="'+old.id+'"]');
+      var hiddenParity=pick && Number(pick.getAttribute('data-wear'))===3;
+      return {found:true,old:old.key,recent:recent.key,fresh:fresh,paint:paint,withoutAgePaint:withoutAgePaint,sameBox:sameBox,
+        oldLevel:oldLevel,currentLevel:currentLevel,reference:reference,oldBinding:oldBinding,
+        actualOpens:actualOpens,afterOpen:afterOpen,filterStable:filterStable,compared:compared,
+        hiddenParity:hiddenParity,keptBinding:__vs.settings().bookSpines[old.id]};
+    } finally { __vs.closeReader(); __vs.setFilters({from:null,to:null,folders:[]}); window.vsHandle.setSettings(saved); }
+  })()`);
+  return {ok:r.found && r.fresh.old===3 && r.fresh.recent===0 && r.fresh.saved===0 &&
+    Number(r.paint)>=0.3 && Number(r.withoutAgePaint)===0 && r.sameBox && r.oldLevel===3 && r.currentLevel===3 && r.reference &&
+    r.oldBinding==="vellum" && r.keptBinding==="vellum" && r.actualOpens===3 && r.afterOpen===3 &&
+    r.filterStable && r.compared>0 && r.hiddenParity,
+    detail:JSON.stringify(r)};
+});
+
 check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
   const r = await p.j(`(function(){
     var book = null;
@@ -5306,6 +5372,7 @@ check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
     __vs.setFilters({});
     var still = document.querySelector('[data-book="' + book.id.replace(/"/g, '\\"') + '"]');
     var out = { before: before, worn: after.worn, wornSpines: after.wornSpines,
+                realOpens: Object.values(wear).reduce(function(a,b){return a+b;},0),
                 drawn: drawn, afterRebuild: still ? still.getAttribute("data-wear") : null,
                 book: book.id };
     /* github#39 -- and leave it as unworn as it was found */
@@ -5313,7 +5380,7 @@ check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
     __vs.setFilters({});
     return out;
   })()`);
-  return { ok: r.before === 0 && r.worn >= 1 && r.drawn === "3" && r.afterRebuild === "3",
+  return { ok: r.before > 0 && r.realOpens === 13 && r.worn >= 1 && r.drawn === "3" && r.afterRebuild === "3",
            detail: `${r.book} opened 13 times reads wear level ${r.drawn} (of 3) and still ` +
                    `${r.afterRebuild} after a rebuild; ${r.wornSpines} worn spines on screen` };
 });
@@ -6414,12 +6481,14 @@ check("opening a searched book reveals its first matching contents row without c
       currentInside: inside(current), note: __vs.reader().note, index: __vs.reader().index,
       rightTop: document.querySelector('.vs-page.vs-right').scrollTop };
   })()`);
-  const settled = async () => {
-    let last, stable = 0;
+  const settled = async (visible) => {
+    const began = Date.now();
+    let last, firstTop, stable = 0;
     for (let i = 0; i < 60; i++) {
       const now = await read();
+      if (firstTop === undefined) firstTop = now.top;
       stable = last && now.top === last.top ? stable + 1 : 0;
-      if (stable >= 3) return now;
+      if (stable >= 3 && now[visible]) return { ...now, firstTop, waitedMs: Date.now() - began };
       last = now;
       await sleep(50);
     }
@@ -6447,21 +6516,21 @@ check("opening a searched book reveals its first matching contents row without c
         return pick;
       })()`);
       if (!pick) return { ok: false, detail: mode + " has no offscreen first match to measure" };
-      const open = await settled();
+      const open = await settled("hitInside");
       if (SHOT && mode === "date") {
         const shot = await p.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
         writeFileSync(SHOT.replace(/\.png$/i, "-first-match.png"), Buffer.from(shot.data, "base64"));
       }
       await p.eval("document.getElementById('vs-nextnote').click(); void 0");
-      const next = await settled();
+      const next = await settled("currentInside");
       await p.eval(`__vs.setQuery('__no_such_catalogue_term__'); __vs.setQuery(${JSON.stringify(pick.query)}); void 0`);
-      const query = await settled();
+      const query = await settled("currentInside");
       await p.eval(`__vs.openBook(${JSON.stringify(pick.book)}, ${JSON.stringify(pick.oldest)}); void 0`);
-      const explicit = await settled();
+      const explicit = await settled("currentInside");
       const fallback = [];
       for (const needle of ["__no_such_catalogue_term__", ""]) {
         await p.eval(`__vs.closeReader(); __vs.setQuery(${JSON.stringify(needle)}); __vs.openBook(${JSON.stringify(pick.book)}, null); void 0`);
-        fallback.push(await settled());
+        fallback.push(await settled("currentInside"));
       }
       results.push({ mode, at: pick.at, open, next, query, explicit, fallback,
         ok: open.first === pick.at && open.hitInside && open.top > 0 && open.note === pick.oldest && open.rightTop === 0 &&
@@ -8036,8 +8105,10 @@ check("the room above a spine is the largest lift, in every look", async (p) => 
       var contains = (cs.contain || "").indexOf("paint") >= 0;
       /* github#51 -- the slack that made the clip bite: still zero. */
       var above = +(track.getBoundingClientRect().top - spine.getBoundingClientRect().top).toFixed(1);
+      // design/0033
+      var bindingTrim = px(cs.getPropertyValue('--spine-h')) - spine.getBoundingClientRect().height;
       out.push({ look: looks[i] || "modern", room: room, tallest: tallest.px,
-                 by: tallest.name, contains: contains, slackAbove: -above,
+                 by: tallest.name, contains: contains, slackAbove: -above - bindingTrim, bindingTrim: bindingTrim,
                  rungs: rungs.map(function (x) { return x.name + " " + x.px; }).join("/") });
     }
     __vs.setLook(was);

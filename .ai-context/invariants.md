@@ -2625,3 +2625,30 @@ equal 12px SVGs and inherit the note count's colour. The regression drives Edit 
 verifies their shelf targets, and checks that hiding leaves the definition intact.
 The top-right Manage control uses a gear with an accessible name and tooltip. Book creation
 uses the plus spine; shelf headers no longer contain a separate New book button.
+
+## Age wear on a fresh library
+
+`design/0033`. A book's displayed wear is max(real-opening level, age floor). Real openings
+remain the saved count with thresholds 2/5/12. The age floor is 1/2/3 after 1/3/7 completed years
+since the newest resolved date among its notes, measured against the library's generated day.
+Undated, empty, invalid and future dates get no floor; an active collection is dated by its
+newest note. A leap-day anniversary completes on March 1 in a non-leap year.
+
+Age is cached per source address over the unfiltered library once per rebuild. A virtual plaque
+book is cached at first rendering. Filters cannot age a collection by hiding its recent notes.
+A favourite uses its source's level even when that shelf is hidden. No saved open count, chosen
+binding, colour, address, width, height, manual order or membership is invented or replaced.
+The existing wear lift remains at most two pixels, identically across looks.
+
+Leather edge-fade opacity is 0/0.08/0.18/0.30. The strongest level blends its binding's own ink
+with the faded tone at85/15; Vellum/bright-dye contrast overrides remain. The binding-preview
+check still requires five distinct inks, all fourteen Vellum dyes and unchanged binding sizes.
+The clearance check subtracts a selected shorter binding's declared-height trim before asking
+whether extra room above the book was introduced; it still requires zero extra room.
+
+`node scripts/check-age-wear.mjs` covers explicit anniversary boundaries, leap day, future and
+missing values, mixed active collections, deterministic order, references, virtual plaque books
+and immutable inputs/settings. The targeted browser check `older books wear on first launch
+without invented reading history` measures the actual spines, defaults, restored settings,
+filters, hidden-source references and boxes. The opening-history check requires thirteen real
+saved opens as well as level3 after a rebuild; its initial spines now correctly carry age wear.
