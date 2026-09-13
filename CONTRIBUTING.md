@@ -118,10 +118,12 @@ node scripts/suite-stamp.mjs list       # every tree this machine has passed
 
 ## Branches, and how work reaches main
 
-**`develop` is where work lands. `main` only ever receives `develop`.**
+**`develop` is where work lands. `main` only ever receives `develop`, except an urgent patch
+may come from `hotfix/*`.**
 
 ```
 your branch  ->  develop  ->  main
+hotfix/*     ----------->  main
 ```
 
 `main` is what the Obsidian directory installs from and what a release is tagged on, so
@@ -131,10 +133,10 @@ and neither mechanism can see the other -- three, once the ruleset is armed:
 
 | | |
 |---|---|
-| `.github/workflows/branch-policy.yml` | a pull request into `main` fails unless its head is `develop` in this repository — GitHub has no branch-protection setting for "the PR must come from X", so it is a check the ruleset requires |
-| `scripts/release.ps1` | the tag is refused unless HEAD is on `main`, is exactly `origin/main`, and is on `origin/main`'s **first-parent line** — and the script pushes the tag alone, never the branch, because `main` only ever receives `develop` through a pull request merged on the website |
+| `.github/workflows/branch-policy.yml` | a pull request into `main` fails unless its head is `develop` or `hotfix/*` in this repository — GitHub has no branch-protection setting for "the PR must come from X", so it is a check the ruleset requires |
+| `scripts/release.ps1` | the tag is refused unless HEAD is on `main` or `hotfix/*`, is exactly `origin/main` when on `main`, and is on `origin/main`'s **first-parent line** when already in main's history — and the script pushes the tag alone, never the branch |
 | `.githooks/pre-push` | a `git push` to `main` is refused unless `develop` is already an ancestor of it — a merge of `develop` passes, a commit made straight on `main` does not |
-| `.github/workflows/release.yml` | a release tag whose commit is not in `origin/main`'s history is refused before anything is built, signed or published — the same rule again, at the one moment it still matters, since a published tag cannot be moved |
+| `.github/workflows/release.yml` | a release tag whose commit is not in `origin/main`'s history or a pushed `hotfix/*` branch is refused before anything is built, signed or published — the same rule again, at the one moment it still matters, since a published tag cannot be moved |
 
 **One of those three is not armed yet.** GitHub does not offer repository rulesets on a
 private repository outside a paid plan, so `main` currently has no rule *requiring* the

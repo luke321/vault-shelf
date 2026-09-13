@@ -1,10 +1,10 @@
-# main only ever receives develop.
+# main only ever receives develop, except an urgent patch may come from hotfix/*.
 #
 # WHY A WORKFLOW AND NOT A BRANCH PROTECTION SETTING: GitHub can require a pull request,
 # require a review, require a status check and forbid a force push -- but it has no rule
 # for "the pull request must come FROM this branch". So the rule is a check, and a ruleset on
 # main requires this check to pass. Together they mean a pull request from any other branch
-# cannot be merged, and there is no direct push to main to sidestep it.
+# cannot be merged, except the explicit hotfix/* lane.
 #
 # THE RULESET IS NOT ARMED YET, and this check therefore reports rather than blocks: GitHub
 # does not offer rulesets on a private repository outside a paid plan. CONTRIBUTING.md says so
@@ -17,7 +17,8 @@
 #
 # The point is not ceremony. It is that main is what the Obsidian directory installs from, so
 # anything reaching it should already have gone through develop -- where the invariant suite
-# runs on every push, and where an issue is closed (close-issues.yml).
+# runs on every push, and where an issue is closed (close-issues.yml) -- unless it is an
+# urgent patch release on a hotfix/* branch.
 #
 # The mirror of this for the command line is in .githooks/pre-push, which refuses a push to
 # main that develop is not already an ancestor of. Neither is a substitute for the other:
@@ -37,10 +38,10 @@ permissions:
 
 jobs:
   source-branch:
-    name: main only accepts develop
+    name: main accepts develop or hotfix
     runs-on: ubuntu-latest
     steps:
-      - name: The head branch must be develop
+      - name: The head branch must be develop or hotfix/*
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
@@ -48,14 +49,17 @@ jobs:
         run: |
           # A fork's branch can also be called develop, so the repository is checked too --
           # otherwise the rule is satisfied by anyone who names a branch correctly.
-          if [ "$HEAD_REF" = "develop" ] && [ "$HEAD_REPO" = "$BASE_REPO" ]; then
+          case "$HEAD_REF" in
+            develop|hotfix/*) allowed=1 ;;
+            *) allowed= ;;
+          esac
+          if [ -n "$allowed" ] && [ "$HEAD_REPO" = "$BASE_REPO" ]; then
             echo "head is $HEAD_REPO:$HEAD_REF -- allowed"
             exit 0
           fi
-          echo "::error::main only accepts pull requests from develop in this repository."
+          echo "::error::main only accepts pull requests from develop or hotfix/* in this repository."
           echo "This pull request is from $HEAD_REPO:$HEAD_REF."
           echo ""
-          echo "Merge your branch into develop first, then open develop -> main."
-          echo "develop is where the invariant suite runs on every push; main is what the"
-          echo "plugin directory installs from."
+          echo "Merge ordinary work into develop first, then open develop -> main."
+          echo "Use hotfix/* only for urgent patch releases."
           exit 1

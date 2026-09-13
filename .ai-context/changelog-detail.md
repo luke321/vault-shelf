@@ -1,5 +1,26 @@
 # Changelog detail
 
+## 2026-09-13 - Keep builder source choices while previewing
+
+Two demo users reported that choosing a tag or folder while creating books jumped the picker
+back to the top. The reproducible path was the shelf builder's source value select:
+`readBuilderFields()` replaced `draft.source` before reading `#vs-bsourceval`, then refilled
+the dropdown with no chosen value. A non-first folder, tag or property therefore snapped back
+to the first option while the preview refreshed.
+
+The builder now reads the current kind, value and property before rebuilding dependent lists,
+and only refills the source values when the source kind changes. The made-book sheet already
+kept the value select stable, and its existing smoke path still passes.
+
+**2/2 targeted browser checks pass in 10 seconds wall.** The builder check now selects
+non-first values and keeps `05 - Meeting Notes`, `area/health/running` and `date` selected
+after the form handler runs; its preview still matches the real People shelf at **26 books**
+over **4,938 notes**. The made-book check still makes `favourites/-made-dailies` from
+`04 - Daily Notes`, holding **1,204 of 1,204** notes, and cleans up with zero made books left.
+Strict lint, scope, network, comments (1477/1477), PII, data escaping, update-note selftest,
+code-map check, both determinism checks, refresh wiring and lock selftest pass. No recordings
+or release media were changed by request.
+
 ## 2026-09-13 - Wait for complete fixture history before the no-write strip check
 
 The actual update-strip harness passed 32/33 because its already-seen case supplied only

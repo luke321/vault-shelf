@@ -17,12 +17,12 @@ apply; add a row per polish ask the release picked up.
 | 3 | `CHANGELOG.md` section for `<version>`, written as the release body | |
 | 4 | Version bump: `manifest.json` → `<version>` | |
 | 5 | Release name — propose 2-4 candidates, the owner picks | |
-| 6 | Re-record every clip the change touched, and the hero if the page moved (`record-demo.mjs`, headless, no lock) — before the merge, so the clips show the merged tree | | **Then run the `review-clips` skill and look at the page** (`& "$env:USERPROFILE\.claude\skills\review-clips\build-clip-review.ps1" -Repo . -Open`) — it reads the storyboard itself and prints `clips present N/N` with the missing act names, so the recording step is confirmed rather than assumed. Do not eyeball a diff to decide what was re-recorded.
+| 6 | Re-record every clip the change touched, and the hero if the page moved (`record-demo.mjs`, headless, no lock) — before the merge, so the clips show the merged tree; a patch hotfix may explicitly skip this when the owner asks for code, changelog and release files only | | **Then run the `review-clips` skill and look at the page** (`& "$env:USERPROFILE\.claude\skills\review-clips\build-clip-review.ps1" -Repo . -Open`) — it reads the storyboard itself and prints `clips present N/N` with the missing act names, so the recording step is confirmed rather than assumed. Do not eyeball a diff to decide what was re-recorded.
 | 7 | Read the whole branch: every doc naming the version, every link, the README's install block | |
 | 8 | **Review the release body before the tag** — the `## <version>` section, read as the page it becomes | |
-| 9 | `release.ps1 <version> -DryRun -AllowAnyBranch` on the branch — the run that pays the suite and stamps the tree | |
-| 10 | Push `release/<version>`; read the workflow's dry-run summary | |
-| 11 | Merge `release/<version>` → `develop`, one plain `git push` (never wrapped in the lock) | |
+| 9 | `release.ps1 <version> -DryRun` on the branch — the run that pays the suite and stamps the tree | |
+| 10 | Push `release/<version>` or `hotfix/<version>`; read the workflow's dry-run summary | |
+| 11 | Merge `release/<version>` → `develop`, one plain `git push` (never wrapped in the lock), or PR `hotfix/<version>` straight to `main` for an urgent patch | |
 | 12 | PR `develop` → `main` on the website, merged there | |
 | 13 | `release.ps1 <version>` on `main` — the tag, pushed alone | |
 | 14 | The workflow publishes; `verification-<version>.md` gets its post-tag rows | |
@@ -31,9 +31,9 @@ apply; add a row per polish ask the release picked up.
 Status values: ✅ done, ⏳ not started / in progress, ⏸️ blocked (name what it is blocked on).
 
 **A release is the range, not the work in hand.** Everything below happens on
-`release/<version>` and is read there before anything merges down, because **once the tag
-exists nothing changes**: a fix is the next patch version, since editing after the fact leaves
-the tag disagreeing with the published page.
+`release/<version>` or `hotfix/<version>` and is read there before anything merges down,
+because **once the tag exists nothing changes**: a fix is the next patch version, since editing
+after the fact leaves the tag disagreeing with the published page.
 
 ## First, list what is actually in the release
 
@@ -121,7 +121,7 @@ guard stops it. The branch push the sister repo's script used to make was a no-o
 
 ## The sequence
 
-1. **Cut `release/<version>` off `develop`.**
+1. **Cut `release/<version>` off `develop`, or `hotfix/<version>` for an urgent patch.**
 
 2. **Bump `manifest.json`.** Bare semver. The tag, the manifest and the CHANGELOG heading must
    all agree — `release.ps1` and the workflow both refuse otherwise.
@@ -180,14 +180,14 @@ guard stops it. The branch push the sister repo's script used to make was a no-o
 8. **Rehearse the local half. This is the run that pays the suite:**
 
    ```powershell
-   .\scripts\release.ps1 <version> -DryRun -AllowAnyBranch *> dryrun.log
+   .\scripts\release.ps1 <version> -DryRun *> dryrun.log
    ```
 
    Redirected, because PowerShell 5.1 wraps anything a native exe writes to stderr. It ends
    with `stamped tree <sha> as passed`, which records the branch's tree and the three fixtures
    it ran against. **A dirty tree is never stamped; commit first.**
 
-9. **Push the branch.** Every push to `release/*` runs `release.yml` as a **dry run**: it
+9. **Push the branch.** Every push to `release/*` or `hotfix/*` runs `release.yml` as a **dry run**: it
    builds, gates and attests the three files on a Linux runner and creates no Release. Read its
    summary — three SHA-256 lines and an attestation URL.
 
@@ -203,8 +203,11 @@ guard stops it. The branch push the sister repo's script used to make was a no-o
 
     This push also closes every issue the range names (`close-issues.yml`).
 
-11. **Open `develop` → `main` on the website and merge it.** The `main only accepts develop`
-    check reports on the pull request. The merge commit carries `develop`'s tree.
+    For an urgent patch, open `hotfix/<version>` → `main` instead after its dry run and tag
+    from that hotfix branch.
+
+11. **Open `develop` → `main` on the website and merge it.** The `main accepts develop or
+    hotfix` check reports on the pull request. The merge commit carries `develop`'s tree.
 
 12. **Tag from `main`:**
 
@@ -242,7 +245,7 @@ reason not to trust one.
 
 ## The release branch is where everything lands, and the tag is the end of it
 
-**Everything the release needs is finished on `release/<version>` and checked there**: the
+**Everything the release needs is finished on `release/<version>` or `hotfix/<version>` and checked there**: the
 section covering the whole range, every clip it embeds, every doc that names the version, the
 verification record's pre-tag half. Only then does it go `release/<version>` → `develop` →
 `main` → tag → publish. **After the tag exists, nothing changes.** Not the body, not the docs,
@@ -267,8 +270,9 @@ layout-reading checks, and the static gates ahead of it are seconds. Small next 
 repo's 587 s, and the point is the record rather than the seconds: a skipped run that names
 the stamp it trusted, instead of `SKIP_SMOKE=1`, which names nothing.
 
-**Before merging into `develop`** — all of it on `release/<version>`: steps 1 to 9. The dry
-run in step 8 is the run that pays the suite and ends with `stamped tree <sha> as passed`.
+**Before merging into `develop` or tagging a hotfix** — all of it on `release/<version>` or
+`hotfix/<version>`: steps 1 to 9. The dry run in step 8 is the run that pays the suite and
+ends with `stamped tree <sha> as passed`.
 
 **After** — three moves, none of which should pay the suite again: the merge into `develop`
 (step 10, skipped by the hook when `develop` had not moved), the pull request into `main`
@@ -355,7 +359,7 @@ breaks nothing the tag promised. Copy this shape:
 | `check-pii` / `check-scope` / `check-network` / `check-comments` | clean; comment baseline N |
 | the two determinism checks | clean |
 | `node scripts/code-map.mjs --check` | current |
-| `release.ps1 <version> -DryRun -AllowAnyBranch` | reached the tag step |
+| `release.ps1 <version> -DryRun` | reached the tag step |
 | `release.yml` dry run on `release/<version>` | three files attested, no Release; SHA-256s |
 | `gh attestation verify main.js --repo luke321/vault-shelf` | verified against the run |
 

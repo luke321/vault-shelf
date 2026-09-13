@@ -3633,21 +3633,28 @@ function mountVaultShelf(root, data, options) {
   function readBuilderFields() {
     var d = builder.draft;
     d.name = field("bname").value.trim() || "Untitled shelf";
+    var sourceKind = /** @type {import("./core/index").SourceKind} */ (field("bsource").value);
+    var sourceValue = field("bsourceval").value;
+    var classifier = /** @type {import("./core/index").ClassifierKind} */ (field("bclassifier").value);
+    var classifierChanged = d.classifier !== classifier;
+    var sourceChanged = !d.source || d.source.kind !== sourceKind;
+    var propertyValue = field("bproperty").value;
     /* design/0019 -- the classifier is always read, so "Books you drag onto it" can be chosen
      * and can be left again; everything a pick shelf does not have is skipped instead. */
-    d.classifier = /** @type {import("./core/index").ClassifierKind} */ (field("bclassifier").value);
+    d.classifier = classifier;
     if (isPick(d)) {
       d.direction = "manual";
       if (!Array.isArray(d.picks)) d.picks = [];
       delete d.order;
     } else {
-      d.source = { kind: /** @type {import("./core/index").SourceKind} */ (field("bsource").value) };
+      d.source = { kind: sourceKind };
       if (d.source.kind !== "all") {
-        fillSourceValues();
+        if (sourceChanged) fillValuesInto(field("bsourceval"), sourceKind, sourceValue);
         d.source.value = field("bsourceval").value;
       }
       if (d.classifier === "property") {
-        fillProperties();
+        if (classifierChanged) fillProperties();
+        else field("bproperty").value = propertyValue;
         d.property = field("bproperty").value;
       }
       var picked = field("bdirection").value;

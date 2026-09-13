@@ -4,7 +4,7 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 5201 lines, 26 sections, 224 functions
+## `src/page.js` — 5208 lines, 26 sections, 224 functions
 
 ### Sections
 
@@ -27,15 +27,15 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 2412–2562 | what the vault spells |
 | 2563–3270 | reader |
 | 3271–3534 | reading off the bottom turns the page |
-| 3535–3795 | builder |
-| 3796–4125 | manage |
-| 4126–4419 | the twelve, offered |
-| 4420–4443 | filters |
-| 4444–4523 | refresh |
-| 4524–4627 | a drag that reaches the edge |
-| 4628–4838 | the wiring |
-| 4839–5161 | debug api — stripped from the plugin build |
-| 5162–5201 | the wiring (continued) |
+| 3535–3802 | builder |
+| 3803–4132 | manage |
+| 4133–4426 | the twelve, offered |
+| 4427–4450 | filters |
+| 4451–4530 | refresh |
+| 4531–4634 | a drag that reaches the edge |
+| 4635–4845 | the wiring |
+| 4846–5168 | debug api — stripped from the plugin build |
+| 5169–5208 | the wiring (continued) |
 
 ### Functions
 
@@ -216,68 +216,68 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 3573 | `closeBuilder` |
 | 3579 | `writeBuilderFields` |
 | 3633 | `readBuilderFields` |
-| 3665 | `fillSourceValues` |
-| 3674 | `fillValuesInto` |
-| 3690 | `fillProperties` |
-| 3709 | `fillRecipes` |
-| 3728 | `previewBuilder` |
-| 3746 | `saveBuilder` |
-| 3779 | `seedOrder` |
-| 3790 | `uniqueId` |
-| 3798 | `openManage` |
-| 3807 | `newShelfFromManage` |
-| 3823 | `deleteShelf` |
-| 3852 | `renderManage` |
-| 4013 | `renderColours` |
-| 4042 | `colourRow` |
-| 4071 | `anyRibbon` |
-| 4087 | `slotControl` |
-| 4141 | `prunePainted` |
-| 4149 | `repaint` |
-| 4165 | `previewSlot` |
-| 4176 | `previewRibbon` |
-| 4187 | `previewColors` |
-| 4198 | `endPreview` |
-| 4210 | `openSwatchPick` |
-| 4274 | `offerPreviews` |
-| 4285 | `holdFocus` |
-| 4295 | `walkSwatches` |
-| 4319 | `closeSwatchPick` |
-| 4333 | `inkOn` |
-| 4335 | · `lin` |
-| 4344 | `pickSlot` |
-| 4352 | `resetSlot` |
-| 4365 | `setPalette` |
-| 4379 | `setRibbon` |
-| 4392 | `toHex` |
-| 4401 | · `hex` |
-| 4406 | `reorder` |
-| 4422 | `renderActiveFilters` |
-| 4435 | `clearFilters` |
-| 4464 | `fillLooks` |
-| 4477 | `applyLook` |
-| 4487 | `seedFavourites` |
-| 4496 | `refresh` |
-| 4549 | `edgeSpeedAt` |
-| 4560 | `edgeStop` |
-| 4573 | `edgeReplay` |
-| 4591 | `edgeTick` |
-| 4607 | `edgeScroll` |
-| 4759 | `offBook` |
-| 4793 | `typing` |
+| 3672 | `fillSourceValues` |
+| 3681 | `fillValuesInto` |
+| 3697 | `fillProperties` |
+| 3716 | `fillRecipes` |
+| 3735 | `previewBuilder` |
+| 3753 | `saveBuilder` |
+| 3786 | `seedOrder` |
+| 3797 | `uniqueId` |
+| 3805 | `openManage` |
+| 3814 | `newShelfFromManage` |
+| 3830 | `deleteShelf` |
+| 3859 | `renderManage` |
+| 4020 | `renderColours` |
+| 4049 | `colourRow` |
+| 4078 | `anyRibbon` |
+| 4094 | `slotControl` |
+| 4148 | `prunePainted` |
+| 4156 | `repaint` |
+| 4172 | `previewSlot` |
+| 4183 | `previewRibbon` |
+| 4194 | `previewColors` |
+| 4205 | `endPreview` |
+| 4217 | `openSwatchPick` |
+| 4281 | `offerPreviews` |
+| 4292 | `holdFocus` |
+| 4302 | `walkSwatches` |
+| 4326 | `closeSwatchPick` |
+| 4340 | `inkOn` |
+| 4342 | · `lin` |
+| 4351 | `pickSlot` |
+| 4359 | `resetSlot` |
+| 4372 | `setPalette` |
+| 4386 | `setRibbon` |
+| 4399 | `toHex` |
+| 4408 | · `hex` |
+| 4413 | `reorder` |
+| 4429 | `renderActiveFilters` |
+| 4442 | `clearFilters` |
+| 4471 | `fillLooks` |
+| 4484 | `applyLook` |
+| 4494 | `seedFavourites` |
+| 4503 | `refresh` |
+| 4556 | `edgeSpeedAt` |
+| 4567 | `edgeStop` |
+| 4580 | `edgeReplay` |
+| 4598 | `edgeTick` |
+| 4614 | `edgeScroll` |
+| 4766 | `offBook` |
+| 4800 | `typing` |
 
-## `scripts/smoke.mjs` — 9389 lines, 6 sections, 173 functions, 135 checks
+## `scripts/smoke.mjs` — 9420 lines, 6 sections, 173 functions, 135 checks
 
 ### Sections
 
 | lines | section |
 |---|---|
 | 158–273 | the checks |
-| 274–8589 | the invariants |
-| 8590–8738 | which vault, and why |
-| 8739–8798 | at rest, or |
-| 8799–9210 | one run |
-| 9211–9389 | main |
+| 274–8620 | the invariants |
+| 8621–8769 | which vault, and why |
+| 8770–8829 | at rest, or |
+| 8830–9241 | one run |
+| 9242–9420 | main |
 
 ### Functions
 
@@ -441,21 +441,21 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 7626 | · `hit` |
 | 7680 | · `press` |
 | 7689 | · `nameOf` |
-| 8257 | · `px` |
-| 8325 | · `faceOnto` |
-| 8339 | · `faceOf` |
-| 8354 | · `read` |
-| 8615 | `resolveVaults` |
-| 8725 | `buildFor` |
-| 8745 | `atRest` |
-| 8773 | `settlePage` |
-| 8805 | `press` |
-| 8817 | `runOne` |
-| 9011 | `tagged` |
-| 9017 | `capture` |
-| 9063 | · · `pick` |
-| 9169 | `killBrowser` |
-| 9213 | `main` |
+| 8288 | · `px` |
+| 8356 | · `faceOnto` |
+| 8370 | · `faceOf` |
+| 8385 | · `read` |
+| 8646 | `resolveVaults` |
+| 8756 | `buildFor` |
+| 8776 | `atRest` |
+| 8804 | `settlePage` |
+| 8836 | `press` |
+| 8848 | `runOne` |
+| 9042 | `tagged` |
+| 9048 | `capture` |
+| 9094 | · · `pick` |
+| 9200 | `killBrowser` |
+| 9244 | `main` |
 
 ### Checks
 
@@ -581,18 +581,18 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 7771 | the reading shelf survives its own shelf being hidden |
 | 7807 | a saved reading place re-resolves after its own book is gone |
 | 7822 | the builder previews the shelf it would actually save |
-| 7841 | a saved shelf gets a stable id and joins the library |
-| 7862 | parent tag inclusion is a setting, and it changes the answer |
-| 7882 | a person is read from every people property, and out of a wikilink |
-| 7916 | a link to a person's note names that person, once, by the note's name |
-| 7949 | people come from the property alone, never from prose |
-| 7970 | plain list mode keeps every book reachable |
-| 7987 | every control the keyboard can reach has a name |
-| 8009 | nothing on the page reaches the network |
-| 8019 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
-| 8079 | a lifted spine is painted whole, in every look |
-| 8251 | the room above a spine is the largest lift, in every look |
-| 8318 | a short cover is stood upright by one face, not the look's |
-| 8471 | a tag book's cover carries no hash, and every other place it is named keeps it |
-| 8521 | a spine lifts on hover and holds its size |
-| 8536 | the shelves are packed the way the golden snapshot says |
+| 7872 | a saved shelf gets a stable id and joins the library |
+| 7893 | parent tag inclusion is a setting, and it changes the answer |
+| 7913 | a person is read from every people property, and out of a wikilink |
+| 7947 | a link to a person's note names that person, once, by the note's name |
+| 7980 | people come from the property alone, never from prose |
+| 8001 | plain list mode keeps every book reachable |
+| 8018 | every control the keyboard can reach has a name |
+| 8040 | nothing on the page reaches the network |
+| 8050 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
+| 8110 | a lifted spine is painted whole, in every look |
+| 8282 | the room above a spine is the largest lift, in every look |
+| 8349 | a short cover is stood upright by one face, not the look's |
+| 8502 | a tag book's cover carries no hash, and every other place it is named keeps it |
+| 8552 | a spine lifts on hover and holds its size |
+| 8567 | the shelves are packed the way the golden snapshot says |
