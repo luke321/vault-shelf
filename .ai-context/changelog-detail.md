@@ -3829,3 +3829,41 @@ oldest (`design/0018`), which need not be one of them. The check now clicks a ma
 **And the picture was taken.** `782 of 1,755 match “No one named”` in the head, the matched rows
 painted, and the detail line ending `· on the shelf as “No one named”` — the fifth time this file
 records that a number could not have seen it.
+
+## 2026-09-13 — Older books start worn, including the first launch
+
+User ask: make old books look older, also when a new vault first opens. Worker
+`luke321/older-book-wear`, based on product commit `e67aa0d`; `design/0033` records the rule.
+
+| Measurement | Before | After |
+|---|---|---|
+| Fresh 2015 yearbook, zero saved opens | Level 0 from real-opening rule | Age floor 3 |
+| Fresh 2026 yearbook, zero saved opens | Level 0 | Level 0 |
+| Persisted fake opens needed for age | None existed | None written: 0 wear keys on fresh mount |
+| Leather fade on a level 3 specimen | 0.16 old stylesheet; 0 with no wear attribute | 0.30; removing the wear attribute restores 0 |
+| Existing source with 2 actual opens | Opening level 1 | Age level 3; one real open leaves saved count 3 |
+| Recent source with 12 opens | Level 3 | Level 3 |
+| Vellum selection and hidden-source favourite | Source-owned | Binding vellum retained; both source/reference level 3 |
+| Layout dimensions on age toggling | Baseline boxes | Offset/width/height identical |
+| Common spines across a date filter | 110 | 110 unchanged wear levels |
+| Golden packing at 1180px | 6 shelves, 10 rows, 227 spines, 52 plaques, 1125px room |Unchanged in all 3 looks |
+| Binding preview ink census on old month | 5 unaged; 2 when old fixed worn-ink override applied | 5 after preserving each binding's ink |
+
+The first broad targeted pass found two existing assumptions exposed by applying wear on first
+load. The oldest Months book's fixed level 3 ink flattened binding choices to two inks; mixing
+its binding-specific ink repaired this, and the original five-ink assertion passed unchanged.
+The clearance check's first unlifted book became a shorter Morocco binding with 4px of natural
+height trim; measuring trim separately restores its zero-extra-room assertion without hiding
+actual padding or dropped containment. The largest allowed clip lift remains 7px in every look.
+
+Five targeted browser checks passed: age wear, actual opening history, leather binding preview,
+clip clearance and golden packing. The run used `--jobs 1`, so its two Chrome jobs ran serially
+alongside the owner's separate preview; it never attached to or closed that preview. No full
+suite or stamp is claimed. An initial screenshot run needed the ignored dist directory created;
+a test cleanup was also corrected to explicitly clear date filters before the final screenshots.
+
+The worker inspected `dist/age-wear-vault.png`: the old year/month spines show softened, faded
+edges; recent books stay darker and fresh; all chosen bindings remain recognisable. The picture
+shows all 4,938 fixture notes after filter cleanup, with the Years row and multiple Months rows.
+Reader screenshot is beside it. Core boundary/parity/immutability checks, lint/typecheck and
+static release gates are recorded in the worker handover after the final pass.

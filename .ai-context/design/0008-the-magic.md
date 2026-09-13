@@ -15,6 +15,11 @@ the answer to the second is yes it is not magic, it is decoration.
 A book you open often looks handled: the boards darken where a hand holds them, the head and
 tail soften, and it never quite goes back flush with its neighbours.
 
+An old book also starts worn before its first open. [0033](0033-age-and-reading-wear.md)
+adds an age floor from its newest resolved note date: one, three and seven completed years.
+The displayed level is the greater of that floor and the opening-count level below; saved
+counts remain real opens, and recent additions keep an active collection fresh.
+
 `settings.wear` is a count per **book address** (`decisions/0002`), incremented on open and
 persisted. `core.wearLevel()` is four steps — 0, then 2 opens, 5, 12 — and each step is
 drawn as a slightly larger corner radius, a stronger light-to-dark fall on the board, and one

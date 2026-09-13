@@ -217,6 +217,8 @@ function mountVaultShelf(root, data, options) {
   /* github#58, design/0008 -- what the search reads, rebuilt with the books */
   /** @type {import("./core/index").SearchIndex | null} */
   var searchIndex = null;
+  /** @type {Record<string, import("./core/index").WearLevel>} */
+  var ageWear = {};
   /** @type {import("./core/index").Term[]} */
   var offered = [];
   /** github#41 -- which row the arrows are on, -1 for none. */
@@ -342,6 +344,9 @@ function mountVaultShelf(root, data, options) {
     core.markMatches(views, query, searchIndex);
     /* github#41, design/0026 -- ONCE, here, where the books are. */
     vocabulary = core.buildVocabulary(views, visible);
+    // design/0033
+    ageWear = core.buildAgeWear(visible.length === notes.length ? views :
+      core.buildLibrary(settings.shelves, notes, settings.noteOrder), data.generated.slice(0, 10));
   }
 
   /* ================================================================= the rail ==
@@ -1182,7 +1187,9 @@ function mountVaultShelf(root, data, options) {
 
     /* design/0008 -- the three things that make a shelf look used rather than printed. */
     var opens = settings.wear[source.id] || 0;
-    var level = core.wearLevel(opens);
+    // design/0033
+    if (ageWear[source.id] === undefined) ageWear[source.id] = core.bookAgeWear(source, data.generated.slice(0, 10));
+    var level = effectiveWear(source.id);
     if (level) b.setAttribute("data-wear", String(level));
     /* AS MANY RIBBONS AS IT HOLDS, up to three, side by side out of the bottom of the spine --
      * a book with three ribbons in it looks like a book with three ribbons in it, not like
@@ -2576,9 +2583,15 @@ function mountVaultShelf(root, data, options) {
     node("reader").focus();
   }
 
+  /** design/0033 */
+  /** @param {string} bookId @returns {number} */
+  function effectiveWear(bookId) {
+    return Math.max(ageWear[bookId] || 0, core.wearLevel(settings.wear[bookId] || 0));
+  }
+
   /** @param {string} bookId */
   function markWear(bookId) {
-    var level = core.wearLevel(settings.wear[bookId] || 0);
+    var level = effectiveWear(bookId);
     var spines = root.querySelectorAll('#' + ID + 'shelves [data-book="' + cssEscape(bookId) + '"], ' +
                                        '#' + ID + 'shelves [data-source="' + cssEscape(bookId) + '"]');
     for (var i = 0; i < spines.length; i++) {
@@ -4904,7 +4917,7 @@ function mountVaultShelf(root, data, options) {
       var withRibbon = 0, ghosts = 0, forward = 0;
       views.forEach(function (v) {
         v.books.forEach(function (b) {
-          var lv = core.wearLevel(settings.wear[b.id] || 0);
+          var lv = effectiveWear(sourceOf(b).id);
           if (lv) worn[b.id] = lv;
           if (ribbonsIn(b)) withRibbon++;
         });
