@@ -5380,7 +5380,7 @@ check("older books wear on first launch without invented reading history", async
       if(!old || !recent) return {found:false};
       var find=function(id){return document.querySelector('[data-book="'+id+'"]');};
       var level=function(id){var el=find(id);return el ? Number(el.getAttribute('data-wear')||0) : -1;};
-      var fresh={old:level(old.id),recent:level(recent.id),saved:Object.keys(__vs.settings().wear).length};
+      var fresh={old:level(old.id),recent:level(recent.id),recentNotes:recent.notes.length,oldCount:__vs.settings().wear[old.id],oldNotes:old.notes.length,never:Object.values(__vs.settings().lastOpened).every(function(t){return t==='never';})};
       var el=find(old.id);
       el.scrollIntoView({block:'center'});
       var box=function(){return [el.offsetLeft,el.offsetTop,el.offsetWidth,el.offsetHeight];};
@@ -5423,11 +5423,49 @@ check("older books wear on first launch without invented reading history", async
         hiddenParity:hiddenParity,keptBinding:__vs.settings().bookSpines[old.id]};
     } finally { __vs.closeReader(); __vs.setFilters({from:null,to:null,folders:[]}); window.vsHandle.setSettings(saved); }
   })()`);
-  return {ok:r.found && r.fresh.old===3 && r.fresh.recent===0 && r.fresh.saved===0 &&
+  return {ok:r.found && r.fresh.old===3 && r.fresh.recentNotes>=12 && r.fresh.recent===3 && r.fresh.oldCount===r.fresh.oldNotes && r.fresh.never &&
     Number(r.paint)>=0.3 && Number(r.withoutAgePaint)===0 && r.sameBox && r.oldLevel===3 && r.currentLevel===3 && r.reference &&
     r.oldBinding==="vellum" && r.keptBinding==="vellum" && r.actualOpens===3 && r.afterOpen===3 &&
     r.filterStable && r.compared>0 && r.hiddenParity,
     detail:JSON.stringify(r)};
+});
+
+/* design/0033 */
+check("book history seeds notes once and counts additions without stamping a visit", async (p) => {
+  const r=await p.j(`(function(){
+    var core=VaultShelfCore,saved=JSON.parse(JSON.stringify(__vs.settings())),data=__vs.data();
+    try {
+      __vs.closeReader();__vs.setFilters({from:null,to:null,folders:[]});
+      var source=__vs.views().find(function(v){return v.shelf.id==='years';}).books.find(function(b){return b.notes.length>2;});
+      var initial=new Set(source.notes.map(function(n){return n.id;})).size;
+      var clean=core.emptySettings();clean.wear[source.id]=7;
+      clean.shelves.find(function(s){return s.id==='years';}).hidden=true;
+      clean.shelves[0].picks=[source.id];
+      window.vsHandle.setSettings(clean);
+      var read=function(){return {count:__vs.settings().wear[source.id],stamp:__vs.settings().lastOpened[source.id],notes:__vs.settings().bookNotes[source.id].length};};
+      var first=read(),disk=core.migrate(JSON.parse(localStorage.getItem(SETTINGS_KEY)));
+      var stored=disk.wear[source.id]===first.count&&disk.lastOpened[source.id]==='never'&&disk.bookNotes[source.id].length===initial;
+      window.vsHandle.setSettings(disk);__vs.setFilters({from:'2100-01-01'});var filtered=read();
+      var added=Object.assign({},source.notes[0],{id:'counter-addition.md',path:'counter-addition.md',title:'Counter addition'});
+      var more=Object.assign({},data,{notes:data.notes.concat([added])});window.vsHandle.refresh(more);
+      var addition=read();__vs.setFilters({from:null,to:null,folders:[]});var restored=read();
+      window.vsHandle.refresh(data);var removed=read();window.vsHandle.refresh(data);var repeat=read();
+      var alias=document.querySelector('[data-shelf="favourites"] [data-source="'+source.id+'"]');alias.click();__vs.closeReader();
+      var visit=read(),shared=__vs.settings().wear['favourites/'+source.id]===undefined;
+      var made=__vs.makeBook('favourites',{name:'Counter made',source:{kind:'all'}},null);
+      var madeSeed=__vs.settings().wear[made]===new Set(data.notes.map(function(n){return n.id;})).size&&__vs.settings().lastOpened[made]==='never';
+      __vs.unmakeBook(made);var madeClean=__vs.settings().bookNotes[made]===undefined&&__vs.settings().wear[made]===undefined;
+      __vs.deleteShelf('years');var shelfClean=__vs.settings().bookNotes[source.id]===undefined&&__vs.settings().lastOpened[source.id]===undefined;
+      window.vsHandle.setSettings(core.emptySettings());var reset=read();
+      var totals=Object.keys(__vs.settings().bookNotes).length,never=Object.values(__vs.settings().lastOpened).filter(function(t){return t==='never';}).length;
+      return {initial:initial,first:first,stored:stored,filtered:filtered,addition:addition,restored:restored,removed:removed,repeat:repeat,visit:visit,shared:shared,madeSeed:madeSeed,madeClean:madeClean,shelfClean:shelfClean,reset:reset,totals:totals,never:never};
+    } finally {__vs.closeReader();__vs.setFilters({from:null,to:null,folders:[]});window.vsHandle.refresh(data);window.vsHandle.setSettings(saved);}
+  })()`);
+  return {ok:r.first.count===r.initial+7&&r.first.stamp==='never'&&r.stored&&r.filtered.count===r.first.count&&
+    r.addition.count===r.first.count+1&&r.addition.notes===r.initial+1&&r.addition.stamp==='never'&&
+    r.restored.count===r.addition.count&&r.removed.count===r.addition.count&&r.removed.notes===r.initial+1&&r.repeat.count===r.removed.count&&
+    r.visit.count===r.removed.count+1&&Number.isFinite(Date.parse(r.visit.stamp))&&r.shared&&r.madeSeed&&r.madeClean&&r.shelfClean&&
+    r.reset.count===r.initial&&r.reset.stamp==='never'&&r.never===r.totals,detail:JSON.stringify(r)};
 });
 
 /* design/0033 */
@@ -5470,7 +5508,7 @@ check("last opened defaults to never and persists actual source-book opens", asy
       __vs.deleteShelf('years');
       var deleted=core.lastOpenedAt(__vs.settings(),id)==='never'&&core.lastOpenedAt(__vs.settings(),plaque)==='never'&&__vs.settings().wear[id]===undefined;
       window.vsHandle.setSettings(core.emptySettings());
-      var reset=Object.keys(__vs.settings().lastOpened).length===0;
+      var reset=Object.keys(__vs.settings().lastOpened).length>0&&Object.values(__vs.settings().lastOpened).every(function(t){return t==='never';});
       return {stamp:stamp,began:began,ended:ended,count:count,alias:alias,persisted:persisted,madeStamped:madeStamped,madeGone:madeGone,plaqueStamped:plaqueStamped,deleted:deleted,reset:reset};
     })()`);
     return {ok:first.before==='never'&&first.count===8&&Date.parse(first.stamp)>=first.began&&Date.parse(first.stamp)<=first.ended&&first.turnUnchanged&&first.rebuild&&
@@ -5483,33 +5521,20 @@ check("last opened defaults to never and persists actual source-book opens", asy
 
 check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
   const r = await p.j(`(function(){
-    var book = null;
-    __vs.views().forEach(function (v) {
-      v.books.forEach(function (b) { if (!book && b.notes.length) book = b; });
-    });
-    /* github#39 -- wear is cumulative: set the floor rather than assume it */
-    var wear = __vs.settings().wear;
-    for (var k0 in wear) delete wear[k0];
-    __vs.setFilters({});
-    var before = __vs.magic().wornSpines;
-    for (var i = 0; i < 13; i++) { __vs.openBook(book.id, null); __vs.closeReader(); }
-    var after = __vs.magic();
-    var level = document.querySelector('[data-book="' + book.id.replace(/"/g, '\\"') + '"]');
-    var drawn = level ? level.getAttribute("data-wear") : null;
-    __vs.setFilters({});
-    var still = document.querySelector('[data-book="' + book.id.replace(/"/g, '\\"') + '"]');
-    var out = { before: before, worn: after.worn, wornSpines: after.wornSpines,
-                realOpens: Object.values(wear).reduce(function(a,b){return a+b;},0),
-                drawn: drawn, afterRebuild: still ? still.getAttribute("data-wear") : null,
-                book: book.id };
-    /* github#39 -- and leave it as unworn as it was found */
-    for (var k1 in wear) delete wear[k1];
-    __vs.setFilters({});
-    return out;
+    var saved=JSON.parse(JSON.stringify(__vs.settings()));
+    try {
+      var book=__vs.views().find(function(v){return v.shelf.id==='years';}).books[0];
+      var before=__vs.settings().wear[book.id];
+      for(var i=0;i<13;i++){__vs.openBook(book.id,null);__vs.closeReader();}
+      var count=__vs.settings().wear[book.id];
+      var spine=document.querySelector('[data-book="'+book.id+'"]');
+      var drawn=spine.getAttribute('data-wear');
+      __vs.setFilters({});
+      return {book:book.id,before:before,count:count,drawn:drawn,afterRebuild:__vs.settings().wear[book.id],
+        level:document.querySelector('[data-book="'+book.id+'"]').getAttribute('data-wear')};
+    } finally {__vs.closeReader();window.vsHandle.setSettings(saved);}
   })()`);
-  return { ok: r.before > 0 && r.realOpens === 13 && r.worn >= 1 && r.drawn === "3" && r.afterRebuild === "3",
-           detail: `${r.book} opened 13 times reads wear level ${r.drawn} (of 3) and still ` +
-                   `${r.afterRebuild} after a rebuild; ${r.wornSpines} worn spines on screen` };
+  return {ok:r.count===r.before+13&&r.drawn==='3'&&r.afterRebuild===r.count&&r.level==='3',detail:JSON.stringify(r)};
 });
 
 /* design/0008 -- MAGIC 2. A ribbon hangs out of the book, visible from the shelf. */

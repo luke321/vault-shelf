@@ -1,24 +1,54 @@
 # 0033 — Books carry their age as well as their reading
 
+### Entries and visits, clarified 2026-09-13
+
+The user explicitly extended the counter: existing distinct notes count once, a newly added
+note counts once, and each actual book open counts once. `wear` retains its storage name and
+all prior counts. `bookNotes[address]` is a sorted, distinct, monotonic ledger of note IDs
+already counted at that address; an empty array still marks an initialized empty book.
+Removing or temporarily losing a note never decrements the count or removes it from this
+ledger, so reappearance cannot count it again. Explicit made-book/shelf deletion clears
+its ledger with its count; reset starts from current membership again.
+
+`reconcileBookHistory(settings, fullViews)` runs on mount and rebuild over the full unfiltered
+library, including hidden shelves. References use their source history. Made books get their
+own baseline. Plaques use the union of distinct notes sharing their stable plaque address,
+even when a manual shelf has separated runs of the same letter. Their reader membership
+still follows the clicked run. Counts remain finite safe integers, up to MAX_SAFE_INTEGER;
+the former 9,999 cap would silently lose legitimate large-vault counts and is removed.
+
+Reconciliation saves through the page's existing onSettings callback when history changes.
+Known books and obsolete legacy wear keys receive explicit `lastOpened: "never"` values
+without inventing a timestamp. Migration retains that literal. Only an actual open replaces
+it with ISO UTC. The existing peek now calls the combined count “entries and visits”. The
+wear thresholds stay 2/5/12, so populated books now often start at level three.
+
+The plugin's existing buildData reads the metadata cache and its changed/deleted/rename
+handlers rebuild after a 400ms burst. No bodies or private vault files are read by the new
+helper. For the one-time real-vault update, warm the metadata cache, install the build and
+open Vault Shelf; the mount saves the baseline. Opening the library again is idempotent and
+does not record a book visit. The monotonic ledger protects counted IDs through temporary
+metadata removal; it does not infer metadata that the host has not supplied.
+
 ### Last opened, requested 2026-09-13
 
 Actual book opens also persist `lastOpened[sourceAddress]` as an ISO UTC timestamp with
-milliseconds, beside the existing `wear` count. The sparse map starts empty;
+milliseconds, beside the existing `wear` count. The raw default map starts empty;
 `lastOpenedAt(settings, address)` returns `never` when no stamp exists. Migration retains
-only valid canonical timestamps and never invents history for an older settings file.
+valid canonical timestamps and explicit `never`, without inventing dates for older settings.
 This additive field keeps schema 10, as the existing settings migration supplies defaults.
 
 Favourites record against the source book; made books and virtual plaques keep their stable
 addresses. Page turns, search, rebuilds and adding notes do not change this timestamp.
 Deletion removes it wherever the corresponding wear count is removed, and a full reset
-returns to the empty map. Persistence adds no visual treatment, tooltip or control.
+returns to `never` entries when current books are reconciled. Timestamps add no visual control.
 
 Requested 2026-09-13: older books should look worn, including the first time the plugin opens
 in a new vault. Opening history cannot answer age: a ten-year-old journal and today's notes
 both used to start at level zero.
 
-The displayed level is the greater of two independent facts: the existing opening-count
-level (2, 5 and 12 real opens), and an age floor (1, 3 and 7 completed years). Those thresholds
+The displayed level is the greater of two independent facts: the combined entries/visits
+level (2, 5 and 12), and an age floor (1, 3 and 7 completed years). Those thresholds
 read as last year's book, a few years on the shelf, and an old volume; they preserve the
 existing four discrete levels rather than turn age into a continuous chart.
 
@@ -41,9 +71,9 @@ when its source shelf is hidden. No date scan happens during search, hover or a 
 Virtual plaque books are cached on first rendering on the Reading shelf, since they do not
 exist among the ordinary shelf books indexed by the rebuild.
 
-No fabricated open count is persisted. Existing `settings.wear`, colours, bindings, manual
-order and reading places remain their own data. Fresh and migrated settings receive the same
-age floor. Removing real opening history still leaves an old book looking old.
+Existing opening counts are retained, and note entries contribute as described above.
+Colours, bindings, manual order and reading places remain their own data. Fresh and migrated
+settings receive the same age floor. Resetting history still leaves an old book looking old.
 
 Leather's existing edge-fade overlay is now visible at each level: opacity 0.08, 0.18 and 0.30
 (previously level one had no overlay; levels two and three were 0.09 and 0.16). Binding choice
