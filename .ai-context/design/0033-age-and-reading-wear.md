@@ -50,3 +50,8 @@ three after the opens and rebuild.
 
 Measurements and the inspected screenshot are recorded in `changelog-detail.md` after the
 targeted browser run. No full-suite claim belongs to this worker's result.
+
+The Reading geometry check measures the shared board after removing only the exact allowed
+wear lift (0, 1 or 2px). It separately rejects an unexpected transform or a layout offset;
+painted bottoms alone are not distinct rows. Its optional screenshot includes three actual
+Reading books before restoring the saved marks.
