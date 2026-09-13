@@ -18,6 +18,13 @@ export interface Note {
   body: string;
 }
 
+/* github#13, github#58, design/0027 -- one surface the needle was found in. */
+export interface MatchReason {
+  field: "title" | "tag" | "person" | "folder" | "cover";
+  /** github#13 -- what to show. A cover shows the name printed on the spine. */
+  value: string;
+}
+
 export interface FolderInfo {
   path: string;
   count: number;
@@ -36,7 +43,9 @@ export interface Library {
  */
 
 export type ClassifierKind =
-  | "initial" | "year" | "month" | "week" | "person" | "tag" | "folder" | "property";
+  | "initial" | "year" | "month" | "week" | "person" | "tag" | "folder" | "property"
+  /** design/0019 -- a shelf of references to other shelves' books, in the order they were dropped. */
+  | "pick";
 
 export type SourceKind = "all" | "tag" | "person" | "folder";
 
@@ -46,7 +55,16 @@ export interface Source {
   value?: string;
 }
 
+/** design/0020 -- a book made on a pick shelf: a name and what it holds. */
+export interface MadeBook {
+  name: string;
+  source: Source;
+}
+
 export interface Shelf {
+  /** design/0030 */
+  indexMode?: IndexMode;
+  bookIndexes?: Record<string, IndexMode>;
   /** decisions/0002 */
   id: string;
   name: string;
@@ -54,14 +72,47 @@ export interface Shelf {
   classifier: ClassifierKind;
   /** Frontmatter property name, for the "property" classifier. */
   property?: string;
-  direction: "alphabetical" | "chronological";
+  /** design/0018 -- "manual" is the order a person put the books in, held in `order`. */
+  direction: "alphabetical" | "chronological" | "manual";
+  /**
+   * design/0018 -- the sequence, as classifier KEYS rather than addresses or indices: a key is
+   * what `decisions/0002` says survives, and the same list therefore still means something
+   * after a rebuild, a filter or a rename. A key here that the vault no longer has is dropped
+   * when the sequence is next saved; a key the vault has that is not here goes to the end.
+   */
+  order?: string[];
+  /**
+   * design/0019 -- what a PICK shelf holds: the ADDRESSES of other shelves' books, in the order
+   * they were dropped. Membership and sequence are one list here -- a favourite exists because
+   * it was placed -- so a pick shelf never carries `order`. An address the library no longer
+   * resolves is skipped on read and dropped when the list is next saved, like a manual key.
+   */
+  picks?: string[];
+  /** design/0020 -- the made books, by the key `picks` or `order` names. */
+  made?: Record<string, MadeBook>;
   hidden: boolean;
   position: number;
   /** design/0003 */
   plaques: boolean;
   /** Whether `#garden` also collects `#garden/seeds`. */
   includeSubtags?: boolean;
+  /**
+   * design/0005 -- give each book on this shelf a fixed colour of its own, hashed from its
+   * address so it stays put as notes arrive, instead of the dye of its dominant folder. Per
+   * shelf, because an Encyclopedia that varies reads as a rainbow and a People shelf that
+   * varies reads as people.
+   */
+  varyColors?: boolean;
+  /** github#21 -- what a dye follows here; unset is the classifier's own. */
+  colorBy?: ColorRule;
+  /** design/0029 */
+  spineStyle?: import("./bindings").SpineStyle;
+  spineSeries?: import("./bindings").SpineSeries;
 }
+
+/** github#21, github#33 -- design/0005 */
+export type ColorRule = "folder" | "year" | "decade" | "one";
+export type IndexMode = "az" | "date";
 
 export interface Book {
   /** decisions/0002 */
@@ -70,6 +121,10 @@ export interface Book {
   /** The raw classifier key -- "2026-09", "A", "Mira". Sorting is done on this. */
   key: string;
   label: string;
+  /** github#12 */
+  cover: string;
+  /** github#6 */
+  holds?: number;
   /** design/0003 */
   plaque: string | null;
   notes: Note[];

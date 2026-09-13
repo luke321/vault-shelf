@@ -23,7 +23,7 @@
   load ANY plugin until that is confirmed.
 
 .EXAMPLE
-  node scripts/build-plugin.mjs; ./scripts/install-plugin.ps1 -Vault .\demo-vault -Enable
+  node scripts/build-plugin.mjs; ./scripts/install-plugin.ps1 -Vault .\vault -Enable
 #>
 [CmdletBinding()]
 param(

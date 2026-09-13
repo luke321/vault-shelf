@@ -13,37 +13,45 @@ const problems = [];
 
 /* ---- 1. css ------------------------------------------------------------- */
 
-const css = readFileSync(join(SRC, "page.css"), "utf8");
-let depth = 0, inComment = false, rules = 0;
-css.split("\n").forEach((line, i) => {
-  let scan = line, code = "";
-  while (scan.length) {
-    if (inComment) {
-      const end = scan.indexOf("*/");
-      if (end < 0) { scan = ""; } else { scan = scan.slice(end + 2); inComment = false; }
-    } else {
-      const start = scan.indexOf("/*");
-      if (start < 0) { code += scan; scan = ""; }
-      else { code += scan.slice(0, start); scan = scan.slice(start + 2); inComment = true; }
-    }
-  }
-  const opens = (code.match(/\{/g) || []).length;
-  const closes = (code.match(/\}/g) || []).length;
+/* EVERY stylesheet that ships, not just the first one. design/0016 added a second (the opt-in
+ * leather look) and an unscoped rule in it would style Obsidian exactly as one in page.css
+ * does -- the guarantee is about what the plugin loads, not about a filename. */
+const STYLESHEETS = ["page.css", "leather.css", "cyber.css"];
+const sheets = STYLESHEETS.map((name) => ({ name, text: readFileSync(join(SRC, name), "utf8") }));
+let rules = 0;
 
-  if (opens > 0 && (depth === 0 || depth === 1) && !/^\s*@/.test(code)) {
-    rules++;
-    const sel = code.slice(0, code.indexOf("{")).trim();
-    for (const part of sel.split(",").map((s) => s.trim()).filter(Boolean)) {
-      if (part !== CLASS && !part.startsWith(CLASS + " ") && !part.startsWith(CLASS + ":") &&
-          !part.startsWith(CLASS + "[") && !part.startsWith(CLASS + ".") &&
-          !part.startsWith(CLASS + ">")) {
-        problems.push(`page.css:${i + 1}  unscoped selector: ${part}`);
+for (const sheet of sheets) {
+  let depth = 0, inComment = false;
+  sheet.text.split("\n").forEach((line, i) => {
+    let scan = line, code = "";
+    while (scan.length) {
+      if (inComment) {
+        const end = scan.indexOf("*/");
+        if (end < 0) { scan = ""; } else { scan = scan.slice(end + 2); inComment = false; }
+      } else {
+        const start = scan.indexOf("/*");
+        if (start < 0) { code += scan; scan = ""; }
+        else { code += scan.slice(0, start); scan = scan.slice(start + 2); inComment = true; }
       }
     }
-  }
-  depth += opens - closes;
-});
-if (depth !== 0) problems.push(`page.css  unbalanced braces (depth ${depth} at EOF)`);
+    const opens = (code.match(/\{/g) || []).length;
+    const closes = (code.match(/\}/g) || []).length;
+
+    if (opens > 0 && (depth === 0 || depth === 1) && !/^\s*@/.test(code)) {
+      rules++;
+      const sel = code.slice(0, code.indexOf("{")).trim();
+      for (const part of sel.split(",").map((s) => s.trim()).filter(Boolean)) {
+        if (part !== CLASS && !part.startsWith(CLASS + " ") && !part.startsWith(CLASS + ":") &&
+            !part.startsWith(CLASS + "[") && !part.startsWith(CLASS + ".") &&
+            !part.startsWith(CLASS + ">")) {
+          problems.push(`${sheet.name}:${i + 1}  unscoped selector: ${part}`);
+        }
+      }
+    }
+    depth += opens - closes;
+  });
+  if (depth !== 0) problems.push(`${sheet.name}  unbalanced braces (depth ${depth} at EOF)`);
+}
 
 /* ---- 2. markup ---------------------------------------------------------- */
 
@@ -81,17 +89,18 @@ for (const name of [...new Set(classAttrs)].filter(Boolean)) {
 }
 
 const cssClasses = [];
-{
-  let scan = css.replace(/\/\*[\s\S]*?\*\//g, "");
+for (const sheet of sheets) {
+  const scan = sheet.text.replace(/\/\*[\s\S]*?\*\//g, "");
   for (const block of scan.split("}")) {
     const sel = block.slice(0, block.indexOf("{"));
     if (!sel || sel.trim().startsWith("@")) continue;
-    for (const m of sel.matchAll(/\.([A-Za-z][\w-]*)/g)) cssClasses.push(m[1]);
+    for (const m of sel.matchAll(/\.([A-Za-z][\w-]*)/g)) {
+      cssClasses.push(m[1]);
+      if (!CLASS_EXEMPT.has(m[1]) && !m[1].startsWith(PREFIX)) {
+        problems.push(`${sheet.name}  unprefixed class: .${m[1]} -- the host can claim that name`);
+      }
+    }
   }
-}
-for (const name of [...new Set(cssClasses)]) {
-  if (CLASS_EXEMPT.has(name) || name.startsWith(PREFIX)) continue;
-  problems.push(`page.css  unprefixed class: .${name} -- the host can claim that name`);
 }
 
 

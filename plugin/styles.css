@@ -4,13 +4,64 @@
   overflow: hidden;
 }
 
+/* github#33 -- a column, so the update note takes its own height and the library the rest */
 .vault-shelf-view {
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .vault-shelf-view > .vault-shelf {
-  height: 100%;
+  flex: 1 1 0%;
+  height: auto;
   min-height: 0;
+}
+
+/* github#33, design/0023 */
+.vault-shelf-view .vs-whatsnew {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  line-height: 1.4;
+}
+.vault-shelf-view .vs-whatsnew-head {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 14px;
+}
+.vault-shelf-view .vs-whatsnew-head a { color: var(--text-accent); }
+.vault-shelf-view .vs-whatsnew-chain { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.vault-shelf-view .vs-whatsnew ul {
+  flex: 1 1 100%;
+  margin: 0;
+  padding-left: 1.2em;
+}
+.vault-shelf-view .vs-whatsnew li { margin: 0; }
+.vault-shelf-view .vs-whatsnew-ok { flex: 0 0 auto; margin-right: auto; }
+
+/* github#33, design/0023 -- what this release added, while the note is up */
+.vault-shelf-view .vs-new {
+  border-radius: 7px;
+  animation: vs-new-pulse 1.9s ease-in-out infinite;
+}
+@keyframes vs-new-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  45% { box-shadow: 0 0 0 3px var(--interactive-accent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vault-shelf-view .vs-new {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--interactive-accent);
+  }
 }

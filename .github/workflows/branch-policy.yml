@@ -2,13 +2,22 @@
 #
 # WHY A WORKFLOW AND NOT A BRANCH PROTECTION SETTING: GitHub can require a pull request,
 # require a review, require a status check and forbid a force push -- but it has no rule
-# for "the pull request must come FROM this branch". So the rule is a check, and the
-# ruleset on main requires this check to pass. Together they mean a pull request from any
-# other branch cannot be merged, and there is no direct push to main to sidestep it.
+# for "the pull request must come FROM this branch". So the rule is a check, and a ruleset on
+# main requires this check to pass. Together they mean a pull request from any other branch
+# cannot be merged, and there is no direct push to main to sidestep it.
 #
-# The point is not ceremony. It is that main is what the Obsidian directory installs from
-# and what `Closes #n` resolves against, so anything reaching it should already have gone
-# through develop -- where the invariant suite runs on every push.
+# THE RULESET IS NOT ARMED YET, and this check therefore reports rather than blocks: GitHub
+# does not offer rulesets on a private repository outside a paid plan. CONTRIBUTING.md says so
+# and says what to add when the repository goes public. The other two directions -- the
+# pre-push hook on `git push`, release.yml's ancestry guard on the tag -- are unaffected.
+#
+# THE MERGE INTO MAIN HAPPENS HERE, ON THE WEBSITE, and that is why scripts/release.ps1 does
+# not push main: it pushes the tag alone, and refuses a main that is not exactly origin/main
+# (the sister repo's release script wrote a tag and then met GH013 doing otherwise).
+#
+# The point is not ceremony. It is that main is what the Obsidian directory installs from, so
+# anything reaching it should already have gone through develop -- where the invariant suite
+# runs on every push, and where an issue is closed (close-issues.yml).
 #
 # The mirror of this for the command line is in .githooks/pre-push, which refuses a push to
 # main that develop is not already an ancestor of. Neither is a substitute for the other:

@@ -3,6 +3,7 @@
 import { buildSync } from "esbuild";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
+import { runInNewContext } from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -14,10 +15,12 @@ const arg = (name, fallback) => {
   return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
 };
 
-const VAULT = resolve(arg("vault", join(ROOT, "demo-vault")));
+const VAULT = resolve(arg("vault", join(ROOT, "vault")));
 const OUT = resolve(arg("out", join(ROOT, "vault-shelf.html")));
+const DEMO = argv.includes("--demo") || !!arg("demo-seed", "");
 const DATE_FIELDS = arg("date-fields", "date,created").split(",").map((s) => s.trim()).filter(Boolean);
-const PEOPLE_PROP = arg("people-prop", "people");
+const PEOPLE_FIELDS = arg("people-props", "people,attendees,person")
+  .split(",").map((f) => f.trim()).filter(Boolean);
 const EXCLUDE = arg("exclude", "99 - Templates,.obsidian,.trash")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
@@ -43,7 +46,9 @@ function walk(dir, acc) {
     if (EXCLUDE.some((x) => rel === x || rel.startsWith(x + "/"))) continue;
     const st = statSync(abs);
     if (st.isDirectory()) walk(abs, acc);
-    else if (entry.toLowerCase().endsWith(".md")) acc.push({ abs, rel, mtime: st.mtime });
+    else if (entry.toLowerCase().endsWith(".md")) {
+      acc.push({ abs, rel, ctimeMs: st.birthtimeMs, mtimeMs: st.mtimeMs });
+    }
   }
   return acc;
 }
@@ -89,80 +94,6 @@ function unquote(value) {
   return value.replace(/^["']|["']$/g, "").replace(/^\[\[|\]\]$/g, "").trim();
 }
 
-/* ---- the data ------------------------------------------------------------ */
-
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-const files = walk(VAULT, []);
-const notes = [];
-const folderCounts = new Map();
-const sources = { field: 0, title: 0, stamp: 0, none: 0 };
-
-for (const file of files) {
-  const text = readFileSync(file.abs, "utf8");
-  const { props, lists, body } = parseFrontmatter(text);
-  const title = file.rel.split("/").pop().replace(/\.md$/i, "");
-  const folder = file.rel.indexOf("/") < 0 ? "(vault root)" : file.rel.slice(0, file.rel.indexOf("/"));
-
-  let date = null;
-  for (const field of DATE_FIELDS) {
-    const raw = props[field];
-    if (raw && ISO_DAY.test(raw.slice(0, 10))) { date = raw.slice(0, 10); sources.field++; break; }
-  }
-  if (!date && ISO_DAY.test(title.slice(0, 10))) { date = title.slice(0, 10); sources.title++; }
-  if (!date && USE_FILE_STAMP) {
-    const fromStamp = file.mtime.toISOString().slice(0, 10);
-    if (ISO_DAY.test(fromStamp)) { date = fromStamp; sources.stamp++; }
-  }
-  if (!date) sources.none++;
-
-  const people = (lists[PEOPLE_PROP] || []).slice();
-  if (props[PEOPLE_PROP]) people.push(props[PEOPLE_PROP]);
-
-  const tags = (lists.tags || []).slice();
-  if (props.tags) tags.push(...props.tags.split(/[,\s]+/).filter(Boolean));
-  for (const m of body.matchAll(/(^|\s)#([A-Za-z][\w/-]*)/g)) tags.push(m[2]);
-
-  const scalar = {};
-  for (const [k, v] of Object.entries(props)) {
-    if (k === "tags" || k === PEOPLE_PROP) continue;
-    scalar[k] = v;
-  }
-
-  folderCounts.set(folder, (folderCounts.get(folder) || 0) + 1);
-  notes.push({
-    id: file.rel,
-    path: file.rel,
-    title,
-    folder,
-    date,
-    people: [...new Set(people)].sort(),
-    tags: [...new Set(tags.map((t) => t.replace(/^#/, "")))].sort(),
-    props: scalar,
-    excerpt: body.trim().split("\n").slice(0, 2).join(" ").slice(0, 240),
-    body: body.trim(),
-  });
-}
-
-const folders = [...folderCounts.entries()]
-  .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
-  .map(([path, count], i) => ({ path, count, slot: i }));
-
-const data = {
-  vault: VAULT.split(sep).pop(),
-  generated: new Date().toISOString().slice(0, 16).replace("T", " "),
-  notes,
-  folders,
-  stats: {
-    notes: notes.length,
-    dated: notes.filter((n) => n.date !== null).length,
-    people: new Set(notes.flatMap((n) => n.people)).size,
-    tags: new Set(notes.flatMap((n) => n.tags)).size,
-  },
-};
-
-/* ---- the page ------------------------------------------------------------ */
-
 const core = (() => {
   try {
     return buildSync({
@@ -186,16 +117,145 @@ const core = (() => {
   }
 })();
 
+/* THE EXPORTER RESOLVES DATES WITH THE SAME CODE THE PAGE DOES. It used to have its own
+ * `ISO_DAY` regex, and that regex accepted `2024-15-01` -- a real, ordinary frontmatter typo
+ * in a real vault, which the exporter then shelved as a fifteenth month called "15 2024".
+ * `core.isIsoDay` had always rejected it and fallen through to the filename, so the plugin was
+ * right and the exporter was wrong about the same note. One implementation, evaluated rather
+ * than re-typed. (Found by shooting a demo film in a mirror of a real vault -- design/0013.)
+ */
+const CORE = runInNewContext(core + ";VaultShelfCore", {});
+
+/* ---- the data ------------------------------------------------------------ */
+
+const files = walk(VAULT, []);
+const notes = [];
+const folderCounts = new Map();
+const sources = { field: 0, title: 0, stamp: 0, none: 0 };
+
+/* decisions/0003 -- which notes are people, decided once before any note is shelved; the
+ * plugin does the same over the metadata cache. Indexed by path without its extension and by
+ * bare title, which is how a wikilink names a note. */
+const PERSON_NOTE = arg("person-note", "type: people");
+/** @type {Map<string, string>} */
+const personByRef = new Map();
+if (PERSON_NOTE) {
+  for (const file of files) {
+    const { props, lists } = parseFrontmatter(readFileSync(file.abs, "utf8"));
+    const tags = (lists.tags || []).concat(props.tags ? props.tags.split(/[,\s]+/) : [])
+      .map((t) => t.replace(/^#/, "")).filter(Boolean);
+    if (!CORE.isPersonNote(PERSON_NOTE, props, tags)) continue;
+    const title = file.rel.split("/").pop().replace(/\.md$/i, "");
+    const who = CORE.cleanPerson(props.name || title) || title;
+    personByRef.set(file.rel.replace(/\.md$/i, "").toLowerCase(), who);
+    personByRef.set(title.toLowerCase(), who);
+  }
+}
+
+for (const file of files) {
+  const text = readFileSync(file.abs, "utf8");
+  const { props, lists, body } = parseFrontmatter(text);
+  const title = file.rel.split("/").pop().replace(/\.md$/i, "");
+  const folder = file.rel.indexOf("/") < 0 ? "(vault root)" : file.rel.slice(0, file.rel.indexOf("/"));
+
+  const stamp = USE_FILE_STAMP ? CORE.stampOf(file.ctimeMs, file.mtimeMs) : null;
+  const date = CORE.resolveDate(props, title, stamp, DATE_FIELDS);
+  // Where it came from, read back off the answer: the log below is the only consumer, and a
+  // second copy of the precedence order is a second place for it to drift.
+  if (date === null) sources.none++;
+  else if (DATE_FIELDS.some((f) => props[f] && props[f].trim().slice(0, 10) === date)) sources.field++;
+  else if (title.trim().slice(0, 10) === date) sources.title++;
+  else sources.stamp++;
+
+  /* decisions/0003 -- every people property, merged, and read through core.cleanPerson so a
+   * wikilink, an alias and a quoted scalar mean here exactly what they mean in the plugin. */
+  const people = [];
+  for (const field of PEOPLE_FIELDS) {
+    for (const v of lists[field] || []) people.push(CORE.cleanPerson(v));
+    if (props[field]) people.push(CORE.cleanPerson(props[field]));
+  }
+  if (personByRef.size) {
+    const self = file.rel.replace(/\.md$/i, "").toLowerCase();
+    for (const target of CORE.linkTargets(text)) {
+      const ref = target.replace(/\.md$/i, "").toLowerCase();
+      if (ref === self || ref === self.split("/").pop()) continue;
+      const who = personByRef.get(ref) || personByRef.get(ref.split("/").pop() || ref);
+      if (who) people.push(who);
+    }
+  }
+
+  const tags = (lists.tags || []).slice();
+  if (props.tags) tags.push(...props.tags.split(/[,\s]+/).filter(Boolean));
+  for (const m of body.matchAll(/(^|\s)#([A-Za-z][\w/-]*)/g)) tags.push(m[2]);
+
+  const scalar = {};
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "tags" || PEOPLE_FIELDS.indexOf(k) >= 0) continue;
+    scalar[k] = v;
+  }
+
+  folderCounts.set(folder, (folderCounts.get(folder) || 0) + 1);
+  notes.push({
+    id: file.rel,
+    path: file.rel,
+    title,
+    folder,
+    date,
+    people: [...new Set(people.filter(Boolean))].sort(),
+    tags: [...new Set(tags.map((t) => t.replace(/^#/, "")))].sort(),
+    props: scalar,
+    excerpt: body.trim().split("\n").slice(0, 2).join(" ").slice(0, 240),
+    body: body.trim(),
+  });
+}
+
+const folders = [...folderCounts.entries()]
+  .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  .map(([path, count], i) => ({ path, count, slot: i }));
+
+const data = {
+  vault: DEMO ? "Vault Shelf Demo" : VAULT.split(sep).pop(),
+  generated: new Date().toISOString().slice(0, 16).replace("T", " "),
+  notes,
+  folders,
+  stats: {
+    notes: notes.length,
+    dated: notes.filter((n) => n.date !== null).length,
+    people: new Set(notes.flatMap((n) => n.people)).size,
+    tags: new Set(notes.flatMap((n) => n.tags)).size,
+  },
+};
+
+/* ---- the page ------------------------------------------------------------ */
+
+
 const part = (f) => readFileSync(join(HERE, f), "utf8");
+
+/* design/0016 -- every look but the default one, in the order core.LOOKS offers them. Each
+ * paints nothing until `data-look` names it, so shipping them all costs a few KB and no
+ * behaviour. */
+const LOOK_SHEETS = ["leather.css", "cyber.css"];
 const asScript = (js) => js.replace(/^export \{[^}]*\};?\s*$/m, "").trimEnd();
+
+/* github#5 -- JSON is not script-safe: </script> closes the block */
+const SEPARATORS = new RegExp(String.fromCharCode(0x2028) + "|" + String.fromCharCode(0x2029), "g");
+const jsonForScript = (value) => JSON.stringify(value)
+  .replace(/</g, "\\u003c")
+  .replace(/>/g, "\\u003e")
+  .replace(SEPARATORS, (c) => (c === String.fromCharCode(0x2028) ? "\\u2028" : "\\u2029"));
 
 const html = part("shell.html")
   .replace("<!--CSS-->", () => part("page.css").trimEnd())
+  /* design/0016 -- the opt-in look travels with the page, off unless the setting says so.
+   * A second stylesheet rather than a second copy of the first one. */
+  .replace("<!--LOOKS-->", () => LOOK_SHEETS.map((f) => part(f).trimEnd()).join("\n\n"))
   .replace("<!--MARKUP-->", () => part("page.html").trimEnd())
   .replace("<!--SCRIPT-->", () => asScript(part("page.js")))
   .replace("<!--LIBS-->", () => `<script>\n${core.trimEnd()}\n</script>`)
   .replace("<!--ASSETS-->", () => "")
-  .replace("<!--DATA-->", () => `<script>window.VAULT_DATA=${JSON.stringify(data)};</script>`);
+  .replace("<!--DATA-->", () => `<script>window.VAULT_DATA=${jsonForScript(data)};` +
+    (DEMO ? `window.VAULT_SETTINGS=${jsonForScript(CORE.demoSettings(notes))};` : "") +
+    `</script>`);
 
 writeFileSync(OUT, html, "utf8");
 

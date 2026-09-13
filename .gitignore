@@ -3,7 +3,10 @@ vault-shelf*.html
 demo-*.mp4
 *.stackdump
 # Any generated fixture, not just the default name: --out picks the directory and the
-# generator is the artefact, so none of them belongs in a commit.
+# generator is the artefact, so none of them belongs in a commit. The names of the three
+# fixtures that decisions/0012 replaced are still ignored, so a stale one left in a checkout
+# from before the change cannot arrive in a diff.
+vault/
 library-vault*/
 sparse-vault*/
 # The shared fixture store -- generated vaults keyed by generator digest, one copy for every
@@ -12,8 +15,8 @@ sparse-vault*/
 .fixtures/
 dist/
 
-# Generated demo vault -- a declared structure, not a mirror of anyone's notes. Regenerate
-# with scripts/make-demo-vault.mjs; never commit one, since the generator is the artefact.
+# The generated vault -- a declared structure, not a mirror of anyone's notes. Regenerate
+# with scripts/make-vault.mjs; never commit one, since the generator is the artefact.
 demo-vault/
 
 # The PII deny list itself. The whole point is that these names are not in a commit;
@@ -26,3 +29,21 @@ node_modules/
 # main.js is a bundle and would churn on every template edit.
 /main.js
 /styles.css
+
+# A mirror of a REAL vault: same shape, invented words. Built by scripts/make-mirror-vault.mjs,
+# a diagnostic you point at your own vault (design/0013, amended by decisions/0012). The
+# generator is the artefact, and the thing it was built from is on somebody's disk rather than
+# in this repository.
+mirror-vault/
+
+# The path to that real vault. No longer read by anything -- a mirror is `--mirror-of <path>`
+# now -- and still ignored, because it is a vault path and that is exactly what check-pii
+# refuses in a tracked file.
+.mirror-source
+
+# Agent worktrees. A worktree is a checkout, not a file of this repository.
+.claude/worktrees/
+
+# Machine-local orchestration notes -- how work is RUN here, never the product.
+# Untracked so it can name paths, sessions and workflow that the public files must not.
+CLAUDE.local.md

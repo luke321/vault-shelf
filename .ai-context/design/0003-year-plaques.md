@@ -58,3 +58,19 @@ Paper & cloth: a restrained brass plate — a two-stop gradient in `--brass`, da
 
 Both are the same element with the same geometry. The skin changes the paint and nothing else,
 which is the rule the whole visual layer follows (`design/0005`).
+
+## The alphabet is a unit too
+
+A plaque names the unit above the book: a month under its year, a year under its decade — and
+a person or a tag under **its letter**. 126 names in a run are a list to be read; the same 126
+under A, B, C are a shelf to be scanned, which is the whole difference between a library and a
+list. `core.plaqueFor` falls through to `firstLetter(key)` for every classifier that is not a
+date, and `-unfiled` is left without one for the same reason `-undated` is: it is not a letter
+and it sorts last.
+
+## A plate opens (2026-09-11)
+
+A plaque is a button now and opens the run under it as one book — `design/0019` has the
+decision, the address and what it cost. Nothing in this record changes: the plate is still
+inside the scroller, still as wide as its run, still named on every row a run reaches.
+

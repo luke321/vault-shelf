@@ -35,10 +35,18 @@
   --g10:#9412ad;
   --g11:#6f6e67;
   --g12:#45443f;
+  --g13:#e8c779;
+  --g14:#81c4bc;
   --n1: #6f6e67;
   --n2: #45443f;
   --n3: #8a897f;
   --accent: #2a78d6;
+  /* github#2 -- WHAT A BOX IS FILLED WITH, AND THE ARROW ON A DROPDOWN. Written as literals
+   * rather than `var(--surface-2)` because a custom property substitutes where it is declared:
+   * a look's paper sheet re-declares --surface-2 under the root and a token that pointed at it
+   * would still hold the room's value there. Every block that changes the field says so. */
+  --vs-field: #ffffff;
+  --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%2352514e' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
@@ -62,6 +70,8 @@
     --n1: #8d8c84; --n2: #bdbcb2; --n3: #77766d;
     --accent: #3987e5;
     --tint: 14%;
+    --vs-field: #232322;
+    --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%23c3c2b7' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
   }
 }
 
@@ -85,6 +95,8 @@
   --n1: #8d8c84; --n2: #bdbcb2; --n3: #77766d;
   --accent: #3987e5;
   --tint: 14%;
+  --vs-field: #232322;
+  --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%23c3c2b7' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 /* ---- the room ------------------------------------------------------------
@@ -92,15 +104,58 @@
  * the top, and it is the width of a shelf label rather than a panel.
  */
 .vault-shelf {
-  --spine-w: 38px;
+  /* design/0011 -- a book's THICKNESS is its note count. --spine-w is the fallback for a
+   * spine nobody has sized (the builder's preview draws before the library has a maximum to
+   * scale against); src/page.js sets the real one per book. */
+  --spine-w: 34px;
   --spine-h: 132px;
-  --board: 3px;
+  /* github#45, design/0021 -- WHERE A BINDING MAY DRAW, DECLARED. A look paints its head
+   * decoration down to --spine-head, its tail decoration up to --spine-tail and its side
+   * rules --spine-rule-side in, each of them --spine-rule thick; the title's box is derived
+   * from all four with --spine-clear between, so a rule is never drawn under a glyph. A look
+   * that moves a rule moves these and nothing else.
+   * THE SIDES TAKE --spine-rule-side AND NOT THE RULE'S OWN WIDTH: sideways there is no glyph
+   * out past the rule to protect, and the pixel would cost three more uprights on the squeezed
+   * index rail (github#34, github#47). design/0021 has the arithmetic. */
+  --spine-head: 17px;
+  --spine-tail: 29px;
+  --spine-rule-side: 4px;
+  --spine-rule: 1px;
+  --spine-clear: 3px;
+  /* github#51, design/0021 -- HOW FAR A SPINE RISES, and its top rung IS the track's room. */
+  --spine-lift-worn: 1px;
+  --spine-lift-worn-more: 2px;
+  --spine-lift-worn-hover: 5px;
+  --spine-lift-hover: 6px;
+  --spine-lift-max: 7px;
+  --spine-lift-match: var(--spine-lift-max);
+  /* github#0 -- THICKER, because it is a handle now: at 3px the floor was a hairline to paint
+   * and an impossible thing to grab.
+   * github#14, design/0021 -- and ONE PLANK, in every look: each sheet used to declare its own
+   * (5, 10, 7) and the board is charged twice a row. 10px is leather's. */
+  --board: 14px;
   /* design/0009 -- A ROOM HAS A WIDTH. On a WQHD screen the leaf is ~2,200px after Obsidian's
    * own sidebar, and full-bleed put four books on an 1,800px shelf board and left the note a
    * 380px column of text adrift in a 2,000px page with its index tabs pinned to the far edge.
    * 1,180px is about 28 spines -- a shelf you can take in -- and it is also contents plus a
    * 66ch note plus its tabs, so the reader closes up into something that reads as one book. */
   --measure: 1180px;
+  /* design/0008 -- the colour of a ribbon. Its own token because a look dyes fabric
+   * differently from how it dyes a button, and the accent is a button's colour. */
+  --ribbon: var(--accent);
+  --ribbon-ink: #fff;
+  /* github#9, design/0019 -- THE PLATE, one material for the furniture */
+  --vs-plate: color-mix(in srgb, var(--text-1) 4%, var(--surface-2));
+  --vs-plate-lo: color-mix(in srgb, var(--text-1) 1%, var(--surface-1));
+  --vs-plate-edge: var(--border);
+  --vs-plate-ink: var(--text-2);
+  --vs-plate-shadow: inset 0 1px #ffffff14, 0 1px 2px #00000018;
+  --vs-plate-ink-shadow: none;
+  --vs-plate-lit: color-mix(in srgb, var(--text-1) 9%, var(--surface-2));
+  --vs-plate-lit-lo: color-mix(in srgb, var(--text-1) 4%, var(--surface-1));
+  --vs-plate-lit-edge: var(--border-strong);
+  --vs-plate-lit-ink: var(--text-1);
+  --vs-plate-lit-shadow: inset 0 1px #ffffff1f, 0 1px 3px #00000024;
   /* design/0005 -- HOW MUCH OF ITS FOLDER'S COLOUR A BOOK'S BOARD TAKES, and it is not the
    * same number in the two themes. Mixing a saturated hue into a DARK surface deepens it and
    * reads as dyed cloth; mixing the same hue into WHITE can only lighten toward it, so the
@@ -111,8 +166,8 @@
   --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
   --prose: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
 
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   color: var(--text-1);
@@ -149,6 +204,7 @@
 /* ---- the top rail -------------------------------------------------------- */
 
 .vault-shelf #vs-rail {
+  grid-area: 1 / 1;
   display: flex;
   flex: 0 0 auto;
   border-bottom: 1px solid var(--border);
@@ -168,45 +224,34 @@
   min-width: 0;
 }
 
+/* github#14, design/0021 -- a fixed line box, in pixels: the face is the look's. */
 .vault-shelf .vs-railname {
   font-size: 12.5px;
+  line-height: 20px;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-1);
   white-space: nowrap;
 }
 
-.vault-shelf #vs-jump {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  flex: 1 1 auto;
-  min-width: 0;
-  scrollbar-width: none;
-}
-
-.vault-shelf #vs-jump::-webkit-scrollbar { display: none; }
-
-.vault-shelf .vs-jump {
-  flex: 0 0 auto;
-  font: inherit;
-  font-size: 11.5px;
-  color: var(--text-2);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  padding: 3px 8px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.vault-shelf .vs-jump:hover { color: var(--text-1); background: var(--surface-2); border-color: var(--border); }
-.vault-shelf .vs-jump .vs-n { color: var(--text-3); margin-left: 5px; font-variant-numeric: tabular-nums; }
+/* github#38, design/0009 -- THE ONE THING IN THE RAIL THAT GROWS IS THE GAP. `#vs-jump` was
+ * a chip per shelf at `flex: 1 1 auto` with `overflow-x: auto`: 421px of 1148px at the
+ * measure, and a second row that still overflowed by 57px at 860px. Every control in here is
+ * a fixed width now, and the space between them goes to one spacer -- the reader bar's own
+ * idiom -- so the name and the search sit left and the three controls sit right, rather than
+ * the whole bar clumping at one end. NOT a flexible search box: `.vs-railname` is sized by
+ * the look's face, so a search box that took what was left would be a different width in
+ * every look, and a control is the same size in every look (design/0016). */
+.vault-shelf .vs-spacer { flex: 1 1 auto; min-width: 0; }
 
 .vault-shelf #vs-q {
   flex: 0 0 auto;
   width: 232px;
   font: inherit;
+  /* Explicit, so a look that raises the page's base size for its prose (leather, 17px) does
+   * not raise the box: a search field is the same height in every look. */
+  font-size: 13px;
+  line-height: 1.5;
   color: var(--text-1);
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -216,6 +261,45 @@
 }
 
 .vault-shelf #vs-q:focus { border-color: var(--accent); outline: none; }
+
+/* design/0016 -- THE LOOK SELECTOR IS A CONTROL, NOT A COLUMN. A bare `<select>` in a flex row
+ * takes whatever is going, and under the leather look -- which zooms the page 20% -- it grew
+ * wide enough to squeeze the vault's name down to an ellipsis and push half the shelf jumps
+ * out of the rail. It is sized like the search box beside it: fixed, and it does not shrink
+ * the things that carry the actual information. */
+.vault-shelf #vs-look {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 132px;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--text-2);
+  background-color: var(--vs-field);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 3px 22px 3px 6px;
+  background-position: right 7px center;
+}
+
+.vault-shelf #vs-look:focus { border-color: var(--accent); outline: none; }
+
+/* The name is the first thing to go when the rail is tight, and it is the one thing in there
+ * that cannot be worked out from anything else. */
+.vault-shelf .vs-railname { flex: 0 1 auto; min-width: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+/* A FIXED WIDTH, because the label changes. "Oldest first" and "Newest first" are not the same
+ * number of pixels, so a button that sizes to its text shoves the search box sideways every
+ * time you press it. */
+.vault-shelf #vs-order { flex: 0 0 92px; width: 92px; white-space: nowrap; text-align: center; }
+.vault-shelf #vs-manageopen { flex: 0 0 auto; width: 30px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.vault-shelf #vs-manageopen svg { width: 16px; height: 16px; }
+
+/* design/0031 */
+.vault-shelf #vs-rail .vs-inner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
+.vault-shelf .vs-railsearch { display: flex; align-items: center; column-gap: 10px; flex-wrap: wrap; min-width: 0; }
+.vault-shelf .vs-railactions { display: flex; justify-content: flex-end; gap: 8px; }
+.vault-shelf #vs-vname { justify-self: center; text-align: center; max-width: 100%; }
+.vault-shelf #vs-rail #vs-q { width: min(232px, 100%); min-width: 0; }
+.vault-shelf #vs-hits:empty { display: none; }
 
 .vault-shelf #vs-hits {
   flex: 0 0 auto;
@@ -227,26 +311,47 @@
 
 /* ---- buttons ------------------------------------------------------------- */
 
+/* design/0016 -- THE GEOMETRY OF A CONTROL IS SET HERE, ONCE. A look may repaint a button
+ * and may not resize it; the line-height is explicit so a look's face -- serif, mono -- lands
+ * in the same box as the default's. The "same size" check measures every control in every
+ * look against this sheet's reading. */
+/* github#9, design/0019 -- A BUTTON IS A PLATE; only the tracking differs */
 .vault-shelf button {
   font: inherit;
   font-size: 11.5px;
-  color: var(--text-2);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  line-height: 1.5;
+  letter-spacing: 0.03em;
+  color: var(--vs-plate-ink);
+  background: linear-gradient(180deg, var(--vs-plate), var(--vs-plate-lo));
+  border: 1px solid var(--vs-plate-edge);
   border-radius: 3px;
   padding: 4px 9px;
   cursor: pointer;
   min-height: 26px;
+  box-shadow: var(--vs-plate-shadow);
+  text-shadow: var(--vs-plate-ink-shadow);
 }
 
-.vault-shelf button:hover { color: var(--text-1); border-color: var(--border-strong); }
+/* github#9, design/0019 -- A LIT PLATE IS A TOKEN SWAP, so it cannot reach a spine */
+.vault-shelf button:hover,
+.vault-shelf button:focus-visible {
+  --vs-plate: var(--vs-plate-lit);
+  --vs-plate-lo: var(--vs-plate-lit-lo);
+  --vs-plate-edge: var(--vs-plate-lit-edge);
+  --vs-plate-ink: var(--vs-plate-lit-ink);
+  --vs-plate-shadow: var(--vs-plate-lit-shadow);
+}
 .vault-shelf button:disabled { opacity: 0.45; cursor: default; }
 
+/* github#9 -- an action, not a label */
 .vault-shelf button.vs-primary {
   color: #fff;
   background: var(--accent);
   border-color: var(--accent);
   font-weight: 600;
+  letter-spacing: 0;
+  box-shadow: none;
+  text-shadow: none;
 }
 
 .vault-shelf button.vs-primary:hover { filter: brightness(1.08); color: #fff; }
@@ -259,14 +364,46 @@
 .vault-shelf input[type="text"],
 .vault-shelf select {
   font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
   width: 100%;
   color: var(--text-1);
-  background: var(--surface-2);
+  background-color: var(--vs-field);
   border: 1px solid var(--border);
   border-radius: 3px;
   padding: 5px 8px;
   min-height: 28px;
 }
+
+/* github#2 -- A DROPDOWN PAINTS ITSELF, IN EVERY LOOK. Obsidian's app.css styles every
+ * `select` in the app: `appearance: none`, its own height, padding, no border, a box-shadow,
+ * a chevron drawn as two background layers with a blend mode, and a field colour from the
+ * host theme. Every one of those a rule here leaves unset lands on our dropdowns inside the
+ * plugin and not in the standalone, which is how the Manage sheet's dropdowns came up dark on
+ * leather's paper (design/0016's lesson that the standalone is not a preview of the plugin,
+ * for the fourth time; the cyber look had solved it for #vs-look alone, design/0017).
+ * So every property the host sets is set here: the box is ours, the arrow is drawn, and each
+ * look supplies the field and the stroke through --vs-field and --vs-chevron. */
+.vault-shelf select {
+  appearance: none;
+  -webkit-appearance: none;
+  height: auto;
+  padding-right: 26px;
+  background-image: var(--vs-chevron);
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 10px 7px;
+  background-blend-mode: normal;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.vault-shelf select:focus { border-color: var(--accent); outline: none; }
+
+/* The list the platform drops down is the platform's; `color-scheme` on the token block is
+ * what makes it light or dark, and the options carry the field's own colours for the hosts
+ * that honour them. */
+.vault-shelf select option { color: var(--text-1); background-color: var(--vs-field); }
 
 .vault-shelf .vs-lbl {
   font-size: 11px;
@@ -276,7 +413,15 @@
   margin-bottom: 7px;
 }
 
-.vault-shelf .vs-val { color: var(--text-2); text-transform: none; letter-spacing: 0; }
+/* github#14 -- inline-block, so the line box decides its height: a bare inline box is sized
+ * by the font's own ascent and descent, which line-height cannot touch. */
+.vault-shelf .vs-val {
+  display: inline-block;
+  line-height: 16px;
+  color: var(--text-2);
+  text-transform: none;
+  letter-spacing: 0;
+}
 .vault-shelf .vs-hint { font-size: 11.5px; color: var(--text-3); margin: 6px 0 0; }
 
 .vault-shelf .vs-row {
@@ -294,6 +439,8 @@
  */
 
 .vault-shelf #vs-library {
+  grid-area: 2 / 1;
+  min-width: 0;
   flex: 1 1 auto;
   overflow-y: auto;
   min-height: 0;
@@ -309,6 +456,8 @@
 .vault-shelf .vs-newshelf {
   display: flex;
   align-items: center;
+  /* github#14 -- centred, in every look. */
+  justify-content: center;
   gap: 10px;
   width: 100%;
   margin: 14px 0 18px;
@@ -318,9 +467,14 @@
   border: 1px dashed var(--border-strong);
   border-radius: 3px;
   min-height: 38px;
+  /* github#9 -- an invitation drawn in a dashed line, not a plate. */
+  letter-spacing: 0;
+  box-shadow: none;
+  text-shadow: none;
 }
 
 .vault-shelf .vs-newshelf:hover { color: var(--accent); border-color: var(--accent); background: var(--surface-1); }
+.vault-shelf .vs-newshelf span { line-height: 20px; }
 .vault-shelf .vs-newshelf .vs-plus { font-size: 15px; line-height: 1; }
 
 .vault-shelf .vs-activefilters {
@@ -335,11 +489,37 @@
   font-size: 12px;
 }
 
-.vault-shelf .vs-shelf { margin-bottom: 26px; }
+/* design/0014 -- PAINT ONLY WHAT IS ON SCREEN. Measured before this, scrolling the whole
+ * library: the modern look at a flat 16.7ms a frame, leather at 117ms at the 95th percentile,
+ * cyber at 400ms -- a look paints a spine as several layers of gradient and texture, and
+ * without containment every one of them, on every shelf, is rasterised again on every scroll
+ * step. `content-visibility` skips the shelves that are not in view, `contain` keeps a row's
+ * paint from invalidating its neighbours, and the intrinsic size is a row of books plus its
+ * head and plaques so the scrollbar does not jump as shelves come into view. */
+.vault-shelf .vs-shelf {
+  margin-bottom: 26px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+/* github#51, design/0021 -- AND SAY WHERE THE CLIP EDGE IS. Not padding, so no golden moves. */
+.vault-shelf .vs-track {
+  contain: layout paint;
+  overflow-clip-margin: var(--spine-lift-max);
+}
+.vault-shelf .vs-shelfrail { contain: layout; }
 
+/* AND SCROLL A TEXTURE, NOT A PAINT. With the library's contents on a compositor layer of
+ * their own, a scroll step moves tiles that are already rasterised and paints only the strip
+ * that just came into view; without it every visible spine was rasterised again per step,
+ * which is where the leather look's 117ms frames went. */
+.vault-shelf #vs-shelves { will-change: transform; }
+
+/* github#14, design/0021 -- THE HEAD IS ITS BUTTONS' HEIGHT, in every look: it aligned on the
+ * baseline, so a bigger face lowered the baseline and the head grew under it. */
 .vault-shelf .vs-shelfhead {
+  min-height: 32.25px;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
   padding-bottom: 5px;
   margin-bottom: 9px;
@@ -347,6 +527,7 @@
 
 .vault-shelf .vs-shelfhead h2 {
   font-size: 12.5px;
+  line-height: 24px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -354,46 +535,96 @@
   margin: 0;
 }
 
-.vault-shelf .vs-shelfhead .vs-meta { color: var(--text-3); font-size: 11.5px; }
-.vault-shelf .vs-shelfhead .vs-mini { margin-left: auto; opacity: 0; transition: opacity 120ms ease; }
-.vault-shelf .vs-shelf:hover .vs-shelfhead .vs-mini,
-.vault-shelf .vs-shelfhead .vs-mini:focus-within { opacity: 1; }
+.vault-shelf .vs-shelfhead .vs-meta { color: var(--text-3); font-size: 11.5px; line-height: 20px; }
+/* design/0032 */
+.vault-shelf .vs-shelfhead .vs-meta { white-space: nowrap; }
+.vault-shelf .vs-shelfhead .vs-shelfaction {
+  display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  width: 16px; height: 20px; min-height: 0; padding: 0; border: 0;
+  font: inherit; color: inherit; background: none; box-shadow: none; text-shadow: none;
+}
+.vault-shelf .vs-shelfaction svg { width: 12px; height: 12px; }
+.vault-shelf .vs-shelfhead .vs-shelfaction:hover { color: var(--text-1); }
 
+/* design/0014 -- A BOOKCASE. The rail holds one or more boards, each one a full-width row of
+ * books; a run too long for the room continues on the next one down. Nothing scrolls
+ * sideways, which is the whole point: a horizontal scroller hides the far end of a shelf and
+ * gives no clue how much of it there is. */
 .vault-shelf .vs-shelfrail {
-  overflow-x: auto;
-  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   padding-bottom: 6px;
+  min-width: 0;
 }
 
-/* THE BOARD IS INSIDE THE SCROLLER, for the same reason the plaque is (design/0003): a rule
- * drawn outside the rail drifts out from under its books the moment the rail scrolls. */
+/* THE FLOOR IS INSIDE THE ROW, for the same reason the plaque is (design/0003): a rule drawn
+ * outside would have to be kept in step with a row whose height depends on what is on it.
+ *
+ * IT IS A BACKGROUND, NOT A BORDER, and that is what lets the plaque hang BELOW it. As a
+ * bottom border the floor was the last thing in the track, so a plaque could only ever sit
+ * above it -- a year label resting on the books rather than screwed to the shelf edge. Drawn
+ * as a background line the floor sits at a known height, because a spine's height is a
+ * constant, and the plaque row lives underneath it.
+ *
+ * The board runs the FULL WIDTH of the room even where the books stop, because a shelf does
+ * (design/0014). A half-empty last row with a board ending mid-air reads as a broken rule. */
 .vault-shelf .vs-track {
+  display: flex;
+  position: relative;
+  align-items: flex-start;
+  gap: 3px;
+  min-height: calc(var(--spine-h) + var(--board) + 24px);
+  width: 100%;
+  min-width: 0;
+  background-image: linear-gradient(var(--border-strong), var(--border-strong));
+  background-repeat: no-repeat;
+  background-size: 100% var(--board);
+  background-position: 0 var(--spine-h);
+}
+
+.vault-shelf .vs-group { display: flex; flex-direction: column; align-self: flex-start; }
+.vault-shelf .vs-group .vs-books {
   display: flex;
   align-items: flex-end;
   gap: 3px;
-  min-height: calc(var(--spine-h) + 30px);
-  padding-bottom: 5px;
-  border-bottom: var(--board) solid var(--border-strong);
-  border-radius: 0 0 2px 2px;
-  width: max-content;
-  min-width: 100%;
+  height: var(--spine-h);
 }
 
-.vault-shelf .vs-group { display: flex; flex-direction: column; gap: 5px; align-self: flex-end; }
-.vault-shelf .vs-group .vs-books { display: flex; align-items: flex-end; gap: 3px; }
-
+/* Hanging under the shelf edge, the way an engraved plate is screwed to the front of a
+ * library shelf rather than propped against the books. */
 .vault-shelf .vs-plaque {
   align-self: stretch;
   text-align: center;
+  font: inherit;
   font-size: 10.5px;
+  line-height: inherit;
   letter-spacing: 0.14em;
-  color: var(--text-3);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: 2px;
+  /* github#9 -- the same plate a button is, from the same tokens */
+  color: var(--vs-plate-ink);
+  background: linear-gradient(180deg, var(--vs-plate), var(--vs-plate-lo));
+  border: 1px solid var(--vs-plate-edge);
+  border-top: 0;
+  border-radius: 0 0 3px 3px;
   padding: 2px 6px;
-  margin-bottom: -5px;
+  margin: calc(var(--board) + 9px) 0 0;
+  /* github#6 */
+  min-height: 0;
+  height: auto;
+  box-shadow: var(--vs-plate-shadow);
+  text-shadow: var(--vs-plate-ink-shadow);
+  cursor: pointer;
 }
+/* github#6, github#9 -- and it lights the way a button does: the same token swap. */
+.vault-shelf .vs-plaque:hover,
+.vault-shelf .vs-plaque:focus-visible {
+  --vs-plate: var(--vs-plate-lit);
+  --vs-plate-lo: var(--vs-plate-lit-lo);
+  --vs-plate-edge: var(--vs-plate-lit-edge);
+  --vs-plate-ink: var(--vs-plate-lit-ink);
+  --vs-plate-shadow: var(--vs-plate-lit-shadow);
+}
+.vault-shelf .vs-plaque:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 /* ---- a spine -------------------------------------------------------------
  * design/0005 -- THE BOARD IS THE COLOUR, and there is nothing else on the spine.
@@ -409,13 +640,18 @@
  */
 .vault-shelf .vs-spine {
   width: var(--spine-w);
-  height: var(--spine-h);
+  height: calc(var(--spine-h) - var(--spine-trim, 0px));
   flex: 0 0 auto;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 3px 15px;
+  /* github#14 -- one panel: leather padded it 23/29 for its bands, cyber 10/15.
+   * github#45 -- and it is DERIVED now, not chosen: the clearance was a leftover and in
+   * leather it was negative, so the title's box ran three pixels into the lower gilt band. */
+  padding: calc(var(--spine-head) + var(--spine-rule) + var(--spine-clear))
+           var(--spine-rule-side)
+           calc(var(--spine-tail) + var(--spine-rule) + var(--spine-clear));
   background:
     linear-gradient(180deg,
       color-mix(in srgb, var(--text-1) 3%, transparent) 0 22%,
@@ -427,13 +663,18 @@
   border-radius: 2px 2px 1px 1px;
   color: var(--text-2);
   cursor: pointer;
+  /* github#9 -- a book, not a plate */
+  letter-spacing: 0;
+  box-shadow: none;
+  text-shadow: none;
   transition: transform 120ms ease, border-color 120ms ease, opacity 160ms ease,
               margin 160ms ease, box-shadow 120ms ease;
 }
 
+/* github#14, github#51 -- ONE LIFT, read from its rung. -5/-5/-6 across the sheets before. */
 .vault-shelf .vs-spine:hover,
 .vault-shelf .vs-spine:focus-visible {
-  transform: translateY(-5px);
+  transform: translateY(calc(-1 * var(--spine-lift-hover)));
   border-color: var(--spine-tint, var(--accent));
   color: var(--text-1);
   z-index: 2;
@@ -441,12 +682,16 @@
 
 /* THE TITLE FILLS THE SPINE, and that is what makes it read as a book rather than a column.
  * rotate(180deg) makes it read bottom-to-top, the way a spine on a shelf does. */
+/* github#14, design/0021 -- upright type: the line box is the title's WIDTH. */
 .vault-shelf .vs-spine .vs-title {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
+  line-height: 20px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* github#14 -- it FILLS the panel: centred, a different face moved its own top. */
+  align-self: stretch;
   max-height: 100%;
   font-size: 11px;
   letter-spacing: 0.04em;
@@ -460,11 +705,212 @@
   right: 0;
   text-align: center;
   font-size: 9.5px;
+  /* github#14 -- anchored at the foot, so its line box is where its top lands. */
+  line-height: 16px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 
 .vault-shelf .vs-spine[data-empty="1"] { opacity: 0.45; }
+
+/* ---- a shelf arranged by hand --------------------------------------------
+ * design/0018 -- a spine you can pick up says so before you touch it, and while one is in the
+ * air the shelf says where it would land. The mark is a bar in the GAP between two books --
+ * the gap is 3px and so is the bar -- because that is the place the book is going, and a
+ * highlight on the neighbour would say "this one" instead of "here".
+ *
+ * AN ELEMENT, NOT A PSEUDO-ELEMENT. `.vs-spine::before` and `::after` are already the gilt
+ * bands of the leather binding and the neon edge of the cyber one (design/0016, 0017), at
+ * a specificity this file cannot reach and in stylesheets this feature is not allowed to touch.
+ * A drop mark drawn on either of them is invisible in two looks out of three.
+ */
+.vault-shelf .vs-spine[data-hand="1"] { cursor: grab; }
+.vault-shelf .vs-spine[data-hand="1"]:active { cursor: grabbing; }
+.vault-shelf .vs-spine[data-dragging="1"] { opacity: 0.35; }
+
+.vault-shelf .vs-drop {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+  pointer-events: none;
+  z-index: 4;
+}
+/* github#0 -- THE SHELF PARTS WHERE THE BOOK WILL LAND. A 3px bar in a 3px gap is accurate and
+ * almost invisible: it says where, but not that anything is about to happen. The neighbour
+ * steps aside instead -- the same parting the query already does to the room (design/0008) --
+ * and the bar stands in the space that opens, so the gesture reads before the detail does.
+ * The spine's own transition already covers margin, so nothing jumps. */
+/* github#0 -- THE HOLE IS THE SHAPE OF THE BOOK. `--drop-w` is the carried spine's own width,
+ * written on the neighbour while the drag is over the row, so a fat book opens a fat gap and a
+ * thin one barely parts the shelf. The fallback is the old fixed gap, for a drag that somehow
+ * arrives without one. */
+.vault-shelf .vs-spine[data-drop="before"] { margin-left: calc(var(--drop-w, 18px) + 6px); }
+.vault-shelf .vs-spine[data-drop="after"] { margin-right: calc(var(--drop-w, 18px) + 6px); }
+.vault-shelf .vs-drop[data-side="before"] { left: calc((var(--drop-w, 18px) + 6px) / -2 - 1px); }
+.vault-shelf .vs-drop[data-side="after"] { right: calc((var(--drop-w, 18px) + 6px) / -2 - 1px); }
+
+/* ---- BEGIN: favourites -------------------------------------------------------
+ * design/0019 -- the one shelf that starts empty says what it is for, in the row where the
+ * books will stand: a dashed landing the height of a spine, so an empty Favourites reads as
+ * a shelf with room on it rather than a broken one. While a book is in the air over it the
+ * landing takes the accent, the way the drop mark does between two books; once there is a
+ * book on the shelf the mark from design/0018 says where the next one goes and this is gone.
+ * The menu line ("Take off Favourites" / "Add to Favourites") sits under "Automatic" and is
+ * sized by the same rule every button is.
+ */
+.vault-shelf .vs-dropzone {
+  flex: 1 1 auto;
+  height: var(--spine-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  border: 1px dashed var(--border-strong);
+  border-radius: 3px;
+  pointer-events: none;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+.vault-shelf .vs-shelfrail[data-drop="1"] .vs-dropzone {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--surface-1);
+}
+.vault-shelf .vs-dyepick { width: 100%; margin-top: 6px; justify-content: center; }
+
+/* design/0020 -- A BOOK MADE ON THE SHELF. The menu a right-click on empty rail space opens is
+ * the dye menu's box with one line in it, and the sheet that follows is the builder's sheet at
+ * a form's width: nothing here has geometry of its own, so a look repaints it and moves
+ * nothing (design/0016). A made spine is a spine. */
+.vault-shelf .vs-railline { width: 100%; justify-content: center; }
+.vault-shelf .vs-sheetbody.vs-narrow { max-width: 440px; }
+.vault-shelf .vs-sheetbody .vs-lede { margin: -6px 0 16px; }
+/* design/0020 -- THE PLUS IS A BOOK THAT IS NOT THERE YET: a spine's height, the thinnest
+ * spine's width, standing where the books end and moving with them. Quiet by design -- a
+ * dashed edge at a fifth of the ink -- and it only says what it is when the hand reaches it.
+ * Three classes deep so no look's `button` rule dresses it as a button (design/0016). */
+.vault-shelf .vs-track .vs-plusbook {
+  flex: 0 0 auto;
+  width: 22px;
+  height: var(--spine-h);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 300 18px/1 var(--ui, inherit);
+  color: var(--text-3);
+  background: transparent;
+  background-image: none;
+  border: 1px dashed var(--border-strong);
+  border-top: 0;
+  border-radius: 0 0 2px 2px;
+  box-shadow: none;
+  opacity: 0.32;
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.vault-shelf .vs-track .vs-plusbook:hover,
+.vault-shelf .vs-track .vs-plusbook:focus-visible {
+  opacity: 1;
+  color: var(--accent);
+  border-color: var(--accent);
+  outline: none;
+}
+.vault-shelf .vs-shelfrail[data-drop="1"] .vs-plusbook { opacity: 0; }
+
+/* github#0 -- DELETE LOOKS ORDINARY UNTIL IT IS ARMED, and then it looks like what it is. It
+ * lives in this block rather than beside the other Manage rules because the Manage sheet is
+ * being reworked on another branch; the geometry is the shared button's, so only the colour
+ * is said here. */
+/* github#0 -- THE GRIP IS INVISIBLE AND THE BOARD IS NOT. The floor is a background in
+ * page.css and a texture in each look, so the thing you grab is a transparent strip laid over
+ * it: one grip, three looks, and no look has to know. It is taller than the board so it can be
+ * hit, and it lights only while the pointer is on it. */
+.vault-shelf .vs-floorgrip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--spine-h);
+  height: calc(var(--board) + 8px);
+  margin-top: -4px;
+  cursor: grab;
+  z-index: 3;
+}
+.vault-shelf .vs-floorgrip:active { cursor: grabbing; }
+.vault-shelf .vs-floorgrip:hover {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 2px;
+}
+/* github#0 -- THE SHELF LEAVES THE ROOM WHILE IT IS BEING CARRIED, and a box of its own height
+ * stands wherever it would land. That is the indicator: not a line to read, but the space
+ * itself, with everything below it pushed down by exactly what is coming back. */
+.vault-shelf .vs-shelf[data-carrying="1"] { display: none; }
+
+.vault-shelf .vs-shelfghost {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 26px;
+  border: 2px dashed var(--accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  pointer-events: none;
+}
+.vault-shelf .vs-ghostname {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.vault-shelf .vs-ghostmeta { font-size: 11.5px; opacity: 0.8; }
+/* The shelf lands above or below the one it was dropped on, and the bar says which. */
+.vault-shelf .vs-shelf[data-shelfdrop] { position: relative; }
+.vault-shelf .vs-shelf[data-shelfdrop]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+  pointer-events: none;
+  z-index: 4;
+}
+/* github#0 -- and a shelf makes room the same way, one axis along: the shelf under the pointer
+ * steps down (or up) and the bar stands in the gap. Without it a shelf drag was a hairline
+ * somewhere in a tall room and no sense that anything had moved. */
+/* The ghost is the space and the answer; the shelf either side of it does not also need to
+ * open a margin, which would be the same gap twice. */
+.vault-shelf .vs-shelf { transition: margin 160ms ease; }
+
+.vault-shelf .vs-delete[data-armed="1"] {
+  color: #fff;
+  background: var(--g8);
+  border-color: var(--g8);
+  font-weight: 600;
+}
+
+/* design/0019 -- A BOOK ON ITS WAY OFF THE SHELF says so where the book is, not where the
+ * pointer is: the spine left behind on the rail goes to an outline while the drop would take
+ * it off, so the gesture reads as "this one is leaving" rather than "something is happening
+ * somewhere". Dashed, because the same dashes are what an empty landing is drawn with. */
+.vault-shelf .vs-spine[data-leaving="1"] {
+  opacity: 0.28;
+  border-style: dashed;
+  border-color: var(--border-strong);
+}
+/* ---- END: favourites ---- */
 
 /* ---- magic 1: shelf wear -------------------------------------------------
  * design/0008 -- a book you open often looks handled. Four steps, and every one of them is
@@ -476,7 +922,7 @@
  * well-read book is a handled book, not a more purple one. */
 .vault-shelf .vs-spine[data-wear="2"] {
   border-radius: 4px 4px 2px 2px;
-  transform: translateY(-1px);
+  transform: translateY(calc(-1 * var(--spine-lift-worn)));
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--text-1) 8%, transparent) 0 16%, transparent 40%),
     linear-gradient(0deg, color-mix(in srgb, var(--text-1) 5%, transparent) 0 9%, transparent 24%),
@@ -484,7 +930,7 @@
 }
 .vault-shelf .vs-spine[data-wear="3"] {
   border-radius: 5px 5px 2px 2px;
-  transform: translateY(-2px);
+  transform: translateY(calc(-1 * var(--spine-lift-worn-more)));
   border-color: var(--border-strong);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--text-1) 12%, transparent) 0 18%, transparent 44%),
@@ -492,7 +938,9 @@
     color-mix(in srgb, var(--spine-tint, var(--n1)) var(--tint), var(--surface-2));
 }
 .vault-shelf .vs-spine[data-wear="2"]:hover,
-.vault-shelf .vs-spine[data-wear="3"]:hover { transform: translateY(-5px); }
+.vault-shelf .vs-spine[data-wear="3"]:hover {
+  transform: translateY(calc(-1 * var(--spine-lift-worn-hover)));
+}
 
 /* ---- magic 2: ribbons that hang -----------------------------------------
  * design/0008 -- a bookmarked note leaves a ribbon out of the book, visible from the shelf
@@ -506,13 +954,18 @@
   width: 7px;
   height: 17px;
   margin-left: -3.5px;
-  background: var(--g8);
+  background: var(--ribbon);
   border-radius: 0 0 1px 1px;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 74%, 0 100%);
   pointer-events: none;
 }
 
-.vault-shelf .vs-spine .vs-ribbon[data-many="1"] { width: 11px; margin-left: -5.5px; }
+/* Two or three ribbons sit side by side, 9px apart, centred as a group. */
+.vault-shelf .vs-spine .vs-ribbon[data-of="2"][data-i="0"] { margin-left: -8px; }
+.vault-shelf .vs-spine .vs-ribbon[data-of="2"][data-i="1"] { margin-left: 1px; }
+.vault-shelf .vs-spine .vs-ribbon[data-of="3"][data-i="0"] { margin-left: -12.5px; }
+.vault-shelf .vs-spine .vs-ribbon[data-of="3"][data-i="1"] { margin-left: -3.5px; }
+.vault-shelf .vs-spine .vs-ribbon[data-of="3"][data-i="2"] { margin-left: 5.5px; }
 
 /* ---- magic 3: the shelf parts as you type -------------------------------
  * design/0008 -- a query does not empty the room. Matching books draw forward and gain air
@@ -527,7 +980,7 @@
 .vault-shelf[data-query="1"] .vs-spine[data-match="1"] {
   margin-left: 9px;
   margin-right: 9px;
-  transform: translateY(-7px);
+  transform: translateY(calc(-1 * var(--spine-lift-match)));
   border-color: var(--accent);
   box-shadow: 0 2px 0 0 var(--accent);
   color: var(--text-1);
@@ -549,8 +1002,10 @@
 /* ---- the reader ---------------------------------------------------------- */
 
 .vault-shelf .vs-reader {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  grid-area: 2 / 1;
+  min-height: 0;
+  min-width: 0;
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -566,56 +1021,221 @@
 
 .vault-shelf .vs-readerbar .vs-inner { gap: 8px; flex-wrap: wrap; }
 
-.vault-shelf .vs-readerbar .vs-spacer { flex: 1 1 auto; }
-.vault-shelf .vs-readertitle { color: var(--text-2); font-size: 12px; }
+/* github#38 -- one spacer rule, up with the rail that now uses it too. */
+.vault-shelf .vs-readertitle { color: var(--text-2); font-size: 12px; line-height: 20px; }
 
-.vault-shelf #vs-ribbon[aria-pressed="true"] {
-  color: #fff;
-  background: var(--g8);
-  border-color: var(--g8);
-}
 
 /* min-width: 0 ON BOTH, and it takes both. A flex item and a grid item each default to
  * `min-width: auto`, which means "never shrink below your content" -- so a single long
  * paragraph in the note pushed the spread wider than the view and grew a horizontal
  * scrollbar across the whole reader. Fixing only the page left the spread doing it. */
+/* design/0012 -- AN OPEN BOOK, NOT TWO PANES.
+ *
+ * The first spread was a split view with a divider: correct, and it read as an email client.
+ * Four things make it a book, and none of them is a texture or a page-turn -- the animation
+ * budget is still 5px of hover lift (design/0005):
+ *
+ *   the GUTTER   both inner edges darken toward the fold, so the two pages belong to one
+ *                object rather than sitting side by side;
+ *   the EDGES    a few hairlines down the outer edges: the stack of leaves you would see
+ *                looking at a book from the front;
+ *   the OBJECT   rounded outer corners and a shadow, so it lies ON the surface;
+ *   the SETTING  the book's title and its contents are set in the reading face, because a
+ *                book's index is printed in the same type as its text.
+ */
+/* github#0 -- "make the open book a bit smaller, the clicking outside of it is fragile". The
+ * spread filled the measure and nearly the height, so the desk you click to put the book down
+ * was a few pixels at the edges -- and putting a book down is the commonest thing anybody does
+ * in the reader. It is inset now: a hand's width of desk on each side and a real gutter under
+ * it, which costs the page 96px of width it was not using for text anyway (the note is capped
+ * at 66ch by design/0010). */
 .vault-shelf .vs-spread {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
   width: 100%;
-  max-width: var(--measure);
-  margin: 0 auto;
+  max-width: min(calc(var(--measure) - 96px), calc(100% - 96px));
+  margin: 0 auto 16px;
   display: grid;
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   position: relative;
-  border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  box-shadow: 0 2px 10px color-mix(in srgb, #000 22%, transparent);
+  overflow: hidden;
 }
 
-.vault-shelf .vs-page { overflow-y: auto; padding: 18px 22px 40px; min-height: 0; min-width: 0; }
-.vault-shelf .vs-page.vs-left { border-right: 1px solid var(--border); background: var(--surface-1); }
-.vault-shelf .vs-page.vs-right { padding-right: 56px; background: var(--surface-2); }
+/* the stack of leaves, on both outer edges */
+.vault-shelf .vs-spread::before,
+.vault-shelf .vs-spread::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  pointer-events: none;
+  z-index: 3;
+  background: repeating-linear-gradient(90deg,
+    color-mix(in srgb, var(--text-1) 9%, transparent) 0 1px,
+    transparent 1px 3px);
+}
+.vault-shelf .vs-spread::before { left: 0; }
+.vault-shelf .vs-spread::after { right: 0; }
 
-.vault-shelf .vs-page h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
+/* github#36, design/0025 -- the turn, under the book and as wide as it */
+.vault-shelf .vs-turn {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: min(calc(var(--measure) - 96px), calc(100% - 96px));
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
-.vault-shelf .vs-contents { list-style: none; margin: 12px 0 0; padding: 0; }
+/* github#36 -- the glyph is the key, so it is set like one */
+.vault-shelf .vs-turn button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.vault-shelf .vs-turnkey { font-size: 14px; line-height: 1; }
 
+/* github#36 -- where am I, which the contents only implied */
+.vault-shelf .vs-place {
+  flex: 1 1 auto;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.vault-shelf .vs-page {
+  overflow-y: auto;
+  padding: 20px 24px 40px;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+  /* github#40 -- the push stays in the book; the host never scrolls */
+  overscroll-behavior: contain;
+}
+
+/* github#40, design/0028 -- the leaf the band moves, and nothing else */
+.vault-shelf .vs-leaf {
+  --vs-band: 0px;
+  transform: translateY(var(--vs-band));
+}
+.vault-shelf .vs-page[data-push] .vs-leaf { transition: none; }
+.vault-shelf .vs-page[data-settling] .vs-leaf { transition: transform 180ms ease-out; }
+
+
+/* the gutter: both inner edges fall away toward the fold */
+.vault-shelf .vs-page::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 22px;
+  pointer-events: none;
+}
+
+.vault-shelf .vs-page.vs-left {
+  background: var(--surface-1);
+  padding-right: 30px;
+}
+.vault-shelf .vs-page.vs-left::after {
+  right: 0;
+  background: linear-gradient(90deg, transparent,
+    color-mix(in srgb, var(--text-1) 11%, transparent));
+}
+
+.vault-shelf .vs-page.vs-right {
+  background: var(--surface-2);
+  padding-left: 32px;
+  padding-right: 72px;
+}
+.vault-shelf .vs-page.vs-right::after {
+  left: 0;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--text-1) 11%, transparent), transparent);
+}
+
+/* github#14, design/0021 -- a fixed line box. */
+.vault-shelf .vs-page h2 {
+  font: 600 19px/32px var(--prose);
+  margin: 0 0 4px;
+  letter-spacing: 0.01em;
+}
+
+.vault-shelf .vs-contents { list-style: none; margin: 14px 0 0; padding: 0; }
+
+/* A table of contents, with leader dots -- the one piece of typography that says "book"
+ * without a texture anywhere near it. The rows have no rules between them: a printed index
+ * separates entries with space and a leader, not with a border per line. */
 .vault-shelf .vs-contents button {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;   /* app.css centres every button; a row of an index is not */
+  gap: 5px;
   width: 100%;
   text-align: left;
   background: none;
   border: 0;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  padding: 6px 4px;
+  border-radius: 2px;
+  padding: 3px 5px;
+  min-height: 0;
   color: var(--text-2);
+  font: 13.5px/1.45 var(--prose);
+  /* github#9 -- a row of an index is typography, not a plate. */
+  letter-spacing: 0;
+  box-shadow: none;
+  text-shadow: none;
 }
 
-.vault-shelf .vs-contents button:hover { color: var(--text-1); background: var(--surface-2); }
-.vault-shelf .vs-contents button[aria-current="true"] { color: var(--text-1); box-shadow: inset 2px 0 0 var(--accent); }
-.vault-shelf .vs-contents .vs-when { float: right; color: var(--text-3); font-size: 10.5px; }
+.vault-shelf .vs-contents button:hover { color: var(--text-1); background: color-mix(in srgb, var(--text-1) 5%, transparent); }
+/* github#13, design/0027 -- a row the library's query marked, in the shelf's own
+ * vocabulary: the accent, as a matching spine wears it. Colour only, so a marked row is
+ * the same box as an unmarked one and nothing in the index shifts under the query. It
+ * sits ABOVE aria-current on purpose -- the row you are reading keeps its own mark. */
+.vault-shelf .vs-contents button[data-match="1"] {
+  color: var(--text-1);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.vault-shelf .vs-contents button[data-match="1"] .vs-t { color: var(--accent); font-weight: 600; }
+.vault-shelf .vs-contents button[data-match="1"] .vs-when { color: var(--text-2); }
+
+/* github#13, design/0027 -- the needle where it sits, and the reason in words */
+.vault-shelf .vs-hit {
+  background: color-mix(in srgb, var(--accent) 34%, transparent);
+  color: var(--text-1);
+  border-radius: 2px;
+}
+.vault-shelf .vs-why { color: var(--accent); font-weight: 600; }
+
+/* github#11, design/0015 */
+.vault-shelf .vs-contents button[aria-current="true"] {
+  color: var(--text-1);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: inset 3px 0 var(--accent);
+}
+.vault-shelf .vs-contents .vs-t { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vault-shelf .vs-contents .vs-leader {
+  flex: 1 1 auto;
+  min-width: 12px;
+  align-self: baseline;
+  height: 4px;
+  position: relative;
+  top: -1px;
+  background-image: radial-gradient(circle at 1px 50%, var(--text-3) 1px, transparent 1.2px);
+  background-size: 5px 4px;
+  background-repeat: repeat-x;
+  opacity: 0.5;
+}
+.vault-shelf .vs-contents .vs-when { flex: 0 0 auto; color: var(--text-3); font-size: 10.5px; font-family: var(--ui); }
 
 /* ---- the note ------------------------------------------------------------
  * design/0010 -- inside Obsidian this is filled by MarkdownRenderer, so what lands here is
@@ -627,6 +1247,11 @@
   max-width: 66ch;
   color: var(--text-1);
   overflow-wrap: anywhere;
+  /* design/0010 -- A WIDE THING SCROLLS INSIDE THE PAGE. A table with a 1,700-character cell
+   * has to go somewhere: let it push, and the right-hand page widens and the spread with it;
+   * clamp it, and the cell becomes a sliver a paragraph tall. It scrolls sideways within the
+   * article instead, the way a code block already does, and the page keeps its width. */
+  overflow-x: auto;
 }
 
 .vault-shelf .vs-prose > * { max-width: 100%; }
@@ -643,6 +1268,43 @@
 .vault-shelf .vs-prose code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
 .vault-shelf .vs-prose ul, .vault-shelf .vs-prose ol { padding-left: 20px; }
 .vault-shelf .vs-prose img { max-width: 100%; height: auto; }
+
+/* A wikilink the library can follow, and one it cannot. */
+.vault-shelf .vs-prose .vs-link { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; cursor: pointer; }
+.vault-shelf .vs-prose .vs-link:hover { text-decoration-thickness: 2px; }
+.vault-shelf .vs-prose .vs-deadlink { color: var(--text-3); text-decoration: underline dotted; }
+
+/* A table, for the standalone -- inside Obsidian the host's own `markdown-rendered` rules
+ * dress it, and the container now carries that class (design/0010). Wide ones scroll rather
+ * than widening the page, the same rule every other block in here follows. */
+/* A TABLE STAYS A TABLE. `display: block` on it -- the first attempt at wide tables -- threw
+ * away the column layout Obsidian's own rules give it under `markdown-rendered`, which is
+ * what "tables render strangely" looked like from the reader. The article scrolls now, and
+ * the table is left alone to be a table; long cells wrap at their content rather than forcing
+ * the column open. */
+.vault-shelf .vs-prose table {
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.95em;
+  /* AS WIDE AS IT NEEDS, then the article scrolls. Squeezed to the article's 66ch a table
+   * gave every column a sliver and broke words down the middle -- "wher/e", "Harad/a" --
+   * which is the second way a table can render strangely. Cells wrap at 40ch, words do not
+   * break, and a six-column table of long cells is as wide as that makes it. */
+  width: max-content;
+  max-width: none;
+}
+.vault-shelf .vs-prose th, .vault-shelf .vs-prose td {
+  border: 1px solid var(--border);
+  padding: 5px 9px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: normal;
+  white-space: normal;
+  min-width: 8ch;
+  max-width: 40ch;
+}
+.vault-shelf .vs-prose th { background: var(--surface-2); font-weight: 600; }
+.vault-shelf .vs-prose td code, .vault-shelf .vs-prose th code { white-space: pre-wrap; }
 .vault-shelf .vs-prose blockquote {
   border-left: 2px solid var(--border-strong);
   margin: 12px 0;
@@ -660,9 +1322,10 @@
   text-align: left;
 }
 
+/* github#14, design/0021 -- a fixed line box: leather writes this name at 20px. */
 .vault-shelf .vs-notemeta strong {
   display: block;
-  font: 600 15px/1.35 var(--ui);
+  font: 600 15px/28px var(--ui);
   color: var(--text-1);
   margin-bottom: 3px;
 }
@@ -682,28 +1345,92 @@
   align-items: baseline;
 }
 
+/* github#16, design/0015 -- A BOOK WITH NOTHING TO INDEX DRAWS A CLOSED INDEX. The strip is
+ * always there and the tabs are cut from it; a lone find glass read as a tab that fell off. */
 .vault-shelf .vs-tabs {
+  container-type: size;
+  width: 56px;
   position: absolute;
-  top: 14px;
+  top: 16px;
   right: 0;
+  z-index: 4;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 0;
+  height: calc(100% - 32px);
+  padding-left: 5px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--vs-plate-edge) 55%, transparent) 0 1px,
+    color-mix(in srgb, var(--vs-plate) 40%, transparent) 1px);
+  overflow: hidden;
 }
 
+/* design/0015 -- THE LAYERS OF THE INDEX. A year tab is the widest and boldest, a month tab
+ * steps in, a day tab steps in again: read down the edge and the shape says which is which
+ * before the label does. */
+/* github#0 -- the glass tab is an index entry for the act of looking: same tab, same height,
+ * and a wider glyph than a year so the eye finds it at the head of the strip. */
+.vault-shelf .vs-tabs .vs-findtab {
+  /* THE SAME BOX AS A YEAR TAB. A control that is a different height from the one under it is
+   * the thing the look check exists to catch (design/0016); the glyph is bigger and the line
+   * is shorter by exactly as much -- 15 x 1.15 is 11.5 x 1.5 -- so the strip stays even. */
+  font-size: 15px;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-align: center;
+}
+.vault-shelf .vs-tabs .vs-findtab:hover,
+.vault-shelf .vs-tabs .vs-findtab:focus-visible {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.vault-shelf .vs-tabs button[data-level="0"] { font-weight: 600; }
+.vault-shelf .vs-tabs button[data-level="1"] { margin-left: 8px; min-width: 36px; }
+.vault-shelf .vs-tabs button[data-level="2"] { margin-left: 16px; min-width: 30px; font-size: 10px; opacity: 0.85; }
+
+/* Protruding tabs, cut from the page rather than stuck on it. */
 .vault-shelf .vs-tabs button {
-  border-radius: 3px 0 0 3px;
-  border-right: 0;
-  min-width: 44px;
+  flex-shrink: 0;
+  border-radius: 0 3px 3px 0;
+  border-left: 0;
+  min-width: 42px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+  /* github#9 */
+  box-shadow: 1px 1px 2px color-mix(in srgb, #000 14%, transparent);
 }
 
 .vault-shelf .vs-tabs button[aria-current="true"] {
   color: #fff;
   background: var(--accent);
   border-color: var(--accent);
+  text-shadow: none;
 }
+
+/* design/0030 */
+.vault-shelf .vs-indexchoice { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+.vault-shelf .vs-tabs { overflow: hidden; }
+.vault-shelf .vs-indexbuttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.vault-shelf .vs-indexbuttons button[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: -2px; font-weight: 600; }
+.vault-shelf .vs-tabs .vs-indextoggle { font-size: 10px; margin-bottom: 8px; border-style: dashed; }
+/* design/0032 */
+.vault-shelf .vs-tabs .vs-findtab,
+.vault-shelf .vs-tabs .vs-indextoggle { height: 28px; min-height: 28px; max-height: 28px; flex: 0 0 28px; }
+.vault-shelf .vs-tabs .vs-findtab { margin-bottom: 3px; }
+.vault-shelf .vs-tabs .vs-indextab {
+  --vs-tab-step: min(31px, calc((100cqh - 67px) / var(--vs-tab-count)));
+  --vs-tab-gap: min(3px, calc(var(--vs-tab-step) * 0.1));
+  flex: 0 0 max(0px, calc(var(--vs-tab-step) - var(--vs-tab-gap)));
+  height: max(0px, calc(var(--vs-tab-step) - var(--vs-tab-gap)));
+  min-height: 0; padding: 0 6px; margin-top: var(--vs-tab-gap); line-height: 1;
+  font-size: min(11.5px, max(0px, calc(var(--vs-tab-step) * 0.7))); overflow: hidden;
+}
+.vault-shelf .vs-tabs .vs-indextab[data-level="2"] { font-size: min(10px, max(0px, calc(var(--vs-tab-step) * 0.7))); }
+.vault-shelf .vs-appearance .vs-swatch { background: var(--swatch); }
+.vault-shelf .vs-appearance .vs-swatches { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.vault-shelf .vs-appearance .vs-swatch { width: 100%; }
 
 /* ---- the sheets ---------------------------------------------------------- */
 
@@ -719,6 +1446,17 @@
   background: color-mix(in srgb, var(--surface-0) 82%, transparent);
 }
 
+/* github#44, design/0022 -- while a colour is chosen, the room has to be legible */
+.vault-shelf .vs-sheet[data-picking="1"] {
+  background: color-mix(in srgb, var(--surface-0) 40%, transparent);
+}
+
+/* github#4 -- THE MANAGE SHEET IS WIDER THAN THE BUILDER, and only it. Twelve dyes and
+ * their twelve threads are a table, and a table wants columns: at 620px it stood six rows
+ * deep in two columns, at 860 it is three rows in four. The builder is a form, which reads
+ * worse wide, so the width is on this sheet rather than on .vs-sheetbody. */
+.vault-shelf #vs-manage .vs-sheetbody { max-width: 760px; }
+
 .vault-shelf .vs-sheetbody {
   width: 100%;
   max-width: 620px;
@@ -728,7 +1466,8 @@
   padding: 20px 22px 22px;
 }
 
-.vault-shelf .vs-sheetbody h2 { font-size: 15px; margin: 0 0 14px; }
+/* github#14, design/0021 -- a fixed line box: leather writes a sheet's heading at 26px. */
+.vault-shelf .vs-sheetbody h2 { font-size: 15px; line-height: 32px; margin: 0 0 14px; }
 
 .vault-shelf .vs-field {
   border: 0;
@@ -740,7 +1479,16 @@
 }
 
 .vault-shelf .vs-field.vs-row { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 14px; }
-.vault-shelf .vs-field.vs-row label { display: flex; align-items: center; gap: 6px; color: var(--text-2); }
+/* github#14, design/0016 -- a form label is a control, and page.css sizes a control: left to
+ * inherit it took leather's 17px base and wrapped the row. */
+.vault-shelf .vs-field.vs-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 22px;
+  color: var(--text-2);
+}
 .vault-shelf .vs-field.vs-row select { width: auto; }
 
 .vault-shelf .vs-field > label,
@@ -758,27 +1506,276 @@
   margin-top: 4px;
 }
 
+/* design/0016, github#14 -- the preview wraps inside its sheet, in every look. */
+.vault-shelf .vs-preview .vs-group { min-width: 0; }
+.vault-shelf .vs-preview .vs-books { height: auto; flex-wrap: wrap; row-gap: 12px; }
+
 .vault-shelf .vs-sheetactions { margin-top: 18px; }
+
+.vault-shelf .vs-coloroption { display: flex; align-items: center; gap: 8px; }
+.vault-shelf .vs-sheetsub { font-size: 12.5px; font-weight: 600; margin: 22px 0 4px; }
+
+/* github#4 -- THE TWELVE, AS TWELVE PAINTED SWATCHES. A bare colour input is whatever the host
+ * draws for one -- inside Obsidian a small unlabelled well -- so the row said nothing about
+ * which slot was which or whether it had been touched. A slot here is drawn the way the dye
+ * menu draws one (design/0005), numbered, and marked when it is no longer the look's own; the
+ * native picker still opens behind it, since it is the ROW that has to read, not the picker.
+ * The picker input itself is off-screen, not `display: none`: a hidden input can still be
+ * clicked open, one with no box cannot. */
+/* github#4 -- A DYE AND ITS RIBBON ARE ONE ROW. Two tables of six rather than one of
+ * twelve: the sheet is 620px wide, and a single column of twelve rows puts the buttons at
+ * the foot of it below the fold. They stack to one column when the sheet is narrow. */
+.vault-shelf .vs-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+  justify-items: start;
+  gap: 4px 20px;
+  margin: 8px 0 12px;
+}
+/* The table hugs its swatches and the GRID holds the slack. A table at 100% stretches its
+ * last cell, and the reset badge hangs off that cell's top-right corner -- which put a
+ * stray mark halfway across the sheet, nowhere near the swatch it belonged to. */
+.vault-shelf .vs-dyerows { border-collapse: collapse; table-layout: fixed; width: 92px; }
+/* 5px, not 2: the reset badge sits off the top-right corner of a swatch, and at 2px it
+ * reached into the row above. */
+.vault-shelf .vs-dyerows th,
+.vault-shelf .vs-dyerows td { padding: 5px 0; text-align: left; vertical-align: middle; }
+/* design/0016 -- A LOOK MAY NOT RESIZE A CONTROL, and a swatch in a table cell is the case
+ * where that is easy to lose: .vs-slot is inline-flex, so it sits on the cell's BASELINE and
+ * the row grows by whatever the face's descender is. Leather is Georgia and the table came
+ * out 309px against modern's 291. Block-level in the cell, and the line-heights pinned, so
+ * the row is the swatch and nothing else. */
+.vault-shelf .vs-dyerows td .vs-slot { display: flex; }
+.vault-shelf .vs-dyerows th { line-height: 1.4; }
+/* The slot number is the row label, so the swatch does not carry one. */
+.vault-shelf .vs-dyerows tbody th {
+  width: 24px;
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+/* Pinned, because table-layout: fixed shares the leftover width between the cells and a
+ * swatch is a FLEX ITEM: a cell 10px too narrow did not overflow, it quietly took 10px off
+ * the swatch -- 36px wide became 26 and the same-size check read it as a look-independent
+ * change nobody asked for. 24 + 44 + 24 = 92. */
+.vault-shelf .vs-dyerows td { width: 44px; padding-right: 8px; }
+.vault-shelf .vs-dyerows td:last-child { width: 24px; padding-right: 0; }
+.vault-shelf .vs-slot { position: relative; display: inline-flex; }
+.vault-shelf .vs-slot input[type="color"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  left: 0;
+  bottom: 0;
+  border: 0;
+  padding: 0;
+  pointer-events: none;
+}
+.vault-shelf .vs-colourrow { align-items: center; justify-content: space-between; }
+/* The reset is one button at the end of the row, not a bar across it: three classes deep to
+ * outrank the wide row rule that stretches every other sheet button. */
+.vault-shelf .vs-mini.vs-colourrow button { flex: 0 0 auto; }
+/* The mark on a changed slot IS its reset: one small Ã— in the corner says "not the look's
+ * own" and puts it back. A right-click was the other choice, and it is what a spine has;
+ * a swatch has a corner to put a badge in and a spine does not, and a badge is found by
+ * looking where a right-click has to be known about. Inside Obsidian a right-click on a
+ * control is also the app's own menu. */
+.vault-shelf .vs-slot .vs-slotreset {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  font-size: 12px;
+  line-height: 14px;
+  text-align: center;
+  border-radius: 50%;
+  color: var(--text-1);
+  background: var(--surface-1);
+  background-image: none;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 1px 3px color-mix(in srgb, #000 30%, transparent);
+  letter-spacing: 0;
+  text-shadow: none;
+  z-index: 1;
+}
+.vault-shelf .vs-slot .vs-slotreset:hover { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+/* The dye menu, where the right-click landed. */
+.vault-shelf .vs-dye {
+  position: absolute;
+  z-index: 40;
+  width: 196px;
+  padding: 8px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 30%, transparent);
+}
+
+/* design/0029 */
+.vault-shelf .vs-dye[data-bindings="1"] { width: min(370px, calc(100% - 16px)); max-height: calc(100% - 16px); overflow-y: auto; }
+.vault-shelf .vs-bindinglabel { font-size: 11px; line-height: 18px; margin: 10px 0 6px; color: var(--text-2); }
+.vault-shelf .vs-bindingchoices { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+.vault-shelf .vs-bindingchoices .vs-bindingchoice {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  height: 144px; padding: 6px 2px; gap: 16px; min-width: 0;
+  border: 1px solid var(--border); border-radius: 3px; background: var(--surface-2);
+}
+.vault-shelf .vs-bindingchoice[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vault-shelf .vs-bindingchoice:focus-visible { outline: 2px dashed var(--text-1); outline-offset: 1px; }
+.vault-shelf .vs-bindingchoice .vs-binding-sample {
+  --spine-h: 100px; --spine-w: 36px; --spine-trim: 0px;
+  pointer-events: none; width: 36px; height: calc(100px - var(--spine-trim)); flex: 0 0 auto;
+}
+.vault-shelf .vs-bindingchoice .vs-bindingname { font: 11px/16px var(--ui); white-space: nowrap; }
+.vault-shelf .vs-dyename {
+  font-size: 11px;
+  color: var(--text-3);
+  margin: 0 0 6px 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* github#29, design/0022 -- the count; it may wrap where the name may not */
+.vault-shelf .vs-dyeunit {
+  font-size: 10.5px;
+  color: var(--text-3);
+  opacity: 0.85;
+  margin: 0 0 6px 2px;
+}
+/* Under the name it closes the gap the name left; under a button it stands alone. */
+.vault-shelf .vs-dyename + .vs-dyeunit { margin-top: -4px; }
+.vault-shelf .vs-swatches { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+/* THREE CLASSES DEEP ON PURPOSE. Every look paints `button` with its own rule at
+ * `.vault-shelf[data-look] button` -- one class, one attribute, one element -- which beats a
+ * two-class selector, and under leather the twelve swatches came out as twelve leather
+ * buttons with no colour on them at all. `.vault-shelf .vs-dye .vs-swatch` outranks it. */
+.vault-shelf .vs-dye .vs-swatch,
+.vault-shelf .vs-slot .vs-swatch {
+  height: 24px;
+  min-height: 0;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 3px;
+  background: var(--swatch);
+  background-image: none;
+  box-shadow: none;
+  /* github#9 -- colour, not a plate (github#4). */
+  letter-spacing: 0;
+  text-shadow: none;
+}
+.vault-shelf .vs-dye .vs-swatch:hover, .vault-shelf .vs-dye .vs-swatch:focus-visible,
+.vault-shelf .vs-slot .vs-swatch:hover, .vault-shelf .vs-slot .vs-swatch:focus-visible { border-color: var(--text-1); background: var(--swatch); }
+.vault-shelf .vs-dye .vs-swatch[aria-pressed="true"] { border-color: var(--text-1); outline: 1px solid var(--surface-1); outline-offset: -3px; }
+/* github#4 -- a Manage swatch is a slot in a row of twelve, so it is wider than a menu's and
+ * carries its number; the same size in every look, because this sheet sizes it. */
+.vault-shelf .vs-slot .vs-swatch {
+  position: relative;
+  /* Never shrink to fit a container: a swatch is a measured control (design/0016). */
+  flex: 0 0 auto;
+  width: 36px;
+  height: 28px;
+  border-color: color-mix(in srgb, var(--swatch) 70%, var(--text-1));
+}
+.vault-shelf .vs-slot .vs-swatch[data-changed="1"] { border-color: var(--text-1); }
+/* github#4 -- THE RIBBON COLUMN SHOWS RIBBONS. Same notch the spine hangs (design/0008), so
+ * the table says which thread comes out of which board without a word of legend. */
+.vault-shelf .vs-slot .vs-swatch.vs-ribbonswatch {
+  width: 22px;
+  height: 30px;
+  border-width: 1px;
+  border-radius: 2px 2px 0 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+}
+
+/* A switch: the state of a thing, drawn as a knob in a track, and the label reads as a fact. */
+.vault-shelf .vs-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--text-2);
+  user-select: none;
+}
+.vault-shelf .vs-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.vault-shelf .vs-toggle .vs-knob {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--border-strong);
+  transition: background 120ms linear;
+  flex: 0 0 auto;
+}
+.vault-shelf .vs-toggle .vs-knob::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--surface-0);
+  transition: transform 120ms ease-out;
+}
+.vault-shelf .vs-toggle input:checked + .vs-knob { background: var(--accent); }
+.vault-shelf .vs-toggle input:checked + .vs-knob::after { transform: translateX(14px); background: #fff; }
+.vault-shelf .vs-toggle input:focus-visible + .vs-knob { outline: 2px solid var(--accent); outline-offset: 2px; }
+.vault-shelf .vs-toggle:hover { color: var(--text-1); }
+.vault-shelf .vs-dyeauto { width: 100%; margin-top: 6px; justify-content: center; }
+.vault-shelf .vs-dyeauto[aria-pressed="true"] { color: var(--text-1); font-weight: 600; }
 
 .vault-shelf .vs-managerow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--border);
   padding: 7px 2px;
 }
 
-.vault-shelf .vs-managerow .vs-name { flex: 1 1 auto; }
+/* github#38, design/0009 -- A ROW'S NAME IS A TARGET, NOT A PLATE. It is the button that
+ * took the jump strip's one job, and it has to read as the name it already was: no plate
+ * face, no engraving, the same box it had as a span. It takes the chip's old place in the
+ * list of things that must not wear a plate (design/0019, the furniture). */
+.vault-shelf .vs-managerow .vs-name {
+  flex: 1 1 auto;
+  font: inherit;
+  line-height: 22px;
+  letter-spacing: 0;
+  text-align: left;
+  color: var(--text-1);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-left: 0;
+  min-height: 0;
+  box-shadow: none;
+  text-shadow: none;
+}
+.vault-shelf .vs-managerow .vs-name:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
 .vault-shelf .vs-managerow .vs-meta { color: var(--text-3); font-size: 11px; }
+.vault-shelf .vs-managerow .vs-colourby { flex: 0 1 160px; width: 160px; min-width: 0; max-width: 100%; }
+.vault-shelf .vs-managerules { display: flex; flex: 1 0 100%; gap: 12px; align-items: center; flex-wrap: wrap; }
 
 /* ---- plain list mode, narrow screens, reduced motion -------------------- */
 
-.vault-shelf[data-list="1"] .vs-track { display: block; min-height: 0; border-bottom: 0; width: auto; }
+.vault-shelf[data-list="1"] .vs-track { display: block; min-height: 0; border-bottom: 0; width: auto; background-image: none; }
 .vault-shelf[data-list="1"] .vs-group { display: block; }
 .vault-shelf[data-list="1"] .vs-group .vs-books { display: block; }
-.vault-shelf[data-list="1"] .vs-shelfrail { overflow-x: visible; }
+.vault-shelf[data-list="1"] .vs-shelfrail { display: block; }
 
-.vault-shelf[data-list="1"] .vs-spine {
+.vault-shelf[data-list="1"] .vs-spine:not(.vs-binding-sample) {
   width: 100%;
   height: auto;
   display: flex;
@@ -790,29 +1787,355 @@
   border-top: 1px solid var(--border);
 }
 
-.vault-shelf[data-list="1"] .vs-spine .vs-title {
+.vault-shelf[data-list="1"] .vs-spine:not(.vs-binding-sample) .vs-title {
   writing-mode: horizontal-tb;
   transform: none;
+  /* github#14 -- a list row runs across, so the title sits on its baseline, not down the row. */
+  align-self: auto;
   max-height: none;
 }
 
-.vault-shelf[data-list="1"] .vs-spine .vs-n { position: static; text-align: left; margin-left: auto; }
-.vault-shelf[data-list="1"] .vs-spine .vs-ribbon { position: static; width: 7px; height: 12px; margin: 0 0 0 8px; }
+/* github#12 -- the probe a cover is measured on before it is allowed to stand upright. */
+.vault-shelf .vs-probe {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.vault-shelf .vs-probe .vs-spine { --spine-h: 100px; }
 
+/* github#47, design/0021 -- THE PROBE IS MEASURED IN ONE FACE, AND IT IS NOBODY'S LOOK.
+ * Uprightness is an orientation, so it is geometry, and geometry is this file's. The probe
+ * hangs inside the element carrying `data-look`, so until now it inherited whichever face the
+ * page happened to be painted in and the same cover at the same width answered differently
+ * per look -- a `vertical-rl` title in one and a `horizontal-tb` one in the next.
+ * The stack is written out rather than taken from `var(--ui)` on purpose: `--ui` is a look's
+ * to redefine (leather does), and this face is pinned, so it moves only when someone decides
+ * it should. Specificity is 0-5-0 because a look's own title rule is 0-4-0 and its sheet is
+ * concatenated after this one. The glyphs a look draws may still be wider; the check says by
+ * how much. */
+.vault-shelf .vs-probe .vs-spine[data-upright="1"] .vs-title {
+  font: 600 13px/20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  letter-spacing: 0.04em;
+  word-spacing: normal;
+  text-transform: none;
+  font-feature-settings: normal;
+  font-variation-settings: normal;
+}
+
+/* A label of a letter or three stands upright: an Encyclopedia's A is read as A, not tilted. */
+.vault-shelf .vs-spine[data-upright="1"] .vs-title {
+  writing-mode: horizontal-tb;
+  transform: none;
+  max-height: none;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* design/0005 -- THE PEEK, sized to be read. A long tag name or a person's full name wraps
+ * here instead of being clipped, and the numbers a spine is too narrow to spell out are in
+ * words. Positioned by the page, above the spine it describes. */
+.vault-shelf .vs-peek {
+  position: absolute;
+  z-index: 45;
+  max-width: 340px;
+  min-width: 180px;
+  padding: 9px 12px 10px;
+  background: var(--surface-1);
+  color: var(--text-1);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 30%, transparent);
+  font-size: 13px;
+  line-height: 1.4;
+  pointer-events: none;
+  overflow-wrap: anywhere;
+}
+.vault-shelf .vs-peekname { font-weight: 600; font-size: 14px; }
+.vault-shelf .vs-peekmeta { color: var(--text-2); margin-top: 2px; }
+.vault-shelf .vs-peeknotes { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 12px; }
+.vault-shelf .vs-peeknotes div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- what the vault spells ------------------------------------------------
+ * github#41, design/0026 -- page.css owns this geometry, in pixels, so a look can repaint the
+ * list and move nothing: every row is the same height in all three, the way every other
+ * control is (design/0016, design/0021). Placed absolute inside `#vs-app` like `.vs-dye` and
+ * `.vs-peek`; the width is written by placeSuggest() from the box it hangs under.
+ */
+.vault-shelf .vs-suggest {
+  position: absolute;
+  z-index: 46;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 30%, transparent);
+}
+
+.vault-shelf .vs-sugrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  padding: 3px 7px;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+/* github#41 -- a LIT row, not a recessed one: --surface-0 is darker than the list in
+ * leather, so the active row read as disabled rather than as selected. */
+.vault-shelf .vs-sugrow[aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.vault-shelf .vs-sugtext {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* github#41 -- THE KIND IS NOT DECORATION: a word can be a tag and a folder at once. */
+.vault-shelf .vs-sugkind {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 20px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.vault-shelf .vs-sugcount {
+  flex: 0 0 auto;
+  min-width: 28px;
+  font-size: 11px;
+  line-height: 20px;
+  text-align: right;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* github#41 -- the typo case, and it is the case the feature exists for. */
+.vault-shelf .vs-sugempty {
+  min-height: 26px;
+  padding: 3px 7px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text-3);
+}
+
+/* github#14 -- a list row is padded once, above: leather's own 8/12 is gone. */
+.vault-shelf[data-list="1"] .vs-spine:not(.vs-binding-sample) .vs-n { position: static; text-align: left; margin-left: auto; }
+.vault-shelf[data-list="1"] .vs-spine:not(.vs-binding-sample) .vs-ribbon { position: static; width: 7px; height: 12px; margin: 0 0 0 8px; }
+
+/* design/0018 -- a list runs down, so the gap the book lands in is above or below it. */
+.vault-shelf[data-list="1"] .vs-drop {
+  top: auto;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 3px;
+}
+.vault-shelf[data-list="1"] .vs-drop[data-side="before"] { top: -2px; }
+.vault-shelf[data-list="1"] .vs-drop[data-side="after"] { bottom: -2px; }
+
+/* github#14, design/0021 -- ONE NARROW LAYOUT: leather.css carried a second one of its own,
+ * so below 860px the two looks were not the same product. */
 @media (max-width: 860px) {
   .vault-shelf #vs-rail { flex-wrap: wrap; }
-  .vault-shelf #vs-q { width: 100%; order: 3; }
+  .vault-shelf #vs-rail .vs-inner { flex-wrap: wrap; gap: 8px; }
+  /* github#38 -- the gap is what the rail can afford to lose down here, so the search box
+   * takes the room the spacer was holding rather than the rail taking a second row.
+   * github#38 -- #vs-rail only: the reader bar has a .vs-inner and a spacer of its own. */
+  .vault-shelf #vs-rail .vs-spacer { display: none; }
+  .vault-shelf #vs-q { order: 2; flex: 1 1 140px; width: auto; min-width: 100px; }
+  .vault-shelf #vs-manageopen { order: 3; }
+  .vault-shelf #vs-hits:empty { display: none; }
+  /* A hover control nobody can hover is a control nobody has. */
+  .vault-shelf .vs-shelfhead { flex-wrap: wrap; gap: 6px 10px; min-height: 39px; }
+  .vault-shelf .vs-spread { margin: 0 auto 20px; }
+  .vault-shelf .vs-page { padding: 20px; }
+  .vault-shelf .vs-page::after { display: none; }
   .vault-shelf .vs-spread { grid-template-columns: minmax(0, 1fr); }
   .vault-shelf .vs-page.vs-left { border-right: 0; border-bottom: 1px solid var(--border); }
   .vault-shelf .vs-page.vs-right { padding-right: 22px; }
-  .vault-shelf .vs-tabs { flex-direction: row; position: static; padding: 0 18px 12px; flex-wrap: wrap; }
-  .vault-shelf .vs-tabs button { border-radius: 3px; border-right: 1px solid var(--border); }
+  /* github#16 -- the strip is an EDGE, and a row has none: the index lies flat down here. */
+  .vault-shelf .vs-tabs { container-type: normal; gap: 3px; width: 100%; flex-direction: row; position: static; padding: 0 18px 12px; flex-wrap: wrap;
+                          height: auto; background: none; }
+  /* github#14 -- the same side as upright, so a tab is one box. */
+  .vault-shelf .vs-tabs button { border-radius: 3px 3px 0 0; border-left: 0; }
+  .vault-shelf .vs-tabs .vs-indextab { flex: 0 0 auto; height: 28px; margin-top: 0; font-size: 11.5px; }
+  .vault-shelf .vs-tabs .vs-indextab[data-level="2"] { font-size: 10px; }
   .vault-shelf button { min-height: 34px; }
 }
 
+/* github#14, design/0021 -- fixed rows on a phone: a wider face cannot wrap Delete alone. */
+@media (max-width: 520px) {
+  .vault-shelf .vs-managerow { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .vault-shelf .vs-managerow .vs-name { grid-column: 1 / -1; }
+  .vault-shelf .vs-managerow .vs-meta { grid-column: span 2; }
+  .vault-shelf .vs-managerow > .vs-toggle { grid-column: span 2; }
+  .vault-shelf .vs-managerow .vs-edit,
+  .vault-shelf .vs-managerow .vs-delete { grid-column: span 3; }
+  .vault-shelf .vs-managerules { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr); }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .vault-shelf .vs-shelf { transition: none; }
   .vault-shelf .vs-spine { transition: none; }
   .vault-shelf .vs-spine:hover, .vault-shelf .vs-spine:focus-visible { transform: none; }
   .vault-shelf[data-query="1"] .vs-spine[data-match="1"] { transform: none; }
-  .vault-shelf .vs-shelfhead .vs-mini { transition: none; }
+  /* github#40 -- no spring; the offset stays, or nothing shows the push at all */
+  .vault-shelf .vs-page[data-settling] .vs-leaf { transition: none; }
+}
+
+/* design/0008 -- THE RIBBONS AN OPEN BOOK HOLDS, hanging out of the top of it.
+ *
+ * Not buttons in a strip: a ribbon is a length of fabric that goes over the top edge and down
+ * between the pages, so what you see above the book is the folded end of one -- a tapered
+ * tail, a fold-line where it turns over the edge, and the note's name on it.
+ *
+ * THE ROW IS ALWAYS THE SAME HEIGHT, empty or not. Hiding it when a book holds no ribbons
+ * moved the whole spread up and down as you marked and unmarked; a page that jumps under your
+ * hands is worse than a strip of nothing. */
+.vault-shelf .vs-marks {
+  display: flex;
+  align-items: flex-start;
+  /* OVER THE RIGHT-HAND PAGE, which is the one the note is on. A ribbon marks a note, and the
+   * left page is the contents -- a ribbon over that would be pointing at the index. */
+  justify-content: flex-end;
+  gap: 7px;
+  width: 100%;
+  max-width: min(calc(var(--measure) - 96px), calc(100% - 96px));
+  margin: 0 auto;
+  padding: 0 30px;
+  /* THE ROW OWNS THE SPACE ABOVE THE BOOK, in every look, so that a ribbon comes out of the
+   * top edge of the cover rather than floating some distance above it. Each look used to put
+   * its own margin there -- 10px, 28px, 22px -- which is exactly the gap a ribbon would have
+   * had to span. They keep the space below the book; this row is the space above it.
+   *
+   * NOT SHRINKABLE. The reader is a flex column, so a `height` here is a suggestion: a book
+   * with a long contents list overflows the column and the browser takes the missing pixels
+   * out of whatever will give -- which was this row, 30px on a short book and 26px on a long
+   * one. The space above the book has to be the same on every book or it is not reserved. */
+  flex: 0 0 40px;
+  height: 40px;
+  padding-top: 10px;
+  box-sizing: border-box;
+  min-width: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.vault-shelf .vs-mark {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  min-width: 0;
+  max-width: 210px;
+  height: 30px;
+  padding: 3px 11px 9px;
+  border: 0;
+  border-radius: 0;
+  background: var(--ribbon);
+  color: var(--ribbon-ink);
+  font-size: 11px;
+  line-height: 1;
+  /* github#9 -- silk, not a plate (design/0008). */
+  letter-spacing: 0;
+  box-shadow: none;
+  text-shadow: none;
+  /* The tail: a notch cut out of the bottom, the way a ribbon end is cut so it does not fray. */
+  /* THE CUT END POINTS UP. A ribbon comes over the top edge of the cover and down between the
+   * pages, so the part you can see is its loose end -- and the notch a ribbon is cut with to
+   * stop it fraying is at that end, not at the fold. */
+  clip-path: polygon(0 6px, 50% 0, 100% 6px, 100% 100%, 0 100%);
+  opacity: 0.92;
+  transition: opacity 90ms linear, transform 90ms linear;
+}
+
+.vault-shelf .vs-mark:hover,
+.vault-shelf .vs-mark:focus-visible { opacity: 1; transform: translateY(2px); }
+.vault-shelf .vs-mark[aria-current="true"] { opacity: 1; font-weight: 600; }
+
+/* The fold, where the ribbon turns over the top edge of the cover and darkens. */
+.vault-shelf .vs-markribbon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 9px;
+  background: color-mix(in srgb, #000 26%, transparent);
+  pointer-events: none;
+}
+
+.vault-shelf .vs-mark { position: relative; }
+
+.vault-shelf .vs-markname {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-shelf .vs-markmore {
+  align-self: flex-start;
+  color: var(--text-3);
+  font-size: 10.5px;
+  padding-top: 7px;
+}
+
+/* THE EDGE OF A RIBBON YOU HAVE NOT PUSHED IN YET. Narrow, quiet, and in the same row, so
+ * leaving one is a thing you do to the page rather than a button you go and find. */
+.vault-shelf .vs-markstub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  height: 30px;
+  margin-left: 2px;
+  padding: 3px 11px 9px;
+  color: var(--ribbon-ink);
+  font-size: 11px;
+  line-height: 1;
+  border: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--ribbon) 62%, var(--surface-2));
+  clip-path: polygon(0 6px, 50% 0, 100% 6px, 100% 100%, 0 100%);
+  opacity: 0.5;
+  letter-spacing: 0;
+  box-shadow: none;
+  text-shadow: none;
+  transition: opacity 90ms linear, height 90ms linear;
+}
+
+.vault-shelf .vs-markstub:hover,
+.vault-shelf .vs-markstub:focus-visible { opacity: 1; transform: translateY(2px); }
+
+.vault-shelf .vs-markplus { font-size: 13px; line-height: 1; opacity: 0.85; }
+.vault-shelf .vs-markstub[aria-pressed="true"] {
+  background: var(--ribbon);
+  opacity: 0.95;
+}
+
+/* design/0031 */
+@media (max-width: 860px) {
+  .vault-shelf #vs-rail .vs-inner { grid-template-columns: minmax(0, 1fr) auto; }
+  .vault-shelf #vs-vname { grid-column: 1 / -1; grid-row: 1; }
+  .vault-shelf .vs-railsearch { grid-column: 1; grid-row: 2; flex-wrap: wrap; gap: 2px; }
+  .vault-shelf .vs-railactions { grid-column: 2; grid-row: 2; }
+}
+@media (max-width: 480px) {
+  .vault-shelf .vs-bindingchoices { gap: 3px; }
+  .vault-shelf .vs-bindingchoice .vs-binding-sample { width: 30px; --spine-w: 30px; }
+  .vault-shelf .vs-bindingchoice .vs-bindingname { font-size: 10px; }
 }

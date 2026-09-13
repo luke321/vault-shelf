@@ -29,13 +29,14 @@ show a problem without showing your notes, generate a fixture — the same shape
 content:
 
 ```bash
-node scripts/make-demo-vault.mjs --out ./demo-vault
-node src/build-shelf.mjs --vault ./demo-vault --out ./demo.html
+node scripts/make-vault.mjs --out ./vault
+node src/build-shelf.mjs --vault ./vault --out ./demo.html
 ```
 
-Attach that, or a screenshot of it. Three generators cover the ground: `make-demo-vault.mjs`
-(every classifier populated), `make-sparse-vault.mjs` (undated, lopsided, multiscript) and
-`make-library-vault.mjs` (10,000 notes over ten years). None of them needs a vault of yours.
+Attach that, or a screenshot of it. One generator covers the ground: `make-vault.mjs` writes
+5,000 notes over eleven years with every classifier populated, a dense recent year, undated
+notes, impossible dates, four scripts in the titles and one year nobody wrote. `--notes` cuts
+a smaller one of the same shape. It does not need a vault of yours.
 
 ## If you do want to work on it
 
@@ -49,12 +50,13 @@ Six commands, and all six are gates rather than suggestions:
 
 ```bash
 npm run lint                                  # tsc --noEmit on src/core under strict, then typescript-eslint on our own code; every finding held at zero
-node scripts/smoke.mjs                        # the invariant suite, over three vault shapes
+node scripts/smoke.mjs                        # the invariant suite, over the generated vault
 node scripts/check-scope.mjs                  # the page cannot style, or be styled by, its host -- and nothing shipped carries an invisible character
 node scripts/check-network.mjs                # nothing shipped can make a network request
 node scripts/check-comments.mjs               # comments are pointers; the count of prose lines only goes down
 node scripts/check-generator-determinism.mjs  # a fixture is the same vault on any day
 node scripts/check-build-order-determinism.mjs # note order never depends on the filesystem
+node scripts/update-note-selftest.mjs         # the update strip decides the way design/0023 says it does
 ```
 
 One more needs Obsidian itself, for the things the exporter cannot stand in for — the metadata
@@ -62,9 +64,8 @@ cache, the view lifecycle, the ribbon icon, the settings tab:
 
 ```bash
 node scripts/build-plugin.mjs
-node scripts/obsidian-smoke.mjs                    # the demo fixture; --fixture sparse | 10k
-node scripts/obsidian-smoke.mjs --only "settings"  # one check by substring, like smoke.mjs
-node scripts/obsidian-smoke.mjs --shot out.png     # and a picture of it
+node scripts/smoke.mjs --only "settings"           # one check by substring
+node scripts/smoke.mjs --only "the room" --shot out.png   # and a picture of it
 ```
 
 It copies a store fixture into a throwaway vault under `%TEMP%`, installs the three built
@@ -103,6 +104,18 @@ a static read costing seconds at most, and what most of it prevents is damage to
 else's software, or to somebody else. The lint gate fails closed on a clone that has not run
 `npm ci` — run it, then push.
 
+**The suite runs once per distinct tree, not once per push.** A green full run stamps the git
+tree it measured, and the hook skips the suite for a tree that already carries a stamp, naming
+it (`decisions/0010`). Measured on the reference machine: the static gates are 7.5 s and a full
+suite run is 39 s, so a stamped push is the first number and an unstamped one is both. A
+partial run and a dirty tree never stamp. Prefer this to `SKIP_SMOKE=1`, which leaves no record
+of what was trusted:
+
+```bash
+node scripts/suite-stamp.mjs check      # what will this push do?
+node scripts/suite-stamp.mjs list       # every tree this machine has passed
+```
+
 ## Branches, and how work reaches main
 
 **`develop` is where work lands. `main` only ever receives `develop`.**
@@ -119,6 +132,7 @@ and neither mechanism can see the other -- three, once the ruleset is armed:
 | | |
 |---|---|
 | `.github/workflows/branch-policy.yml` | a pull request into `main` fails unless its head is `develop` in this repository — GitHub has no branch-protection setting for "the PR must come from X", so it is a check the ruleset requires |
+| `scripts/release.ps1` | the tag is refused unless HEAD is on `main`, is exactly `origin/main`, and is on `origin/main`'s **first-parent line** — and the script pushes the tag alone, never the branch, because `main` only ever receives `develop` through a pull request merged on the website |
 | `.githooks/pre-push` | a `git push` to `main` is refused unless `develop` is already an ancestor of it — a merge of `develop` passes, a commit made straight on `main` does not |
 | `.github/workflows/release.yml` | a release tag whose commit is not in `origin/main`'s history is refused before anything is built, signed or published — the same rule again, at the one moment it still matters, since a published tag cannot be moved |
 
@@ -160,15 +174,31 @@ Give the Undated book its notes back
 Closes #7
 ```
 
-GitHub resolves closing keywords when the commit reaches the **default branch**, which is
-`main`. So an issue fixed on a branch stays open through `develop` and closes by itself when
-the release merge lands — which is exactly when it is true to say it is fixed. A bare `#7`
-links without closing, and is right for a commit that only touches an issue in passing.
+The issue closes when that commit reaches **`develop`**. GitHub itself resolves a closing
+keyword only on the default branch, `main`, and has no per-branch switch; that left an issue
+open for days after its fix had landed and been gated by the full suite. So
+`.github/workflows/close-issues.yml` runs on every push to `develop`, scans the pushed commits
+for the keyword forms GitHub recognises (`close`, `fix`, `resolve` and their `-s`/`-d`
+spellings, any case, followed by `#n`, `owner/repo#n` or the issue's URL — anywhere in the
+message except inside a backtick code span, so a commit *about* the convention closes nothing),
+and closes each issue it names with a comment giving the commit and saying the fix is not yet
+released. The release merge into `main` then meets GitHub's own resolution on an issue already
+closed. **A closed issue therefore means landed on `develop`**; whether it has shipped is what
+`CHANGELOG.md` is for. A bare `#7` links without closing, and is right for a commit that only
+touches an issue in passing.
+
+If a merge into `develop` needs to close issues its commits did not name, put the keywords in
+the merge commit message; the workflow reads that commit too. The scanning is
+`scripts/close-issues.mjs`, which can be rehearsed on any range without writing anything:
+
+```bash
+node scripts/close-issues.mjs --range <before>..<after> --dry-run
+```
 
 For a visual change, take before-and-after screenshots of the same vault and compare them:
 
 ```bash
-node scripts/obsidian-smoke.mjs --shot before.png --only "view opens"
+node scripts/smoke.mjs --shot before.png --only "the room has a width"
 ```
 
 ## Code of conduct

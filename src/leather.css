@@ -1,0 +1,557 @@
+/* design/0016 -- leather bindings, walnut shelves and an ivory reading spread.
+ * This look is opt-in. All materials are local CSS; book geometry stays in page.css.
+ */
+.vault-shelf[data-look="leather"][data-look] {
+  color-scheme: dark;
+  --prose: Georgia, "Palatino Linotype", Palatino, serif;
+  --ui: var(--prose);
+  /* design/0016 -- THE TYPE GROWS, THE FURNITURE DOES NOT. This look used to be `zoom: 1.2`,
+   * which is 20% of everything: the type, but also `--spine-w`, `--spine-h` and `--measure`,
+   * so a shelf held fewer books per row than the same shelf in any other look and every book
+   * jumped when you switched. The readability that zoom bought is bought here instead by the
+   * base font size alone -- 17px is the same 20% -- because a spine's size is a measurement of
+   * the book (design/0011) and a look may not have an opinion about it. */
+  font-size: 17px;
+  /* A bookmark ribbon in a bound book is silk, and it is the one bright thing in it. */
+  --ribbon: #b0122b;
+  --ribbon-ink: #f6e6c4;
+  width: 100%;
+  --surface-0: #222321;
+  --surface-1: #292a26;
+  --surface-2: #32332d;
+  --border: #47483e;
+  --border-strong: #686557;
+  --text-1: #eee8d9;
+  --text-2: #ccc5b5;
+  --text-3: #aaa393;
+  --edge: #3a3b33;
+  --edge-hi: #d0b681;
+  --dim: #292a26;
+  --accent: #d0b681;
+  --tint: 100%;
+
+  --g1: #663239;
+  --g2: #805839;
+  --g3: #354d40;
+  --g4: #75613a;
+  --g5: #364736;
+  --g6: #613d4c;
+  --g7: #35465b;
+  --g8: #86473d;
+  --g9: #355456;
+  --g10: #50415b;
+  --g11: #685044;
+  --g12: #45413b;
+  --n1: #685044;
+  --n2: #75613a;
+  --n3: #45413b;
+
+  --vs-gilt: #e4cf9d;
+  --vs-gilt-dim: #ba9e6d;
+  --vs-gilt-hi: #fff0c9;
+  --vs-control: #30312b;
+  /* github#9, design/0019 -- THE PLATE IS BRASS, drawn by page.css */
+  --vs-plate: #514936;
+  --vs-plate-lo: #3c382c;
+  --vs-plate-edge: #766548;
+  --vs-plate-ink: #e2d0a7;
+  --vs-plate-shadow: inset 0 1px #ffffff0a, 0 2px 3px #00000020;
+  --vs-plate-ink-shadow: 0 1px #00000050;
+  --vs-plate-lit: #625841;
+  --vs-plate-lit-lo: #48432f;
+  --vs-plate-lit-edge: #957f56;
+  --vs-plate-lit-ink: #f6e8c4;
+  --vs-plate-lit-shadow: inset 0 1px #ffffff14, 0 2px 4px #00000030;
+  /* github#2 -- the field a box or a dropdown is filled with in the room, and the arrow on
+   * it; the paper sheet and the reading page declare their own below. */
+  --vs-field: #20211e;
+  --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%23ccc5b5' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  --vs-grain: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.14'/%3E%3C/svg%3E");
+  --vs-woodgrain: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='40'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='40' filter='url(%23w)' opacity='0.18'/%3E%3C/svg%3E");
+}
+
+/* ---- the room --------------------------------------------------------- */
+.vault-shelf[data-look="leather"] {
+  background: radial-gradient(ellipse at 45% 0, #37372e, #222321 75%);
+  scrollbar-color: #777363 #242521;
+  scrollbar-width: thin;
+}
+
+.vault-shelf[data-look="leather"] #vs-library {
+  background: linear-gradient(90deg, #0000000d, transparent 15% 85%, #0000000d);
+}
+
+/* design/0016 -- A LOOK PAINTS A CONTROL AND DOES NOT SIZE IT. The rail, the reader bar, every
+ * button, box, tab and row take their height, padding and type size from page.css, in every
+ * look; this sheet sets colour, border, shadow and face. The rework gave the bars 12px of
+ * padding, the buttons a 12.5px face and the boxes a 32px floor, and the same control was a
+ * different size in each look -- which is what "some seem off" was. Measured by the "same
+ * size" check. */
+.vault-shelf[data-look="leather"] #vs-rail,
+.vault-shelf[data-look="leather"] .vs-readerbar {
+  background: #242520;
+  border-bottom: 1px solid #55503e;
+  box-shadow: 0 4px 18px #00000018;
+}
+
+/* github#14 -- the FACE only; the line box, the cap and the ellipsis are page.css's. */
+.vault-shelf[data-look="leather"] .vs-railname {
+  color: var(--text-1);
+  font-family: var(--prose);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* github#9 */
+.vault-shelf[data-look="leather"] button { border-radius: 4px; }
+
+.vault-shelf[data-look="leather"] button.vs-primary {
+  color: #25251e;
+  background: var(--vs-gilt);
+  border-color: var(--vs-gilt-dim);
+}
+
+/* github#38 -- a Manage row's name where the jump chip used to be: not a plate here either. */
+.vault-shelf[data-look="leather"] .vs-managerow .vs-name {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* github#2 -- background-color, never the shorthand: the dropdown's chevron is a background
+ * image page.css paints from --vs-chevron, and `background:` would wipe it. */
+.vault-shelf[data-look="leather"] input[type="search"],
+.vault-shelf[data-look="leather"] input[type="text"],
+.vault-shelf[data-look="leather"] select,
+.vault-shelf[data-look="leather"] #vs-q {
+  color: var(--text-1);
+  background-color: var(--vs-field);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 2px #00000012;
+}
+
+.vault-shelf[data-look="leather"] input::placeholder { color: var(--text-3); opacity: 1; }
+.vault-shelf[data-look="leather"] #vs-q:focus { border-color: var(--accent); }
+.vault-shelf[data-look="leather"] :focus-visible { outline-color: var(--accent); }
+
+/* github#14 -- a border WIDTH is a box, so the dashes go transparent, not to zero. */
+.vault-shelf[data-look="leather"] .vs-newshelf {
+  background: transparent;
+  border-style: solid;
+  border-color: transparent;
+  border-bottom-color: var(--border);
+  border-radius: 0;
+  color: var(--text-2);
+}
+
+.vault-shelf[data-look="leather"] .vs-newshelf:hover {
+  background: transparent;
+  color: var(--vs-gilt-hi);
+  border-bottom-color: var(--vs-gilt-dim);
+}
+
+.vault-shelf[data-look="leather"] .vs-newshelf .vs-plus { color: var(--vs-gilt); }
+/* github#14 -- the comment here claimed line-height: 1 held a 22px serif in the same head.
+ * Measured, it did not: 32.3px modern against 33.3 leather. page.css holds the box. */
+.vault-shelf[data-look="leather"] .vs-shelfhead h2 {
+  color: var(--text-1);
+  font-family: var(--prose);
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.vault-shelf[data-look="leather"] .vs-shelfhead .vs-meta { color: var(--text-3); font-size: 12px; }
+
+/* ---- walnut boards and engraved labels -------------------------------- */
+/* github#14 -- the plank's depth is page.css's; the walnut on it is this look's. */
+.vault-shelf[data-look="leather"] .vs-track {
+  background-image:
+    repeating-linear-gradient(178deg, transparent 0 4px, #20150920 4px 4.7px, #f3d1a110 4.7px 5.3px, transparent 5.3px 9px),
+    radial-gradient(ellipse 80px 3px at 31% 55%, transparent 40%, #24170824 48%, transparent 57%, #edc48b13 65%, transparent 75%),
+    linear-gradient(180deg, #c3a275 0 1px, #ffffff12 1px 2px, transparent 2px 7px, #00000066),
+    var(--vs-woodgrain),
+    linear-gradient(180deg, #73583d, #62482f 60%, #3b2d22),
+    linear-gradient(180deg, #00000040, transparent);
+  background-size: 100% var(--board), 460px var(--board), 100% var(--board), 300px var(--board), 100% var(--board), 100% 12px;
+  background-position: 0 var(--spine-h), 0 var(--spine-h), 0 var(--spine-h), 0 var(--spine-h), 0 var(--spine-h), 0 calc(var(--spine-h) + var(--board));
+  background-repeat: no-repeat, repeat-x, no-repeat, repeat-x, no-repeat, no-repeat;
+  background-blend-mode: normal, normal, normal, overlay, normal, normal;
+}
+
+/* github#9, github#14 -- the brass is the tokens; THE LETTERING IS NOT THE LOOK'S, because a
+ * plate stretches its run and a face on it made the whole group a different width. */
+.vault-shelf[data-look="leather"] .vs-plaque {
+  border-radius: 2px;
+}
+
+/* ---- the binding: tooling stays outside the title panel ---------------- */
+.vault-shelf[data-look="leather"] .vs-spine {
+  --vs-wear: 0;
+  background:
+    linear-gradient(180deg, rgb(238 207 159 / var(--vs-wear)), transparent 30% 72%, rgb(238 207 159 / var(--vs-wear))),
+    linear-gradient(90deg, #0000006b, #ffffff20 8%, #ffffff0b 23%, transparent 45%, #00000018 75%, #00000070),
+    color-mix(in srgb, var(--spine-tint, var(--n1)) 92%, #171811);
+  border: 1px solid #17150f;
+  border-top: 1px solid #bba28166;
+  border-radius: 4px 4px 2px 2px;
+  color: var(--vs-gilt);
+  box-shadow: inset 0 -3px 4px #00000038, 1px 2px 3px #00000040;
+}
+
+.vault-shelf[data-look="leather"] .vs-spine::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  /* github#45 -- the two gilt bands END where page.css says a binding may draw: the head band
+   * at --spine-head, the tail band at --spine-tail. They are the same 17 and 29 they always
+   * were; what changed is that the title's box is now derived from them instead of from a
+   * number that happened to be near them. */
+  background-image:
+    linear-gradient(180deg, transparent 10px, #00000055 10px 12px, #e6ce9c55 12px 13px, #ffffff16 13px 15px, #00000066 15px var(--spine-head), transparent var(--spine-head)),
+    linear-gradient(0deg, transparent 22px, #00000055 22px 24px, #e6ce9c55 24px 25px, #ffffff16 25px 27px, #00000066 27px var(--spine-tail), transparent var(--spine-tail)),
+    var(--vs-grain);
+  background-size: 100% 100%, 100% 100%, 140px 140px;
+  background-blend-mode: normal, normal, soft-light;
+}
+
+/* github#45 -- THE PANEL FRAMES WHAT IS BETWEEN THE BANDS, and page.css says where they end.
+ * Its lower rule used to sit at 23px, six pixels inside the tail band it was drawn against and
+ * three pixels below the title's box: the frame crossed the band, and so did the title. Both
+ * edges come from the declaration now, so the panel is symmetric and the title clears it. */
+.vault-shelf[data-look="leather"] .vs-spine::after {
+  content: "";
+  position: absolute;
+  inset: var(--spine-head) var(--spine-rule-side) var(--spine-tail);
+  border: var(--spine-rule) solid #d7b97738;
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.vault-shelf[data-look="leather"] .vs-spine .vs-title {
+  position: relative;
+  z-index: 1;
+  color: var(--vs-gilt);
+  font-family: var(--prose);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.015em;
+  text-transform: none;
+  text-shadow: 0 1px 1px #00000080;
+}
+
+.vault-shelf[data-look="leather"] .vs-spine .vs-n {
+  z-index: 1;
+  color: var(--vs-gilt);
+  font-family: var(--prose);
+  font-size: 11px;
+  text-shadow: 0 1px #00000070;
+}
+
+.vault-shelf[data-look="leather"] .vs-spine:hover,
+.vault-shelf[data-look="leather"] .vs-spine:focus-visible {
+  border-color: var(--vs-gilt-dim);
+  background-color: var(--spine-tint, var(--n1));
+  box-shadow: inset 0 -3px 4px #00000038, 0 6px 10px #00000050;
+}
+
+.vault-shelf[data-look="leather"] .vs-spine:hover .vs-title,
+.vault-shelf[data-look="leather"] .vs-spine:focus-visible .vs-title { color: var(--vs-gilt-hi); }
+.vault-shelf[data-look="leather"] .vs-spine[data-wear="1"] { --vs-wear: 0.08; }
+.vault-shelf[data-look="leather"] .vs-spine[data-wear="2"] { --vs-wear: 0.18; }
+.vault-shelf[data-look="leather"] .vs-spine[data-wear="3"] { --vs-wear: 0.30; }
+.vault-shelf[data-look="leather"] .vs-spine[data-wear="3"] .vs-title { color: color-mix(in srgb, var(--vs-gilt) 85%, #d8c398); }
+
+/* github#0 -- THE SILK IS THE BOOK'S, and the sheen is the look's. This rule painted every
+ * ribbon in the library one flat #ad5447 -- so the thread a book actually chose (design/0008)
+ * never reached the shelf under leather, and twelve books wore one muddy salmon between them.
+ * The gradient is the fold of light across silk and stays; the colour under it comes from the
+ * spine, which is where it has always been decided. */
+.vault-shelf[data-look="leather"] .vs-spine .vs-ribbon {
+  z-index: 2;
+  background: linear-gradient(90deg, #ffffff30, transparent 35%, #00000030), var(--ribbon);
+  box-shadow: 0 2px 3px #00000050;
+}
+
+.vault-shelf[data-look="leather"][data-query="1"] .vs-spine[data-match="1"] {
+  border-color: var(--vs-gilt-dim);
+  box-shadow: 0 0 0 1px #d0b68166, 0 7px 12px #00000050;
+}
+.vault-shelf[data-look="leather"][data-query="1"] .vs-spine[data-match="1"] .vs-n { color: var(--vs-gilt-hi); }
+
+/* design/0029 */
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="gilt"] {
+  --vs-gilt: #f5dc9e;
+  --vs-gilt-hi: #fff0c9;
+  background:
+    linear-gradient(180deg, rgb(238 207 159 / var(--vs-wear)), transparent 30% 72%, rgb(238 207 159 / var(--vs-wear))),
+    linear-gradient(90deg, #00000070, #ffffff28 12%, transparent 40% 75%, #00000050),
+    color-mix(in srgb, var(--spine-tint) var(--leather-dye, 92%), #17130f);
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="gilt"]::after {
+  border-color: #e7c67599;
+  box-shadow: 0 -3px 0 -2px #e7c67599, 0 3px 0 -2px #e7c67599;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="gilt"] .vs-ribbon,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="gilt"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="gilt"] .vs-markstub {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 70%, 0 100%);
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="pebbled"] {
+  --vs-gilt: #ebc8ad;
+  --vs-gilt-hi: #ffe1c5;
+  background:
+    radial-gradient(ellipse at 50% 50%, #ffffff18 0 18%, #00000028 32%, transparent 55%) var(--leather-grain-x, 0px) 0 / 4px 5px,
+    linear-gradient(180deg, rgb(238 207 159 / var(--vs-wear)), transparent 30% 72%, rgb(238 207 159 / var(--vs-wear))),
+    linear-gradient(90deg, #00000065, #ffffff10 18%, transparent 65%, #00000045),
+    color-mix(in srgb, var(--spine-tint) var(--leather-dye, 92%), #211a17);
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="pebbled"]::before { background-image: var(--vs-grain); }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="pebbled"]::after { border-style: dashed; border-color: #cfaa8580; border-radius: 3px; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="pebbled"] .vs-ribbon,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="pebbled"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="pebbled"] .vs-markstub {
+  clip-path: polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%);
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"] {
+  --vs-gilt: #463829;
+  --vs-gilt-hi: #251a10;
+  background:
+    linear-gradient(180deg, rgb(109 75 35 / var(--vs-wear)), transparent 30% 72%, rgb(109 75 35 / var(--vs-wear))),
+    linear-gradient(90deg, #67503345, #fff8dc55 15%, transparent 35% 80%, #67503335),
+    color-mix(in srgb, var(--spine-tint) 58%, #efe3c4);
+  border-color: #b8a889;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"]::before { background-image: var(--vs-grain); }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"]::after { border-color: #6a543c66; border-left: 0; border-right: 0; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"] .vs-title,
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"] .vs-n { text-shadow: none; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"][data-wear="3"] .vs-title { color: var(--vs-gilt); }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"] .vs-ribbon,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="vellum"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="vellum"] .vs-markstub {
+  clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%);
+  background: repeating-linear-gradient(90deg, #ffffff20 0 1px, transparent 1px 3px), var(--ribbon);
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="weathered"] {
+  --vs-gilt: #d8c5a4;
+  --vs-gilt-hi: #f5e3bd;
+  background:
+    linear-gradient(97deg, transparent 7%, #160f0980 9%, #efd2a64d 10%, transparent 12% 85%, #1d120a80 87%, #efd2a635 89%, transparent 92%),
+    repeating-linear-gradient(174deg, transparent 0 23px, #1c10093d 24px, #e5c79e24 25px, transparent 26px 39px),
+    linear-gradient(180deg, rgb(238 207 159 / var(--vs-wear)), transparent 30% 72%, rgb(238 207 159 / var(--vs-wear))),
+    radial-gradient(ellipse at 5% 0%, #d5b88565, transparent 38%),
+    radial-gradient(ellipse at 95% 100%, #bda06d55, transparent 45%),
+    linear-gradient(90deg, #00000055, transparent 25% 70%, #00000040),
+    color-mix(in srgb, var(--spine-tint) var(--leather-dye, 92%), #68503a);
+  border-radius: 5px 3px 2px 4px;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="weathered"]::before { opacity: 0.6; background-position: 0 0, 0 0, var(--leather-grain-x, 0px) 0; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="weathered"]::after { border-color: #cbb58940; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="weathered"] .vs-ribbon,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="weathered"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="weathered"] .vs-markstub {
+  clip-path: polygon(0 0, 100% 0, 100% 85%, 80% 100%, 65% 84%, 45% 96%, 30% 82%, 0 100%);
+}
+
+
+/* design/0029 */
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="gilt"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23e8cb87%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%2016h34M5%2013h30M20%2012V3m0%208c-9%200-13-8-8-8%205%200%204%206%208%208%204-2%203-8%208-8%205%200%201%208-8%208Z%22%2F%3E%3Cpath%20d%3D%22M20%202l2%203-2%203-2-3Zm-9%208c-7-8-11%202-4%202m22-2c7-8%2011%202%204%202%22%2F%3E%3Ccircle%20cx%3D%224%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2236%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23e8cb87%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%2016h34M5%2013h30M20%2012V3m0%208c-9%200-13-8-8-8%205%200%204%206%208%208%204-2%203-8%208-8%205%200%201%208-8%208Z%22%2F%3E%3Cpath%20d%3D%22M20%202l2%203-2%203-2-3Zm-9%208c-7-8-11%202-4%202m22-2c7-8%2011%202%204%202%22%2F%3E%3Ccircle%20cx%3D%224%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2236%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), var(--vs-grain);
+  background-size: calc(100% - 8px) 14px, calc(100% - 10px) 7px, 140px 140px;
+  background-position: center top 2px, center bottom 21px, var(--leather-grain-x, 0px) 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-blend-mode: normal, normal, soft-light;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="pebbled"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23cfaa85%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%202c-4%204-4%204%200%208-4-4-8-4-12%200%204%204%208%204%2012%200-4%204-4%204%200%208%204-4%204-4%200-8%204%204%208%204%2012%200-4-4-8-4-12%200%204-4%204-4%200-8Z%22%2F%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2210%22%20r%3D%223%22%2F%3E%3Cpath%20d%3D%22M2%204v12h4M38%204v12h-4M3%2010h3m28%200h3%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23cfaa85%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%202c-4%204-4%204%200%208-4-4-8-4-12%200%204%204%208%204%2012%200-4%204-4%204%200%208%204-4%204-4%200-8%204%204%208%204%2012%200-4-4-8-4-12%200%204-4%204-4%200-8Z%22%2F%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2210%22%20r%3D%223%22%2F%3E%3Cpath%20d%3D%22M2%204v12h4M38%204v12h-4M3%2010h3m28%200h3%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), var(--vs-grain);
+  background-size: calc(100% - 8px) 14px, calc(100% - 10px) 7px, 140px 140px;
+  background-position: center top 2px, center bottom 21px, var(--leather-grain-x, 0px) 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-blend-mode: normal, normal, soft-light;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23665032%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2017C15%2014%2023%208%2035%202M12%2014c-6%201-7-4-7-4%204-1%207%201%207%204Zm6-4c-5-2-4-6-4-6%204%200%205%203%204%206Zm6-4c-3-2-2-5-2-5%204%201%204%203%202%205Zm-9%206c3%200%208%201%208%204-5%202-8-1-8-4Zm9-6c3-1%207%200%207%203-4%202-7%200-7-3Z%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23665032%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2017C15%2014%2023%208%2035%202M12%2014c-6%201-7-4-7-4%204-1%207%201%207%204Zm6-4c-5-2-4-6-4-6%204%200%205%203%204%206Zm6-4c-3-2-2-5-2-5%204%201%204%203%202%205Zm-9%206c3%200%208%201%208%204-5%202-8-1-8-4Zm9-6c3-1%207%200%207%203-4%202-7%200-7-3Z%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), var(--vs-grain);
+  background-size: calc(100% - 8px) 14px, calc(100% - 10px) 7px, 140px 140px;
+  background-position: center top 2px, center bottom 21px, var(--leather-grain-x, 0px) 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-blend-mode: normal, normal, soft-light;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="weathered"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23c9ae79%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%2016h34M5%2013h30M20%2012V3m0%208c-9%200-13-8-8-8%205%200%204%206%208%208%204-2%203-8%208-8%205%200%201%208-8%208Z%22%2F%3E%3Cpath%20d%3D%22M20%202l2%203-2%203-2-3Zm-9%208c-7-8-11%202-4%202m22-2c7-8%2011%202%204%202%22%2F%3E%3Ccircle%20cx%3D%224%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2236%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23c9ae79%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%2016h34M5%2013h30M20%2012V3m0%208c-9%200-13-8-8-8%205%200%204%206%208%208%204-2%203-8%208-8%205%200%201%208-8%208Z%22%2F%3E%3Cpath%20d%3D%22M20%202l2%203-2%203-2-3Zm-9%208c-7-8-11%202-4%202m22-2c7-8%2011%202%204%202%22%2F%3E%3Ccircle%20cx%3D%224%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2236%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), var(--vs-grain);
+  background-size: calc(100% - 8px) 14px, calc(100% - 10px) 7px, 140px 140px;
+  background-position: center top 2px, center bottom 21px, var(--leather-grain-x, 0px) 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-blend-mode: normal, normal, soft-light;
+}
+
+.vault-shelf[data-look="leather"] .vs-spine[data-light-dye="1"] {
+  --vs-gilt: #463829;
+  --vs-gilt-hi: #251a10;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-light-dye="1"] .vs-title,
+.vault-shelf[data-look="leather"] .vs-spine[data-light-dye="1"] .vs-n { text-shadow: none; }
+.vault-shelf[data-look="leather"] .vs-spine[data-light-dye="1"][data-wear="3"] .vs-title { color: var(--vs-gilt); }
+
+/* ---- ivory pages, an oxblood cover and a quiet reading table ----------- */
+.vault-shelf[data-look="leather"] .vs-reader {
+  background: radial-gradient(ellipse at 50% 35%, #393a31, #21221e 85%);
+}
+.vault-shelf[data-look="leather"] .vs-readertitle {
+  color: var(--text-2);
+  font-family: var(--prose);
+  font-size: 14px;
+}
+.vault-shelf[data-look="leather"] .vs-spread {
+  border: 1px solid #362a20;
+  border-radius: 3px;
+  box-shadow: 0 0 0 6px #502f30, 0 0 0 7px #b0976066, 0 0 0 11px #3b2526, 0 16px 32px #00000055;
+}
+.vault-shelf[data-look="leather"] .vs-spread::before,
+.vault-shelf[data-look="leather"] .vs-spread::after {
+  background: repeating-linear-gradient(90deg, #aa97724d 0 1px, #eee3c8 1px 2px);
+}
+
+.vault-shelf[data-look="leather"] .vs-page,
+.vault-shelf[data-look="leather"] .vs-sheetbody {
+  color-scheme: light;
+  --surface-1: #f0eadc;
+  --surface-2: #f7f2e7;
+  --text-1: #302e27;
+  --text-2: #575247;
+  --text-3: #746c5b;
+  --border: #d4cbbb;
+  --border-strong: #a59880;
+  --accent: #793b3d;
+  --vs-control: #efe8d8;
+  /* github#9, design/0019 -- ON PAPER, A PLATE IS BONE, as a box is paper (github#2) */
+  --vs-plate: #f3ecdc;
+  --vs-plate-lo: #e5dbc4;
+  --vs-plate-edge: #b8a98b;
+  --vs-plate-ink: #4a4032;
+  --vs-plate-shadow: inset 0 1px #ffffffa6, 0 1px 2px #00000018;
+  --vs-plate-ink-shadow: 0 1px #ffffff8c;
+  --vs-plate-lit: #faf5ea;
+  --vs-plate-lit-lo: #ede4d0;
+  --vs-plate-lit-edge: #957f56;
+  --vs-plate-lit-ink: #2b261d;
+  --vs-plate-lit-shadow: inset 0 1px #ffffffc4, 0 1px 3px #00000024;
+  /* github#2 -- ON PAPER, A BOX IS PAPER: a light field, dark ink, a dark arrow. */
+  --vs-field: #faf6ee;
+  --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%23575247' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  color: var(--text-1);
+  scrollbar-color: #b3a78f #eee7d8;
+}
+.vault-shelf[data-look="leather"] .vs-page.vs-left { background: linear-gradient(90deg, #eee7d7, #f3eddf 20%, #f0eadc); }
+.vault-shelf[data-look="leather"] .vs-page.vs-right { background: linear-gradient(90deg, #f5efdf, #faf6ec 12%, #f7f2e7 95%, #eee5d2); }
+.vault-shelf[data-look="leather"] .vs-page.vs-left::after {
+  width: 24px;
+  background: linear-gradient(90deg, transparent, #55432a22 70%, #4937233d);
+}
+.vault-shelf[data-look="leather"] .vs-page.vs-right::after {
+  width: 24px;
+  background: linear-gradient(90deg, #49372333, #55432a0d 40%, transparent);
+}
+.vault-shelf[data-look="leather"] .vs-page h2 { color: var(--text-1); }
+.vault-shelf[data-look="leather"] #vs-bookname { font-size: 25px; font-weight: 400; }
+/* design/0008 -- A RIBBON IS NOT A BUTTON, and the blanket `button` rule above is the whole
+ * reason it looked like one: a length of dyed silk over the top edge of the cover takes its
+ * colour from `--ribbon`, not from the furniture. */
+.vault-shelf[data-look="leather"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-markstub {
+  background: var(--ribbon);
+  border: 0;
+  box-shadow: 0 1px 2px #00000040;
+}
+
+.vault-shelf[data-look="leather"] .vs-mark { color: var(--ribbon-ink); }
+.vault-shelf[data-look="leather"] .vs-mark:hover { background: var(--ribbon); }
+
+.vault-shelf[data-look="leather"] .vs-contents button {
+  color: var(--text-2);
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+.vault-shelf[data-look="leather"] .vs-contents button:hover { color: var(--text-1); background: #6d51330c; }
+.vault-shelf[data-look="leather"] .vs-contents button[aria-current="true"] {
+  color: var(--accent);
+  background: #793b3d0a;
+  box-shadow: inset 2px 0 var(--accent);
+}
+.vault-shelf[data-look="leather"] .vs-prose { font-size: 16px; line-height: 1.75; }
+.vault-shelf[data-look="leather"] .vs-prose h1,
+.vault-shelf[data-look="leather"] .vs-prose h2,
+.vault-shelf[data-look="leather"] .vs-prose h3,
+.vault-shelf[data-look="leather"] .vs-notemeta strong { font-family: var(--prose); color: var(--text-1); }
+.vault-shelf[data-look="leather"] .vs-notemeta strong { font-size: 20px; font-weight: 400; }
+/* github#9 -- a tab is a brass plate; its cut edge and shadow stay */
+.vault-shelf[data-look="leather"] .vs-tabs button {
+  border-left: 0;
+  border-radius: 0 3px 3px 0;
+  font-family: var(--prose);
+  box-shadow: 1px 2px 3px #00000025;
+}
+.vault-shelf[data-look="leather"] .vs-tabs button[aria-current="true"] {
+  color: #302b21;
+  background: #e4cf9d;
+  border-color: #b39a6a;
+}
+
+/* ---- paper dialogs ---------------------------------------------------- */
+.vault-shelf[data-look="leather"] .vs-sheet { background: #151611bd; }
+/* github#44, design/0022 -- the same scrim, thinned while the twelve are offered */
+.vault-shelf[data-look="leather"] .vs-sheet[data-picking="1"] { background: #15161166; }
+.vault-shelf[data-look="leather"] .vs-sheetbody {
+  background: #f3eddf;
+  border: 1px solid #a59880;
+  border-radius: 5px;
+  box-shadow: 0 20px 60px #00000055;
+}
+.vault-shelf[data-look="leather"] .vs-sheetbody h2 { font-family: var(--prose); font-size: 26px; font-weight: 400; }
+.vault-shelf[data-look="leather"] .vs-sheetbody button.vs-primary {
+  color: #faf3e3;
+  background: #793b3d;
+  border-color: #793b3d;
+}
+.vault-shelf[data-look="leather"] .vs-preview .vs-track { background: none; }
+
+/* ---- list, narrow windows and motion preferences ---------------------- */
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine:not(.vs-binding-sample) {
+  background: var(--vs-control);
+  border-color: var(--border);
+  box-shadow: none;
+}
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine:not(.vs-binding-sample)::before,
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine:not(.vs-binding-sample)::after { display: none; }
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine:not(.vs-binding-sample) .vs-title { color: var(--text-1); text-shadow: none; font-size: 14px; }
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine:not(.vs-binding-sample) .vs-n { color: var(--text-2); text-shadow: none; }
+
+/* github#14 -- what is left of the private narrow layout is paint. */
+@media (max-width: 860px) {
+  .vault-shelf[data-look="leather"] .vs-tabs { background: #f0eadc; }
+  .vault-shelf[data-look="leather"] .vs-tabs button { border-color: var(--vs-plate-edge); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vault-shelf[data-look="leather"] .vs-spine,
+  .vault-shelf[data-look="leather"] .vs-spine:hover,
+  .vault-shelf[data-look="leather"] .vs-spine:focus-visible,
+  .vault-shelf[data-look="leather"][data-query="1"] .vs-spine[data-match="1"] { transform: none; transition: none; }
+}
+
+/* design/0031 */
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="minimal"]::before { background-image: var(--vs-grain); }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"] .vs-ribbon { width: 4px; margin-left: -2px; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="minimal"]::after { display: none; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="minimal"] .vs-title { text-shadow: none; }
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="original"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="original"] .vs-markstub {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 74%, 0 100%);
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="minimal"] .vs-ribbon,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="minimal"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="minimal"] .vs-markstub { clip-path: inset(0); }

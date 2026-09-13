@@ -18,9 +18,13 @@
  * here. The container paints the full viewport anyway, so nothing shows through.
  */
 html, body { height: 100%; margin: 0; }
+
 </style>
 <style>
 <!--CSS-->
+</style>
+<style>
+<!--LOOKS-->
 </style>
 </head>
 <body>
@@ -63,12 +67,18 @@ function followSystemTheme(handle, root) {
 }
 
 var vsRoot = document.getElementById("vs-app");
+var vsSettings = loadSettings();
+if (!vsSettings && window.VAULT_SETTINGS) {
+  vsSettings = window.VAULT_SETTINGS;
+  saveSettings(vsSettings);
+}
 var vsHandle = mountVaultShelf(vsRoot, window.VAULT_DATA, {
   core: window.VaultShelfCore,
-  settings: loadSettings(),
-  onSettings: saveSettings
+  settings: vsSettings,
+  onSettings: function (next) { vsSettings = next; saveSettings(next); }
 });
 followSystemTheme(vsHandle, vsRoot);
+
 </script>
 </body>
 </html>

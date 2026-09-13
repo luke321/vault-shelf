@@ -73,6 +73,54 @@ files under A; a title that is *only* punctuation gets `#`.
 2026-W53. Keying on the calendar year would split that week across two shelves, which is the
 bug `isoWeekOf` exists to avoid and which the suite checks by name.
 
+## The cover drops the hash, and nothing else does (2026-09-11)
+
+> "remove the tag symbol from book covers reads badly"
+
+`labelFor` gives a tag book the name `#garden`, and that label reached five places: the spine,
+the hover peek, the dye menu's heading, the reader's title bar and the book heading on the
+left page. On the spine it is a `#` turned on its side at 10.5px — the one glyph in the library
+that reads as noise rather than as a name, on a shelf that is already called Tags.
+
+**The spine draws a separate form and the label does not change.** `Book.cover` is
+`coverFor(key, kind)`: the key itself for a tag book, `labelFor` for everything else, so
+`Untagged` stays `Untagged`. The spine's title and the upright rule read the cover; every other
+place keeps reading the label. Which means:
+
+| place | reads | tag book shows |
+|---|---|---|
+| the spine | `cover` | `garden`, `area/health/sleep` |
+| the hover peek | `label` | `#garden` |
+| the dye menu heading | `label` | `#garden` |
+| the reader's title bar | `label` | `Tags · #garden` |
+| the book heading | `label` | `#garden` |
+| the *also shelved in* chips | `label` | `Tags: #garden` |
+
+The argument for taking it off everywhere is consistency; the argument against is that a
+hierarchical tag without its hash **reads as a folder path**, and `area/health/sleep` on a bare
+spine is indistinguishable from the Folders shelf's own book of the same name. The hash is
+noise only where it is set vertically and tiny. Set horizontally it is how a tag is written
+everywhere in Obsidian, it costs nothing, and it is exactly what tells a person that
+`area/health/sleep` is a tag and not a folder. So the cover, which has the shelf's own head
+above it to say what it holds, gives it up; the peek one hover away, and every other place the
+name is set horizontally, keeps it. The note's own metadata line is a different thing — those
+are the note's tags as written in the vault — and was never the label.
+
+**A label is not an address.** `key` is untouched (`decisions/0002`): no book moves, no count
+changes, no address differs, and the suite's check asserts the address list before and after
+opening a tag book element for element.
+
+**The upright rule now measures.** A label of three characters or fewer stood upright, and
+`#map` is four while `map` is three — so on the demo vault `map` stood up, on a spine of three
+notes 22px wide, and the screenshot showed `m…`. Three characters was only ever a proxy for
+"fits when set horizontally", and it was right for `A`, `0-9` and `Ü` because those sit on
+thick volumes. `fitsUpright()` measures the cover on a probe spine of the real width under the
+root — so the look's own face and the spine's real padding are what is measured, and a shelf
+that `content-visibility` has skipped cannot answer wrongly — and a short cover that does not
+fit stays on its side, where it is at least whole. On the demo vault `学び` stands and `map`
+does not; every Encyclopedia volume still stands, and the peek check now also counts clipped
+upright titles and holds that number at zero.
+
 ## The builder
 
 Visible from three places — the directory, every shelf's row menu, and the card at the end of

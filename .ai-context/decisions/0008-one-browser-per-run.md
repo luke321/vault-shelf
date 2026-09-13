@@ -42,6 +42,9 @@ and only then a printed warning. A browser that survives teardown poisons the ne
   contending for one GPU report box geometry that has more to do with the other three windows
   than with the code.
 - Harness windows are placed off-screen (`screen.mjs`, `design/0006`) so a run does not steal
-  the desktop, and `--headed` overrides that for watching one.
+  the desktop. **Amended by `github#50`: placement was never enough, and this line said
+  otherwise.** A window Chrome creates activates itself, so an off-screen one still took the
+  keyboard from the terminal that launched it. Every harness is headless by default now;
+  `--headed` opts back in for watching one, and costs the suite stamp.
 - Screenshots need no lock — they go over CDP, so overlapping windows are harmless — but a
   screen **recording** does, which is what `scripts/lock.mjs` is for.

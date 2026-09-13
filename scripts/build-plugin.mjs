@@ -2,6 +2,7 @@ import { build, context } from "esbuild";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseNote, parseReleases } from "../plugin/update-note.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
@@ -86,6 +87,50 @@ const stripDebugPlugin = {
   },
 };
 
+/* ------------------------------------------------------------- update note -- */
+// github#33, design/0023
+const NOTE_FILE = join(ROOT, "plugin", "whats-new.md");
+const PAGE_MARKUP = join(ROOT, "src", "page.html");
+
+function checkWhatsNew() {
+  const text = readFileSync(NOTE_FILE, "utf8");
+  const { note, problems } = parseNote(text);
+  if (note) {
+    const markup = readFileSync(PAGE_MARKUP, "utf8");
+    for (const id of note.points) {
+      if (!markup.includes('id="' + id + '"')) {
+        problems.push("points at " + id + ", which is no id in src/page.html");
+      }
+    }
+  }
+  if (!note || problems.length) {
+    throw new Error("plugin/whats-new.md is not an update note the plugin can show:\n  " +
+                    problems.join("\n  ") + "\nSee the comment at the top of that file.");
+  }
+  return { note, bytes: Buffer.byteLength(text) };
+}
+
+// github#33, design/0023 -- "vs:releases": every release the CHANGELOG has a heading for
+const CHANGELOG = join(ROOT, "CHANGELOG.md");
+
+function readReleases() {
+  return parseReleases(readFileSync(CHANGELOG, "utf8"));
+}
+
+const releasesPlugin = {
+  name: "releases",
+  setup(b) {
+    b.onResolve({ filter: /^vs:releases$/ }, (args) => ({ path: args.path, namespace: "vs:" }));
+    b.onLoad({ filter: /.*/, namespace: "vs:" }, () => ({
+      contents: "export default " + JSON.stringify(readReleases()) + ";",
+      loader: "js",
+      watchFiles: [CHANGELOG],
+    }));
+  },
+};
+
+const whatsNew = checkWhatsNew();
+
 const options = {
   entryPoints: [join(ROOT, "plugin", "main.js")],
   outfile: join(ROOT, "main.js"),
@@ -97,7 +142,7 @@ const options = {
   sourcemap: false,
   minify: false,
   logLevel: "info",
-  plugins: [rawLoader, stripDebugPlugin],
+  plugins: [rawLoader, releasesPlugin, stripDebugPlugin],
   banner: {
     js: "/* Vault Shelf -- built by scripts/build-plugin.mjs. Source: plugin/ and src/. */\n",
   },
@@ -106,11 +151,20 @@ const options = {
 function copyStyles() {
   const host = readFileSync(join(ROOT, "plugin", "styles.css"), "utf8");
   const page = readFileSync(join(ROOT, "src", "page.css"), "utf8");
+  /* design/0016 -- the leather look ships alongside the default one and paints nothing until
+   * `data-look="leather"` is on the root. Last in the file, so it is reading the tokens the
+   * default look has already declared rather than racing them. */
+  const looks = ["leather.css", "cyber.css"]
+    .map((f) => "/* ---- src/" + f + " " + "-".repeat(Math.max(0, 56 - f.length)) + " */\n" +
+                readFileSync(join(ROOT, "src", f), "utf8").trimEnd())
+    .join("\n\n");
   writeFileSync(join(ROOT, "styles.css"),
-    "/* Built by scripts/build-plugin.mjs from plugin/styles.css + src/page.css. */\n" +
+    "/* Built by scripts/build-plugin.mjs from plugin/styles.css + src/page.css + " +
+    "every look in src/. */\n" +
     host.trimEnd() + "\n\n" +
     "/* ---- src/page.css ---------------------------------------------------- */\n" +
-    page.trimEnd() + "\n", "utf8");
+    page.trimEnd() + "\n\n" +
+    looks + "\n", "utf8");
 }
 
 if (WATCH) {
@@ -124,5 +178,11 @@ if (WATCH) {
   const kb = (n) => (n / 1024).toFixed(0) + " KB";
   const sizes = ["main.js", "styles.css", "manifest.json"]
     .map((f) => f + " " + kb(readFileSync(join(ROOT, f)).length));
-  console.log("built: " + sizes.join(", "));
+  const releases = readReleases();
+  console.log("built: " + sizes.join(", ") +
+              "; update note for " + whatsNew.note.version + ": " + whatsNew.note.lines.length +
+              " line" + (whatsNew.note.lines.length === 1 ? "" : "s") + ", " + whatsNew.bytes + " bytes" +
+              (whatsNew.note.points.length ? ", pointing at " + whatsNew.note.points.join(" ") : "") +
+              "; " + releases.length + " release" + (releases.length === 1 ? "" : "s") +
+              " from the CHANGELOG, newest " + (releases[0] ? releases[0].version : "none"));
 }

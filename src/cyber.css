@@ -1,0 +1,829 @@
+/* THE CYBER LOOK -- opt-in, and every rule in this file is scoped under
+ * `.vault-shelf[data-look="cyber"]`. With another look selected, not one selector here
+ * matches. scripts/check-scope.mjs reads this file the same way it reads page.css: an
+ * unscoped rule in any of the three styles the whole of Obsidian.
+ *
+ * design/0017 -- what this is and what it is not. design/0016 -- a look is paint, and the
+ * clause that lets a look stop following the host's theme (design/0005) at all.
+ *
+ * A RAIN-LIT ARCHIVE AT 3AM, not a poster. The room is a records vault lit by signage
+ * bleeding through wet glass: a blue-black ground, one edge-lit board per shelf, and books
+ * that are anodised cartridges racked on edge. Neon is the LIGHT in the room, never the
+ * paint on the objects -- a shelf of saturated slabs is a bar chart, which is the failure
+ * design/0005 records for the stacked bar and design/0016 hit again with the leather grain.
+ *
+ * THREE RULES HELD THROUGHOUT:
+ *   1. PAINT ONLY. Nothing here changes what a shelf contains, where a book sits, or what it
+ *      is addressed by. A spine is the same 22-58px wide by 132px tall box, so thickness
+ *      still means the note count (design/0011).
+ *   2. NOTHING IS FETCHED. Every texture is a CSS gradient or an inline SVG data URI written
+ *      out below, and no font is loaded; scripts/check-network.mjs reads this file.
+ *   3. IT HAS TO READ AT 10.5px AND AT 22px WIDE. Every glow is behind or beside the text,
+ *      never through it: chromatic split is on two headings and nowhere near a note.
+ */
+
+/* ---- the palette ---------------------------------------------------------
+ * The twelve slots are REMAPPED, not used raw. design/0005 gives them their meaning -- a
+ * folder is a colour -- and page.js reads whatever the cascade resolves them to, so a look
+ * restates them without a line of JavaScript.
+ *
+ * These twelve are SIGNAGE GASES, spread around the wheel so that twelve books on one board
+ * are still twelve different things at a glance: cyan, sodium, mint, amber, lime, magenta,
+ * violet, coral, azure, purple, and two steels for the neutrals a shelf falls back to.
+ *
+ * The doubled attribute is specificity, not a typo, for the reason design/0016 gives: the
+ * theme's own token blocks are `.vault-shelf[data-theme="dark"]` at 0-2-0, and a look that
+ * only tied 0-2-0 would be relying on this file being concatenated last, in both builds,
+ * for ever.
+ */
+.vault-shelf[data-look="cyber"][data-look] {
+  /* A ribbon here is tape, not silk: the magenta of the sign across the street. */
+  --ribbon: #ff2f92;
+  --ribbon-ink: #0a0f1a;
+  /* github#9, design/0019 -- THE PLATE IS A LIT SIGN, drawn by page.css */
+  --vs-plate: rgba(20, 62, 62, 0.85);
+  --vs-plate-lo: rgba(8, 24, 30, 0.9);
+  --vs-plate-edge: var(--vs-neon-dim);
+  --vs-plate-ink: var(--vs-neon-hot);
+  --vs-plate-shadow: inset 0 -1px 0 rgba(53, 240, 208, 0.35), 0 0 14px rgba(53, 240, 208, 0.16);
+  --vs-plate-ink-shadow: 0 0 10px rgba(53, 240, 208, 0.7);
+  --vs-plate-lit: rgba(26, 76, 74, 0.9);
+  --vs-plate-lit-lo: rgba(10, 30, 36, 0.92);
+  --vs-plate-lit-edge: var(--vs-neon);
+  --vs-plate-lit-ink: #ffffff;
+  --vs-plate-lit-shadow: inset 0 -1px 0 rgba(53, 240, 208, 0.5), 0 0 8px var(--vs-neon-dim);
+  /* design/0016 -- WITHOUT THIS THE SELECT IS A WHITE SLAB. The base token block is
+   * `color-scheme: light`, and a look that repaints every surface dark but leaves the
+   * keyword alone gets the platform's LIGHT native controls on top of them. */
+  color-scheme: dark;
+  /* github#2 -- the field and the arrow every dropdown is drawn with; page.css paints the
+   * box and reads these. The rule that once did it for #vs-look alone is gone. */
+  --vs-field: rgba(5, 10, 20, 0.85);
+  --vs-chevron: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.4 L5 5.2 L9 1.4' fill='none' stroke='%2335f0d0' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+
+  --surface-0: #05070f;
+  --surface-1: #0a1120;
+  --surface-2: #0f1830;
+  --border: #1c2c4a;
+  --border-strong: #2f4a78;
+  --text-1: #e8f5ff;
+  --text-2: #a3c6de;
+  --text-3: #6f92ac;
+  --edge: #16233c;
+  --edge-hi: #35f0d0;
+  --dim: #0c1428;
+
+  --g1: #22d3ee;
+  --g2: #ff8a3d;
+  --g3: #2ff0a8;
+  --g4: #ffc233;
+  --g5: #7ddb3a;
+  --g6: #ff2e97;
+  --g7: #8b5cff;
+  --g8: #ff4f5a;
+  --g9: #2b9dff;
+  --g10: #c355ff;
+  --g11: #8ba3c4;
+  --g12: #5a7099;
+  --n1: #7089ad;
+  --n2: #a9c0dc;
+  --n3: #566d90;
+
+  --accent: #35f0d0;
+
+  /* design/0005 -- HOW MUCH OF ITS FOLDER'S COLOUR A BOARD TAKES. The leather look set this
+   * to 100% because a hide simply is the dye. Here the dye is a dark anodised panel and the
+   * colour proper is carried by the lit edge beside it, so the face stays low. 100% is the
+   * rainbow of highlighter blocks this look exists to avoid; 30% was the other failure, and
+   * the screenshot named it -- over a ground this dark, cyan and azure and teal all collapse
+   * into the same slab and a shelf of twelve folders reads as one. Mixed against
+   * `--surface-2` the twelve come out #176780, #744835, #1c7362, #745f31, #3d6a34, #74215b,
+   * #433587, #742f42, #1b5087, #5b3287, #43526e, #2f3d5c: still metal, and twelve of them. */
+  --tint: 42%;
+
+  /* the signage, in three weights: the tube, the glass around it, and the dead gas */
+  --vs-neon: #35f0d0;
+  --vs-neon-hot: #b6fff2;
+  --vs-neon-dim: #1a8f7c;
+  /* the second sign across the street, which is what stops the room being monochrome cyan */
+  --vs-hot: #ff2e97;
+  --vs-hot-dim: #8f1a56;
+
+  /* the racking: cold rolled steel, and the shadow between the units */
+  --vs-steel: #131d33;
+  --vs-steel-dark: #070c17;
+
+  /* THE SCANLINE, one pixel lit in four. 0.05 is where it is a CRT and not a corduroy
+   * jacket: at 0.12 the first cut striped every spine title into illegibility at 10.5px. */
+  --vs-scan: repeating-linear-gradient(180deg,
+    rgba(190, 235, 255, 0.05) 0 1px,
+    rgba(0, 0, 0, 0) 1px 4px);
+
+  /* SENSOR GRAIN, authored here rather than fetched: fine fractal noise, desaturated, laid
+   * over the ground so the dark is photographed rather than filled. */
+  --vs-grain: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E");
+
+  /* BRUSHED ALUMINIUM: the same noise stretched DOWN the panel, because a spine is machined
+   * along its length. High frequency across, almost none along. */
+  --vs-brush: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='300'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9 0.012' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='40' height='300' filter='url(%23b)' opacity='0.17'/%3E%3C/svg%3E");
+
+  /* RAIN ON THE GLASS the room is seen through: near-vertical streaks, displaced so they run
+   * rather than rule.
+   *
+   * THE FIRST CUT WAS AT 0.5 AND SIX FAT STROKES, and it photographed as cracks in the
+   * screen -- long white squiggles that were the loudest thing on the page and read as
+   * damage rather than as weather. Weather is something you notice second. 0.13, hairlines,
+   * and half the displacement. */
+  --vs-rain: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='420'%3E%3Cfilter id='r' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.006' numOctaves='3' seed='5' result='t'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='t' scale='13' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Cg filter='url(%23r)' stroke='%23bfe6ff' stroke-linecap='round' opacity='0.13'%3E%3Cpath d='M30 -40 L18 460' stroke-width='0.6'/%3E%3Cpath d='M96 -40 L84 460' stroke-width='0.5'/%3E%3Cpath d='M150 -40 L138 460' stroke-width='0.7'/%3E%3Cpath d='M212 -40 L200 460' stroke-width='0.5'/%3E%3Cpath d='M268 -40 L256 460' stroke-width='0.6'/%3E%3Cpath d='M308 -40 L296 460' stroke-width='0.45'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ---- the room ------------------------------------------------------------
+ * Two signs across the street -- cyan on the left, magenta on the right -- and nothing else
+ * lighting the place. The vignette is what stops the ground reading as a flat navy page.
+ */
+.vault-shelf[data-look="cyber"] {
+  background:
+    var(--vs-grain),
+    radial-gradient(90% 60% at 8% -6%, rgba(53, 240, 208, 0.14), rgba(0, 0, 0, 0) 60%),
+    radial-gradient(80% 55% at 96% 2%, rgba(255, 46, 151, 0.11), rgba(0, 0, 0, 0) 58%),
+    linear-gradient(180deg, #0a1120 0%, #05070f 56%, #04060d 100%);
+  background-size: 160px 160px, auto, auto, auto;
+  color: var(--text-1);
+}
+
+/* The racking behind the shelves, and the weather in front of it. A seam every 168px and a
+ * hairline of light down one side of each: it is two gradients and it is the difference
+ * between a room and a background colour. */
+.vault-shelf[data-look="cyber"] #vs-library {
+  background:
+    var(--vs-rain),
+    repeating-linear-gradient(90deg,
+      rgba(0, 0, 0, 0.5) 0 2px,
+      rgba(120, 200, 235, 0.045) 2px 3px,
+      rgba(0, 0, 0, 0) 3px 168px),
+    var(--vs-scan);
+  background-size: 320px 420px, auto, auto;
+}
+
+/* ---- the top rail --------------------------------------------------------
+ * Dark glass with a lit strip under it, so the chrome belongs to the same installation as
+ * the boards below.
+ */
+.vault-shelf[data-look="cyber"] #vs-rail {
+  background:
+    linear-gradient(180deg, rgba(24, 40, 68, 0.92), rgba(8, 14, 26, 0.96)),
+    var(--vs-scan);
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg,
+    var(--vs-neon-dim) 0%, var(--vs-neon) 26%, #6d7bff 58%, var(--vs-hot) 88%,
+    var(--vs-hot-dim) 100%) 1;
+  box-shadow:
+    0 1px 0 rgba(53, 240, 208, 0.28),
+    0 8px 22px rgba(0, 0, 0, 0.55);
+}
+
+/* THE CHROMATIC SPLIT, and the only two places it is allowed: the vault's name and a shelf
+ * heading. Both are short, both are 12.5px, and neither is something a person reads a
+ * sentence of. On a note it is an eye test. */
+/* 0.12em, not the 0.22em the first cut had. The vault's name sits at the head of the same
+ * flex strip the shelf chips scroll in, so every point of tracking it takes is a point they
+ * lose: at 0.22em "MIRROR-VAULT" was 130px against the default look's 75px and it pushed the
+ * second shelf chip off the end of the rail. */
+.vault-shelf[data-look="cyber"] .vs-railname {
+  color: var(--text-1);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-shadow:
+    -0.6px 0 rgba(255, 46, 151, 0.55),
+    0.6px 0 rgba(53, 240, 208, 0.55),
+    0 0 12px rgba(53, 240, 208, 0.35);
+}
+
+/* github#38 -- the key-cap chips went with `#vs-jump`. This look's whole note about them was
+ * that a strip which scrolls cannot afford uppercase, which is a problem the rail no longer
+ * has; the Manage row's name takes their place and needs nothing said here, because
+ * page.css paints it from --text-1, --surface-2 and --border, which are this look's own. */
+
+/* ---- buttons, boxes and the sheets ---------------------------------------
+ * Obsidian's app.css centres every `button` and gives it a box-shadow (design/0016). Every
+ * look has to say otherwise for itself; a shadow said here is a shadow this look chose.
+ */
+/* github#9 */
+.vault-shelf[data-look="cyber"] button { border-radius: 2px; }
+
+.vault-shelf[data-look="cyber"] button.vs-primary {
+  color: #04211c;
+  background: linear-gradient(180deg, var(--vs-neon-hot), var(--vs-neon) 55%, #14b89c);
+  border-color: var(--vs-neon-hot);
+  font-weight: 700;
+  text-shadow: none;
+  box-shadow: 0 0 16px rgba(53, 240, 208, 0.45);
+}
+
+.vault-shelf[data-look="cyber"] button.vs-primary:hover { color: #04211c; }
+
+/* github#2 -- background-color, never the shorthand: the dropdown's chevron is a background
+ * image page.css paints from --vs-chevron, and `background:` would wipe it. The look
+ * selector used to paint itself here alone (design/0017); now every dropdown does, from
+ * page.css, and this look only supplies the field and the stroke. */
+.vault-shelf[data-look="cyber"] input[type="search"],
+.vault-shelf[data-look="cyber"] input[type="text"],
+.vault-shelf[data-look="cyber"] select,
+.vault-shelf[data-look="cyber"] #vs-q {
+  color: var(--text-1);
+  background-color: var(--vs-field);
+  border: 1px solid #24395e;
+  border-radius: 2px;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+.vault-shelf[data-look="cyber"] #vs-q::placeholder { color: #5a7a92; }
+
+.vault-shelf[data-look="cyber"] #vs-q:focus,
+.vault-shelf[data-look="cyber"] select:focus {
+  border-color: var(--vs-neon);
+  box-shadow:
+    inset 0 1px 4px rgba(0, 0, 0, 0.7),
+    0 0 12px rgba(53, 240, 208, 0.35);
+}
+
+.vault-shelf[data-look="cyber"] #vs-hits {
+  color: var(--vs-neon-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.vault-shelf[data-look="cyber"] .vs-newshelf {
+  border-color: #24395e;
+  color: var(--text-3);
+  background: rgba(10, 18, 34, 0.45);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+}
+
+.vault-shelf[data-look="cyber"] .vs-newshelf:hover {
+  color: var(--vs-neon-hot);
+  border-color: var(--vs-neon);
+  background: rgba(53, 240, 208, 0.07);
+  box-shadow: 0 0 16px rgba(53, 240, 208, 0.18);
+}
+
+.vault-shelf[data-look="cyber"] .vs-activefilters {
+  border-color: var(--vs-neon-dim);
+  background: rgba(53, 240, 208, 0.06);
+}
+
+.vault-shelf[data-look="cyber"] .vs-endcard {
+  border-color: #24395e;
+  color: var(--text-3);
+  background: rgba(10, 18, 34, 0.4);
+}
+
+/* ---- a shelf heading -----------------------------------------------------
+ * Stencilled on the racking, with the same chromatic split as the vault's name.
+ */
+.vault-shelf[data-look="cyber"] .vs-shelfhead h2 {
+  color: var(--text-1);
+  letter-spacing: 0.28em;
+  text-shadow:
+    -0.6px 0 rgba(255, 46, 151, 0.5),
+    0.6px 0 rgba(53, 240, 208, 0.5),
+    0 0 14px rgba(53, 240, 208, 0.28);
+}
+
+.vault-shelf[data-look="cyber"] .vs-shelfhead .vs-meta {
+  color: var(--vs-neon-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+/* The sheets are a console panel laid over the room: darker than the room, lit from its own
+ * edge. Redeclaring the tokens on one element repaints every rule underneath it -- the
+ * headings, the hints, the borders and the preview rail -- without restating one of them. */
+.vault-shelf[data-look="cyber"] .vs-sheet {
+  background: rgba(2, 5, 11, 0.82);
+}
+
+/* github#44, design/0022 -- the same scrim, thinned while the twelve are offered */
+.vault-shelf[data-look="cyber"] .vs-sheet[data-picking="1"] {
+  background: rgba(2, 5, 11, 0.4);
+}
+
+.vault-shelf[data-look="cyber"] .vs-sheetbody {
+  --surface-1: #0d1728;
+  --surface-2: #132038;
+  background:
+    linear-gradient(180deg, rgba(20, 34, 58, 0.97), rgba(8, 14, 26, 0.98)),
+    var(--vs-scan);
+  border: 1px solid var(--vs-neon-dim);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(120, 220, 210, 0.14),
+    0 0 0 1px rgba(53, 240, 208, 0.12),
+    0 0 40px rgba(53, 240, 208, 0.1),
+    0 26px 60px rgba(0, 0, 0, 0.75);
+}
+
+.vault-shelf[data-look="cyber"] .vs-sheetbody h2 {
+  color: var(--vs-neon-hot);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.vault-shelf[data-look="cyber"] .vs-managerow { border-bottom-color: #1c2c4a; }
+.vault-shelf[data-look="cyber"] .vs-preview { border-top-color: #1c2c4a; }
+
+/* ---- the board -----------------------------------------------------------
+ * design/0003 and design/0014 -- the floor is a BACKGROUND on the track, painted at a known
+ * height, which is what lets a plaque hang below it. Neon builds on that rather than
+ * fighting it: the same layer, thicker, with a lit core running the length of the room and a
+ * bloom above and below. The plaque's own offset is `calc(var(--board) + 9px)` in page.css
+ * and follows the new thickness without being told.
+ */
+/* github#14 -- the depth is page.css's; the strip light is drawn on whatever plank it lays. */
+.vault-shelf[data-look="cyber"] .vs-track {
+  background-image:
+    /* the light leaking UP between the books, which is the whole reason the strip reads as a
+     * strip and not as a coloured rule under a row of slabs */
+    linear-gradient(0deg, rgba(53, 240, 208, 0.13), rgba(53, 240, 208, 0)),
+    /* The housing: a dark lip, ONE lit pixel of filament, and the diffuser turning under.
+     * At two lit pixels over a bright tube the board was a candy stripe ruled across the
+     * room and it out-shouted every book standing on it. A strip light seen from across a
+     * dark room is a thin hot line in a dark channel. */
+    linear-gradient(180deg,
+      rgba(0, 0, 0, 0.85) 0 1px,
+      rgba(235, 255, 252, 0.85) 1px 2px,
+      rgba(0, 0, 0, 0.1) 2px 3px,
+      rgba(0, 0, 0, 0.45) 3px 5px,
+      rgba(0, 0, 0, 0.75) 5px 100%),
+    /* THE SIGN ITSELF runs the length of the room: cyan at the near end, the other sign's
+     * magenta at the far one. Deep rather than saturated, because the filament above it is
+     * what is meant to be bright. */
+    linear-gradient(90deg,
+      #17796d 0%, #1c8fa0 30%, #3d3f86 62%, #8e2057 88%, #56122f 100%),
+    /* and the bloom the strip throws down the racking behind it */
+    linear-gradient(180deg, rgba(53, 240, 208, 0.13), rgba(53, 240, 208, 0) 72%);
+  background-size:
+    100% 11px,
+    100% var(--board),
+    100% var(--board),
+    100% 14px;
+  background-position:
+    0 calc(var(--spine-h) - 11px),
+    0 var(--spine-h),
+    0 var(--spine-h),
+    0 calc(var(--spine-h) + var(--board));
+  background-repeat: no-repeat;
+  background-blend-mode: normal, overlay, normal, normal;
+}
+
+/* A backlit acrylic sign hanging off the front of the board. design/0003 keeps it under the
+ * line; this only paints it. */
+/* github#9 -- the sign is the tokens; the face and tracking stay */
+.vault-shelf[data-look="cyber"] .vs-plaque {
+  border-top: 0;
+  border-radius: 0 0 2px 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.22em;
+}
+
+/* ---- a spine -------------------------------------------------------------
+ * An anodised cartridge racked on edge, and every piece of it has to still read at 22px:
+ *
+ *   the EDGE     a 2px tube of the folder's colour down the leading edge. THIS is where the
+ *                colour lives, at full chroma, on two pixels -- so twelve folders are twelve
+ *                signs rather than twelve highlighter blocks (design/0005)
+ *   the FACE     the same slot at --tint over the racking, brushed along its length
+ *   the SCAN     one lit pixel in four, at 0.05, over the whole thing
+ *   the CAP      the board's light catching the top edge and falling off
+ *   the LABEL    the title stencilled in the UI face, uppercase, lit from behind rather than
+ *                drawn in neon -- a glowing letterform at 10.5px is an unreadable one
+ */
+.vault-shelf[data-look="cyber"] .vs-spine {
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--spine-tint, var(--n1)) 45%, #ffffff) 0 1px,
+      var(--spine-tint, var(--n1)) 1px 3px,
+      color-mix(in srgb, var(--spine-tint, var(--n1)) 55%, rgba(0, 0, 0, 0)) 3px 4px,
+      rgba(255, 255, 255, 0.07) 4px 5px,
+      rgba(255, 255, 255, 0.02) 5px 34%,
+      rgba(0, 0, 0, 0.22) 74%,
+      rgba(0, 0, 0, 0.5) 100%),
+    color-mix(in srgb, var(--spine-tint, var(--n1)) var(--tint), var(--surface-2));
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  border-top: 0;
+  border-radius: 1px 1px 0 0;
+  color: var(--text-2);
+  box-shadow:
+    inset 0 -8px 14px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(120, 190, 225, 0.05),
+    0 3px 8px rgba(0, 0, 0, 0.6);
+  transform-origin: 50% 100%;
+}
+
+/* The cap light and the brushing, in one overlay.
+ *
+ * THE SCANLINE IS NOT IN HERE, and that is the correction the second screenshot forced. The
+ * brushing runs down the panel and the scanline runs across it, so the two together drew a
+ * fine CROSSHATCH on every spine and the shelf photographed as a row of speaker grilles.
+ * The scanline belongs to the room's own surfaces -- the ground, the rails, the sheets --
+ * where nothing is machined in the other direction. */
+.vault-shelf[data-look="cyber"] .vs-spine::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    linear-gradient(180deg,
+      rgba(200, 240, 255, 0.3) 0 1px,
+      rgba(140, 200, 230, 0.1) 1px 2px,
+      rgba(0, 0, 0, 0) 2px 22%,
+      rgba(0, 0, 0, 0.16) 100%),
+    var(--vs-brush);
+  background-size: 100% 100%, 40px 300px;
+  background-blend-mode: normal, overlay;
+}
+
+/* THE RACK MARKING at the tail: two machined bars over the count. It is the one piece of
+ * detail that is decoration rather than data, and it is two pixels tall for that reason.
+ * github#45 -- it draws over the COUNT, not at the tail of the title, so it sits below
+ * --spine-tail rather than at it; the sides are the declared ones. Cyber cleared the title by
+ * seven pixels by luck before, and by fourteen by construction now. */
+.vault-shelf[data-look="cyber"] .vs-spine::after {
+  content: "";
+  position: absolute;
+  left: var(--spine-rule-side);
+  right: var(--spine-rule-side);
+  bottom: 16px;
+  height: 3px;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--spine-tint, var(--n1)) 55%, rgba(0, 0, 0, 0)) 0 1px,
+      rgba(0, 0, 0, 0) 1px 2px,
+      rgba(150, 205, 235, 0.2) 2px 3px);
+}
+
+.vault-shelf[data-look="cyber"] .vs-spine .vs-title {
+  position: relative;
+  z-index: 1;
+  color: #dcecf7;
+  font-family: var(--ui);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.vault-shelf[data-look="cyber"] .vs-spine .vs-n {
+  position: absolute;
+  z-index: 1;
+  bottom: 3px;
+  color: color-mix(in srgb, var(--spine-tint, var(--n1)) 60%, #cfe6f2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/* design/0005 sets the budget at 5px of lift. This spends one more and no rotation: the
+ * cartridge slides out of the rack and its tube comes up to full power. Still nothing but a
+ * transform and a shadow, so a lifted spine cannot reflow its neighbours.
+ * github#51 -- the lift is page.css's rung now. */
+.vault-shelf[data-look="cyber"] .vs-spine:hover,
+.vault-shelf[data-look="cyber"] .vs-spine:focus-visible {
+  transform: translateY(calc(-1 * var(--spine-lift-hover)));
+  border-color: rgba(0, 0, 0, 0.7);
+  box-shadow:
+    inset 0 -8px 14px rgba(0, 0, 0, 0.3),
+    0 0 0 1px color-mix(in srgb, var(--spine-tint, var(--accent)) 60%, rgba(0, 0, 0, 0)),
+    0 0 18px color-mix(in srgb, var(--spine-tint, var(--accent)) 45%, rgba(0, 0, 0, 0)),
+    0 10px 20px rgba(0, 0, 0, 0.7);
+}
+
+.vault-shelf[data-look="cyber"] .vs-spine:hover .vs-title,
+.vault-shelf[data-look="cyber"] .vs-spine:focus-visible .vs-title {
+  color: #ffffff;
+}
+
+/* ---- wear, in anodising --------------------------------------------------
+ * design/0008 -- a handled book is rubbed rather than repainted. Aluminium that has been
+ * pulled off a rack a hundred times is polished at the ends and dulled in the middle, and
+ * the print wears off before the metal does.
+ */
+.vault-shelf[data-look="cyber"] .vs-spine[data-wear="2"],
+.vault-shelf[data-look="cyber"] .vs-spine[data-wear="3"] {
+  background:
+    linear-gradient(180deg,
+      rgba(200, 235, 255, 0.14) 0 9%,
+      rgba(0, 0, 0, 0) 24% 76%,
+      rgba(200, 235, 255, 0.1) 93% 100%),
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--spine-tint, var(--n1)) 70%, #ffffff) 0 2px,
+      color-mix(in srgb, var(--spine-tint, var(--n1)) 60%, rgba(0, 0, 0, 0)) 2px 3px,
+      rgba(255, 255, 255, 0.06) 3px 30%,
+      rgba(0, 0, 0, 0.2) 72%,
+      rgba(0, 0, 0, 0.44) 100%),
+    color-mix(in srgb, var(--spine-tint, var(--n1)) var(--tint), var(--surface-2));
+}
+
+.vault-shelf[data-look="cyber"] .vs-spine[data-wear="3"] .vs-title { color: #a8c2d2; }
+
+/* github#51, design/0021 -- A LOOK THAT LIFTS FURTHER MOVES ITS RUNG, on the room and not on
+ * the spine: the room is the track's to allow, and the track is above the spine. */
+.vault-shelf[data-look="cyber"] {
+  --spine-lift-worn-hover: var(--spine-lift-hover);
+}
+
+/* ---- the ribbon ----------------------------------------------------------
+ * design/0008 -- a bookmarked note leaves something hanging out of the book. Here it is a
+ * patch cable rather than silk: lit along one edge, and it hangs in front of the boards.
+ */
+.vault-shelf[data-look="cyber"] .vs-spine .vs-ribbon {
+  z-index: 2;
+  background:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.45) 0 1px,
+      rgba(0, 0, 0, 0) 1px 60%,
+      rgba(0, 0, 0, 0.3) 100%),
+    var(--ribbon);
+  box-shadow: 0 0 10px rgba(255, 46, 151, 0.6);
+}
+
+/* ---- the query, in neon --------------------------------------------------
+ * design/0008 -- the room still parts; what draws forward comes up to full power and what
+ * does not goes dark, which is what a sign does rather than what a highlighter does.
+ */
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-match="1"] {
+  border-color: rgba(0, 0, 0, 0.6);
+  box-shadow:
+    inset 0 -8px 14px rgba(0, 0, 0, 0.3),
+    0 0 0 1px var(--vs-neon),
+    0 0 22px rgba(53, 240, 208, 0.5),
+    0 10px 22px rgba(0, 0, 0, 0.7);
+}
+
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-match="1"] .vs-title {
+  color: #ffffff;
+}
+
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-match="1"] .vs-n {
+  color: var(--vs-neon-hot);
+}
+
+/* ---- the reader ----------------------------------------------------------
+ * design/0012 -- the spread was already an open book made of geometry, and geometry is what
+ * this look keeps. What it adds is that the book is a LIT PANEL: two sheets of dark glass in
+ * a machined frame, with the fold as the seam of the device and the fore-edges lit.
+ */
+.vault-shelf[data-look="cyber"] .vs-reader {
+  background:
+    var(--vs-rain),
+    radial-gradient(110% 80% at 50% -8%, rgba(53, 240, 208, 0.1), rgba(0, 0, 0, 0) 62%),
+    radial-gradient(90% 60% at 98% 4%, rgba(255, 46, 151, 0.08), rgba(0, 0, 0, 0) 60%),
+    linear-gradient(180deg, #070d1a, #04060d);
+  background-size: 320px 420px, auto, auto, auto;
+}
+
+.vault-shelf[data-look="cyber"] .vs-readerbar {
+  background:
+    linear-gradient(180deg, rgba(24, 40, 68, 0.92), rgba(8, 14, 26, 0.96)),
+    var(--vs-scan);
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg,
+    var(--vs-neon-dim) 0%, var(--vs-neon) 30%, #6d7bff 64%, var(--vs-hot) 92%) 1;
+  box-shadow: 0 1px 0 rgba(53, 240, 208, 0.22);
+}
+
+.vault-shelf[data-look="cyber"] .vs-readertitle {
+  color: var(--vs-neon);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* THE FRAME IS A SHADOW, NOT A BORDER, for the reason design/0016 gives: a box-shadow ring
+ * frames the spread without adding a pixel to the grid, so the two pages keep the widths
+ * design/0009 measured. The margin is page.css's too: a book is the same height in every
+ * look, and the ring sits in the 14px every look leaves. */
+.vault-shelf[data-look="cyber"] .vs-spread {
+  border: 1px solid #101c30;
+  border-radius: 3px;
+  box-shadow:
+    0 0 0 1px rgba(53, 240, 208, 0.3),
+    0 0 0 6px #0a1220,
+    0 0 0 7px rgba(53, 240, 208, 0.16),
+    0 0 34px rgba(53, 240, 208, 0.14),
+    0 0 70px rgba(255, 46, 151, 0.07),
+    0 26px 56px rgba(0, 0, 0, 0.8);
+}
+
+/* the fore-edges, lit: the stack of leaves seen edge-on under a strip light */
+.vault-shelf[data-look="cyber"] .vs-spread::before,
+.vault-shelf[data-look="cyber"] .vs-spread::after {
+  width: 5px;
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(53, 240, 208, 0.22) 0 1px,
+      rgba(0, 0, 0, 0) 1px 3px),
+    linear-gradient(180deg, rgba(53, 240, 208, 0.16), rgba(255, 46, 151, 0.12));
+}
+
+/* THE GLASS TOKENS. Every rule inside a page -- headings, contents, leader dots, the note,
+ * its meta line, blockquote rules -- reads the same three text steps and two surfaces.
+ * Redeclaring them on `.vs-page` turns the whole inside of the panel to light-on-glass
+ * without restating a single one of those rules, and it is also what keeps the gutter
+ * gradient right: it mixes `--text-1`, which in here is the lit text. */
+.vault-shelf[data-look="cyber"] .vs-page {
+  --surface-1: #0a1424;
+  --surface-2: #0c1a2e;
+  --text-1: #e8f5ff;
+  --text-2: #a8cade;
+  --text-3: #6d90aa;
+  --border: #1a2c48;
+  --border-strong: #2c4770;
+  --accent: var(--vs-neon);
+  color: var(--text-1);
+}
+
+/* The contents page is the index panel: a faint console grid, darker than the note beside
+ * it, because the thing you are reading should be the brighter of the two. */
+.vault-shelf[data-look="cyber"] .vs-page.vs-left {
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(120, 190, 225, 0.035) 0 1px,
+      rgba(0, 0, 0, 0) 1px 26px),
+    linear-gradient(90deg, #08111f 0%, #0a1424 70%, #0b1727 100%);
+}
+
+.vault-shelf[data-look="cyber"] .vs-page.vs-right {
+  background:
+    var(--vs-scan),
+    linear-gradient(90deg, #0d1b2f 0%, #0c1a2e 60%, #0a1526 100%);
+}
+
+/* THE FOLD IS THE SEAM OF THE DEVICE: the glass falls away into it and a hairline of the
+ * strip light catches the far lip. design/0012 rejected a hard centre line because it reads
+ * as a hinge on a folder -- this is still a gradient, with one lit pixel at the bottom. */
+.vault-shelf[data-look="cyber"] .vs-page.vs-left::after {
+  width: 26px;
+  background: linear-gradient(90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.35) 72%,
+    rgba(0, 0, 0, 0.62) 96%,
+    rgba(53, 240, 208, 0.22) 100%);
+}
+
+.vault-shelf[data-look="cyber"] .vs-page.vs-right::after {
+  width: 26px;
+  background: linear-gradient(90deg,
+    rgba(0, 0, 0, 0.6) 0%,
+    rgba(0, 0, 0, 0.3) 30%,
+    rgba(0, 0, 0, 0) 100%);
+}
+
+.vault-shelf[data-look="cyber"] .vs-page h2 {
+  color: var(--vs-neon-hot);
+  font-family: var(--ui);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-shadow: 0 0 16px rgba(53, 240, 208, 0.4);
+}
+
+/* THE CONTENTS ROWS ARE NOT BUTTONS TO LOOK AT. They are `<button>` elements, so the button
+ * rule above reaches them, and inside Obsidian app.css also centres them and gives them a
+ * box-shadow (design/0016). An index is a list of lines and nothing else. */
+.vault-shelf[data-look="cyber"] .vs-contents button {
+  color: var(--text-2);
+  background: none;
+  border: 0;
+  box-shadow: none;
+  justify-content: flex-start;
+  letter-spacing: 0;
+}
+
+.vault-shelf[data-look="cyber"] .vs-contents button:hover {
+  color: var(--vs-neon-hot);
+  background: rgba(53, 240, 208, 0.08);
+  border: 0;
+  box-shadow: none;
+}
+
+.vault-shelf[data-look="cyber"] .vs-contents button[aria-current="true"] {
+  color: var(--vs-neon);
+}
+
+.vault-shelf[data-look="cyber"] .vs-contents .vs-when {
+  color: var(--vs-neon-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* A note's own headings stay in the UI face page.css sets them in -- this look lives in a
+ * console, not on paper -- but they take the room's light. */
+.vault-shelf[data-look="cyber"] .vs-prose h1,
+.vault-shelf[data-look="cyber"] .vs-prose h2,
+.vault-shelf[data-look="cyber"] .vs-prose h3 {
+  color: #f2fbff;
+  letter-spacing: 0.02em;
+}
+
+.vault-shelf[data-look="cyber"] .vs-prose { color: var(--text-1); }
+
+.vault-shelf[data-look="cyber"] .vs-prose code {
+  color: var(--vs-neon-hot);
+  background: rgba(53, 240, 208, 0.09);
+  border-radius: 2px;
+  padding: 0 3px;
+}
+
+.vault-shelf[data-look="cyber"] .vs-prose blockquote {
+  border-left-color: var(--vs-neon-dim);
+  color: var(--text-2);
+}
+
+.vault-shelf[data-look="cyber"] .vs-notemeta {
+  border-bottom-color: #1a2c48;
+  color: var(--text-3);
+}
+
+.vault-shelf[data-look="cyber"] .vs-notemeta strong { color: #f2fbff; }
+
+.vault-shelf[data-look="cyber"] .vs-alsoin { border-top-color: #1a2c48; }
+
+.vault-shelf[data-look="cyber"] #vs-within {
+  color: var(--text-1);
+  background-color: rgba(4, 9, 18, 0.85);
+  border-color: #24395e;
+}
+
+/* Index tabs as illuminated keys protruding from the fore-edge. The current one is the only
+ * lit key on the stack, which is how you find it without reading it. */
+/* github#9 -- a tab is a lit sign; its cut edge and shadow stay */
+.vault-shelf[data-look="cyber"] .vs-tabs button {
+  border-left: 0;
+  border-radius: 0 2px 2px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.vault-shelf[data-look="cyber"] .vs-tabs button[aria-current="true"] {
+  color: #04211c;
+  background: linear-gradient(90deg, var(--vs-neon), var(--vs-neon-hot));
+  border-color: var(--vs-neon-hot);
+  font-weight: 700;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.6), 0 0 18px rgba(53, 240, 208, 0.5);
+}
+
+.vault-shelf[data-look="cyber"] #vs-ribbon[aria-pressed="true"] {
+  color: #ffffff;
+  background: var(--vs-hot);
+  border-color: var(--vs-hot);
+  box-shadow: 0 0 16px rgba(255, 46, 151, 0.5);
+}
+
+/* ---- plain list mode and reduced motion ---------------------------------
+ * design/0005 -- the list view is the assistive-technology one: a row of text, not a
+ * cartridge seen edge-on. A scanline drawn down a 132px spine becomes a moire across a 34px
+ * row, so the overlay goes and the lit edge stays -- it is the colour, and it still works
+ * lying on its side.
+ */
+.vault-shelf[data-look="cyber"][data-list="1"] .vs-spine::before { display: none; }
+.vault-shelf[data-look="cyber"][data-list="1"] .vs-spine::after { display: none; }
+
+.vault-shelf[data-look="cyber"][data-list="1"] .vs-spine {
+  border-top: 1px solid #1c2c4a;
+  box-shadow: none;
+}
+
+.vault-shelf[data-look="cyber"][data-list="1"] .vs-spine .vs-title {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vault-shelf[data-look="cyber"] .vs-spine:hover,
+  .vault-shelf[data-look="cyber"] .vs-spine:focus-visible,
+  .vault-shelf[data-look="cyber"] .vs-spine[data-wear="2"]:hover,
+  .vault-shelf[data-look="cyber"] .vs-spine[data-wear="3"]:hover {
+    transform: none;
+  }
+}
+
+/* design/0008 -- the ribbon is tape over the top edge, and the blanket button rule would
+ * otherwise make it another lit key. */
+.vault-shelf[data-look="cyber"] .vs-mark,
+.vault-shelf[data-look="cyber"] .vs-markstub {
+  background: var(--ribbon);
+  border: 0;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--ribbon) 45%, transparent);
+}
+
+.vault-shelf[data-look="cyber"] .vs-mark { color: var(--ribbon-ink); }
+.vault-shelf[data-look="cyber"] .vs-mark:hover { background: var(--ribbon); }
+
