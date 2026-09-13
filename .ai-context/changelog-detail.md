@@ -1,5 +1,23 @@
 # Changelog detail
 
+## 2026-09-13 - Test a real predecessor for the 1.0 update strip
+
+The actual 1.0.0 update-strip run initially passed **28/31**: the harness called 1.0.0 its
+own previous minor, so its upgrade/restart assertions exercised an already-seen release.
+The harness now chooses a previous major when the minor is zero and labels that transition
+MAJOR. Explicit decision checks retain both 0.9.0 to 1.0.0 and 1.0.0 to 1.1.0 coverage.
+The pulse target remains the current Manage control, with positive pulse, dismissal and
+reopening assertions. Product code is unchanged.
+
+The real Obsidian run with the release-prep 1.0.0 metadata and current product build passes
+**33/33**: the original 31 checks plus both transition decisions. A 0.0.0 to 1.0.0 upgrade
+shows the note and records nothing until dismissal; same-version and patch cases remain
+quiet. The strip returns **164.13px** to the library on dismissal without changing its
+**1556px** width. Inspected `dist/update-strip-1.0.0/01-strip-up.png`; the five bullets,
+release/gallery links and Got it control are legible above the shelf.
+`dist/update-strip-1.0.0.log` records the run. Syntax, strict lint, comments and generated-map
+checks pass. Temporary release metadata was restored before committing; no full suite ran.
+
 ## 2026-09-13 - Keep narrow Manage rows identical in every look
 
 The release follow-up reproduced `a look moves nothing on the page` failing after the

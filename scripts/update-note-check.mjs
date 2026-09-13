@@ -11,7 +11,7 @@ import { currentFixture } from "./fixture-store.mjs";
 // github#37, decisions/0012
 import { leftWindow, placeElectronLeft, takeLeftScreen } from "./screen.mjs";
 import { ownerTag } from "./lock.mjs";
-import { CHAIN_MAX, parseNote, releaseChain, semver } from "../plugin/update-note.mjs";
+import { CHAIN_MAX, decideNote, parseNote, releaseChain, semver } from "../plugin/update-note.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
@@ -125,7 +125,9 @@ const note = parseNote(readFileSync(join(ROOT, "plugin", "whats-new.md"), "utf8"
 if (!note) throw new Error("plugin/whats-new.md does not parse -- the build would have refused it");
 const N = note.version;
 const [maj, min, pat] = semver(N);
-const PREV_MINOR = maj + "." + Math.max(0, min - 1) + ".0";
+const PREV_RELEASE = min > 0 ? maj + "." + (min - 1) + ".0" : (maj - 1) + ".0.0";
+const BUMP = min > 0 ? "MINOR" : "MAJOR";
+if (maj === 0 && min === 0) throw new Error("the update-note harness needs a release after 0.0.x");
 const NEXT_PATCH = maj + "." + min + "." + (pat + 1);
 const NEXT_MINOR = maj + "." + (min + 1) + ".0";
 
@@ -231,6 +233,14 @@ try {
   await waitFor(c, "!!app.plugins.getPlugin(" + JSON.stringify(PLUGIN_ID) + ")", 30000, "the plugin load");
   await dismissModals();
 
+  // github#33, design/0023
+  for (const [kind, lastSeen, installed] of [["MINOR", "1.0.0", "1.1.0"], ["MAJOR", "0.9.0", "1.0.0"]]) {
+    const candidate = { version: installed, lines: note.lines, points: [] };
+    const decision = decideNote({ installed, lastSeen, hadData: true, note: candidate });
+    report(decision.show === candidate && !decision.record,
+           kind + " upgrade waits for dismissal before recording", lastSeen + " -> " + installed);
+  }
+
   console.log("fresh install (no data.json, " + N + ")");
   await reloadPlugin(null, N);
   await openLibrary();
@@ -282,18 +292,18 @@ try {
          "lastSeenVersion " + beforeSave + " -> " + lastSeen());
   await closeLibrary();
 
-  console.log("minor bump ({ lastSeenVersion: " + PREV_MINOR + " }, " + N + ")");
-  await reloadPlugin({ lastSeenVersion: PREV_MINOR }, N);
+  console.log(BUMP + " bump ({ lastSeenVersion: " + PREV_RELEASE + " }, " + N + ")");
+  await reloadPlugin({ lastSeenVersion: PREV_RELEASE }, N);
   await openLibrary();
-  report(await stripShown(), "a MINOR bump shows the note");
+  report(await stripShown(), "a " + BUMP + " bump shows the note");
   const one = await E("(function(){ var s = " + STRIP + "; return s ? Array.prototype.map.call(s.querySelectorAll('.vs-whatsnew-chain a'), function (a) { return a.textContent; }) : []; })()");
-  report(one.length === 1 && one[0] === N, "one MINOR behind: the chain is the note's version alone", one.join(", "));
+  report(one.length === 1 && one[0] === N, BUMP + " predecessor: the chain is the note's version alone", one.join(", "));
   await closeLibrary();
 
   await reloadPlugin(JSON.parse(readData()), N);
   await openLibrary();
   report(await stripShown(), "a plugin restart before dismissing shows it again");
-  report(lastSeen() === PREV_MINOR, "and still records nothing", "lastSeenVersion " + lastSeen());
+  report(lastSeen() === PREV_RELEASE, "and still records nothing", "lastSeenVersion " + lastSeen());
   await closeLibrary();
 
   // github#33, design/0023 -- a span invented, because the CHANGELOG has one
@@ -301,7 +311,7 @@ try {
                     { version: "0.3.0", name: "" }, { version: "0.2.0", name: "Bookcase" }];
   const top = { version: "0.4.0", lines: note.lines, points: [] };
   const want = releaseChain({ releases: invented, lastSeen: "0.1.0", installed: top.version, note: top });
-  await reloadPlugin({ lastSeenVersion: PREV_MINOR }, N);
+  await reloadPlugin({ lastSeenVersion: PREV_RELEASE }, N);
   await openLibrary();
   await closeLibrary();
   await E("(function(){ var p = app.plugins.getPlugin(" + JSON.stringify(PLUGIN_ID) + ");" +
@@ -334,8 +344,8 @@ try {
   await closeLibrary();
 
   console.log("the controls a note points at (github#33)");
-  await reloadPlugin({ lastSeenVersion: PREV_MINOR }, N);
-  const POINT = "vs-order";
+  await reloadPlugin({ lastSeenVersion: PREV_RELEASE }, N);
+  const POINT = "vs-manageopen";
   await E("(function(){ var p = app.plugins.getPlugin(" + JSON.stringify(PLUGIN_ID) + ");" +
           " p.pendingNote = { version: p.manifest.version, lines: ['x'], points: [" + JSON.stringify(POINT) + "] }; })(); void 0");
   await openLibrary();
