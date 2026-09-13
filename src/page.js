@@ -214,6 +214,11 @@ function mountVaultShelf(root, data, options) {
   /* github#41, design/0026 -- what the vault spells, rebuilt with the books */
   /** @type {import("./core/index").Term[]} */
   var vocabulary = [];
+  /* github#58, design/0008 -- what the search reads, rebuilt with the books */
+  /** @type {import("./core/index").SearchIndex | null} */
+  var searchIndex = null;
+  /** @type {Record<string, import("./core/index").WearLevel>} */
+  var ageWear = {};
   /** @type {import("./core/index").Term[]} */
   var offered = [];
   /** github#41 -- which row the arrows are on, -1 for none. */
@@ -229,7 +234,7 @@ function mountVaultShelf(root, data, options) {
   var bookIndex = {};
   /** The biggest book in the library, which every thickness is scaled against. */
   var thickest = 1;
-  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, land?: "top"|"bottom"|null }|null} */
+  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, revealMatch?: boolean, land?: "top"|"bottom"|null, lit?: string }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
   var history = [];
@@ -334,9 +339,16 @@ function mountVaultShelf(root, data, options) {
         view.books.forEach(function (book, i) { dyeDeal[book.id] = i; });
       });
     }
-    core.markMatches(views, query);
+    /* github#58, design/0008 -- ONCE, here, where the books are. */
+    searchIndex = core.buildSearchIndex(views, visible);
+    core.markMatches(views, query, searchIndex);
     /* github#41, design/0026 -- ONCE, here, where the books are. */
     vocabulary = core.buildVocabulary(views, visible);
+    // design/0033
+    var fullViews = visible.length === notes.length ? views :
+      core.buildLibrary(settings.shelves, notes, settings.noteOrder);
+    ageWear = core.buildAgeWear(fullViews, data.generated.slice(0, 10));
+    if (core.reconcileBookHistory(settings, fullViews).changed) persist();
   }
 
   /* ================================================================= the rail ==
@@ -1176,8 +1188,9 @@ function mountVaultShelf(root, data, options) {
     if (source !== book) b.setAttribute("data-source", source.id);
 
     /* design/0008 -- the three things that make a shelf look used rather than printed. */
-    var opens = settings.wear[source.id] || 0;
-    var level = core.wearLevel(opens);
+    // design/0033
+    if (ageWear[source.id] === undefined) ageWear[source.id] = core.bookAgeWear(source, data.generated.slice(0, 10));
+    var level = effectiveWear(source.id);
     if (level) b.setAttribute("data-wear", String(level));
     /* AS MANY RIBBONS AS IT HOLDS, up to three, side by side out of the bottom of the spine --
      * a book with three ribbons in it looks like a book with three ribbons in it, not like
@@ -1200,7 +1213,6 @@ function mountVaultShelf(root, data, options) {
     var peek = book.label + " -- " + book.notes.length +
       (book.notes.length === 1 ? " note" : " notes");
     if (ribbons) peek += " \u00b7 " + ribbons + (ribbons === 1 ? " ribbon" : " ribbons");
-    if (opens) peek += " \u00b7 opened " + opens + (opens === 1 ? " time" : " times");
     if (book.bands.length) {
       peek += " \u00b7 " + book.bands.slice(0, 3).map(function (p) {
         return p.folder + " " + p.count;
@@ -1860,6 +1872,8 @@ function mountVaultShelf(root, data, options) {
     else if (shelf.order) shelf.order = shelf.order.filter(function (k) { return k !== key; });
     var id = core.bookId(shelf.id, key);
     delete settings.wear[id];
+    delete settings.lastOpened[id];
+    delete settings.bookNotes[id];
     delete settings.bookColors[id];
     delete settings.bookSpines[id];
     if (shelf.bookIndexes) delete shelf.bookIndexes[key];
@@ -1959,6 +1973,10 @@ function mountVaultShelf(root, data, options) {
     var text = spine.getAttribute("data-peek") || "";
     var lines = text.split("\n");
     var head = lines[0].split(" -- ");
+    // design/0033
+    var source = spine.getAttribute("data-source") || spine.getAttribute("data-book");
+    var activity = source ? settings.wear[source] || 0 : 0;
+    if (activity && head[1]) head[1] += " \u00b7 " + activity + " entries and visits";
     card.appendChild(el("div", "vs-peekname", head[0]));
     if (head[1]) card.appendChild(el("div", "vs-peekmeta", head[1]));
     var rest = lines.slice(1).filter(function (l) { return l.trim(); });
@@ -2359,7 +2377,7 @@ function mountVaultShelf(root, data, options) {
    * they stand instead of the room being replaced under you.
    */
   function applyQuery() {
-    var totals = core.markMatches(views, query);
+    var totals = core.markMatches(views, query, searchIndex);
     var live = query.trim().length > 0;
     if (live) root.setAttribute("data-query", "1");
     else root.removeAttribute("data-query");
@@ -2374,7 +2392,9 @@ function mountVaultShelf(root, data, options) {
         book = findBook(id);
         if (book) {
           book.matches = needle
-            ? book.notes.filter(function (n) { return core.matchesQuery(n, needle); }).length : 0;
+            ? book.notes.filter(function (n) {
+                return core.matchesQuery(n, needle, searchIndex);
+              }).length : 0;
         }
       }
       spines[i].setAttribute("data-match", book && book.matches > 0 ? "1" : "0");
@@ -2384,6 +2404,9 @@ function mountVaultShelf(root, data, options) {
       ? totals.notes + (totals.notes === 1 ? " note" : " notes") + " in " +
         totals.books + (totals.books === 1 ? " book" : " books")
       : "";
+
+    /* github#13, design/0026, design/0027 -- an open book follows a CHANGED query */
+    if (reader && reader.lit !== needle) renderReader();
   }
 
   /* ---- what the vault spells ---------------------------------------------
@@ -2543,7 +2566,8 @@ function mountVaultShelf(root, data, options) {
    */
   /** @param {Book} book @param {string|null} noteId */
   function openBook(book, noteId) {
-    book = findBook(book.id, noteId) || book;
+    // design/0019, design/0031
+    book = bookIndex[book.id] || book;
     if (reader && reader.book.id !== book.id) {
       history.push({ bookId: reader.book.id, noteId: reader.noteId });
     }
@@ -2552,10 +2576,11 @@ function mountVaultShelf(root, data, options) {
       for (var i = 0; i < book.notes.length; i++) if (book.notes[i].id === noteId) index = i;
     }
     reader = { book: book, index: index, noteId: book.notes.length ? book.notes[index].id : null,
-               within: "", opener: /** @type {HTMLElement|null} */ (DOC.activeElement) };
+               within: "", revealMatch: !noteId, opener: /** @type {HTMLElement|null} */ (DOC.activeElement) };
     // design/0008, design/0019, github#35
     var worn = sourceOf(book).id;
-    settings.wear[worn] = (settings.wear[worn] || 0) + 1;
+    settings.wear[worn] = Math.min((settings.wear[worn] || 0) + 1, Number.MAX_SAFE_INTEGER);
+    settings.lastOpened[worn] = new Date().toISOString();
     persist();
     markWear(worn);
     $("reader").hidden = false;
@@ -2566,9 +2591,15 @@ function mountVaultShelf(root, data, options) {
     node("reader").focus();
   }
 
+  /** design/0033 */
+  /** @param {string} bookId @returns {number} */
+  function effectiveWear(bookId) {
+    return Math.max(ageWear[bookId] || 0, core.wearLevel(settings.wear[bookId] || 0));
+  }
+
   /** @param {string} bookId */
   function markWear(bookId) {
-    var level = core.wearLevel(settings.wear[bookId] || 0);
+    var level = effectiveWear(bookId);
     var spines = root.querySelectorAll('#' + ID + 'shelves [data-book="' + cssEscape(bookId) + '"], ' +
                                        '#' + ID + 'shelves [data-source="' + cssEscape(bookId) + '"]');
     for (var i = 0; i < spines.length; i++) {
@@ -2598,6 +2629,16 @@ function mountVaultShelf(root, data, options) {
       (book.notes.length === 1 ? " note" : " notes") +
       (book.holds ? " across " + book.holds + (book.holds === 1 ? " book" : " books") : "") +
       (book.bands.length ? " \u00b7 " + book.bands.length + " source folders" : "");
+    /* github#13, design/0027 -- why this book was drawn forward, said on the page */
+    var lit = litNeedle();
+    reader.lit = lit;
+    var marked = lit ? reader.book.notes.filter(function (n) {
+      return core.matchesQuery(n, lit, searchIndex);
+    }).length : 0;
+    if (lit) {
+      $("bookmeta").appendChild(el("span", "vs-why", " \u00b7 " + marked + " of " +
+        book.notes.length + " match \u201c" + query.trim() + "\u201d"));
+    }
     $("prevcollection").disabled = !history.length;
 
     renderContents();
@@ -2694,18 +2735,47 @@ function mountVaultShelf(root, data, options) {
     box.appendChild(stub);
   }
 
+  /**
+   * github#13, design/0027 -- the needle, marked where it sits
+   * @param {HTMLElement} host @param {string} text @param {string} needle @returns {HTMLElement}
+   */
+  function litText(host, text, needle) {
+    var low = needle ? text.toLowerCase() : "";
+    var at = 0;
+    /* github#13 -- a fold that changes length cannot be mapped back */
+    var i = needle && low.length === text.length ? low.indexOf(needle) : -1;
+    while (i >= 0) {
+      if (i > at) host.appendChild(DOC.createTextNode(text.slice(at, i)));
+      host.appendChild(el("span", "vs-hit", text.slice(i, i + needle.length)));
+      at = i + needle.length;
+      i = low.indexOf(needle, at);
+    }
+    if (at < text.length) host.appendChild(DOC.createTextNode(text.slice(at)));
+    return host;
+  }
+
+  /* github#13, design/0027 -- what the library is asking, read live */
+  function litNeedle() {
+    return query.trim().toLowerCase();
+  }
+
   function renderContents() {
     var box = $("contents");
     clear(box);
     var needle = reader.within.trim().toLowerCase();
+    /* github#13, design/0027 -- ONE RULE: the box can no longer deny the shelf */
+    var lit = litNeedle();
     reader.book.notes.forEach(function (note, i) {
-      if (needle && note.title.toLowerCase().indexOf(needle) < 0) return;
+      /* github#58, design/0027 -- and the SAME index, or the book denies the shelf again */
+      if (needle && !core.matchesQuery(note, needle, searchIndex)) return;
       var li = el("li");
       var b = el("button");
       b.type = "button";
       /* github#46 -- the row says which note it is */
       b.setAttribute("data-note", note.id);
-      b.appendChild(el("span", "vs-t", note.title));
+      /* github#13, design/0027 -- and whether the library's query marked it */
+      if (lit && core.matchesQuery(note, lit, searchIndex)) b.setAttribute("data-match", "1");
+      b.appendChild(litText(el("span", "vs-t"), note.title, needle || lit));
       /* design/0012 -- a leader exists because there is something at the end of it. A row with
        * no date to lead to just stops, the way a printed index does. */
       if (note.date && note.title.indexOf(note.date) !== 0) {
@@ -2740,7 +2810,9 @@ function mountVaultShelf(root, data, options) {
   /** @param {HTMLElement} box */
   function revealCurrent(box) {
     if (!reader || reader.revealed === reader.noteId) return;
-    var row = /** @type {HTMLElement|null} */ (box.querySelector('button[aria-current="true"]'));
+    /* design/0027 -- the initial search reveal leaves the selected note alone */
+    var first = reader.revealMatch && box.querySelector('button[data-match="1"]');
+    var row = /** @type {HTMLElement|null} */ (first || box.querySelector('button[aria-current="true"]'));
     var page = /** @type {HTMLElement|null} */ (box.closest(".vs-page"));
     if (!row || !page || !page.clientHeight) return;
     var pageBox = page.getBoundingClientRect();
@@ -2749,12 +2821,13 @@ function mountVaultShelf(root, data, options) {
     var bottom = top + rowBox.height;
     var margin = Math.round(rowBox.height);
     var target = page.scrollTop;
-    if (top < page.scrollTop + margin) target = top - margin;
+    if (first || top < page.scrollTop + margin) target = top - margin;
     else if (bottom > page.scrollTop + page.clientHeight - margin) target = bottom - page.clientHeight + margin;
     target = Math.max(0, Math.min(target, page.scrollHeight - page.clientHeight));
     reader.revealed = reader.noteId;
+    delete reader.revealMatch;
     if (Math.abs(target - page.scrollTop) < 1) return;
-    if (reduceMotion || !page.scrollTo) page.scrollTop = target;
+    if (first || reduceMotion || !page.scrollTo) page.scrollTop = target;
     else page.scrollTo({ top: target, behavior: "smooth" });
   }
 
@@ -3060,14 +3133,33 @@ function mountVaultShelf(root, data, options) {
   function renderMeta(note) {
     var box = $("notemeta");
     clear(box);
-    box.appendChild(el("strong", "", note.title));
+    /* github#13, design/0027 -- the details are marked where the needle sits in them */
+    var lit = litNeedle();
+    box.appendChild(litText(el("strong"), note.title, lit));
     /** @type {string[]} */
     var meta = [];
     if (note.date && note.title.indexOf(note.date) !== 0) meta.push(note.date);
     if (note.folder) meta.push(note.folder);
     if (note.people.length) meta.push(note.people.join(", "));
     if (note.tags.length) meta.push(note.tags.map(function (t) { return "#" + t; }).join(" "));
-    if (meta.length) box.appendChild(el("span", "", "  " + meta.join(" \u00b7 ")));
+    /* github#13, github#58, design/0027 -- a match with no detail to point at names the spine */
+    var reasons = lit ? core.matchReasons(note, lit, searchIndex) : [];
+    var unseen = reasons.length > 0 && !reasons.some(function (r) {
+      return r.field !== "cover";
+    });
+    if (!meta.length && !unseen) return;
+    var line = el("span");
+    line.appendChild(DOC.createTextNode("  "));
+    meta.forEach(function (text, i) {
+      if (i) line.appendChild(DOC.createTextNode(" \u00b7 "));
+      litText(line, text, lit);
+    });
+    if (unseen) {
+      if (meta.length) line.appendChild(DOC.createTextNode(" \u00b7 "));
+      line.appendChild(el("span", "vs-why",
+        "on the shelf as \u201c" + reasons[0].value + "\u201d"));
+    }
+    box.appendChild(line);
   }
 
   /**
@@ -3739,6 +3831,12 @@ function mountVaultShelf(root, data, options) {
     Object.keys(settings.wear).forEach(function (key) {
       if (key.indexOf(dead) === 0) delete settings.wear[key];
     });
+    Object.keys(settings.lastOpened).forEach(function (key) {
+      if (key.indexOf(dead) === 0) delete settings.lastOpened[key];
+    });
+    Object.keys(settings.bookNotes).forEach(function (key) {
+      if (key.indexOf(dead) === 0) delete settings.bookNotes[key];
+    });
     Object.keys(settings.bookColors).forEach(function (key) {
       if (key.indexOf(dead) === 0) delete settings.bookColors[key];
     });
@@ -3813,7 +3911,7 @@ function mountVaultShelf(root, data, options) {
         refresh();
       });
 
-      var edit = el("button", "", "Edit");
+      var edit = el("button", "vs-edit", "Edit");
       edit.type = "button";
       on(edit, "click", function () { $("manage").hidden = true; openBuilder(shelf); });
 
@@ -4836,7 +4934,7 @@ function mountVaultShelf(root, data, options) {
       var withRibbon = 0, ghosts = 0, forward = 0;
       views.forEach(function (v) {
         v.books.forEach(function (b) {
-          var lv = core.wearLevel(settings.wear[b.id] || 0);
+          var lv = effectiveWear(sourceOf(b).id);
           if (lv) worn[b.id] = lv;
           if (ribbonsIn(b)) withRibbon++;
         });
@@ -4990,6 +5088,52 @@ function mountVaultShelf(root, data, options) {
     made: function (shelfId) {
       var shelf = shelfById(shelfId);
       return shelf && shelf.made ? core.clone(shelf.made) : {};
+    },
+    /**
+     * github#13, design/0027 -- a reason exists exactly when there is a match
+     * @param {string[]} needles
+     */
+    checkReasons: function (needles) {
+      var disagree = 0, matched = 0, reasoned = 0;
+      /** @type {Record<string, number>} */
+      var fields = {};
+      /** @type {string[]} */
+      var sample = [];
+      needles.forEach(function (raw) {
+        var needle = String(raw).trim().toLowerCase();
+        notes.forEach(function (note) {
+          var hit = core.matchesQuery(note, needle, searchIndex);
+          var why = core.matchReasons(note, needle, searchIndex);
+          if (hit) matched++;
+          if (why.length) reasoned++;
+          why.forEach(function (r) { fields[r.field] = (fields[r.field] || 0) + 1; });
+          if (hit !== (why.length > 0)) {
+            disagree++;
+            if (sample.length < 3) sample.push(needle + " / " + note.id);
+          }
+        });
+      });
+      return { needles: needles.length, notes: notes.length, matched: matched,
+               reasoned: reasoned, disagree: disagree, fields: fields, sample: sample };
+    },
+    /* github#13, design/0027 -- what the open book says about the query */
+    readerMatches: function () {
+      if (!reader) return null;
+      var lit = litNeedle();
+      var box = $("contents");
+      return {
+        book: reader.book.id,
+        notes: reader.book.notes.length,
+        matches: lit ? reader.book.notes.filter(function (n) {
+          return core.matchesQuery(n, lit, searchIndex);
+        }).length : 0,
+        rows: box.querySelectorAll("button").length,
+        marked: box.querySelectorAll('button[data-match="1"]').length,
+        hits: root.querySelectorAll("#" + ID + "reader .vs-hit").length,
+        why: $("bookmeta").textContent,
+        meta: $("notemeta").textContent,
+        empty: box.textContent.indexOf("Nothing in this book matches.") >= 0
+      };
     },
     /** Every book's address, so a check can assert they are stable across a rebuild. */
     addresses: function () {

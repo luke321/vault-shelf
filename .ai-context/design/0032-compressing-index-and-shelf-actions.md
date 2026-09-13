@@ -16,3 +16,7 @@ The targeted regression measures a 25-tab book at 1180x1000 and 1180x480: all ta
 inside the strip, with no scroll overflow, while both fixed controls remain 28px high.
 Switching to Date preserves those control dimensions. It also drives both shelf actions,
 checks metadata styling and separators, and verifies hiding preserves the definition.
+
+The viewport regression waits for each requested size and five consecutive idle room
+measurements. Its cleanup restores the exact viewport captured before the check, through
+the same settle gate; a fixed delay after clearing emulation could leave the page busy.

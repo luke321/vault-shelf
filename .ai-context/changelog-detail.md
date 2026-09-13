@@ -1,5 +1,286 @@
 # Changelog detail
 
+## 2026-09-13 - Wait for complete fixture history before the no-write strip check
+
+The actual update-strip harness passed 32/33 because its already-seen case supplied only
+a version marker, so the new book-history baseline legitimately needed saving. Reusing
+migrated settings alone still failed while the throwaway vault indexed: a concrete diff
+showed only wear/lastOpened/bookNotes changing, from 243 to 247 known addresses, with 161
+ledgers gaining metadata-derived notes. Another sample caught data.json briefly empty during
+an asynchronous write.
+
+The harness now waits for every fixture Markdown file's metadata before its scenarios and
+for valid history settings with stable bytes after opening the library, under bounded
+timeouts. The already-seen case reuses migrated settings; its exact byte-for-byte no-write
+assertion remains unchanged. No product code changed.
+
+The actual 1.0.0 run reports **4,938 metadata-ready notes and 33/33 passed**, including the
+unchanged data.json assertion. Syntax, strict lint, comments (1477/1477) and generated maps
+pass. Evidence: `dist/update-strip-1.0.0-history-final.log` and its sibling screenshot folder.
+The harness closed its own Obsidian and released screen-left. No full suite or release media
+changes ran.
+
+## 2026-09-13 - Show the current activity count in a spine's peek
+
+After two opens, acoustics correctly held count 3 but its cached hover text still said 1.
+The peek now reads the current source-address count when shown; descriptive text stays
+cached, and no spine or shelf is rebuilt. Favourites read the same source count.
+
+**2/2 targeted checks pass in 3 seconds wall**. Visible peeks report **1, 2, 2, 3, 3** across
+the source and favourite before/after two opens; all preserve lastOpened, and the same
+spine nodes remain. Thirteen additional visits and rebuild persistence still pass, along
+with the timestamp regression. Strict lint, scope, network, comments (1477/1477), build
+and generated maps pass. Evidence: `dist/live-activity-peek.log`. No capture, media edits
+or full suite ran, following the user's instruction to retain the existing media.
+## 2026-09-13 - Keep approved films and update the future wear recipe
+
+The owner explicitly requested no more recordings after the counter change. Approved v5
+hero, all 24 feature clips and the 389-second full walkthrough remain untouched. Only the
+future 19-second wear recipe changes: existing entries on the old year book, then the
+one-note acoustics book and two real opens. Its counter advances 1 to 2 to 3, its single
+`bookNotes` identity stays unchanged, and `lastOpened` changes from `never` on a real open.
+No counter is seeded or reset. Hero choreography and the other 23 feature acts are identical.
+
+The one pre-waiver validation reached the correct counter 3 and visible wear level 1,
+then rejected a stale peek still showing 1. That product defect is handled separately;
+the recorder keeps its assertion rather than hiding the failure with a rebuild. Syntax
+and strict lint pass. No additional take, product change or media replacement is included.
+
+## 2026-09-13 - Count note entries and visits without repeating the baseline
+
+The user extended the opening counter to include existing notes once and newly added notes.
+`wear` retains legacy counts; `bookNotes` records distinct seen IDs per stable source address.
+Mount/rebuild reconciliation uses full unfiltered membership and saves through the existing
+onSettings callback. Removal/reappearance cannot count an ID twice. Hidden sources, made
+books, reference sharing and stable plaque-address unions are covered. Known books and old
+wear keys receive explicit `lastOpened: "never"`; only a real open records a timestamp.
+The 9,999 cap is replaced by MAX_SAFE_INTEGER, and the existing peek says “entries and visits”.
+
+**5/5 targeted browser checks pass in 12 seconds wall**. Measured 7 legacy opens plus 54
+notes become **61**, repeated load/filter remains **61**, a new note gives **62** with
+`never`, removal/rebuild remains **62**, and a favourite visit gives **63** plus its timestamp.
+Reset seeds **54** again, and all **275** known fixture addresses explicitly read `never`.
+The separate core check proves distinct-note deduplication, monotonic ledgers through
+removal/reappearance, obsolete history preservation, large counts, made books and plaques.
+Timestamp persistence, age wear, thirteen additional visits and manual plaque runs pass too.
+Strict lint, scope, network, comments (1477/1477), escaping, PII patterns (no name list), build
+and generated maps pass. Inspected `dist/book-note-counters-after-vault.png`: populated books
+now show stronger wear, so release media needs refreshing. Results are in
+`dist/book-note-counters-after.log`. No private vault mutation, media edits or full suite.
+
+## 2026-09-13 - Refresh the demo after release-gate repairs
+
+The demo was refreshed from current source `8d52c82` using the same 1,242-note generated cut: 1,690,661 bytes, four inline scripts parse, exact current page/shared CSS included, and the stable preview copy is byte-identical. It now includes the manual plaque fix and last-opened metadata. No UI or approved capture changed: manual split-run repair does not affect the recorded default plaques; Reading/index fixes are harness-only; timestamps add persistence without a visible control. The approved hero SHA-256 remains `752825f3881781810c350cb0c91038194fe98d2b74142788a93d51253afe778e`.
+No browser or full suite ran for this documentation refresh.
+
+## 2026-09-13 - Record when a book was last opened
+
+Book opening history previously held a count without a timestamp. Actual opens now also
+save an ISO UTC `lastOpened` value by stable source address, with `never` for missing
+entries. Legacy counts remain intact and receive no invented dates. Favourites share the
+source stamp; made books and plaques retain their addresses. Page turns and rebuilds leave
+the stamp unchanged. Deletion and reset remove it consistently with wear. No UI changed.
+
+**3/3 targeted checks pass in 8 seconds wall**, covering timestamp persistence, existing
+wear counts and manual plaque runs. The measured source began at `never` with count 7:
+first open recorded `2026-09-13T05:45:43.934Z` and count 8; opening its favourite recorded
+`2026-09-13T05:45:44.046Z` and count 9 without an alias entry. Saved storage, rebuilds,
+made/plaque stamping, deletion and reset passed. Core checks cover defaults, legacy counts,
+round trips and malformed timestamps. Strict lint, scope, network, comments, escaping,
+PII patterns (no local name list), build and generated maps pass. Inspected the unchanged
+reader in `dist/last-opened-after-vault-reader.png`; results are in
+`dist/last-opened-after.log`. No full suite or release media edits.
+
+## 2026-09-13 - Keep a manual plaque's selected run when opening it
+
+The release gate reproduced a product regression from the contents-picker refresh: moving
+acoustics to the end of manual Tags made two A plates, but both opened **1,812 notes**.
+`openBook` re-resolved an already-built virtual run by its shared address and lost the clicked
+run. It now refreshes ordinary books through the real-book index while retaining virtual
+membership. The moved plate opens **1 note**; the first still opens **1,812**. Age wear was
+not involved.
+
+**5/5 targeted checks pass in 9 seconds wall**: split manual plaques, wrapped automatic
+plaques, plaque ribbons/rebuilds, contents-order persistence and age wear. The existing
+manual-plaque check now captures the selected run and restores any prior manual order.
+Inspected `dist/manual-plaque-after-manual-plaque.png`: one row, one selected note and
+the footer's 1 of 1 agree. Logs: `dist/manual-plaque-before.log` and
+`dist/manual-plaque-after.log`. Strict lint, scope, network, comments (1479/1479), static
+escaping, PII patterns (no local name list), build and generated maps pass. No full suite ran.
+Automatic plaque behavior and default shelf rendering are unchanged, so default release
+captures do not require replacement for this fix.
+
+## 2026-09-13 - Measure Reading rows beneath their intentional wear lift
+
+The release run at `0dbce28` counted two painted bottom edges on a single Reading row:
+296px for a level-3 aged book and 298px for a fresh one. With 32 ribbons it counted five
+painted bands over two actual tracks. These were the existing 0/1/2px wear transforms, not
+extra rows. The line-containment assertion also mistook the lifted top edge for overflow.
+
+The test now requires each transform to equal its exact permitted wear lift, then measures
+the untransformed top/bottom against the line and its board. Two and three ribbons each
+measure one track/one baseline; 32 ribbons measure two tracks/two baselines. Packing remains
+strict: 13px is left where the next book needs 42px plus the gap. Negative probes require
+rejection of a 3px layout margin and an invalid 3px transform; both are rejected. Probe
+transitions are disabled so their deliberately bad geometry is measured after it is applied.
+
+The targeted Reading check passes 1/1. `dist/reading-geometry-reading.png` was inspected:
+three ribboned books share one board, with legible labels, visible ribbons and the intended
+small wear lift. Only the harness and its documentation change; product appearance and
+approved recordings are unchanged. No full suite ran.
+
+## 2026-09-13 - Settle the index test's restored viewport
+
+The release run's index/icon check passed every geometry and action assertion but failed
+its cleanup gate with a pending room measure. Clearing emulation and sleeping 150ms did not
+prove that the resize observer and its 60ms timer had finished. The harness now saves the
+original viewport, explicitly restores its exact width and height, and requires five
+consecutive idle samples at each requested size. Product code and all existing assertions
+are unchanged.
+
+The affected check and its immediately following biggest-book index check pass **2/2**.
+The 25 letter tabs still measure **25.4375px** high at 1180x1000 and **6.71875px** at
+1180x480, with zero overflow; the fixed controls remain **28px**, the strip **56px**.
+Cleanup restored the captured **1584x961** viewport with **pending: 0**. The following
+2,450-note book retained its 11 tabs. Inspected `dist/index-settle-vault-reader.png`; the
+spread and index are visible and unclipped. Syntax, strict lint and generated-map checks
+pass. Only these two browser checks ran; no product or approved media changed.
+
+## 2026-09-13 - Approve the complete Vault Shelf 1.0.0 release preparation
+
+The owner approved hero v5, all 24 feature clips, the release body and actual update strip.
+The promoted hero is 68 seconds, 1000 x 1000, with 365 WebP frames; the full walkthrough
+is hero first plus all features: 389 seconds and 9,336 MP4 frames. Feature media totals
+321 seconds and 14,050,604 WebP bytes. The current generated demo has 1,242 notes and
+1,689,693 bytes, with the age, first-match and narrow Manage changes embedded. Its four
+inline scripts parse, and exact current page/CSS comparisons pass. The comment checker
+measured two fewer prose-comment lines after recorder cleanup, so its ratchet moves from
+1,481 to 1,479. Release verification records approval separately from pending final gates.
+
+## 2026-09-13 - Test a real predecessor for the 1.0 update strip
+
+The actual 1.0.0 update-strip run initially passed **28/31**: the harness called 1.0.0 its
+own previous minor, so its upgrade/restart assertions exercised an already-seen release.
+The harness now chooses a previous major when the minor is zero and labels that transition
+MAJOR. Explicit decision checks retain both 0.9.0 to 1.0.0 and 1.0.0 to 1.1.0 coverage.
+The pulse target remains the current Manage control, with positive pulse, dismissal and
+reopening assertions. Product code is unchanged.
+
+The real Obsidian run with the release-prep 1.0.0 metadata and current product build passes
+**33/33**: the original 31 checks plus both transition decisions. A 0.0.0 to 1.0.0 upgrade
+shows the note and records nothing until dismissal; same-version and patch cases remain
+quiet. The strip returns **164.13px** to the library on dismissal without changing its
+**1556px** width. Inspected `dist/update-strip-1.0.0/01-strip-up.png`; the five bullets,
+release/gallery links and Got it control are legible above the shelf.
+`dist/update-strip-1.0.0.log` records the run. Syntax, strict lint, comments and generated-map
+checks pass. Temporary release metadata was restored before committing; no full suite ran.
+
+## 2026-09-13 - Keep narrow Manage rows identical in every look
+
+The release follow-up reproduced `a look moves nothing on the page` failing after the
+Manage viewport check: **728 moved / 16 resized**. Independent narrow measurements found
+Leather wrapping Delete alone on Months and People, adding **42px**. Shared phone grid
+positions now keep controls in the same rows at **390px and 320px** in all three looks;
+wide geometry remains unchanged. The strengthened Manage test checks row/control geometry,
+fit and pick-shelf rules, and waits for viewport restoration plus the page's room measurement.
+
+The Manage, four-state look-invariance and colour/visibility persistence checks pass **3/3
+in 11 seconds wall**. All **4,358** elements in the original look check report **0 moved,
+0 resized, 0 missing**. Inspected `dist/manage-look-final-manage.png`: the phone sheet shows
+the name, arrows/Shown, paired Edit/Delete and colour rules without clipped controls.
+`dist/manage-look-final.log` records the final paired run. Strict lint, scope, network,
+comments (1481/1481), static escaping and PII patterns pass (no local name list).
+No full suite ran.
+
+## 2026-09-13 - Wait for the requested contents row during integration checks
+
+The combined age-wear/first-finding run caught the test sampling a long smooth Next scroll
+before it started: the Date contents remained near **31,418px**, although the right note
+had correctly advanced to index **1**. The bounded waiter now requires the intended row
+to be visible and its scroll position stable before proceeding. Product behavior and the
+assertions are unchanged; a query update cannot complete the navigation on the test's behalf.
+
+The exact combined run passes **2/2 in 13 seconds wall**. Date Next independently reaches
+**138px in 1,694ms**, and A-Z reaches **155px in 1,691ms**, before query changes. Initial
+matching row **1,225** remains visible without changing note index **0**; no-hit, blank-query
+and explicit-note fallbacks pass. Age wear remains **3** for 2015 versus **0** for 2026 with
+zero saved opens. Existing tab/Previous/ribbon, index-click and page-turn checks also pass.
+Strict lint and syntax checks pass. Inspected `dist/age-search-integration-final-first-match.png`:
+the matching row is visible near the left page's top while the original note stays on the right.
+
+An earlier overbroad targeted selection separately found the look-invariance check failing:
+Leather's Manage rows grew by **42px**, with **728 moved / 16 resized** elements. This is
+reported separately for release review; this test-wait repair does not resolve it.
+
+## 2026-09-13 - A searched book reveals its first matching contents row
+
+An ordinary book open now places the first matching row near the top of the left contents
+page without changing the selected note or right-page position. The initial reveal is
+immediate and consumed once; explicit note/ribbon destinations and later navigation keep
+their existing selected-row behavior. Blank queries and books without a hit fall back to it.
+
+Before: on the 2,450-note No one named book, the first matching row was **1,225**, offscreen
+at left scroll **0px** in both Date and A-Z order. After: the same row is visible at
+**31,426px** (Date) and **31,443px** (A-Z); the selected note remains index **0**, right scroll
+**0px**. Next reveals row 1; changing the query then preserves that position. Explicit-note
+opens and both fallback cases reveal the selected row. A smooth initial reveal was replaced
+with immediate positioning after measurement caught it starting after the book opened.
+
+**6/6 targeted checks pass in 21 seconds**, including contents defaults, appearance drafts,
+match explanations, ribbon/tab/Previous navigation and index clicks retaining their scroll.
+Build, strict lint, scope, network, comments (1481/1481), static escaping, generated maps and
+PII patterns pass (no local name list). No full suite ran. Inspected
+`dist/first-finding-after-first-match.png`: Wide router cutters is visible and highlighted
+near the top of the left page while the right page still shows its original opening note.
+
+## 2026-09-13 - Integrate search scope and match reasons with the spine picker
+
+The merge keeps both reader state fields: page-edge landing and the live query used for
+match explanations. Search indexes flow through library marking, contents filtering and
+note reasons; contents-order controls and all six bindings remain present. Both branches'
+verification records are preserved and the code map/index regenerated.
+
+**15/15 targeted checks pass in 12 seconds** over 4,938 generated notes: metadata/cover
+search excludes prose and complete paths, 4,140 matches have 4,140 reasons with zero
+disagreements, and cover-only names still work inside books. Vocabulary, contents-order
+persistence, book appearance drafts and reader/index geometry checks pass too. Build,
+strict lint, scope, network, comments (1481/1481), static escaping, refresh wiring (7/7)
+and generated-map checks pass; PII patterns pass without a local name list. No full suite ran.
+The live `project` query was inspected in `dist/search-integration-vault.png` and
+`dist/search-integration-vault-reader.png`: the reader shows 673 of 1,755 matches alongside
+marked rows and metadata, with the Date control and reading ribbons intact.
+
+## 2026-09-13 - Refresh the release's live demo from the declared fixture
+
+After integrating search scope and match reasons, exported the same generated cut again.
+The final demo remains **1,242 notes**, now **1,687,448 bytes**, and embeds the current
+page source, search index and reason engine. Four inline scripts parse; automatic overrides
+remain empty; PII patterns and network checks pass. The plugin build names version **0.9.0**.
+This second export received source-only verification; the screenshot below precedes search integration.
+
+Regenerated `docs/demo/index.html` with the current `make-vault.mjs`, `--notes 1200`,
+seed `20260909` and end `2026-09-11`, matching the shared fixture `vault-178c03f6` stamp.
+The scratch fixture is `dist/demo-fixture-0.9.0`; the exporter uses `--demo` and the stable
+name `Vault Shelf Demo`. No real vault or mirror was read. Notes remain **1,242 -> 1,242**,
+and the export is **1,679,455 bytes**. Existing embedded product code was already current;
+the regenerated fixture data now follows the shared fixture's end date. All inline scripts
+parse, embedded page code matches current source, and automatic colour/binding overrides
+remain empty. PII patterns pass (no local name list). A separate headless Chrome captured
+`dist/demo-0.9.0-visual.png` at 1000x1000, with 231 rendered spines and zero console errors,
+then closed. The screenshot was inspected: seeded Favourites, library controls, varied leather
+bindings, shelf counts and decade plaques render clearly with no overlay covering the library.
+
+## 2026-09-13 - Update-note pulse check follows the current Manage control
+
+The real Obsidian update-note check passed **30/31** before repair: its synthetic note
+pointed at the removed `vs-order` control. It now points at `vs-manageopen`, preserving
+the positive animation assertion and both dismissal/reopening checks; product code is unchanged.
+`node scripts/update-note-check.mjs --out dist/update-strip-0.9.0 --lock-timeout-ms 1000`
+passes **31/31**: Manage animates with `vs-new-pulse` for 1.9s, then zero controls pulse
+after dismissal or reopening. The screen lock was released and plugin console errors were zero.
+Syntax and targeted ESLint pass. Screenshot `dist/update-strip-0.9.0/04-pulse.png` was inspected:
+the Manage gear is visibly highlighted while the update strip is open.
+
 ## 2026-09-13 - Compressing tabs and inline shelf actions
 
 The right-edge section tabs compress without scrolling; Search and A-Z/Date stay 28px high.
@@ -138,6 +419,106 @@ See `design/0029` for persistence and the title/decoration contract.
 Build, strict typecheck, lint, scope, network, comment budget, data escaping, refresh wiring,
 generator determinism and build-order determinism pass. PII patterns pass; no local name list
 was available. Eleven distinct targeted smoke checks pass; the full suite was not run.
+
+## 2026-09-12 — The search reads titles, covers and declared metadata (github#58)
+
+> "just note titles and real book cover names, otherwise we match way too much…"
+
+`core.matchesQuery` read a note's title, **path**, tags, people and **body**. More than half the
+library answered to `which`, `#vs-hits` counted a number with no information in it, and — because
+the match was somewhere in the prose — opening a book told you nothing about why it had been drawn
+forward. The other half of the same fault: a cover a person can *read on a spine*, **Aug 2026**,
+could not be found at all, because `labelFor()` builds that string for reading and no note contains
+it.
+
+The rule, decided 2026-09-12: **a note matches if the needle is in its title, in the cover of any
+book it sits behind, or in its declared metadata — tags, people, folder. Body and path are
+dropped.** Covers alone was the other candidate and was rejected: it makes the search
+*shelf-dependent*, so `inbox` finds nothing in a vault with no Folders shelf — which is the default
+library — and hiding a shelf quietly makes its notes unfindable.
+
+Measured on the one vault, 4,938 notes in 687 books:
+
+| typed | before | after | why |
+|---|---|---|---|
+| `afternoon` | 1,446 | **0** | prose |
+| `which` | **2,867** | **0** | prose |
+| `agreed` | 1,842 | **0** | prose |
+| `Dagny Halvorsen` | 451 | **0** | the name the generator writes only into bodies |
+| `.md` | **4,938** | **0** | path |
+| a whole note path | 1 | **0** | path |
+| `garden` | 1,462 | **1,459** | tag · book — the signal moves by 0.2% |
+| `mira` | 631 | **621** | person |
+| `学び` | 137 | **136** | tag · book |
+| `inbox` | 192 | **192** | folder, with **no Folders shelf on the rail** |
+| `project` | 1,818 | **1,818** | folder and tag |
+| `aug 2026` | **0** | **285** | a cover became searchable |
+| `sep 2026` | **0** | **301** | a cover became searchable |
+| `undated` | **0** | **531** | so did a sentinel's cover |
+| `No one named` | **0** | **2,450** | so did that one |
+| `2026-08` | 114 | **89** | the **key** stops matching; the label more than replaces it |
+| `a` | 4,938 | 4,936 | the Encyclopedia volume `A` is a real cover |
+
+**The noise goes to zero and the signal does not move.** Every number in the issue's own table is
+reproduced exactly, which is what says the rule that shipped is the rule that was measured.
+
+### A cover is not a property of a note
+
+`matchesQuery(note, needle)` could no longer answer alone: the covers a note sits behind are known
+only once the library is built. Two candidates — resolve them per book inside `markMatches`, or
+build a note→covers index where the vocabulary is built. The index won, because `markMatches` walks
+**33,871 book-note slots** per keystroke and the per-book form does the same work 687 times over.
+
+`core.buildSearchIndex(views, notes)` folds each note's own text and every cover it stands behind
+into **one string**, once, in `rebuild()`. Matching is then one map lookup and one `indexOf`, and
+`markMatches` reads a note **once per query** rather than once per each of the 7.6 books it stands
+in. That is why the change is a speed-up rather than a cost:
+
+| sustained typing, per keystroke (one run, `project`, 210 keystrokes) | before | after |
+|---|---|---|
+| marking only | **11.8 ms** | **1.2 ms** |
+| marking and offering the list | 11.8 ms | **1.4 ms** |
+| `core.markMatches` alone, headless | 11.59 ms | **1.31 ms** |
+| `core.buildSearchIndex`, **once per rebuild** | — | **5.2 ms** |
+
+The old rule called `toLowerCase()` on 33,871 titles **and** 33,871 bodies on every key; the new one
+folds 4,938 strings once per rebuild and never again.
+
+### github#41's workaround is deleted, and its invariant is now true by identity
+
+The vocabulary offered a book by its **key** (`2026-08`) rather than the cover you read on the
+spine, precisely because a label matched nothing — that was the honesty check failing at 29 of 77
+on its first run. A book contributes `book.cover` now, and the build-time verification that no key
+is offered that no note spells is **gone**: with covers searchable, *the vocabulary and the search
+are the same set*, so every suggestion marks at least one note by construction rather than by a
+pass that checks it.
+
+| | before | after |
+|---|---|---|
+| terms the box knows | 5,147 | **5,151** |
+| — people / tags / folders / books / titles | 25 / 43 / 12 / 222 / 4,938 | 25 / 43 / 12 / **226** / 4,938 |
+| — spelled by more than one kind | 68 | **68** |
+| a suggestion that marks nothing, over all terms | not measured | **0 of 5,151** |
+| a suggestion that marks nothing, the check's probes | 0 of 73 | **0 of 73** |
+| `the shelf parts as you type` | 231 spines, 189 forward, 42 ghosts | **unchanged** |
+
+The four new book terms are the **sentinel covers** — `Undated`, `Unfiled`, `No one named`,
+`Untagged`. `github#41` excluded a key beginning with `-` because `-undated` is not a word; the key
+is no longer what is offered, and `Undated` is a cover you can read. Leaving them out would have
+left four words showing hits beside *Nothing in this vault spells that*, which is the wart this
+change exists to dissolve.
+
+**And it does dissolve it.** Typing a body-only word used to read *1446 notes in N books* in
+`#vs-hits` while the row a few centimetres away said *Nothing in this vault spells that* — two true
+statements that read as a contradiction. The room now says `0 notes in 0 books` beside it, and the
+new check asserts both halves together rather than either alone.
+
+### What was left alone
+
+`#vs-within` still matches titles only — the other half of `github#13`, out of scope by the issue's
+own line. A **one-character query** still offers and still marks: `a` reaches 4,936 of 4,938 through
+the Encyclopedia volume `A`, which is defensible, and suppressing single characters would break
+`a vocabulary that is not Latin is still offered`, which types one character (`学`) on purpose.
 
 ## 2026-09-12 — A lifted spine is painted whole (github#51)
 
@@ -3580,3 +3961,173 @@ had settled. Build/lint/static gates pass. Full suite not run for this change.
 Screenshots inspected: `dist/reader-refinement-vault.png`,
 `dist/reader-refinement-vault-reader.png`, `dist/book-creation-narrow-bottom.png` and
 `dist/leather-spine-picker.png`.
+
+## 2026-09-12 — why this book is lit (`github#13`, `design/0027`)
+
+The shelf said *which* books matched and the reader said nothing. A book drawn forward on a tag
+opened on an unmarked index, and retyping the same needle into *Find within this book* — which
+tested **titles only** while the library tested title, path, tags, people and body — printed
+*"Nothing in this book matches."* under a spine that was drawn as a match.
+
+**The book no longer denies the shelf.** *Find within this book* narrows by `core.matchesQuery`,
+the same function `applyQuery` calls. On `Encyclopedia I` with `garden` live — 36 notes, 6
+matching, every one of them on a tag:
+
+| | before | after |
+|---|---|---|
+| rows on open | 36, **0 marked** | 36, **6 marked** |
+| the head reads | `36 notes · 8 source folders` | `… · 6 of 36 match “garden”` |
+| typing `garden` in the find box | **0 rows**, *"Nothing in this book matches."* | **6 rows**, no such sentence |
+| the matched note's details | `#garden/seeds`, unmarked | `#garden/seeds` with `garden` on a ground |
+
+Across the vault: `project/website-migration` drew **475** books forward and **40 of 40** opened
+found it again in their own box. On `favourites/years/2026`, **304 of 1,755** rows marked against
+**304** matching notes with all **1,755** still in the index; the box cleared leaves **0** marked
+and **1,755** rows.
+
+**The cost of one rule, stated.** With body matching still in the scope rule, the find box returns
+many more rows than it used to: `garden` on `favourites/years/2026` goes **10 → 497**. `github#58`
+does not remove that — those are tag matches and it keeps tags. The judgement is that a narrow
+reader rule compensating for a broad library rule is the wrong layer; the breadth is `github#58`'s
+ticket, and a second rule in here only hides it while making the book lie.
+
+**`matchReasons` mirrors `matchesQuery` rather than replacing it.** The boolean stays a fast early
+return — it runs over every note of every book on every keystroke, millions of calls on this vault
+— and a check holds the two in step instead of a refactor making it structural: **4,938 notes × 5
+needles, 1,700 marked, 1,700 with a reason, 0 disagreements** over `tag` 876, `person` 620,
+`folder` 192, `title` 43, `body` 11.
+
+**A third rebuild path, and the guard that keeps it from being a fourth.** The library's search
+box stays in the tab order behind the open reader, so the query really can move under an open
+book. `renderReader` records the needle it drew against; `applyQuery` re-renders only when it
+differs. Every other caller — a ribbon toggled, a dye picked, a shelf moved — leaves the index
+standing, so `design/0026`'s un-rebuilt list still measures **2,450 of 2,450 rows the same nodes**.
+
+**Found only by looking.** The first pass tinted a marked row at **8%** of the accent, which on
+leather's paper is invisible. The check read `data-match` and passed; the screenshot showed an
+unmarked index. It ships at **15%** with the title in the accent at 600, above `aria-current` so
+the row being read keeps its own mark, and the needle inside a detail on a **34%** ground. Fourth
+entry in this file whose cause was a picture.
+
+Checks **114 → 117**. Comment budget unchanged at **1490/1490** — every new comment is
+pointer-shaped and the reasoning is here and in `design/0027`. `--shot-query <needle>` is new:
+the search live in both pictures, and the reader opened on a book the query actually lit.
+
+**What the extra work costs, measured on the biggest index** (`people/-unfiled`, 2,450 notes).
+`renderContents` now asks `core.matchesQuery` once more per row to decide the mark, and the find
+box asks it instead of comparing titles:
+
+| opening it | before | after |
+|---|---|---|
+| with no query live | 68 ms | 72 ms |
+| with a query live | 87 ms | **99 ms** |
+| typing in the find box | 5 ms | **10 ms** |
+
+Twelve milliseconds on the largest book in the library, and only while a search is live. The
+boolean is the reason it is that cheap: `matchReasons` builds an array and is called once per
+*open note*, never per row.
+
+**A fold that changes length is not marked.** `litText` locates the needle in `text.toLowerCase()`
+and slices the original, so a case fold that changes the string's length (Turkish `İ`, and the
+vault deliberately carries four scripts) would map the offsets onto the wrong characters and
+mangle a title. Lengths are compared first and the text is left unmarked when they differ —
+nothing is claimed rather than something being drawn wrong.
+
+**Opening forty books wears forty books.** The find-box check drives 40 real `openBook` calls, and
+wear is counted per address and persisted. It snapshots `settings.wear` and puts it back, so the
+check leaves the library exactly as it found it.
+
+## 2026-09-12 — the two searches meet (`github#13` + `github#58`, `design/0008`, `design/0027`)
+
+Two branches, each green on its own gates, merged into one. `git merge` reported conflicts in
+three documents and **none in the code** — and the code is where the damage was.
+
+`github#58` had narrowed what the search reads to a note's title, its declared metadata, and the
+**cover of any book it stands behind**; because a cover is not a property of a note, it threaded a
+`SearchIndex` through `matchesQuery` and `markMatches`. `github#13`, opened against the older
+rule, added `core.matchReasons` to say *why* a note was marked, a find box that narrows by the
+same function the library searches with, and five new call sites. Textually the two fit together.
+Semantically the merge produced a library that would have:
+
+| | the merged text would say | what is true after `github#58` |
+|---|---|---|
+| a note whose only hit is in its prose | reason: `body`, *matches in the text* | **not marked at all** |
+| a note whose only hit is in its path | reason: `path`, *matches in the path* | **not marked at all** |
+| a note marked through a spine | **no reason at all**, silently | marked, and the one reason worth saying |
+| that note's own find box, same needle | *"Nothing in this book matches."* | the needle that lit it |
+
+So `matchReasons` was rewritten to mirror the rule as it now is — `title`, `tag`, `person`,
+`folder`, `cover`, with `body` and `path` deleted from `MatchReason.field` so the compiler refuses
+the old vocabulary — and all **five** reader-side calls were handed the same index the library
+builds once in `rebuild()`. `SearchIndex` went from `Map<string, string>` to
+`Map<string, SearchEntry>`: `text` is still the one folded haystack the boolean reads with a
+single `indexOf`, and `covers` keeps the spines **unfolded** beside it, because `aug 2026` is not
+what is printed on the book. The fast path is unchanged; only the naming needed the extra field.
+
+**The reason a cover match gives is better than the one it replaced.** `design/0027` had written
+*"that phrase disappears on its own the day those surfaces leave the rule"* about *matches in the
+text* — an admission that the reason was somewhere the reader could not see. Its replacement
+**names** the thing: `on the shelf as “No one named”`.
+
+Measured on the one vault, 4,938 notes. The equivalence check goes from 5 needles to 6, the sixth
+being a term the vocabulary spells as a book and as nothing else:
+
+| | before the merge | after |
+|---|---|---|
+| notes marked / with a reason | 1,700 / 1,700 | **4,140 / 4,140** |
+| disagreements | 0 | **0** |
+| reason kinds | `tag` `person` `title` `folder` `body` | `tag` 876 · **`cover` 3,946** · `person` 620 · `title` 43 · `folder` 192 |
+| `body` or `path` reasons | present | **0, and unrepresentable** |
+
+The new check `"a book lit only by the name on its spine finds that name inside it, and says so"`
+types `No one named` — on **2,450** notes, in the text of none — takes the **612** books it draws
+forward, opens **20**, clicks a marked row in each, and asserts the detail line names the spine
+and the book's own find box finds the needle again. **3,066** rows marked across the twenty, 0
+denials, 0 silent notes.
+
+**It fails on the first draft, and the first draft was the check's fault.** Asserting the reason
+on whichever note the book *opens* on gave `7 of 20 opened without saying why` — correct
+behaviour, wrongly demanded: a book is drawn forward by *some* of its notes and still opens on its
+oldest (`design/0018`), which need not be one of them. The check now clicks a marked row first.
+
+**And the picture was taken.** `782 of 1,755 match “No one named”` in the head, the matched rows
+painted, and the detail line ending `· on the shelf as “No one named”` — the fifth time this file
+records that a number could not have seen it.
+
+## 2026-09-13 — Older books start worn, including the first launch
+
+User ask: make old books look older, also when a new vault first opens. Worker
+`luke321/older-book-wear`, based on product commit `e67aa0d`; `design/0033` records the rule.
+
+| Measurement | Before | After |
+|---|---|---|
+| Fresh 2015 yearbook, zero saved opens | Level 0 from real-opening rule | Age floor 3 |
+| Fresh 2026 yearbook, zero saved opens | Level 0 | Level 0 |
+| Persisted fake opens needed for age | None existed | None written: 0 wear keys on fresh mount |
+| Leather fade on a level 3 specimen | 0.16 old stylesheet; 0 with no wear attribute | 0.30; removing the wear attribute restores 0 |
+| Existing source with 2 actual opens | Opening level 1 | Age level 3; one real open leaves saved count 3 |
+| Recent source with 12 opens | Level 3 | Level 3 |
+| Vellum selection and hidden-source favourite | Source-owned | Binding vellum retained; both source/reference level 3 |
+| Layout dimensions on age toggling | Baseline boxes | Offset/width/height identical |
+| Common spines across a date filter | 110 | 110 unchanged wear levels |
+| Golden packing at 1180px | 6 shelves, 10 rows, 227 spines, 52 plaques, 1125px room |Unchanged in all 3 looks |
+| Binding preview ink census on old month | 5 unaged; 2 when old fixed worn-ink override applied | 5 after preserving each binding's ink |
+
+The first broad targeted pass found two existing assumptions exposed by applying wear on first
+load. The oldest Months book's fixed level 3 ink flattened binding choices to two inks; mixing
+its binding-specific ink repaired this, and the original five-ink assertion passed unchanged.
+The clearance check's first unlifted book became a shorter Morocco binding with 4px of natural
+height trim; measuring trim separately restores its zero-extra-room assertion without hiding
+actual padding or dropped containment. The largest allowed clip lift remains 7px in every look.
+
+Five targeted browser checks passed: age wear, actual opening history, leather binding preview,
+clip clearance and golden packing. The run used `--jobs 1`, so its two Chrome jobs ran serially
+alongside the owner's separate preview; it never attached to or closed that preview. No full
+suite or stamp is claimed. An initial screenshot run needed the ignored dist directory created;
+a test cleanup was also corrected to explicitly clear date filters before the final screenshots.
+
+The worker inspected `dist/age-wear-vault.png`: the old year/month spines show softened, faded
+edges; recent books stay darker and fresh; all chosen bindings remain recognisable. The picture
+shows all 4,938 fixture notes after filter cleanup, with the Years row and multiple Months rows.
+Reader screenshot is beside it. Core boundary/parity/immutability checks, lint/typecheck and
+static release gates are recorded in the worker handover after the final pass.

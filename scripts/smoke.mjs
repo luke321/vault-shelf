@@ -194,6 +194,8 @@ const SHOT_NOTE = arg("shot-note", "");
  * shows none of the marks the block exists to show; both are put back before the sheet closes.
  * github#44 -- `swatch` shoots a live preview with one of them hovered */
 const SHOT_OPEN = arg("shot-open", "");
+/* github#13 -- --shot-query shoots a room and a book mid-search */
+const SHOT_QUERY = arg("shot-query", "");
 /* github#11 */
 const SHOT_BOOK = arg("shot-book", "");
 const SHOT_TAB = arg("shot-tab", "");
@@ -227,6 +229,7 @@ const POINTER_DRIVEN = [
   "keyboard",
   "plaque sits",
   "tabs",
+  "first matching contents row",
   "has a width",
   "same size",
   /* design/0018 -- a drop is a pointer position against a box, and it has to scroll a shelf
@@ -251,6 +254,7 @@ const POINTER_DRIVEN = [
   /* github#44, design/0022 -- it reads every spine's box, before and after a hover. */
   "hovered swatch",
   "leather bindings",
+  "older books wear",
   "manage colour rules",
   "automatic keeps",
   "a right-click dyes",
@@ -617,6 +621,7 @@ check("a ribbon left in a plaque-book re-resolves after a rebuild, and the Readi
 
 /* github#48, design/0014 -- one ribbon cannot see this; the y of the second can */
 check("the Reading shelf lays its books in a row, and draws as many rows as it packed", async (p) => {
+  await p.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
   const r = await p.j(`(function(){
     var settings = __vs.settings();
     var was = settings.reading.slice();
@@ -652,8 +657,15 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
         return [].slice.call(t.querySelectorAll(".vs-spine")).map(function (s) {
           var b = s.getBoundingClientRect();
           var lineBox = t.querySelector('.vs-books').getBoundingClientRect();
-          return { x: Math.round(b.left), bottom: Math.round(b.bottom),
-                   inside: b.top >= lineBox.top - 0.5 && b.bottom <= lineBox.bottom + 0.5,
+          /* design/0033 */
+          var css = getComputedStyle(s), wear = s.getAttribute('data-wear');
+          var lift = wear === '3' ? 2 : wear === '2' ? 1 : 0;
+          var matrix = new DOMMatrixReadOnly(css.transform === 'none' ? undefined : css.transform);
+          var baseline = Math.round(b.bottom + lift);
+          return { x: Math.round(b.left), bottom: baseline, paintedBottom: Math.round(b.bottom),
+                   lift: lift, exactLift: matrix.m42 === -lift && matrix.m41 === 0 && matrix.a === 1 && matrix.d === 1,
+                   onBoard: baseline === Math.round(lineBox.bottom),
+                   inside: b.top + lift >= lineBox.top - 0.5 && b.bottom + lift <= lineBox.bottom + 0.5,
                    r: Math.round(b.right), w: Math.round(b.width) };
         });
       }).filter(function (row) { return row.length; });
@@ -677,7 +689,7 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
         /* the packer's rows and the drawn rows are the same number, or the paint disagrees */
         bands: Object.keys(ys).length,
         flat: rows.every(function (row) {
-          return row.every(function (s) { return s.bottom === row[0].bottom && s.inside; });
+          return row.every(function (s) { return s.bottom === row[0].bottom && s.inside && s.onBoard && s.exactLift; });
         }),
         ascending: rows.every(function (row) {
           for (var i = 1; i < row.length; i++) if (row[i].x <= row[i - 1].x) return false;
@@ -690,12 +702,23 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
         pluses: rail.querySelectorAll(".vs-plusbook").length,
         plates: rail.querySelectorAll(".vs-plaque").length,
         slack: slack, next: next, roomLeftForOneMore: fits,
-        row0: rows.length ? rows[0].map(function (s) { return s.x + "," + s.bottom; }).join(" ") : ""
+        row0: rows.length ? rows[0].map(function (s) { return s.x + "," + s.paintedBottom + " (board " + s.bottom + ", lift " + s.lift + ", exact " + s.exactLift + ", inside " + s.inside + ")"; }).join(" ") : ""
       };
     }
 
     var two = read(mark(2));
+    /* design/0033 */
+    var probe = document.querySelector('[data-shelf="-reading"] .vs-spine');
+    probe.style.transition = 'none';
+    probe.style.marginBottom = '3px';
+    var rejectsLayoutShift = !read(2).flat;
+    probe.style.removeProperty('margin-bottom');
+    probe.style.transform = 'translateY(-3px)';
+    var rejectsInvalidLift = !read(2).flat;
+    probe.style.removeProperty('transform');
+    probe.style.removeProperty('transition');
     var three = read(mark(3));
+    var shotReading = settings.reading.slice();
 
     /* enough books to outgrow the room, so the packer has to break a row */
     var wide = null;
@@ -709,17 +732,26 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
     was.forEach(function (m) { settings.reading.push(m); });
     __vs.setFilters({});
     var restored = settings.reading.length;
-    return { found: true, two: two, three: three, wide: wide, restored: restored, was: was.length };
+    return { found: true, two: two, three: three, wide: wide, restored: restored, was: was.length, shotReading: shotReading, rejectsLayoutShift: rejectsLayoutShift, rejectsInvalidLift: rejectsInvalidLift };
   })()`);
+  if (SHOT && r.found) {
+    const saved = await p.j(`(function(){var s=__vs.settings(), saved=s.reading.slice(); s.reading=${JSON.stringify(r.shotReading)}; __vs.setFilters({}); window.scrollTo(0,0); return saved;})()`);
+    try {
+      const shot = await p.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+      writeFileSync(SHOT.replace(/\.png$/i, "-reading.png"), Buffer.from(shot.data, "base64"));
+    } finally {
+      await p.j(`(function(){__vs.settings().reading=${JSON.stringify(saved)}; __vs.setFilters({}); return true;})()`);
+    }
+  }
   if (!r.found) return { ok: false, detail: "fewer than two shelves with books in this library" };
   const sane = (m) => m && m.drawn && m.spines === m.asked && m.bands === m.tracks &&
                       m.flat && m.ascending && m.display === "flex" &&
                       m.spineH > 0 && m.lineH >= m.spineH && !m.grips && !m.pluses && !m.plates;
-  const ok = sane(r.two) && r.two.tracks === 1 && sane(r.three) && r.three.tracks === 1 &&
+  const ok = r.rejectsLayoutShift && r.rejectsInvalidLift && sane(r.two) && r.two.tracks === 1 && sane(r.three) && r.three.tracks === 1 &&
              sane(r.wide) && r.wide.tracks > 1 && r.wide.roomLeftForOneMore === false &&
              r.restored === r.was;
   const say = (m) => m
-    ? `${m.spines} spine(s) over ${m.tracks} track(s) on ${m.bands} band(s), one bottom edge per row ` +
+    ? `${m.spines} spine(s) over ${m.tracks} track(s) on ${m.bands} band(s), one board baseline per row with exact 0/1/2px wear lift ` +
       `(${m.flat}), x ascending (${m.ascending}), the line ${m.display} and ${m.lineH}px for a ` +
       `${m.spineH}px spine, ${m.grips} grips ${m.pluses} pluses ${m.plates} plates`
     : "never wrapped";
@@ -729,7 +761,7 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
                    (r.wide ? `, and the first row is packed tight -- ${r.wide.slack}px left over ` +
                              `for a ${r.wide.next}px next book (room for one more: ` +
                              `${r.wide.roomLeftForOneMore})` : "") +
-                   `; the ${r.was} it started with are back (${r.restored})` };
+                   `; rejects 3px layout shift (${r.rejectsLayoutShift}) and invalid 3px lift (${r.rejectsInvalidLift}); the ${r.was} it started with are back (${r.restored})` };
 });
 
 /* github#6, design/0018, design/0019 */
@@ -742,6 +774,7 @@ check("on a manual shelf a plate opens what is under it, not the whole letter", 
     var run = core.runsOf(view.books).filter(function (x) { return x.plaque !== null && x.books.length > 1; })[0];
     if (!run) return { found: false, why: "no letter with two books on Tags" };
     var was = shelf.direction;
+    var savedOrder = shelf.order;
     var seq = __vs.sequence("tags");
     var moved = run.books[0].key;
     var others = seq.filter(function (k) { return k !== moved; });
@@ -763,15 +796,27 @@ check("on a manual shelf a plate opens what is under it, not the whole letter", 
     __vs.closeReader();
     var restUnique = {};
     run.books.slice(1).forEach(function (b) { b.notes.forEach(function (n) { restUnique[n.id] = 1; }); });
-    shelf.direction = was;
-    delete shelf.order;
-    __vs.setFilters({});
-    return { found: true, plaque: run.plaque, moved: moved, plates: plates.length, front: frontKeys[0],
+    plates[plates.length - 1].click();
+    return { found: true, was: was, savedOrder: savedOrder, plaque: run.plaque, moved: moved, plates: plates.length, front: frontKeys[0],
              firstId: first.book, firstRows: firstRows, movedNotes: run.books[0].notes.length,
              restId: rest.book, restRows: restRows, restUnique: Object.keys(restUnique).length,
              sameId: first.book === rest.book, want: core.plaqueBookId("tags", run.plaque) };
   })()`);
   if (!r.found) return { ok: false, detail: r.why || "no Tags shelf in this library" };
+  try {
+    if (SHOT) {
+      const shot = await p.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+      writeFileSync(SHOT.replace(/\.png$/i, "-manual-plaque.png"), Buffer.from(shot.data, "base64"));
+    }
+  } finally {
+    await p.eval(`(function(){
+      __vs.closeReader();
+      var shelf=__vs.settings().shelves.find(function(s){return s.id==='tags';});
+      shelf.direction=${JSON.stringify(r.was)};
+      ${r.savedOrder ? "shelf.order=" + JSON.stringify(r.savedOrder) : "delete shelf.order"};
+      __vs.setFilters({});
+    })(); void 0`);
+  }
   const ok = r.plates >= 2 && r.front === r.moved && r.firstRows === r.movedNotes &&
              r.restRows === r.restUnique && r.sameId && r.firstId === r.want && r.firstRows !== r.restRows;
   return { ok,
@@ -987,28 +1032,63 @@ check("reader tabs keep their width and the search rail stays above matching rib
 
 /* design/0031 */
 check("Manage colour rules fit and pick shelves offer no colour variation", async (p) => {
-  const read=()=>p.j(`(function(){
-    document.getElementById('vs-manageopen').click();
-    var rows=Array.from(document.querySelectorAll('.vs-managerow'));
-    var bad=[];
-    var fits=rows.every(function(row){var r=row.getBoundingClientRect();return Array.from(row.querySelectorAll('button,select,label')).every(function(control){var c=control.getBoundingClientRect();var fits=c.left>=r.left-1&&c.right<=r.right+1;if(!fits)bad.push([control.className,c.left-r.left,c.right-r.right]);return fits;});});
-    var pick=rows.find(function(row){return row.querySelector('[data-go="favourites"]');});
-    var noVary=!pick.querySelector('[data-fact="vary"]');
-    var count=document.querySelector('#vs-manage .vs-hint:not(.vs-lede)').textContent;
-    var words=document.getElementById('vs-manage').textContent.includes('Fourteen colours');
-    document.getElementById('vs-mclose').click();
-    __vs.editShelf('favourites');
-    var builder=document.getElementById('vs-bvary').closest('label').hidden;
-    document.getElementById('vs-bcancel').click();
-    return {fits:fits,noVary:noVary,builder:builder,words:words,bad:bad};
-  })()`);
-  const wide=await read();
-  let narrow;
+  const original = await p.j("({width:innerWidth,height:innerHeight,look:document.getElementById('vs-app').dataset.look||''})");
+  const resize = async (width, height) => {
+    await p.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+    await p.eval("window.dispatchEvent(new Event('resize')); void 0");
+    let stable=0;
+    for (let i=0;i<60;i++) {
+      const ready=await p.j(`innerWidth===${width} && innerHeight===${height} && !__vs.room().pending`);
+      stable=ready?stable+1:0;
+      if(stable>=5) return;
+      await sleep(50);
+    }
+    throw new Error('Manage viewport did not reach '+width+'x'+height);
+  };
+  const results=[];
   try {
-    await p.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
-    narrow=await read();
-  } finally { await p.send('Emulation.clearDeviceMetricsOverride'); await sleep(150); }
-  return {ok:Object.values(wide).every(Boolean)&&Object.values(narrow).every(Boolean),detail:JSON.stringify({wide,narrow})};
+    for (const width of [original.width,390,320]) {
+      await resize(width,width===original.width?original.height:844);
+      const states=await p.j(`(function(){
+        return VaultShelfCore.LOOKS.map(function(look){
+          __vs.setLook(look.value);document.getElementById('vs-manageopen').click();
+          var rows=Array.from(document.querySelectorAll('.vs-managerow'));
+          var bad=[];
+          var geometry=rows.map(function(row){
+            var r=row.getBoundingClientRect();
+            var controls=Array.from(row.querySelectorAll('button,select,label'));
+            controls.forEach(function(c){var b=c.getBoundingClientRect();if(b.left<r.left-1||b.right>r.right+1)bad.push(c.className);});
+            return {name:row.querySelector('.vs-name').textContent,height:r.height,
+              boxes:controls.map(function(c){var b=c.getBoundingClientRect();return [b.top-r.top,b.height];})};
+          });
+          var pick=rows.find(function(row){return row.querySelector('[data-go="favourites"]');});
+          var noVary=!pick.querySelector('[data-fact="vary"]');
+          var words=document.getElementById('vs-manage').textContent.includes('Fourteen colours');
+          document.getElementById('vs-mclose').click();__vs.editShelf('favourites');
+          var builder=document.getElementById('vs-bvary').closest('label').hidden;
+          document.getElementById('vs-bcancel').click();
+          return {look:look.value||'modern',bad:bad,noVary:noVary,builder:builder,words:words,geometry:geometry};
+        });
+      })()`);
+      const base=states.find(s=>s.look==='modern').geometry;
+      const differences=[];
+      for(const state of states) state.geometry.forEach((row,i)=>{
+        if(Math.abs(row.height-base[i].height)>1 || row.boxes.some((b,j)=>b.some((v,k)=>Math.abs(v-base[i].boxes[j][k])>1))) differences.push(state.look+' '+row.name);
+      });
+      results.push({width,heights:states.map(s=>[s.look,s.geometry.map(r=>r.height)]),differences,
+        ok:!differences.length&&states.every(s=>!s.bad.length&&s.noVary&&s.builder&&s.words)});
+      if(SHOT&&width===390) {
+        await p.eval("__vs.setLook('leather');document.getElementById('vs-manageopen').click();document.getElementById('vs-manage').scrollTop=0; void 0");
+        const shot=await p.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+        writeFileSync(SHOT.replace(/\.png$/i,'-manage.png'),Buffer.from(shot.data,'base64'));
+        await p.eval("document.getElementById('vs-mclose').click(); void 0");
+      }
+    }
+  } finally {
+    await p.eval(`__vs.setLook(${JSON.stringify(original.look)}); void 0`);
+    await resize(original.width,original.height);
+  }
+  return {ok:results.every(r=>r.ok),detail:JSON.stringify(results)};
 });
 
 /* design/0030 */
@@ -5285,34 +5365,191 @@ check("a book with several ribbons in it shows them side by side", async (p) => 
   };
 });
 
+/* design/0033 */
+check("older books wear on first launch without invented reading history", async (p) => {
+  const r = await p.j(`(function(){
+    var core=window.VaultShelfCore, saved=JSON.parse(JSON.stringify(__vs.settings()));
+    __vs.closeReader();
+    try {
+      __vs.setFilters({from:null,to:null,folders:[]});
+      window.vsHandle.setSettings(core.emptySettings());
+      var years=__vs.views().find(function(v){return v.shelf.id==='years';});
+      var now=Number(__vs.data().generated.slice(0,4));
+      var old=years.books.find(function(b){return /^[0-9]{4}$/.test(b.key) && Number(b.key)<now-7;});
+      var recent=years.books.find(function(b){return b.key===String(now);});
+      if(!old || !recent) return {found:false};
+      var find=function(id){return document.querySelector('[data-book="'+id+'"]');};
+      var level=function(id){var el=find(id);return el ? Number(el.getAttribute('data-wear')||0) : -1;};
+      var fresh={old:level(old.id),recent:level(recent.id),recentNotes:recent.notes.length,oldCount:__vs.settings().wear[old.id],oldNotes:old.notes.length,never:Object.values(__vs.settings().lastOpened).every(function(t){return t==='never';})};
+      var el=find(old.id);
+      el.scrollIntoView({block:'center'});
+      var box=function(){return [el.offsetLeft,el.offsetTop,el.offsetWidth,el.offsetHeight];};
+      var before=box(), paint=getComputedStyle(el).getPropertyValue('--vs-wear');
+      el.removeAttribute('data-wear');
+      var withoutAgePaint=getComputedStyle(el).getPropertyValue('--vs-wear');
+      var sameBox=JSON.stringify(before)===JSON.stringify(box());
+      el.setAttribute('data-wear','3');
+      var existing=JSON.parse(JSON.stringify(__vs.settings()));
+      existing.wear[old.id]=2;
+      existing.wear[recent.id]=12;
+      existing.bookSpines[old.id]='vellum';
+      existing.shelves[0].picks=[old.id];
+      window.vsHandle.setSettings(existing);
+      var pick=document.querySelector('[data-source="'+old.id+'"]');
+      var oldLevel=level(old.id), oldBinding=find(old.id).getAttribute('data-binding');
+      var reference=pick && Number(pick.getAttribute('data-wear'))===oldLevel;
+      var currentLevel=level(recent.id);
+      __vs.openBook(old.id,null); __vs.closeReader();
+      var actualOpens=__vs.settings().wear[old.id], afterOpen=level(old.id);
+      var levels={};
+      document.querySelectorAll('#vs-shelves .vs-spine[data-book]').forEach(function(sp){
+        levels[sp.getAttribute('data-book')]=sp.getAttribute('data-wear')||'0';
+      });
+      __vs.setFilters({to:String(now-8)+'-12-31'});
+      var filterStable=true, compared=0;
+      document.querySelectorAll('#vs-shelves .vs-spine[data-book]').forEach(function(sp){
+        var id=sp.getAttribute('data-book');
+        if(levels[id]!==undefined){compared++;if((sp.getAttribute('data-wear')||'0')!==levels[id])filterStable=false;}
+      });
+      __vs.setFilters({from:null,to:null,folders:[]});
+      var restored=JSON.parse(JSON.stringify(__vs.settings()));
+      restored.shelves.find(function(s){return s.id==='years';}).hidden=true;
+      window.vsHandle.setSettings(restored);
+      pick=document.querySelector('[data-source="'+old.id+'"]');
+      var hiddenParity=pick && Number(pick.getAttribute('data-wear'))===3;
+      return {found:true,old:old.key,recent:recent.key,fresh:fresh,paint:paint,withoutAgePaint:withoutAgePaint,sameBox:sameBox,
+        oldLevel:oldLevel,currentLevel:currentLevel,reference:reference,oldBinding:oldBinding,
+        actualOpens:actualOpens,afterOpen:afterOpen,filterStable:filterStable,compared:compared,
+        hiddenParity:hiddenParity,keptBinding:__vs.settings().bookSpines[old.id]};
+    } finally { __vs.closeReader(); __vs.setFilters({from:null,to:null,folders:[]}); window.vsHandle.setSettings(saved); }
+  })()`);
+  return {ok:r.found && r.fresh.old===3 && r.fresh.recentNotes>=12 && r.fresh.recent===3 && r.fresh.oldCount===r.fresh.oldNotes && r.fresh.never &&
+    Number(r.paint)>=0.3 && Number(r.withoutAgePaint)===0 && r.sameBox && r.oldLevel===3 && r.currentLevel===3 && r.reference &&
+    r.oldBinding==="vellum" && r.keptBinding==="vellum" && r.actualOpens===3 && r.afterOpen===3 &&
+    r.filterStable && r.compared>0 && r.hiddenParity,
+    detail:JSON.stringify(r)};
+});
+
+/* design/0033 */
+check("book history seeds notes once and counts additions without stamping a visit", async (p) => {
+  const r=await p.j(`(function(){
+    var core=VaultShelfCore,saved=JSON.parse(JSON.stringify(__vs.settings())),data=__vs.data();
+    try {
+      __vs.closeReader();__vs.setFilters({from:null,to:null,folders:[]});
+      var source=__vs.views().find(function(v){return v.shelf.id==='years';}).books.find(function(b){return b.notes.length>2;});
+      var initial=new Set(source.notes.map(function(n){return n.id;})).size;
+      var clean=core.emptySettings();clean.wear[source.id]=7;
+      clean.shelves.find(function(s){return s.id==='years';}).hidden=true;
+      clean.shelves[0].picks=[source.id];
+      window.vsHandle.setSettings(clean);
+      var read=function(){return {count:__vs.settings().wear[source.id],stamp:__vs.settings().lastOpened[source.id],notes:__vs.settings().bookNotes[source.id].length};};
+      var first=read(),disk=core.migrate(JSON.parse(localStorage.getItem(SETTINGS_KEY)));
+      var stored=disk.wear[source.id]===first.count&&disk.lastOpened[source.id]==='never'&&disk.bookNotes[source.id].length===initial;
+      window.vsHandle.setSettings(disk);__vs.setFilters({from:'2100-01-01'});var filtered=read();
+      var added=Object.assign({},source.notes[0],{id:'counter-addition.md',path:'counter-addition.md',title:'Counter addition'});
+      var more=Object.assign({},data,{notes:data.notes.concat([added])});window.vsHandle.refresh(more);
+      var addition=read();__vs.setFilters({from:null,to:null,folders:[]});var restored=read();
+      window.vsHandle.refresh(data);var removed=read();window.vsHandle.refresh(data);var repeat=read();
+      var alias=document.querySelector('[data-shelf="favourites"] [data-source="'+source.id+'"]');alias.click();__vs.closeReader();
+      var visit=read(),shared=__vs.settings().wear['favourites/'+source.id]===undefined;
+      var made=__vs.makeBook('favourites',{name:'Counter made',source:{kind:'all'}},null);
+      var madeSeed=__vs.settings().wear[made]===new Set(data.notes.map(function(n){return n.id;})).size&&__vs.settings().lastOpened[made]==='never';
+      __vs.unmakeBook(made);var madeClean=__vs.settings().bookNotes[made]===undefined&&__vs.settings().wear[made]===undefined;
+      __vs.deleteShelf('years');var shelfClean=__vs.settings().bookNotes[source.id]===undefined&&__vs.settings().lastOpened[source.id]===undefined;
+      window.vsHandle.setSettings(core.emptySettings());var reset=read();
+      var totals=Object.keys(__vs.settings().bookNotes).length,never=Object.values(__vs.settings().lastOpened).filter(function(t){return t==='never';}).length;
+      return {initial:initial,first:first,stored:stored,filtered:filtered,addition:addition,restored:restored,removed:removed,repeat:repeat,visit:visit,shared:shared,madeSeed:madeSeed,madeClean:madeClean,shelfClean:shelfClean,reset:reset,totals:totals,never:never};
+    } finally {__vs.closeReader();__vs.setFilters({from:null,to:null,folders:[]});window.vsHandle.refresh(data);window.vsHandle.setSettings(saved);}
+  })()`);
+  return {ok:r.first.count===r.initial+7&&r.first.stamp==='never'&&r.stored&&r.filtered.count===r.first.count&&
+    r.addition.count===r.first.count+1&&r.addition.notes===r.initial+1&&r.addition.stamp==='never'&&
+    r.restored.count===r.addition.count&&r.removed.count===r.addition.count&&r.removed.notes===r.initial+1&&r.repeat.count===r.removed.count&&
+    r.visit.count===r.removed.count+1&&Number.isFinite(Date.parse(r.visit.stamp))&&r.shared&&r.madeSeed&&r.madeClean&&r.shelfClean&&
+    r.reset.count===r.initial&&r.reset.stamp==='never'&&r.never===r.totals,detail:JSON.stringify(r)};
+});
+
+/* design/0033 */
+check("last opened defaults to never and persists actual source-book opens", async (p) => {
+  const saved=await p.j('JSON.stringify(__vs.settings())');
+  try {
+    const first=await p.j(`(function(){
+      var core=VaultShelfCore, clean=core.emptySettings();
+      window.vsHandle.setSettings(clean);
+      var book=__vs.views().find(function(v){return v.shelf.id==='years';}).books.find(function(b){return b.notes.length>2;});
+      var before=core.lastOpenedAt(__vs.settings(),book.id);
+      __vs.settings().wear[book.id]=7;
+      var began=Date.now();__vs.openBook(book.id,null);
+      var stamp=core.lastOpenedAt(__vs.settings(),book.id), ended=Date.now();
+      document.getElementById('vs-nextnote').click();
+      var turnUnchanged=core.lastOpenedAt(__vs.settings(),book.id)===stamp;
+      __vs.closeReader();__vs.setFilters({});
+      return {id:book.id,before:before,stamp:stamp,began:began,ended:ended,count:__vs.settings().wear[book.id],
+        turnUnchanged:turnUnchanged,rebuild:core.lastOpenedAt(__vs.settings(),book.id)===stamp};
+    })()`);
+    await sleep(25);
+    const after=await p.j(`(function(){
+      var core=VaultShelfCore,id=${JSON.stringify(first.id)};
+      __vs.settings().shelves.find(function(s){return s.id==='favourites';}).picks=[id];__vs.setFilters({});
+      var pick=document.querySelector('[data-shelf="favourites"] [data-source="'+id+'"]');
+      var began=Date.now();pick.click();var ended=Date.now();__vs.closeReader();
+      var stamp=core.lastOpenedAt(__vs.settings(),id),count=__vs.settings().wear[id];
+      var alias=__vs.settings().lastOpened['favourites/'+id]===undefined;
+      var stored=core.migrate(JSON.parse(localStorage.getItem(SETTINGS_KEY)));
+      window.vsHandle.setSettings(stored);
+      var persisted=core.lastOpenedAt(__vs.settings(),id)===stamp&&__vs.settings().wear[id]===count;
+      var made=__vs.makeBook('favourites',{name:'Timestamp check',source:{kind:'all'}},null);
+      __vs.openBook(made,null);__vs.closeReader();
+      var madeStamped=core.lastOpenedAt(__vs.settings(),made)!=='never';
+      __vs.unmakeBook(made);
+      var madeGone=core.lastOpenedAt(__vs.settings(),made)==='never'&&__vs.settings().wear[made]===undefined;
+      var plate=document.querySelector('[data-shelf="years"] .vs-plaque');plate.click();
+      var plaque=__vs.reader().book;__vs.closeReader();
+      var plaqueStamped=core.lastOpenedAt(__vs.settings(),plaque)!=='never';
+      __vs.deleteShelf('years');
+      var deleted=core.lastOpenedAt(__vs.settings(),id)==='never'&&core.lastOpenedAt(__vs.settings(),plaque)==='never'&&__vs.settings().wear[id]===undefined;
+      window.vsHandle.setSettings(core.emptySettings());
+      var reset=Object.keys(__vs.settings().lastOpened).length>0&&Object.values(__vs.settings().lastOpened).every(function(t){return t==='never';});
+      return {stamp:stamp,began:began,ended:ended,count:count,alias:alias,persisted:persisted,madeStamped:madeStamped,madeGone:madeGone,plaqueStamped:plaqueStamped,deleted:deleted,reset:reset};
+    })()`);
+    return {ok:first.before==='never'&&first.count===8&&Date.parse(first.stamp)>=first.began&&Date.parse(first.stamp)<=first.ended&&first.turnUnchanged&&first.rebuild&&
+      Date.parse(after.stamp)>Date.parse(first.stamp)&&Date.parse(after.stamp)>=after.began&&Date.parse(after.stamp)<=after.ended&&after.count===9&&
+      ['alias','persisted','madeStamped','madeGone','plaqueStamped','deleted','reset'].every(k=>after[k]),detail:JSON.stringify({first,after})};
+  } finally {
+    await p.eval(`__vs.closeReader();window.vsHandle.setSettings(${saved}); void 0`);
+  }
+});
+
 check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
   const r = await p.j(`(function(){
-    var book = null;
-    __vs.views().forEach(function (v) {
-      v.books.forEach(function (b) { if (!book && b.notes.length) book = b; });
-    });
-    /* github#39 -- wear is cumulative: set the floor rather than assume it */
-    var wear = __vs.settings().wear;
-    for (var k0 in wear) delete wear[k0];
-    __vs.setFilters({});
-    var before = __vs.magic().wornSpines;
-    for (var i = 0; i < 13; i++) { __vs.openBook(book.id, null); __vs.closeReader(); }
-    var after = __vs.magic();
-    var level = document.querySelector('[data-book="' + book.id.replace(/"/g, '\\"') + '"]');
-    var drawn = level ? level.getAttribute("data-wear") : null;
-    __vs.setFilters({});
-    var still = document.querySelector('[data-book="' + book.id.replace(/"/g, '\\"') + '"]');
-    var out = { before: before, worn: after.worn, wornSpines: after.wornSpines,
-                drawn: drawn, afterRebuild: still ? still.getAttribute("data-wear") : null,
-                book: book.id };
-    /* github#39 -- and leave it as unworn as it was found */
-    for (var k1 in wear) delete wear[k1];
-    __vs.setFilters({});
-    return out;
+    var saved=JSON.parse(JSON.stringify(__vs.settings()));
+    try {
+      var book=__vs.views().find(function(v){return v.shelf.id==='tags';}).books.find(function(b){return b.key==='acoustics';});
+      __vs.settings().shelves.find(function(s){return s.id==='favourites';}).picks=[book.id];__vs.setFilters({});
+      var spine=document.querySelector('[data-shelf="tags"] [data-book="'+book.id+'"]');
+      var alias=document.querySelector('[data-shelf="favourites"] [data-source="'+book.id+'"]');
+      var before=__vs.settings().wear[book.id],peeks=[];
+      var hover=function(target){
+        var stamp=__vs.settings().lastOpened[book.id];
+        target.dispatchEvent(new MouseEvent('mouseenter'));
+        var text=document.querySelector('#vs-peek .vs-peekmeta').textContent;
+        var unchanged=stamp===__vs.settings().lastOpened[book.id];
+        target.dispatchEvent(new MouseEvent('mouseleave'));
+        return {text:text,count:__vs.settings().wear[book.id],unchanged:unchanged};
+      };
+      peeks.push(hover(spine));
+      spine.click();__vs.closeReader();peeks.push(hover(spine));peeks.push(hover(alias));
+      alias.click();__vs.closeReader();peeks.push(hover(spine));peeks.push(hover(alias));
+      var sameNodes=spine===document.querySelector('[data-shelf="tags"] [data-book="'+book.id+'"]')&&alias===document.querySelector('[data-shelf="favourites"] [data-source="'+book.id+'"]');
+      for(var i=0;i<11;i++){__vs.openBook(book.id,null);__vs.closeReader();}
+      var count=__vs.settings().wear[book.id];
+      var drawn=spine.getAttribute('data-wear');
+      __vs.setFilters({});
+      return {book:book.id,before:before,count:count,drawn:drawn,afterRebuild:__vs.settings().wear[book.id],peeks:peeks,sameNodes:sameNodes,
+        level:document.querySelector('[data-book="'+book.id+'"]').getAttribute('data-wear')};
+    } finally {__vs.closeReader();window.vsHandle.setSettings(saved);}
   })()`);
-  return { ok: r.before === 0 && r.worn >= 1 && r.drawn === "3" && r.afterRebuild === "3",
-           detail: `${r.book} opened 13 times reads wear level ${r.drawn} (of 3) and still ` +
-                   `${r.afterRebuild} after a rebuild; ${r.wornSpines} worn spines on screen` };
+  return {ok:r.count===r.before+13&&r.drawn==='3'&&r.afterRebuild===r.count&&r.level==='3'&&r.sameNodes&&
+    r.peeks.every((v,i)=>v.count===r.before+[0,1,1,2,2][i]&&v.unchanged&&v.text.includes(v.count+' entries and visits')),detail:JSON.stringify(r)};
 });
 
 /* design/0008 -- MAGIC 2. A ribbon hangs out of the book, visible from the shelf. */
@@ -5463,6 +5700,175 @@ check("the shelf parts as you type, and no book leaves the room", async (p) => {
            detail: `${r.before} spines before, during and after; "${r.needle}" drew ${r.forward} ` +
                    `forward and thinned ${r.ghosts} to ghosts without removing one ` +
                    `(hits read "${r.hits}")` };
+});
+
+/* github#13, design/0027 -- THE OTHER HALF OF design/0008: what the lit book says. */
+check("a book the search drew forward says which of its notes matched", async (p) => {
+  const r = await p.j(`(function(){
+    /* THE NEEDLE COMES FROM THE VAULT, as it does for the shelf's own half. */
+    var tags = {};
+    __vs.data().notes.forEach(function (n) {
+      n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+    });
+    var needle = Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] ||
+                 __vs.data().notes[0].title.slice(0, 4);
+    __vs.setQuery(needle);
+    var lit = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) {
+        if (!lit && b.matches > 0 && b.matches < b.notes.length) lit = b;
+      });
+    });
+    if (!lit) return { lit: false, needle: needle };
+    __vs.openBook(lit.id, null);
+    var open = __vs.readerMatches();
+    __vs.setQuery("");
+    var quiet = __vs.readerMatches();
+    __vs.closeReader();
+    return { lit: true, needle: needle, open: open, quiet: quiet };
+  })()`);
+  if (!r.lit) {
+    return { ok: false, detail: `no book on this vault is part-matched by "${r.needle}"` };
+  }
+  const o = r.open;
+  return { ok: o.marked === o.matches && o.marked > 0 && o.rows === o.notes &&
+               o.why.indexOf(o.matches + " of " + o.notes + " match") >= 0 &&
+               r.quiet.marked === 0 && r.quiet.rows === o.notes,
+           detail: `"${r.needle}" lit ${o.book}: ${o.marked} of ${o.rows} rows marked against ` +
+                   `${o.matches} matching notes, all ${o.notes} still in the index ` +
+                   `(it reads "${o.why}"); clearing the box leaves ${r.quiet.marked} marked ` +
+                   `and ${r.quiet.rows} rows` };
+});
+
+/* github#13, design/0027 -- ONE RULE: a book can no longer deny the shelf behind it. */
+check("every book the shelf draws forward finds the same needle in its own find box", async (p) => {
+  const r = await p.j(`(function(){
+    var tags = {};
+    __vs.data().notes.forEach(function (n) {
+      n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+    });
+    var needle = Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] ||
+                 __vs.data().notes[0].title.slice(0, 4);
+    __vs.setQuery(needle);
+    var lit = [];
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { if (b.matches > 0) lit.push(b); });
+    });
+    var box = document.getElementById("vs-within");
+    /* github#13 -- forty opens wear forty books, and wear persists */
+    var wear = __vs.settings().wear;
+    var wasWorn = JSON.parse(JSON.stringify(wear));
+    var tried = 0, denied = [];
+    lit.slice(0, 40).forEach(function (b) {
+      __vs.openBook(b.id, null);
+      box.value = needle;
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+      var r = __vs.readerMatches();
+      tried++;
+      if (r.empty || r.rows === 0) denied.push(b.id + " (" + r.rows + " rows)");
+      box.value = "";
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    __vs.setQuery("");
+    __vs.closeReader();
+    for (var k in wear) delete wear[k];
+    Object.keys(wasWorn).forEach(function (k) { wear[k] = wasWorn[k]; });
+    return { needle: needle, lit: lit.length, tried: tried, denied: denied.slice(0, 3),
+             denials: denied.length };
+  })()`);
+  return { ok: r.tried > 0 && r.denials === 0,
+           detail: r.denials
+             ? `${r.denials} of ${r.tried} books denied the shelf: ${r.denied.join(", ")}`
+             : `"${r.needle}" drew ${r.lit} books forward; ${r.tried} of them were opened and ` +
+               `every one found it again in its own find box` };
+});
+
+/* github#13 + github#58, design/0027 -- where the two tickets meet, and neither caught alone */
+check("a book lit only by the name on its spine finds that name inside it, and says so",
+      async (p) => {
+  const r = await p.j(`(function(){
+    var cover = __vs.vocabulary().filter(function (t) {
+      return t.kinds.length === 1 && t.kinds[0] === "book";
+    })[0];
+    if (!cover) return { skipped: true };
+    __vs.setQuery(cover.text);
+    var lit = [];
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { if (b.matches > 0) lit.push(b); });
+    });
+    var box = document.getElementById("vs-within");
+    var wear = __vs.settings().wear;
+    var wasWorn = JSON.parse(JSON.stringify(wear));
+    var tried = 0, denied = [], unsaid = [], marked = 0;
+    lit.slice(0, 20).forEach(function (b) {
+      __vs.openBook(b.id, null);
+      var before = __vs.readerMatches();
+      marked += before.marked;
+      /* design/0008, design/0018 -- a marked row, not whichever note the book opens on */
+      var row = document.querySelector('#vs-contents button[data-match="1"]');
+      if (!row) unsaid.push(b.id + " (no marked row)");
+      else {
+        row.click();
+        if (__vs.readerMatches().meta.indexOf("on the shelf as") < 0) unsaid.push(b.id);
+      }
+      box.value = cover.text;
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+      var r = __vs.readerMatches();
+      tried++;
+      if (r.empty || r.rows === 0) denied.push(b.id + " (" + r.rows + " rows)");
+      box.value = "";
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    __vs.setQuery("");
+    __vs.closeReader();
+    for (var k in wear) delete wear[k];
+    Object.keys(wasWorn).forEach(function (k) { wear[k] = wasWorn[k]; });
+    return { cover: cover.text, covers: cover.notes, lit: lit.length, tried: tried,
+             marked: marked, denied: denied.slice(0, 3), denials: denied.length,
+             unsaid: unsaid.length };
+  })()`);
+  if (r.skipped) return { ok: false, detail: "no cover-only term in the vocabulary to try" };
+  return { ok: r.tried > 0 && r.denials === 0 && r.unsaid === 0 && r.marked > 0,
+           detail: r.denials || r.unsaid
+             ? `${r.denials} of ${r.tried} books denied the shelf (${r.denied.join(", ")}), ` +
+               `${r.unsaid} opened without saying why`
+             : `“${r.cover}” is on ${r.covers} notes and no note spells it; it drew ${r.lit} ` +
+               `books forward, ${r.tried} were opened, ${r.marked} rows marked, every one ` +
+               `found it again in its own find box and named the spine` };
+});
+
+/* github#13, design/0027 -- the rule and its explanation, kept in step by measurement. */
+check("a note has a reason to be marked exactly when it is marked", async (p) => {
+  const r = await p.j(`(function(){
+    var notes = __vs.data().notes;
+    var tags = {}, people = {};
+    notes.forEach(function (n) {
+      n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+      n.people.forEach(function (x) { people[x] = (people[x] || 0) + 1; });
+    });
+    var byUse = function (m) { return Object.keys(m).sort(function (a, b) { return m[b] - m[a]; }); };
+    var needles = [];
+    if (byUse(tags)[0]) needles.push(byUse(tags)[0]);
+    if (byUse(people)[0]) needles.push(byUse(people)[0].split(" ")[0]);
+    needles.push(notes[0].title.slice(0, 4));
+    needles.push(notes[0].folder.slice(0, 4));
+    var cover = __vs.vocabulary().filter(function (t) {
+      return t.kinds.length === 1 && t.kinds[0] === "book";
+    })[0];
+    if (cover) needles.push(cover.text);
+    needles.push("zz-nothing-spells-this");
+    return { cover: cover ? cover.text : "", notes: cover ? cover.notes : 0,
+             r: __vs.checkReasons(needles) };
+  })()`);
+  const { cover, r: c } = r;
+  const kinds = Object.keys(c.fields).length;
+  return { ok: c.disagree === 0 && c.matched > 0 && c.matched === c.reasoned && kinds >= 4 &&
+               c.fields.cover > 0 && !c.fields.body && !c.fields.path,
+           detail: c.disagree
+             ? `${c.disagree} note/needle pairs disagree, e.g. ${c.sample.join("; ")}`
+             : `${c.needles} needles over ${c.notes} notes: ${c.matched} marked, ${c.reasoned} ` +
+               `with a reason, 0 disagreements (${JSON.stringify(c.fields)}); the cover-only ` +
+               `needle was “${cover}” over ${r.notes} notes` };
 });
 
 /* github#41, design/0026 -- WHAT THE VAULT SPELLS. The box knows the vocabulary now. */
@@ -5687,6 +6093,89 @@ check("a vault with no vocabulary offers nothing", async (p) => {
              ? `an empty vault spells ${r.terms} terms and offers ${r.offered}; one note spells ` +
                `${r.oneTerms} and offers "${r.oneText}" [${r.oneKinds}]`
              : `an empty vault spelled ${r.terms} terms and offered ${r.offered}` };
+});
+
+/* github#58, design/0008 -- WHAT THE SEARCH READS. Every needle comes from the vault. */
+check("the search reads titles, covers and declared metadata, and never the body", async (p) => {
+  const r = await p.j(`(function(){
+    var notes = __vs.data().notes;
+    var hits = function (q) {
+      __vs.setQuery(q);
+      return parseInt(document.getElementById("vs-hits").textContent, 10) || 0;
+    };
+
+    /* A NEEDLE THE PROSE SPELLS AND NOTHING ELSE DOES. The generator writes this name into
+     * note bodies and never into a people property, which is what makes it the honest probe. */
+    var prose = ${JSON.stringify(PROSE_ONLY)};
+    var inProse = notes.filter(function (n) {
+      return n.body.toLowerCase().indexOf(prose.toLowerCase()) >= 0;
+    }).length;
+
+    /* A PATH IS NOT A TITLE AND NOT A FOLDER, so a whole path spells nothing on its own. */
+    var path = notes[0].path;
+
+    /* A COVER NO NOTE SPELLS: the string a person reads on a spine and nowhere else. */
+    var spelt = {};
+    notes.forEach(function (n) {
+      spelt[n.title.toLowerCase()] = 1;
+      spelt[n.folder.toLowerCase()] = 1;
+      n.tags.forEach(function (t) { spelt[t.toLowerCase()] = 1; });
+      n.people.forEach(function (x) { spelt[x.toLowerCase()] = 1; });
+    });
+    var keys = Object.keys(spelt);
+    var spellsIt = function (needle) {
+      return keys.some(function (k) { return k.indexOf(needle) >= 0; });
+    };
+    var cover = null, coverNotes = 0, folderShelves = 0;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.hidden) return;
+      if (v.shelf.classifier === "folder") folderShelves++;
+      v.books.forEach(function (b) {
+        var text = (b.cover || "").trim();
+        if (!text || !b.notes.length) return;
+        if (spellsIt(text.toLowerCase())) return;
+        if (b.notes.length > coverNotes) { cover = text; coverNotes = b.notes.length; }
+      });
+    });
+
+    /* DECLARED METADATA STANDS WITHOUT A SHELF: the biggest folder, which nothing classifies. */
+    var byFolder = {};
+    notes.forEach(function (n) { byFolder[n.folder] = (byFolder[n.folder] || 0) + 1; });
+    var folder = Object.keys(byFolder).sort(function (a, b) {
+      return byFolder[b] - byFolder[a];
+    })[0] || "";
+
+    /* THE WART github#41 SHIPPED: the room and the box said opposite things a few cm apart. */
+    __vs.typeQuery(prose);
+    var rows = __vs.suggest().rows.length;
+    var said = document.querySelector("#vs-suggest .vs-sugempty");
+    var agree = rows === 0 && !!said && hits(prose) === 0;
+    __vs.setQuery("");
+    __vs.closeSuggest();
+
+    var out = { inProse: inProse, prose: hits(prose), path: hits(path),
+                cover: cover, coverHits: cover ? hits(cover) : 0, coverNotes: coverNotes,
+                folder: folder, folderHits: folder ? hits(folder) : 0,
+                folderNotes: byFolder[folder] || 0, folderShelves: folderShelves,
+                title: hits(notes[0].title), agree: agree };
+    __vs.setQuery("");
+    out.cleared = document.getElementById("vs-hits").textContent;
+    return out;
+  })()`);
+  const ok = r.inProse > 0 && r.prose === 0 && r.path === 0 && r.title > 0 &&
+             !!r.cover && r.coverNotes > 0 && r.coverHits >= r.coverNotes &&
+             r.folderNotes > 0 && r.folderHits >= r.folderNotes && r.agree && r.cleared === "";
+  return { ok,
+           detail: r.prose > 0
+             ? `"${PROSE_ONLY}" is in ${r.inProse} bodies and still marked ${r.prose} note(s)`
+             : r.path > 0
+               ? `a whole path still marked ${r.path} note(s); the path is meant to be dropped`
+               : !r.agree
+                 ? `the room read ${r.prose} notes while the box said nothing spells it`
+                 : `"${PROSE_ONLY}" is in ${r.inProse} bodies and marks ${r.prose}, a whole ` +
+                   `path marks ${r.path}; the cover "${r.cover}" marks ${r.coverHits} for its ` +
+                   `${r.coverNotes}-note book, and "${r.folder}" marks ${r.folderHits} of ` +
+                   `${r.folderNotes} with ${r.folderShelves} folder shelf on the rail` };
 });
 
 /* design/0009 -- A ROOM HAS A WIDTH. Measured by overriding the viewport rather than by
@@ -6084,6 +6573,19 @@ check("the date index is layered: years over months over days, each only where i
 
 /* design/0032 */
 check("index tabs compress without scrolling and shelf icons edit and hide", async (p) => {
+  const original = await p.j("({width:innerWidth,height:innerHeight})");
+  const resize = async (width, height) => {
+    await p.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+    await p.eval("window.dispatchEvent(new Event('resize')); void 0");
+    let stable=0;
+    for (let i=0;i<60;i++) {
+      const ready=await p.j(`innerWidth===${width} && innerHeight===${height} && !__vs.room().pending`);
+      stable=ready?stable+1:0;
+      if(stable>=5) return;
+      await sleep(50);
+    }
+    throw new Error('Index viewport did not settle at '+width+'x'+height);
+  };
   const read = () => p.j(`(function(){
     var nav=document.getElementById('vs-tabs'), bounds=nav.getBoundingClientRect();
     var tabs=Array.from(nav.querySelectorAll('.vs-indextab'));
@@ -6111,20 +6613,20 @@ check("index tabs compress without scrolling and shelf icons edit and hide", asy
       if(document.querySelector('.vs-indextoggle').dataset.indexMode!=='az')document.querySelector('.vs-indextoggle').click();
       return {count:buttons.length,matched:matched,dots:dots,edits:edits,hides:hides,keeps:keeps};
     })()`);
-    await p.send('Emulation.setDeviceMetricsOverride',{width:1180,height:1000,deviceScaleFactor:1,mobile:false});
+    await resize(1180,1000);
     tall=await read();
-    await p.send('Emulation.setDeviceMetricsOverride',{width:1180,height:480,deviceScaleFactor:1,mobile:false});
+    await resize(1180,480);
     short=await read();
     await p.eval(`document.querySelector('.vs-indextoggle').click();`);
     date=await read();
   } finally {
     await p.eval(`__vs.closeReader();Object.assign(__vs.settings(),window.__savedIndexSettings);delete window.__savedIndexSettings;__vs.setFilters({});`);
-    await p.send('Emulation.clearDeviceMetricsOverride');await sleep(150);
+    await resize(original.width,original.height);
   }
   return {ok:icons.count===2&&['matched','dots','edits','hides','keeps'].every(k=>icons[k])&&
     [tall,short,date].every(r=>r.count>0&&r.fits&&r.scroll<=1&&r.width===56)&&short.height<tall.height&&
     JSON.stringify(tall.controls)===JSON.stringify(short.controls)&&JSON.stringify(short.controls)===JSON.stringify(date.controls),
-    detail:JSON.stringify({icons,tall,short,date})};
+    detail:JSON.stringify({icons,tall,short,date,restored:await p.j("({width:innerWidth,height:innerHeight,pending:__vs.room().pending})"),original})};
 });
 
 check("the reader's index tabs stay countable on the biggest book", async (p) => {
@@ -6142,6 +6644,84 @@ check("the reader's index tabs stay countable on the biggest book", async (p) =>
   })()`);
   return { ok: r.tabs > 0 && r.tabs <= 26,
            detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} tabs (cap 26)` };
+});
+
+/* design/0027 */
+check("opening a searched book reveals its first matching contents row without changing the note", async (p) => {
+  const saved = await p.j("__vs.settings()");
+  const read = () => p.j(`(function(){
+    var page = document.querySelector('.vs-page.vs-left');
+    var rows = Array.from(document.querySelectorAll('#vs-contents button'));
+    var first = rows.find(function (row) { return row.dataset.match === '1'; });
+    var current = rows.find(function (row) { return row.getAttribute('aria-current') === 'true'; });
+    var box = page.getBoundingClientRect();
+    var inside = function (row) { var r = row && row.getBoundingClientRect();
+      return !!r && r.top >= box.top && r.bottom <= box.bottom; };
+    return { top: Math.round(page.scrollTop), first: rows.indexOf(first), hitInside: inside(first),
+      currentInside: inside(current), note: __vs.reader().note, index: __vs.reader().index,
+      rightTop: document.querySelector('.vs-page.vs-right').scrollTop };
+  })()`);
+  const settled = async (visible) => {
+    const began = Date.now();
+    let last, firstTop, stable = 0;
+    for (let i = 0; i < 60; i++) {
+      const now = await read();
+      if (firstTop === undefined) firstTop = now.top;
+      stable = last && now.top === last.top ? stable + 1 : 0;
+      if (stable >= 3 && now[visible]) return { ...now, firstTop, waitedMs: Date.now() - began };
+      last = now;
+      await sleep(50);
+    }
+    return last;
+  };
+  const results = [];
+  try {
+    for (const mode of ["date", "az"]) {
+      const pick = await p.j(`(function(){
+        __vs.closeReader(); __vs.setQuery('');
+        var settings = ${JSON.stringify(saved)};
+        settings.shelves.forEach(function (s) { s.indexMode = ${JSON.stringify(mode)}; delete s.bookIndexes; });
+        Object.assign(__vs.settings(), settings); __vs.setFilters({});
+        var core = window.VaultShelfCore, views = __vs.views();
+        var books = views.filter(function (v) { return !v.shelf.hidden && v.shelf.classifier !== 'pick'; })
+          .flatMap(function (v) { return v.books; }).sort(function (a,b) { return b.notes.length-a.notes.length; });
+        var book = books[0], index = core.buildSearchIndex(views, __vs.data().notes), pick;
+        for (var i = Math.floor(book.notes.length/2); i < book.notes.length; i++) {
+          var query = book.notes[i].title;
+          var at = book.notes.findIndex(function (n) { return core.matchesQuery(n, query.toLowerCase(), index); });
+          if (at > 60) { pick = { book: book.id, query: query, at: at, oldest: book.notes[0].id }; break; }
+        }
+        if (!pick) return null;
+        __vs.setQuery(pick.query); __vs.openBook(pick.book, null);
+        return pick;
+      })()`);
+      if (!pick) return { ok: false, detail: mode + " has no offscreen first match to measure" };
+      const open = await settled("hitInside");
+      if (SHOT && mode === "date") {
+        const shot = await p.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+        writeFileSync(SHOT.replace(/\.png$/i, "-first-match.png"), Buffer.from(shot.data, "base64"));
+      }
+      await p.eval("document.getElementById('vs-nextnote').click(); void 0");
+      const next = await settled("currentInside");
+      await p.eval(`__vs.setQuery('__no_such_catalogue_term__'); __vs.setQuery(${JSON.stringify(pick.query)}); void 0`);
+      const query = await settled("currentInside");
+      await p.eval(`__vs.openBook(${JSON.stringify(pick.book)}, ${JSON.stringify(pick.oldest)}); void 0`);
+      const explicit = await settled("currentInside");
+      const fallback = [];
+      for (const needle of ["__no_such_catalogue_term__", ""]) {
+        await p.eval(`__vs.closeReader(); __vs.setQuery(${JSON.stringify(needle)}); __vs.openBook(${JSON.stringify(pick.book)}, null); void 0`);
+        fallback.push(await settled("currentInside"));
+      }
+      results.push({ mode, at: pick.at, open, next, query, explicit, fallback,
+        ok: open.first === pick.at && open.hitInside && open.top > 0 && open.note === pick.oldest && open.rightTop === 0 &&
+          next.index === 1 && next.currentInside && !next.hitInside && query.top === next.top && query.note === next.note &&
+          explicit.note === pick.oldest && explicit.currentInside && !explicit.hitInside &&
+          fallback.every((r) => r.first === -1 && r.index === 0 && r.note === pick.oldest && r.currentInside) });
+    }
+  } finally {
+    await p.eval(`__vs.closeReader(); __vs.setQuery(''); Object.assign(__vs.settings(), ${JSON.stringify(saved)}); __vs.setFilters({}); void 0`);
+  }
+  return { ok: results.every((r) => r.ok), detail: JSON.stringify(results) };
 });
 
 /* github#11, design/0015 */
@@ -7705,8 +8285,10 @@ check("the room above a spine is the largest lift, in every look", async (p) => 
       var contains = (cs.contain || "").indexOf("paint") >= 0;
       /* github#51 -- the slack that made the clip bite: still zero. */
       var above = +(track.getBoundingClientRect().top - spine.getBoundingClientRect().top).toFixed(1);
+      // design/0033
+      var bindingTrim = px(cs.getPropertyValue('--spine-h')) - spine.getBoundingClientRect().height;
       out.push({ look: looks[i] || "modern", room: room, tallest: tallest.px,
-                 by: tallest.name, contains: contains, slackAbove: -above,
+                 by: tallest.name, contains: contains, slackAbove: -above - bindingTrim, bindingTrim: bindingTrim,
                  rungs: rungs.map(function (x) { return x.name + " " + x.px; }).join("/") });
     }
     __vs.setLook(was);
@@ -8439,6 +9021,8 @@ async function capture(page, out) {
     console.log("wrote " + file);
   };
   await page.eval('__vs.closeReader(); document.getElementById("vs-library").scrollTop = 0; void 0');
+  /* github#13, design/0027 -- the search is live in both pictures, or in neither */
+  if (SHOT_QUERY) await page.eval(`__vs.setQuery(${JSON.stringify(SHOT_QUERY)}); void 0`);
   if (SHOT_SHELF) {
     await page.eval(`(function(){
       var lib = document.getElementById("vs-library");
@@ -8524,7 +9108,16 @@ async function capture(page, out) {
           }); });
           return __vs.openBook(pick ? pick.id : want, null);
         })()`)
-      : await page.j('__vs.openBook(__vs.addresses()[0], null)');
+      : SHOT_QUERY
+        ? await page.j(`(function(){
+            /* github#13 -- a book the query LIT, or the picture shows nothing of it */
+            var pick = null;
+            __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+              if (!pick && b.matches > 0 && b.matches < b.notes.length && b.notes.length > 8) pick = b;
+            }); });
+            return pick ? __vs.openBook(pick.id, null) : __vs.openBook(__vs.addresses()[0], null);
+          })()`)
+        : await page.j('__vs.openBook(__vs.addresses()[0], null)');
   if (opened) {
     /* WITH RIBBONS IN IT. A reader with none shows an empty strip where the feature is, which
      * is a picture of the wrong thing; two are marked for the shot and taken out again. */

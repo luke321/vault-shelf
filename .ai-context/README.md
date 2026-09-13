@@ -129,3 +129,5 @@ are the regression suite.
 - [0031 - Picker and reader controls](design/0031-picker-and-reader-controls.md): two-row palette, Minimal binding, ribbon cuts, persistent title bar and Manage layout.
 
 - [0032 - Compressing index and shelf actions](design/0032-compressing-index-and-shelf-actions.md): fixed search/order controls, fitting tabs and inline gear/eye buttons.
+
+- [0033 - Age and reading wear](design/0033-age-and-reading-wear.md): older books start worn without inventing opening history; recent notes keep active collections fresh.

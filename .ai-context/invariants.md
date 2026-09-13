@@ -1038,7 +1038,10 @@ a re-render for the find-within box never moves a list somebody has scrolled by 
 **Moving the marker moves the marker.** A turn within one book changes nothing about the contents
 list, so the list is not rebuilt for it: `aria-current` moves between the rows already standing
 there and the page keeps the scroll the reader left it at. `renderContents` rebuilds only on the
-two paths whose contents really change — opening a book, and *find within this book*; every other
+three paths whose contents really change — opening a book, *find within this book*, and
+(`github#13`, `design/0027`) the library query moving under an already-open book, which
+`applyQuery` detects by comparing the needle against the one `renderReader` recorded and ignores
+when it has not changed; every other
 turn goes through `markContents`, and `goTo` is one of them. `revealCurrent` is unchanged and
 still nudges a row that is genuinely out of view, which is what a tab jump or an arrow key needs.
 
@@ -1620,6 +1623,103 @@ running against: hard-coding one passed on one fixture and, on another, asserted
 that a query finding nothing still drew something forward. Measured: **227** spines before,
 during and after, **193** drawn forward and **34** thinned to ghosts, none removed.
 
+## What the search reads
+
+`design/0008`, `github#58`. **A note matches if the needle is in its title, in the cover of any
+book it sits behind, or in its own declared metadata — tags, people, folder. The body and the path
+are dropped.** Reading prose made more than half the library answer to one word while the covers
+the shelf actually prints stayed unfindable; declared metadata is already first-class truth about a
+note (`decisions/0003`), so it matches whether or not somebody built a shelf out of it.
+
+**Covers alone was the other candidate and was rejected.** It makes the search *shelf-dependent*:
+`inbox` finds nothing in a library with no Folders shelf — which is the default one — and hiding a
+shelf quietly makes its notes unfindable.
+
+`"the search reads titles, covers and declared metadata, and never the body"` takes every needle
+from the vault it is running against. The name the generator writes only into prose is in **451**
+bodies and marks **0**; a whole note path marks **0**; the biggest cover no note spells — `No one
+named`, a **2,450**-note book — marks at least its own book; and the biggest folder marks all
+**1,204** of its notes with **0** Folders shelves on the rail, which is the case that decided the
+rule. It also asserts the room and the box **agree**: for a body-only word `#vs-hits` reads *0
+notes in 0 books* beside *Nothing in this vault spells that*, where it used to read 451 beside the
+same sentence — two true statements a few centimetres apart that read as a contradiction.
+
+Measured on the one vault, 4,938 notes: `which` **2,867 → 0**, `afternoon` 1,446 → 0, `agreed`
+1,842 → 0, `.md` 4,938 → 0; `garden` 1,462 → **1,459**, `mira` 631 → 621, `inbox` 192 → **192**,
+`project` 1,818 → **1,818**; `aug 2026` **0 → 285**, `sep 2026` 0 → 301, `undated` 0 → **531**. The
+noise goes to zero, the signal moves by 0.2%, and a book can be found by the name printed on it.
+
+**A cover is not a property of a note**, so `core.matchesQuery` cannot answer on its own: the
+covers a note stands behind are known only once the library is built. `core.buildSearchIndex` folds
+each note's own text and every cover it stands behind into **one string**, once, in `rebuild()`
+beside the vocabulary — never per keystroke — and `markMatches` reads a note **once per query**
+rather than once per each of the 7.6 books it stands in. Both hosts go through `core`, so the
+plugin and the exporter read the same rule.
+
+**`2026-08` stops matching where it used to** (114 → 89): a classifier key is not a cover. The
+label form more than replaces it, and both directions are in `changelog-detail.md`.
+
+**A single letter still matches almost everything** — `a` reaches **4,936 of 4,938**, because the
+Encyclopedia volume `A` is a real cover and every note behind it matches. Left as it is on purpose:
+`"a vocabulary that is not Latin is still offered"` types one character (`学`) and must still find
+its term.
+
+## Why this book is lit
+
+`design/0027`, `github#13`. The other half of `design/0008`: the shelf says *which* books match,
+and the reader has to say *why*.
+
+**One rule, not two.** *Find within this book* narrows by `core.matchesQuery`, the same function
+the library's `applyQuery` calls, so a book can no longer deny the shelf behind it.
+`"every book the shelf draws forward finds the same needle in its own find box"` takes a needle
+from the vault, opens the first **40** books the shelf drew forward and types it into each one's
+own box, asserting none answers 0 rows or prints *"Nothing in this book matches."* Measured:
+`project/website-migration` drew **475** books forward, **40 of 40** found it again. Before this
+branch the `Encyclopedia I` volume answered **0 rows** against **6** matching notes.
+
+**The query marks in the reader and narrows nothing.**
+`"a book the search drew forward says which of its notes matched"` asserts the `data-match="1"`
+row count equals the book's match count, that **every** note is still in the index, that the head
+reads `N of M match`, and that clearing the box leaves **0** marked with the index intact.
+Measured on `favourites/years/2026`: **304 of 1,755** rows marked against **304** matching notes,
+all **1,755** still there; cleared, **0** marked and **1,755** rows.
+
+**A reason exists exactly when there is a match.** `core.matchReasons` mirrors `matchesQuery`
+rather than implementing it — the boolean stays a fast early return on a path that runs millions
+of times per keystroke — so `"a note has a reason to be marked exactly when it is marked"` is what
+holds the two in step. Measured over **4,938 notes × 6 needles**: **4,140** marked, **4,140** with
+a reason, **0** disagreements, across `tag` 876, `cover` **3,946**, `person` 620, `title` 43 and
+`folder` 192. The check also asserts **no `body` and no `path` reason exists at all**, because
+`github#58` stopped the search reading either.
+
+**And the sixth needle is a cover, which is what makes the pair worth checking.** A term the
+vocabulary spells as a book and as *nothing else* — `No one named`, on **2,450** notes and in the
+text of none — is marked only through the index. `"a book lit only by the name on its spine finds
+that name inside it, and says so"` types one, takes the **612** books it draws forward, opens
+**20**, and for each one clicks a marked row: every one names the spine in its detail line, and
+every one finds the same needle again in its own find box. Read the second half twice — it is
+fault 3 of `design/0027` in the one costume it can still wear, since a cover is the only surface
+that is not written on the note. **Both halves fail if a single reader-side call is left without
+the `SearchIndex`**, and a textual merge of the two branches leaves five of them exactly so.
+
+**A searched book still opens on its oldest note**, and the find box is never pre-filled from the
+library query. Both would have turned a mark into a filter or moved where a book opens, and
+`design/0008`'s split and the opening law are untouched by this. A book opening on its oldest note
+is also why the reason is read off **a marked row** rather than off whichever note the book opens
+on: a book is drawn forward by some of its notes, not all, and the note you land on need not be
+one of them.
+
+**An ordinary searched book reveals its first matching contents row on opening**
+(`design/0027`). The selected/right-page note stays at the normal opening place. Explicit
+note and ribbon destinations retain precedence; blank queries and books with no matches
+reveal the selected row. The check `opening a searched book reveals its first matching
+contents row without changing the note` measures an offscreen first hit in Date and A-Z
+order, then Next, changed queries, explicit-note opens and both fallback cases. Only the
+initial opening reveals the first hit; subsequent navigation continues to reveal its target.
+Measured on 2,450 notes: first hit at row **1,225**, previously offscreen at **0px**, is visible
+at **31,426px** in Date order and **31,443px** in A-Z. Selected note stays at index **0** and
+right-page scroll at **0px**; Next, query changes, explicit-note and fallback checks pass.
+
 ## What the vault spells
 
 `design/0026`, `github#41`. The search box is a **combobox** over the vocabulary the classifiers
@@ -1629,7 +1729,7 @@ query still marks, so `design/0008`'s law is untouched.
 `"the search box offers what the vault spells, and says what kind each one is"` asserts the
 vocabulary carries all five kinds, that every row is labelled and counted, that **no spelling is
 offered twice**, and that at most **8** rows appear with at most **3** of them bare note titles.
-Measured on the one vault: **5,147 terms** — 25 people, 43 tags, 12 folders, **222 books** and
+Measured on the one vault: **5,151 terms** — 25 people, 43 tags, 12 folders, **226 books** and
 4,938 note titles — of which **68 are spelled by more than one kind**. That last number is what
 makes the kind label information rather than decoration: `garden` is one row reading `tag · book`,
 never two rows that would do the same thing.
@@ -1639,12 +1739,18 @@ invariant. It types thirteen probes drawn from the vault, picks **every** row ea
 asserts `#vs-hits` reads more than zero notes each time. **77 suggestions, 0 dead ends.**
 
 It failed the first time it ran, at **29 of 77**, and every failure was a book: `Aug 2026`,
-`No one named`, `#работа`. `core.labelFor` builds a *display* string while `matchesQuery` reads the
+`No one named`, `#работа`. `core.labelFor` builds a *display* string while `matchesQuery` read the
 note's title, path, tags, people and body — which carry the **key**. Offering a label was offering
-exactly the dead end this feature exists to remove. A book contributes `book.key` now, a key
-beginning with `-` is a sentinel rather than a word, and any key that no note of that book actually
-spells is dropped when the vocabulary is built. The invariant holds **by construction**; the check
-is what proves it stays that way.
+exactly the dead end this feature exists to remove, so `github#41` offered `book.key` instead.
+
+**`github#58` deleted that workaround, and the verification with it.** A book contributes
+`book.cover` now — the string a person reads on the spine — because the search reads covers, and
+the two are therefore **the same set**: every term the box offers marks at least one note *by
+identity*, not by a build-time pass that checks each one. `core.searchableBook` is the single
+definition both sides read, so they cannot drift: a visible shelf, not a reference, and a book with
+notes and a cover. The four terms that appear are the sentinel covers — `Undated`, `Unfiled`,
+`No one named`, `Untagged` — which `github#41` had to exclude because the *key* `-undated` is not a
+word. Measured over **all 5,151 terms**, not only the check's probes: **0 dead ends**.
 
 `"a typo that spells nothing says so, and offers nothing to pick"` types a string the vault cannot
 spell and asserts the list stays **open** with **0** `role="option"` rows and one non-pickable row
@@ -1668,16 +1774,17 @@ also put `garden/seeds` out of reach of somebody typing `seeds`.
 `"a vault with no vocabulary offers nothing"` asks `core` directly: `buildVocabulary([], [])` spells
 **0** terms and offers **0**, and one note with a title spells **2** and offers it.
 
-**Typing costs about two milliseconds more than it did.** The vocabulary is built once in
-`rebuild()`, where the books are built, never per keystroke. Measured on the one vault — 4,938 notes
-in 691 books, so **37,423 book-note slots** scanned per keystroke by `markMatches`, which is the
-cost that was already there:
+**Typing costs a tenth of what it did, and `github#58` is why.** The vocabulary is built once in
+`rebuild()`, where the books are built, never per keystroke — and so is the search index. Measured
+on the one vault, **33,871 book-note slots**, one run of 210 keystrokes on a growing word:
 
-| sustained typing, per keystroke | median |
-|---|---|
-| marking only, which is what this branch replaced | **15.1 ms** |
-| marking **and** offering the list | **17.4 ms** |
-| `core.suggest` over all 5,147 terms, on its own | **0.1–0.2 ms** |
+| sustained typing, per keystroke | before `github#58` | after |
+|---|---|---|
+| marking only | **11.8 ms** | **1.2 ms** |
+| marking **and** offering the list | 11.8 ms | **1.4 ms** |
+| `core.markMatches` alone, headless | 11.59 ms | **1.31 ms** |
+| `core.buildSearchIndex`, **once per rebuild** | — | **5.2 ms** |
+| `core.suggest` over all terms, on its own | 0.1–0.2 ms | **0.1–0.2 ms** |
 
 **Sustained means a growing word that is never cleared**, which is what a person types. An earlier
 reading of 14.5 → 29.5 ms was an artefact of a probe that emptied the box between every keystroke:
@@ -2518,3 +2625,60 @@ equal 12px SVGs and inherit the note count's colour. The regression drives Edit 
 verifies their shelf targets, and checks that hiding leaves the definition intact.
 The top-right Manage control uses a gear with an accessible name and tooltip. Book creation
 uses the plus spine; shelf headers no longer contain a separate New book button.
+
+## Age wear on a fresh library
+
+`lastOpened` is a separate ISO UTC/`never` map keyed by the same source address as `wear`.
+Reconciliation writes explicit `never` for known books and obsolete legacy wear keys without
+timestamps. The helper also returns `never` for an absent entry.
+Only actual book opens update it; favourites share the source entry. Saves and rebuilds
+retain it, while made-book deletion, shelf deletion and reset clean it with the counts.
+`last opened defaults to never and persists actual source-book opens` measures those paths;
+`scripts/check-age-wear.mjs` validates fresh/legacy defaults and rejects invalid timestamps.
+
+`bookNotes` is a sorted, distinct ledger of IDs already counted at each stable source address.
+Full unfiltered membership, including hidden shelves, contributes existing notes once and
+each unseen note once thereafter; real opens also increment `wear`. Removal, reappearance,
+filtering and repeated rebuilds cannot count the same note twice. Made books have their own
+ledger; references share sources; virtual plaques count the union at their stable address.
+Explicit deletion clears ledgers with counts; reset seeds current notes again. Migration
+preserves counts above 9,999, bounded only by MAX_SAFE_INTEGER. `check-book-history.mjs`
+and the browser's `book history seeds notes once` check exercise these rules and persistence.
+
+`design/0033`. A book's displayed wear is max(entries/visits level, age floor), with thresholds
+2/5/12 for the combined counter. The age floor is 1/2/3 after 1/3/7 completed years
+since the newest resolved date among its notes, measured against the library's generated day.
+Undated, empty, invalid and future dates get no floor; an active collection is dated by its
+newest note. A leap-day anniversary completes on March 1 in a non-leap year.
+
+Age is cached per source address over the unfiltered library once per rebuild. A virtual plaque
+book is cached at first rendering. Filters cannot age a collection by hiding its recent notes.
+A favourite uses its source's level even when that shelf is hidden. Existing counts are retained;
+chosen binding, colour, address, width, height, manual order and membership are not replaced.
+The existing wear lift remains at most two pixels, identically across looks.
+
+Leather edge-fade opacity is 0/0.08/0.18/0.30. The strongest level blends its binding's own ink
+with the faded tone at85/15; Vellum/bright-dye contrast overrides remain. The binding-preview
+check still requires five distinct inks, all fourteen Vellum dyes and unchanged binding sizes.
+The clearance check subtracts a selected shorter binding's declared-height trim before asking
+whether extra room above the book was introduced; it still requires zero extra room.
+
+`node scripts/check-age-wear.mjs` covers explicit anniversary boundaries, leap day, future and
+missing values, mixed active collections, deterministic order, references, virtual plaque books
+and immutable inputs/settings. The targeted browser check `older books wear on first launch
+without invented reading history` measures the actual spines, defaults, restored settings,
+filters, hidden-source references and boxes. The opening-history check requires thirteen real
+additional visits as well as level3 after a rebuild; initial spines carry note-count and age wear.
+
+### Comment ratchet after release recorder cleanup
+
+`check-comments.mjs` requires exactly 1,477 non-pointer, non-type comment lines after the
+1.0.0 recorder/history cleanup, down from 1,481. Removing prose lowers the baseline in the same
+commit; a lower count is not permission to add prose back elsewhere.
+
+### Reading rows and wear
+
+The Reading shelf has one untransformed board baseline per packed row. Painted books may
+lift by exactly 0/1/2px at wear levels 0-1/2/3. The Reading-row check requires the exact
+transform, line containment and shared baseline, preserves its tight-packing assertions,
+and proves that a 3px layout shift or invalid 3px lift fails.

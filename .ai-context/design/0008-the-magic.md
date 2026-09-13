@@ -15,6 +15,11 @@ the answer to the second is yes it is not magic, it is decoration.
 A book you open often looks handled: the boards darken where a hand holds them, the head and
 tail soften, and it never quite goes back flush with its neighbours.
 
+An old book also starts worn before its first open. [0033](0033-age-and-reading-wear.md)
+adds an age floor from its newest resolved note date: one, three and seven completed years.
+The displayed level is the greater of that floor and the opening-count level below; saved
+counts remain real opens, and recent additions keep an active collection fresh.
+
 `settings.wear` is a count per **book address** (`decisions/0002`), incremented on open and
 persisted. `core.wearLevel()` is four steps — 0, then 2 opens, 5, 12 — and each step is
 drawn as a slightly larger corner radius, a stronger light-to-dark fall on the board, and one
@@ -86,6 +91,40 @@ identical before, during and after, that some drew forward and some became ghost
 takes its search term from the vault it is running against rather than from the demo
 fixture — hard-coding `garden` passed on the demo vault and, on the sparse one, asserted that
 a query finding nothing still drew something forward.
+
+### What the query reads (2026-09-12, github#58)
+
+> "just note titles and real book cover names, otherwise we match way too much…"
+
+The split above says *when* the query runs. It never said what it **reads**, and what it read was
+a note's title, **path**, tags, people and **body**. On the one vault that made `which` answer for
+**2,867 of 4,938** notes: the room parted for nearly every book, `#vs-hits` counted a number with
+no information in it, and because the match was somewhere in the prose, opening a book told you
+nothing about why it had been drawn forward.
+
+The same fault ran the other way. **Aug 2026** is a cover a person can read on a spine, and it
+could not be found at all — `labelFor()` builds that string for reading and no note contains it.
+
+> A note matches if the needle is in its **title**, in the **cover** of any book it sits behind, or
+> in its own **declared metadata** — tags, people, folder. **Body and path are dropped.**
+
+**Covers alone was rejected.** It makes the search *shelf-dependent*: `inbox` finds nothing in a
+library with no Folders shelf — which is the default one — and hiding a shelf quietly makes its
+notes unfindable. Declared metadata is first-class truth about a note already (`decisions/0003`),
+so it matches whether or not somebody built a shelf out of it.
+
+**A cover is not a property of a note**, so `matchesQuery(note, needle)` can no longer answer
+alone: the covers a note stands behind are known only once the library is built. Resolving them
+per book inside `markMatches` was the other candidate and would do the same work 687 times over,
+once per book, on every keystroke. Instead `core.buildSearchIndex(views, notes)` folds each note's
+own text and every cover it stands behind into **one string**, built once in `rebuild()` where the
+books are — the same place, and for the same reason, as the vocabulary. `markMatches` then reads a
+note **once per query** rather than once per each of the 7.6 books it stands in.
+
+The law is therefore unchanged and the room still parts exactly as it did: `Book.matches` is still
+the only thing that moves, nothing is rebuilt and nothing is removed. What changed is only which
+notes answer — and, because the old rule folded 33,871 titles and 33,871 bodies on every key, a
+keystroke costs **11.8 ms → 1.2 ms**.
 
 ---
 

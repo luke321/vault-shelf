@@ -1,5 +1,5 @@
 import type { Note, ShelfView } from "./types";
-import { isReference, matchesQuery } from "./shelves";
+import { fold, searchableBook } from "./shelves";
 
 /* ---- what the vault spells -----------------------------------------------
  * github#41, design/0026
@@ -26,11 +26,11 @@ export interface Term {
 }
 
 /**
- * github#41, design/0026 -- THE SAME FOLDING `matchesQuery` USES, deliberately.
+ * github#41, github#58, design/0026 -- THE SAME FOLDING `matchesQuery` USES, deliberately.
  * @param {string} text @returns {string}
  */
 export function foldTerm(text: string): string {
-  return text.toLowerCase();
+  return fold(text);
 }
 
 /**
@@ -65,15 +65,9 @@ export function buildVocabulary(views: ShelfView[], notes: Note[]): Term[] {
   for (const view of views) {
     if (view.shelf.hidden) continue;
     for (const book of view.books) {
-      /* design/0020 -- a reference is not a place a note lives; a made book is. */
-      if (isReference(view.shelf, book)) continue;
-      /* github#41, design/0026 -- a book's KEY, not the label it reads by */
-      const text = (book.key || "").trim();
-      if (!text || text.charAt(0) === "-") continue;
-      const fold = foldTerm(text);
-      /* github#41, design/0026 -- never offer a key no note of the book actually spells */
-      if (!byFold.has(fold) && !book.notes.some((n) => matchesQuery(n, fold))) continue;
-      add(text, "book", book.notes.map((n) => n.id));
+      /* github#58, design/0026 -- THE COVER, which is what the search reads and a spine says. */
+      if (!searchableBook(view.shelf, book)) continue;
+      add(book.cover, "book", book.notes.map((n) => n.id));
     }
   }
 

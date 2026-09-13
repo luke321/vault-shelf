@@ -1,154 +1,76 @@
 # Changelog
 
 Every released version, newest first. Bare semver, no `v` prefix — Obsidian installs a plugin
-by matching the release tag against `manifest.json`'s version, which cannot carry one, so a
-`v`-tagged release is one nobody can install.
+by matching the release tag against `manifest.json`'s version, which cannot carry one.
 
 The heading is what the release is titled: `## <version> — "<name>" — <date>`. The workflow
 reads the name out of the quotes and the body out of the section, so this file and the
 published page cannot disagree.
 
 The measurements behind each entry are in
-[`.ai-context/changelog-detail.md`](.ai-context/changelog-detail.md), which is the regression
-suite. An entry here says what changed; that file says what it was before and after.
+[`.ai-context/changelog-detail.md`](.ai-context/changelog-detail.md).
 
 ---
 
-## 0.1.0 — "Beginning" — 2026-09-11
+## 1.0.0 — "Vault Shelf" — 2026-09-13
 
-**Your vault as a library.** Shelves of books built from titles, dates, people, tags, folders
-or any note property, read as a two-page spread — and the notes never move. Shelves and books
-are views, so one note sits in Encyclopedia **A**, the **2026** yearbook, **September 2026**,
-**Week 37**, a person's volume and a tag's anthology at once. That overlap is the point, and
-it is the first thing the invariant suite checks: a shelf's note count is unique notes, never
-the sum of its books.
+**Vault Shelf. Your notes become a library: build your shelves, bind your books, and read with a ribbon keeping your place. The files never move.**
 
-The first version. Everything below is new.
+### Your vault, shelved
 
-### The library
+![The library](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/shelves.webp)
 
-Seven shelves on first open, and every one of them is the whole vault: **Favourites** (empty
-until you drop a book on it), **Encyclopedia**, **Years**, **Months**, **Weeks** (hidden until
-asked for — a vault of any age has hundreds of ISO weeks, and one click in Manage brings them
-back), **People** and **Tags**. Eight classifiers behind them: title initial with an explicit
-`0-9` volume, year, month, ISO week (with its week-year, so 2027-01-01 is 2026-W53), person,
-tag with parents optionally collecting their children, folder, and any frontmatter property.
+- Start with Favourites, Encyclopedia, Years, Months, People and Tags. Favourites starts empty; the other five each hold your whole vault, organised a different way.
+- Build more shelves from folders, tags, people or the whole vault. Group their books by title, year, month, ISO week, person, tag, folder or any note property; preview the result before saving.
+- Books wrap onto the next board. Thicker spines hold more notes; hover to peek inside. Year, decade and letter plaques gather books into a run you can open together.
 
-**Build your own from two questions** — which notes belong here (the whole vault, a tag, a
-person, a folder) and what makes a book — with a preview that runs the real builder against
-the real note set, so the counts it shows are the counts you get. **Manage shelves** reorders,
-hides and restores; hiding never deletes, and hiding everything leaves a way back. The Colours
-block is a table of painted swatches, one ribbon colour per book colour, with per-slot and
-whole-palette resets. **A date shelf dyes by period**: Years by decade, Months and Weeks by
-year, so a run of years reads as a run rather than as one colour, and Manage offers *Colour by
-folder / year / decade* on those rows; Encyclopedia, People and Tags keep their folder's dye.
+### Make it yours
 
-### The bookcase
+![Colours and bindings](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/looks.webp)
 
-A shelf is a bookcase, not a conveyor belt: nothing scrolls sideways, and a run too long for
-the room continues on the next row down, so all of a People shelf is on screen at once and the
-height of a shelf says how much is in it. **A spine's width is its note count**, log-scaled
-against the largest book in the library. **Plaques** name the unit above the book — months and
-weeks under their year, years under their decade, people and tags under their letter — and a
-plaque is a button: clicking it opens the run under it as one book of unique notes, with an
-address of its own so a bookmark left in a decade survives a rebuild. The room has a measure:
-1180px, centred, so a shelf on a wide monitor is not four books on an 1,800px board.
+- Fourteen colours and six leather bindings: Original, Minimal, Gilt, Morocco, Vellum and Aged. Preview them on a book, a plaque's run or a whole shelf before choosing.
+- Coordinate colours and bindings by book, year or decade. Edit book and ribbon colours in Manage, with resets whenever you want the defaults back.
+- The room opens in leather, with walnut boards, brass plaques and ivory pages. Books show age, entries and visits: existing notes count once per book, then new notes and visits add activity. The newest dated note sets their age.
 
-### Reading
+### Favourites and books of your own
 
-A two-page spread that keeps your place on the shelf. Contents and *find within this book* on
-the left, **the note rendered by Obsidian's own renderer** on the right — wikilinks, embeds,
-callouts, tasks, tables and code, exactly as the app draws them — and index tabs down the
-edge, cut the way the book is ordered: letters for an Encyclopedia volume, as deep as its
-titles need (Ma, Me, Mi rather than one M), dates for everything else. A tab, Previous, Next,
-an arrow key or a followed link brings the contents with it. **Also shelved in** steps to
-another book on the same note; **Previous collection** and `Alt+←` walk back. A wikilink
-followed from the spread goes to that note in this book, else on this shelf, else on the
-nearest one, and only a note the library does not hold falls through to Obsidian. Every book
-opens on its oldest note, and one toggle in the top bar turns a date shelf and its books round
-together.
+![Collect favourite books](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/favourite.webp)
 
-### Favourites, and the book you make on the shelf
+- Drag books onto Favourites, or create more shelves for your own collections. Each favourite stays connected to its source book.
+- On a shelf arranged by hand, use the plus spine or right-click a gap to make a book from a folder, tag, person or the whole vault. Choose its name, binding, colour and contents order; it grows as matching notes arrive.
+- Arrange books by dragging or with Alt+Left/Right. Drag toward the edge to reach shelves beyond the screen. Taking a favourite or made book off its shelf never deletes a note.
 
-Drag any book onto the **Favourites** shelf and it stands there as a reference: its label,
-notes and colours are the source's and stay live, and opening it opens the source book. Drag
-it off to take it off (Escape cancels). A pick shelf is a kind of shelf, not one shelf — the
-builder makes as many as you want, and a book may sit on several. **Right-click empty rail
-space, or press the quiet plus where the books end, to make a book**: a name and a source —
-a folder, a tag, a person, the whole vault — held as a saved query with an address of its own.
-Any shelf arranged by hand can hold one.
+### Find your way
 
-### Arranged by hand
+![Search the library](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/parting.webp)
 
-A shelf's Order gains **Arranged by hand**. Books then stand where you put them, moved by
-dragging a spine along the shelf and across rows, or by `Alt+←` / `Alt+→` on a focused one. It
-changes the sequence and nothing else: not an address, not membership, not what is inside a
-book. A book nobody has placed stands at the end.
+- Search titles, book covers, tags, people and folders. Matching books come forward while the rest remain as faint spines; suggestions offer the names your vault uses.
+- Open a matching book and its contents scroll to the first match, keeping the selected note on the right. Marked rows and highlighted title or metadata explain the results. A cover match names the book that supplied it. Find within this book follows the same rule.
+- Manage lets you jump to, reorder, edit, hide or delete shelves. You can also drag a shelf by its board. Hiding keeps its books, and an empty room always offers a way back.
+- Search stays visible while a book is open. Shelf edit and hide controls sit beside its counts; the gear opens Manage.
 
-### Three looks, one geometry
+### Open a book
 
-**Leather** — walnut shelves, brass labels, ivory pages inside an oxblood cover, and what a
-fresh library opens in. **Modern** — painted from Vault Graph: the same twelve colour slots,
-surfaces and text ramp, read from the cascade rather than copied, following Obsidian's light or
-dark theme and re-reading it when it changes. **Cyber** is shelved until its redesign: it
-still ships and is still measured, but the selector does not offer it. A look is paint: it may
-repaint anything and move nothing — a spine is the same size in all three, every control the
-same height, so switching does not move the furniture. And a button and a plaque are made of
-the same material in every look.
+![Read a two-page spread](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/read.webp)
 
-### Three things a real shelf cannot do
+- Contents and search on the left; your note on the right, rendered by Obsidian with its links, embeds, callouts, tasks, tables and code.
+- Choose A–Z or Date for a book or shelf. The edge index follows that choice and fits its tabs into the available space. Switching keeps your note and reading position.
+- Use the footer buttons, arrow keys or index tabs to turn pages. Push the mouse wheel past a note's end to turn to the next; push back at its start to return.
+- Follow links within the library, use Also shelved in to see the same note in another book, and return with Previous collection or Alt+Left. Click the desk to put the book down.
 
-- **Shelf wear.** Books you open often look handled — the boards darken, the corners soften.
-- **Ribbons that hang.** A saved note leaves a ribbon out of every book that holds it, visible
-  from across the room; inside the book, up to three hang over the page you are on. A ribbon
-  re-threads itself when the library changes, and re-resolves through another shelf if its own
-  is hidden.
-- **The shelf parts as you type.** Searching never empties the library: matching books draw
-  forward and gain air, the rest thin to ghosts and stay exactly where they were.
+### Keep your place
 
-### What a shelf is allowed to know
+![Leave a ribbon](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/ribbon.webp)
 
-**Metadata is declared, never inferred.** A date comes from a property, then a title, then the
-earliest stamp the filesystem has for the file — the earlier of creation and modification,
-since a bulk reformat moves one and a copied vault moves the other — and that fallback can be
-turned off to see the Undated book instead. People come from the people properties (`people`,
-`attendees`, `person` by default, values may be wikilinks) and from a link to a note that
-declares itself a person (`type: people`), never from prose. A missing value gets its own book,
-`Undated` or `Unfiled`, never an exclusion. A book's colour has three claimants, ranked: the
-person, from twelve swatches on the spine's own menu; the shelf, if it varies its books; and
-the folder.
-
-### Accessibility
-
-Every control named, visible focus, `prefers-reduced-motion` respected, and a plain list mode
-that keeps every book reachable without a rail.
-
-### The exporter, and the site
-
-The same library as one self-contained HTML file that opens off a disk with no Obsidian at
-all: `node src/build-shelf.mjs --vault <vault> --out vault-shelf.html`. It is what the
-invariant suite drives. `docs/` is a Pages site with the feature list and a live demo built
-from a generated fixture; it goes live when the repository does.
-
-**The film** (`assets/demo.webp`, `node scripts/record-demo.mjs`) is shot in leather, in a
-mirror of a real vault with every word invented, and opens on the three things the product
-is: a book dragged onto Favourites, a ribbon left in it, and a search that parts the shelf.
-The recorder drives a real drag and drop, stops the take when an act throws, and cuts the
-hero by act rather than by second.
+- Save a note and ribbons hang from the books that hold it. The Reading shelf gathers your marked books for an easy return.
+- Ribbons keep their place when shelves are rearranged or rebuilt, and follow another shelf when their original shelf is hidden. Inside the reader, each ribbon matches its book's binding.
 
 ### For the record
 
-- The plugin reads Obsidian's metadata cache, never the filesystem; the only file it ever
-  reads is the note you have open, to render it. It writes nothing to your notes.
-- Nothing shipped makes a network request. Not one, and a gate refuses a push that adds one.
-- Settings migrate by schema (10 at this release): an older file comes up with decade and
-  letter plaques on, the file-stamp fallback on, Weeks hidden, and a look the selector offers.
-- **The tooling.** 88 invariant checks per vault shape, over three generated shapes — a demo
-  vault that reads like somebody's, a sparse and lopsided one, and a 10,000-note library — 264
-  in a run, driven in a real Chrome over CDP; a golden per shape for the packing; a
-  data-escape gate whose vault's metadata is markup; a teardown check over twenty
-  mount/unmount cycles; a refresh check that changes the vault under an open book; a comment
-  ratchet; a PII gate; a scope gate that refuses an unscoped rule, an unprefixed class and an
-  invisible character; a network gate; two determinism gates; and a suite stamp, so a tree is
-  gated once. `scripts/record-demo.mjs` shoots the walkthrough frame by frame over CDP, in a
-  mirror of a real vault rather than in the vault itself.
+- Shelves count unique notes, even when several books contain the same note. Missing dates and properties get Undated or Unfiled books. Dates use your chosen properties, then the title, then an optional file timestamp; people come from declared properties or links to declared person notes.
+- Fresh date ordering starts oldest first. Existing Weeks shelves and saved reading directions still load. Leather is the offered look; Modern and Cyber remain shelved.
+- Page turns keep the contents list steady. Wide tables scroll inside the note; lifted spines remain visible; multiple Reading books share a board; clicking the turn footer keeps the book open.
+- Keyboard controls, named buttons, visible focus, reduced motion and a plain list mode are included. Search suggestions complete text; note bodies and file paths are outside the catalogue search.
+- The plugin follows changes in your vault, writes nothing to your notes and makes no network requests. A standalone exporter produces the library as one HTML file; the docs site includes a generated-vault demo.
+- Each book remembers when you last opened it; unvisited books start at never. Existing visit counts survive the update, and rebuilding does not recount entries.
+- Update notes explain future minor and major releases inside the plugin. Automated checks cover layout, saved places, metadata escaping, refresh and cleanup; release builds carry provenance attestations.
