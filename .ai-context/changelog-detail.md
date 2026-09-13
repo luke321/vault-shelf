@@ -1,5 +1,22 @@
 # Changelog detail
 
+## 2026-09-13 - Keep narrow Manage rows identical in every look
+
+The release follow-up reproduced `a look moves nothing on the page` failing after the
+Manage viewport check: **728 moved / 16 resized**. Independent narrow measurements found
+Leather wrapping Delete alone on Months and People, adding **42px**. Shared phone grid
+positions now keep controls in the same rows at **390px and 320px** in all three looks;
+wide geometry remains unchanged. The strengthened Manage test checks row/control geometry,
+fit and pick-shelf rules, and waits for viewport restoration plus the page's room measurement.
+
+The Manage, four-state look-invariance and colour/visibility persistence checks pass **3/3
+in 11 seconds wall**. All **4,358** elements in the original look check report **0 moved,
+0 resized, 0 missing**. Inspected `dist/manage-look-final-manage.png`: the phone sheet shows
+the name, arrows/Shown, paired Edit/Delete and colour rules without clipped controls.
+`dist/manage-look-final.log` records the final paired run. Strict lint, scope, network,
+comments (1481/1481), static escaping and PII patterns pass (no local name list).
+No full suite ran.
+
 ## 2026-09-13 - Wait for the requested contents row during integration checks
 
 The combined age-wear/first-finding run caught the test sampling a long smooth Next scroll

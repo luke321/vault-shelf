@@ -1977,11 +1977,15 @@
   .vault-shelf button { min-height: 34px; }
 }
 
-/* github#14 -- a Manage row wraps on a phone, in every look; leather alone had this. */
+/* github#14, design/0021 -- fixed rows on a phone: a wider face cannot wrap Delete alone. */
 @media (max-width: 520px) {
-  .vault-shelf .vs-managerow { flex-wrap: wrap; }
-  .vault-shelf .vs-managerow .vs-name { flex-basis: 100%; }
-  .vault-shelf .vs-managerow .vs-meta { margin-right: auto; }
+  .vault-shelf .vs-managerow { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .vault-shelf .vs-managerow .vs-name { grid-column: 1 / -1; }
+  .vault-shelf .vs-managerow .vs-meta { grid-column: span 2; }
+  .vault-shelf .vs-managerow > .vs-toggle { grid-column: span 2; }
+  .vault-shelf .vs-managerow .vs-edit,
+  .vault-shelf .vs-managerow .vs-delete { grid-column: span 3; }
+  .vault-shelf .vs-managerules { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3897,7 +3897,7 @@ function mountVaultShelf(root, data, options) {
         refresh();
       });
 
-      var edit = el("button", "", "Edit");
+      var edit = el("button", "vs-edit", "Edit");
       edit.type = "button";
       on(edit, "click", function () { $("manage").hidden = true; openBuilder(shelf); });
 

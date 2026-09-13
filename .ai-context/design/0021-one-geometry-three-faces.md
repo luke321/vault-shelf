@@ -1,5 +1,20 @@
 # 0021 — One geometry, three faces
 
+### 2026-09-13 — Manage rows at phone widths
+
+At 390px, the automatic flex wrap let Leather's wider labels push Delete to another row:
+Months grew from 120.5px to 162.5px, and People from 106.25px to 148.25px. The other two
+looks kept those controls together. Narrow Manage rows now use the same six-column grid:
+name, then classifier/arrows/Shown, then Edit/Delete, then colour rules. Every control
+remains available; the shared stylesheet fixes the rows instead of a face choosing the wrap.
+
+The Manage check compares every row's height and every control's relative top and height
+across all three looks at the original viewport, 390px and 320px. All agree; controls fit
+inside their row. It restores the original viewport only after the requested dimensions
+and the page's room measurement settle. Clearing the viewport override and sleeping had
+let the following geometry check start in the phone layout and report 728 moved / 16 resized
+elements. The original four-state geometry check remains intact and passes with 0/0.
+
 `github#14`, `github#16`. `CLAUDE.md` has said since `design/0016` that **a look is paint**: it
 may repaint anything and it may move nothing. The law was enforced for a spine's size, the room's
 width and — since 2026-09-11 — thirty-eight named controls. It was not enforced for anything
