@@ -5430,6 +5430,57 @@ check("older books wear on first launch without invented reading history", async
     detail:JSON.stringify(r)};
 });
 
+/* design/0033 */
+check("last opened defaults to never and persists actual source-book opens", async (p) => {
+  const saved=await p.j('JSON.stringify(__vs.settings())');
+  try {
+    const first=await p.j(`(function(){
+      var core=VaultShelfCore, clean=core.emptySettings();
+      window.vsHandle.setSettings(clean);
+      var book=__vs.views().find(function(v){return v.shelf.id==='years';}).books.find(function(b){return b.notes.length>2;});
+      var before=core.lastOpenedAt(__vs.settings(),book.id);
+      __vs.settings().wear[book.id]=7;
+      var began=Date.now();__vs.openBook(book.id,null);
+      var stamp=core.lastOpenedAt(__vs.settings(),book.id), ended=Date.now();
+      document.getElementById('vs-nextnote').click();
+      var turnUnchanged=core.lastOpenedAt(__vs.settings(),book.id)===stamp;
+      __vs.closeReader();__vs.setFilters({});
+      return {id:book.id,before:before,stamp:stamp,began:began,ended:ended,count:__vs.settings().wear[book.id],
+        turnUnchanged:turnUnchanged,rebuild:core.lastOpenedAt(__vs.settings(),book.id)===stamp};
+    })()`);
+    await sleep(25);
+    const after=await p.j(`(function(){
+      var core=VaultShelfCore,id=${JSON.stringify(first.id)};
+      __vs.settings().shelves.find(function(s){return s.id==='favourites';}).picks=[id];__vs.setFilters({});
+      var pick=document.querySelector('[data-shelf="favourites"] [data-source="'+id+'"]');
+      var began=Date.now();pick.click();var ended=Date.now();__vs.closeReader();
+      var stamp=core.lastOpenedAt(__vs.settings(),id),count=__vs.settings().wear[id];
+      var alias=__vs.settings().lastOpened['favourites/'+id]===undefined;
+      var stored=core.migrate(JSON.parse(localStorage.getItem(SETTINGS_KEY)));
+      window.vsHandle.setSettings(stored);
+      var persisted=core.lastOpenedAt(__vs.settings(),id)===stamp&&__vs.settings().wear[id]===count;
+      var made=__vs.makeBook('favourites',{name:'Timestamp check',source:{kind:'all'}},null);
+      __vs.openBook(made,null);__vs.closeReader();
+      var madeStamped=core.lastOpenedAt(__vs.settings(),made)!=='never';
+      __vs.unmakeBook(made);
+      var madeGone=core.lastOpenedAt(__vs.settings(),made)==='never'&&__vs.settings().wear[made]===undefined;
+      var plate=document.querySelector('[data-shelf="years"] .vs-plaque');plate.click();
+      var plaque=__vs.reader().book;__vs.closeReader();
+      var plaqueStamped=core.lastOpenedAt(__vs.settings(),plaque)!=='never';
+      __vs.deleteShelf('years');
+      var deleted=core.lastOpenedAt(__vs.settings(),id)==='never'&&core.lastOpenedAt(__vs.settings(),plaque)==='never'&&__vs.settings().wear[id]===undefined;
+      window.vsHandle.setSettings(core.emptySettings());
+      var reset=Object.keys(__vs.settings().lastOpened).length===0;
+      return {stamp:stamp,began:began,ended:ended,count:count,alias:alias,persisted:persisted,madeStamped:madeStamped,madeGone:madeGone,plaqueStamped:plaqueStamped,deleted:deleted,reset:reset};
+    })()`);
+    return {ok:first.before==='never'&&first.count===8&&Date.parse(first.stamp)>=first.began&&Date.parse(first.stamp)<=first.ended&&first.turnUnchanged&&first.rebuild&&
+      Date.parse(after.stamp)>Date.parse(first.stamp)&&Date.parse(after.stamp)>=after.began&&Date.parse(after.stamp)<=after.ended&&after.count===9&&
+      ['alias','persisted','madeStamped','madeGone','plaqueStamped','deleted','reset'].every(k=>after[k]),detail:JSON.stringify({first,after})};
+  } finally {
+    await p.eval(`__vs.closeReader();window.vsHandle.setSettings(${saved}); void 0`);
+  }
+});
+
 check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
   const r = await p.j(`(function(){
     var book = null;

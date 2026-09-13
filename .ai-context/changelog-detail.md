@@ -1,5 +1,23 @@
 # Changelog detail
 
+## 2026-09-13 - Record when a book was last opened
+
+Book opening history previously held a count without a timestamp. Actual opens now also
+save an ISO UTC `lastOpened` value by stable source address, with `never` for missing
+entries. Legacy counts remain intact and receive no invented dates. Favourites share the
+source stamp; made books and plaques retain their addresses. Page turns and rebuilds leave
+the stamp unchanged. Deletion and reset remove it consistently with wear. No UI changed.
+
+**3/3 targeted checks pass in 8 seconds wall**, covering timestamp persistence, existing
+wear counts and manual plaque runs. The measured source began at `never` with count 7:
+first open recorded `2026-09-13T05:45:43.934Z` and count 8; opening its favourite recorded
+`2026-09-13T05:45:44.046Z` and count 9 without an alias entry. Saved storage, rebuilds,
+made/plaque stamping, deletion and reset passed. Core checks cover defaults, legacy counts,
+round trips and malformed timestamps. Strict lint, scope, network, comments, escaping,
+PII patterns (no local name list), build and generated maps pass. Inspected the unchanged
+reader in `dist/last-opened-after-vault-reader.png`; results are in
+`dist/last-opened-after.log`. No full suite or release media edits.
+
 ## 2026-09-13 - Keep a manual plaque's selected run when opening it
 
 The release gate reproduced a product regression from the contents-picker refresh: moving

@@ -1872,6 +1872,7 @@ function mountVaultShelf(root, data, options) {
     else if (shelf.order) shelf.order = shelf.order.filter(function (k) { return k !== key; });
     var id = core.bookId(shelf.id, key);
     delete settings.wear[id];
+    delete settings.lastOpened[id];
     delete settings.bookColors[id];
     delete settings.bookSpines[id];
     if (shelf.bookIndexes) delete shelf.bookIndexes[key];
@@ -2574,6 +2575,7 @@ function mountVaultShelf(root, data, options) {
     // design/0008, design/0019, github#35
     var worn = sourceOf(book).id;
     settings.wear[worn] = (settings.wear[worn] || 0) + 1;
+    settings.lastOpened[worn] = new Date().toISOString();
     persist();
     markWear(worn);
     $("reader").hidden = false;
@@ -3823,6 +3825,9 @@ function mountVaultShelf(root, data, options) {
     var dead = id + "/";
     Object.keys(settings.wear).forEach(function (key) {
       if (key.indexOf(dead) === 0) delete settings.wear[key];
+    });
+    Object.keys(settings.lastOpened).forEach(function (key) {
+      if (key.indexOf(dead) === 0) delete settings.lastOpened[key];
     });
     Object.keys(settings.bookColors).forEach(function (key) {
       if (key.indexOf(dead) === 0) delete settings.bookColors[key];
