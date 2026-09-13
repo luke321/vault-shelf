@@ -1,5 +1,24 @@
 # Changelog detail
 
+## 2026-09-13 - Keep a manual plaque's selected run when opening it
+
+The release gate reproduced a product regression from the contents-picker refresh: moving
+acoustics to the end of manual Tags made two A plates, but both opened **1,812 notes**.
+`openBook` re-resolved an already-built virtual run by its shared address and lost the clicked
+run. It now refreshes ordinary books through the real-book index while retaining virtual
+membership. The moved plate opens **1 note**; the first still opens **1,812**. Age wear was
+not involved.
+
+**5/5 targeted checks pass in 9 seconds wall**: split manual plaques, wrapped automatic
+plaques, plaque ribbons/rebuilds, contents-order persistence and age wear. The existing
+manual-plaque check now captures the selected run and restores any prior manual order.
+Inspected `dist/manual-plaque-after-manual-plaque.png`: one row, one selected note and
+the footer's 1 of 1 agree. Logs: `dist/manual-plaque-before.log` and
+`dist/manual-plaque-after.log`. Strict lint, scope, network, comments (1479/1479), static
+escaping, PII patterns (no local name list), build and generated maps pass. No full suite ran.
+Automatic plaque behavior and default shelf rendering are unchanged, so default release
+captures do not require replacement for this fix.
+
 ## 2026-09-13 - Approve the complete Vault Shelf 1.0.0 release preparation
 
 The owner approved hero v5, all 24 feature clips, the release body and actual update strip.

@@ -746,6 +746,7 @@ check("on a manual shelf a plate opens what is under it, not the whole letter", 
     var run = core.runsOf(view.books).filter(function (x) { return x.plaque !== null && x.books.length > 1; })[0];
     if (!run) return { found: false, why: "no letter with two books on Tags" };
     var was = shelf.direction;
+    var savedOrder = shelf.order;
     var seq = __vs.sequence("tags");
     var moved = run.books[0].key;
     var others = seq.filter(function (k) { return k !== moved; });
@@ -767,15 +768,27 @@ check("on a manual shelf a plate opens what is under it, not the whole letter", 
     __vs.closeReader();
     var restUnique = {};
     run.books.slice(1).forEach(function (b) { b.notes.forEach(function (n) { restUnique[n.id] = 1; }); });
-    shelf.direction = was;
-    delete shelf.order;
-    __vs.setFilters({});
-    return { found: true, plaque: run.plaque, moved: moved, plates: plates.length, front: frontKeys[0],
+    plates[plates.length - 1].click();
+    return { found: true, was: was, savedOrder: savedOrder, plaque: run.plaque, moved: moved, plates: plates.length, front: frontKeys[0],
              firstId: first.book, firstRows: firstRows, movedNotes: run.books[0].notes.length,
              restId: rest.book, restRows: restRows, restUnique: Object.keys(restUnique).length,
              sameId: first.book === rest.book, want: core.plaqueBookId("tags", run.plaque) };
   })()`);
   if (!r.found) return { ok: false, detail: r.why || "no Tags shelf in this library" };
+  try {
+    if (SHOT) {
+      const shot = await p.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+      writeFileSync(SHOT.replace(/\.png$/i, "-manual-plaque.png"), Buffer.from(shot.data, "base64"));
+    }
+  } finally {
+    await p.eval(`(function(){
+      __vs.closeReader();
+      var shelf=__vs.settings().shelves.find(function(s){return s.id==='tags';});
+      shelf.direction=${JSON.stringify(r.was)};
+      ${r.savedOrder ? "shelf.order=" + JSON.stringify(r.savedOrder) : "delete shelf.order"};
+      __vs.setFilters({});
+    })(); void 0`);
+  }
   const ok = r.plates >= 2 && r.front === r.moved && r.firstRows === r.movedNotes &&
              r.restRows === r.restUnique && r.sameId && r.firstId === r.want && r.firstRows !== r.restRows;
   return { ok,
