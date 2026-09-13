@@ -1,8 +1,8 @@
 # Verification of 1.0.0
 
-**Date** 2026-09-13 · **Candidate** `release/1.0.0`, currently at `6e7d00c`; product baseline `f32a376` (the latest merge repairs only the update-strip harness).
-The reviewed preparation is being committed before the release dry run; the orchestrator records
-the resulting commit and tree when running the final gates. **Reference**: first published release; no earlier tag exists. The
+**Date** 2026-09-13 · **Candidate** `release/1.0.0`, currently at `8d52c82`, including the three release-gate repairs and last-opened metadata.
+Approved preparation was committed at `0dbce28` (tree `dcb31c0581875eed089dfd08812b2a0d61a84d8f`).
+The orchestrator records the final updated tree when running the remaining gates. **Reference**: first published release; no earlier tag exists. The
 abandoned 0.1.0 preparation record remains historical evidence, not a published release.
 
 The user changed the first release to **1.0.0 — Vault Shelf** during preparation. Earlier
@@ -24,8 +24,8 @@ it does not establish verification of the final 1.0.0 candidate.
 | Manage geometry across looks | Merged at `f32a376`, with the worker's three targeted checks passing 3/3: Manage geometry, four-state look invariance and colour/visibility persistence. At 390px and 320px, all looks keep the same control rows. The original look check measured 4,358 elements: 0 moved, 0 resized, 0 missing. Root visually reviewed the narrow Manage screenshot. No full-suite claim is made. |
 | Installed candidate | Current product `f32a376` built with 1.0.0 metadata is installed in SecondBrain: all three source/target SHA-256 values match, and `data.json` is unchanged. Backup: OS temp directory `vault-shelf-install-before-1.0.0-20260913-065842`. The owner's Obsidian was closed, so no reload of that session is claimed. The separate real-Obsidian harness verified the strip above. Earlier 0.9.0 CLI reload remains historical evidence. |
 | Lint, typecheck and static release gates | Pending final candidate. Earlier product-branch passes are not substituted for this tree. |
-| Full invariant suite / stamp | Pending committed final tree. Current stamp policy requires two consecutive full passes; no preparation-worker full run is claimed. |
-| `release.ps1 1.0.0 -DryRun -AllowAnyBranch` | Pending final tree, approved media and reviewed body. |
+| Full invariant suite / stamp | The first release dry run at `0dbce28` passed 130/133. Manual plaque membership, Reading baseline measurement and index cleanup failed and were repaired below. A fresh full run is pending the final counter behavior decision and implementation. Current stamp policy requires two consecutive full passes; no preparation-worker full run is claimed. |
+| `release.ps1 1.0.0 -DryRun -AllowAnyBranch` | Initial run stopped on the 130/133 suite result (`dist/release-dryrun-1.0.0.log`). Media, body and strip are approved. A new dry run remains pending the final implementation and committed tree. |
 | `release.yml` branch dry run | Pending push and workflow. Previous private-repository attestation failure is historical; current PUBLIC repository status must be validated by this run. |
 | Published assets and attestation verification | Pending tag workflow. Record run URL, three SHA-256 values and attestation verification here after publication. |
 
@@ -76,7 +76,7 @@ is now promoted to `assets/demo.webp`; its SHA-256 matches the candidate evidenc
 
 ## Release contents and docs
 
-The full range through `6e7d00c` contains 98 first-parent entries and 51 merge commits.
+The full range through `8d52c82` contains 103 first-parent entries and 55 merge commits.
 All are mapped to the CHANGELOG feature/record sections or an internal/superseded disposition
 in the local `dist/release-range-audit.md`. Five merges occur outside the first-parent line.
 
@@ -113,3 +113,14 @@ The orchestrator inspected both 12-clip contact sheets covering all 24 features 
 set visually coherent, then opened the 25/25 clip-review page on hero v5. This review is
 followed by the owner's explicit approval of the complete media, strip and release body on
 2026-09-13: "approved, push release branch and continue". Release gates and publishing remain pending.
+
+## Release-gate follow-up and internal opening metadata
+
+- Manual plaque merge `5ae2f13`: 5/5 targeted checks pass. A moved one-note run opens that one note; automatic plaques, ribbons, contents order and age behavior remain covered.
+- Reading merge `e44298a`: 1/1 targeted check passes, retaining tight packing and rejecting real 3px layout shifts or invalid lifts. The product was unchanged.
+- Index merge `f3fc294`: 2/2 targeted checks pass after waiting for viewport restoration and the pending room measurement. The product was unchanged.
+- Last-opened merge `8d52c82`, source `4190089`: 3/3 targeted checks pass. Actual source-book opens save an ISO UTC timestamp; missing entries mean `never`, with no invented history. Legacy counts stay intact, favourites share source metadata, and turns/rebuilds do not restamp it. This is internal persistence; approved release prose and UI remain unchanged.
+
+The demo was refreshed from current source `8d52c82` using the same 1,242-note generated cut: 1,690,661 bytes, four inline scripts parse, exact current page/shared CSS included, and the stable preview copy is byte-identical. It now includes the manual plaque fix and last-opened metadata. No UI or approved capture changed: manual split-run repair does not affect the recorded default plaques; Reading/index fixes are harness-only; timestamps add persistence without a visible control. The approved hero SHA-256 remains `752825f3881781810c350cb0c91038194fe98d2b74142788a93d51253afe778e`.
+
+Full merged-tree release gates remain pending. The additional counter request is awaiting clarification.

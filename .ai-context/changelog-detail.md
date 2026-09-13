@@ -1,5 +1,10 @@
 # Changelog detail
 
+## 2026-09-13 - Refresh the demo after release-gate repairs
+
+The demo was refreshed from current source `8d52c82` using the same 1,242-note generated cut: 1,690,661 bytes, four inline scripts parse, exact current page/shared CSS included, and the stable preview copy is byte-identical. It now includes the manual plaque fix and last-opened metadata. No UI or approved capture changed: manual split-run repair does not affect the recorded default plaques; Reading/index fixes are harness-only; timestamps add persistence without a visible control. The approved hero SHA-256 remains `752825f3881781810c350cb0c91038194fe98d2b74142788a93d51253afe778e`.
+No browser or full suite ran for this documentation refresh.
+
 ## 2026-09-13 - Record when a book was last opened
 
 Book opening history previously held a count without a timestamp. Actual opens now also
