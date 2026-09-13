@@ -4,7 +4,7 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 5199 lines, 26 sections, 224 functions
+## `src/page.js` — 5201 lines, 26 sections, 224 functions
 
 ### Sections
 
@@ -17,25 +17,25 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 354–363 | the rail |
 | 364–384 | the reading shelf |
 | 385–982 | library |
-| 983–1248 | a shelf carried by its floor |
-| 1249–1479 | a shelf arranged by hand |
-| 1480–1527 | favourites |
-| 1528–1964 | a book made on the shelf |
-| 1965–2114 | the peek |
-| 2115–2371 | the dye menu |
-| 2372–2409 | the shelf parts as you type |
-| 2410–2560 | what the vault spells |
-| 2561–3268 | reader |
-| 3269–3532 | reading off the bottom turns the page |
-| 3533–3793 | builder |
-| 3794–4123 | manage |
-| 4124–4417 | the twelve, offered |
-| 4418–4441 | filters |
-| 4442–4521 | refresh |
-| 4522–4625 | a drag that reaches the edge |
-| 4626–4836 | the wiring |
-| 4837–5159 | debug api — stripped from the plugin build |
-| 5160–5199 | the wiring (continued) |
+| 983–1246 | a shelf carried by its floor |
+| 1247–1477 | a shelf arranged by hand |
+| 1478–1525 | favourites |
+| 1526–1962 | a book made on the shelf |
+| 1963–2116 | the peek |
+| 2117–2373 | the dye menu |
+| 2374–2411 | the shelf parts as you type |
+| 2412–2562 | what the vault spells |
+| 2563–3270 | reader |
+| 3271–3534 | reading off the bottom turns the page |
+| 3535–3795 | builder |
+| 3796–4125 | manage |
+| 4126–4419 | the twelve, offered |
+| 4420–4443 | filters |
+| 4444–4523 | refresh |
+| 4524–4627 | a drag that reaches the edge |
+| 4628–4838 | the wiring |
+| 4839–5161 | debug api — stripped from the plugin build |
+| 5162–5201 | the wiring (continued) |
 
 ### Functions
 
@@ -97,187 +97,187 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 1115 | `moveShelf` |
 | 1131 | `shelfDropZone` |
 | 1171 | `renderSpine` |
-| 1269 | `liftable` |
-| 1314 | `leaving` |
-| 1328 | `carriedSpine` |
-| 1340 | `carriedInto` |
-| 1346 | `handleOf` |
-| 1354 | `markDrop` |
-| 1367 | `clearDrop` |
-| 1381 | `takeOffZone` |
-| 1409 | `markLanding` |
-| 1423 | `neighbour` |
-| 1441 | `arrangeBook` |
-| 1464 | `nudge` |
-| 1486 | `isPick` |
-| 1495 | `pickShelves` |
-| 1502 | `sourceOf` |
-| 1509 | `liveSources` |
-| 1515 | `liveFor` |
-| 1520 | `takeOff` |
-| 1541 | `offersBook` |
-| 1562 | `openRailMenu` |
-| 1588 | `booksOn` |
-| 1593 | `closeRailMenu` |
-| 1604 | `openMadeBook` |
-| 1629 | `closeMadeBook` |
-| 1636 | `madeAppearance` |
-| 1681 | · `update` |
-| 1701 | `indexLabel` |
-| 1705 | `indexChoices` |
-| 1727 | `indexPicker` |
-| 1749 | `setBookIndexes` |
-| 1774 | `writeMadeFields` |
-| 1783 | `readMadeFields` |
-| 1802 | `nameFor` |
-| 1810 | `previewMadeBook` |
-| 1820 | `saveMadeBook` |
-| 1849 | `writeMadeBook` |
-| 1870 | `deleteMadeBook` |
-| 1890 | `isIndex` |
-| 1896 | `widthOf` |
-| 1906 | `squeezeIndex` |
-| 1925 | `thicknessOf` |
-| 1942 | `dyeOf` |
-| 1972 | `showPeek` |
-| 1999 | `hidePeek` |
-| 2009 | `ribbonFor` |
-| 2022 | `paintRibbon` |
-| 2032 | `paintSpine` |
-| 2064 | `threadOf` |
-| 2094 | `hslHex` |
-| 2100 | · `two` |
-| 2107 | `hashSlot` |
-| 2127 | `handSlot` |
-| 2144 | `dyeRow` |
-| 2178 | `bindingRow` |
-| 2231 | `previewSpines` |
-| 2239 | `setBookSpines` |
-| 2255 | `dyeUnit` |
-| 2265 | `openDye` |
-| 2330 | `placeMenu` |
-| 2340 | `closeDye` |
-| 2351 | `setBookColors` |
-| 2364 | `ribbonsIn` |
-| 2377 | `applyQuery` |
-| 2416 | `suggestOpen` |
-| 2422 | `rowId` |
-| 2426 | `closeSuggest` |
-| 2440 | `markRow` |
-| 2460 | `takeSuggestion` |
-| 2471 | `placeSuggest` |
-| 2481 | `openSuggest` |
-| 2513 | `rowUnder` |
-| 2521 | `suggestKey` |
-| 2548 | `scrollToShelf` |
-| 2557 | `cssEscape` |
-| 2566 | `openBook` |
-| 2594 | `effectiveWear` |
-| 2599 | `markWear` |
-| 2609 | `closeReader` |
-| 2620 | `renderReader` |
-| 2652 | `readerDye` |
-| 2671 | `renderMarks` |
-| 2740 | `litText` |
-| 2756 | `litNeedle` |
-| 2760 | `renderContents` |
-| 2796 | `markContents` |
-| 2809 | `revealCurrent` |
-| 2844 | `indexSections` |
-| 2878 | `cutBy` |
-| 2902 | `letterTabs` |
-| 2923 | `titlePrefix` |
-| 2950 | `dateTabs` |
-| 2989 | `runsOf` |
-| 3004 | `renderTabs` |
-| 3052 | `findInBook` |
-| 3060 | `renderNote` |
-| 3131 | `renderMeta` |
-| 3169 | `linked` |
-| 3194 | `renderMarkdownInto` |
-| 3245 | `goTo` |
-| 3293 | `rightPage` |
-| 3299 | `landOn` |
-| 3310 | `paintPush` |
-| 3324 | `releasePush` |
-| 3348 | `abandonPush` |
-| 3356 | `pushStop` |
-| 3368 | `armPush` |
-| 3382 | `wheelPx` |
-| 3389 | `onPush` |
-| 3431 | `openNote` |
-| 3463 | `noteByLink` |
-| 3476 | `shelfById` |
-| 3484 | `isBookmarked` |
-| 3493 | `toggleBookmark` |
-| 3508 | `previousCollection` |
-| 3521 | `findBook` |
-| 3545 | `openBuilder` |
-| 3571 | `closeBuilder` |
-| 3577 | `writeBuilderFields` |
-| 3631 | `readBuilderFields` |
-| 3663 | `fillSourceValues` |
-| 3672 | `fillValuesInto` |
-| 3688 | `fillProperties` |
-| 3707 | `fillRecipes` |
-| 3726 | `previewBuilder` |
-| 3744 | `saveBuilder` |
-| 3777 | `seedOrder` |
-| 3788 | `uniqueId` |
-| 3796 | `openManage` |
-| 3805 | `newShelfFromManage` |
-| 3821 | `deleteShelf` |
-| 3850 | `renderManage` |
-| 4011 | `renderColours` |
-| 4040 | `colourRow` |
-| 4069 | `anyRibbon` |
-| 4085 | `slotControl` |
-| 4139 | `prunePainted` |
-| 4147 | `repaint` |
-| 4163 | `previewSlot` |
-| 4174 | `previewRibbon` |
-| 4185 | `previewColors` |
-| 4196 | `endPreview` |
-| 4208 | `openSwatchPick` |
-| 4272 | `offerPreviews` |
-| 4283 | `holdFocus` |
-| 4293 | `walkSwatches` |
-| 4317 | `closeSwatchPick` |
-| 4331 | `inkOn` |
-| 4333 | · `lin` |
-| 4342 | `pickSlot` |
-| 4350 | `resetSlot` |
-| 4363 | `setPalette` |
-| 4377 | `setRibbon` |
-| 4390 | `toHex` |
-| 4399 | · `hex` |
-| 4404 | `reorder` |
-| 4420 | `renderActiveFilters` |
-| 4433 | `clearFilters` |
-| 4462 | `fillLooks` |
-| 4475 | `applyLook` |
-| 4485 | `seedFavourites` |
-| 4494 | `refresh` |
-| 4547 | `edgeSpeedAt` |
-| 4558 | `edgeStop` |
-| 4571 | `edgeReplay` |
-| 4589 | `edgeTick` |
-| 4605 | `edgeScroll` |
-| 4757 | `offBook` |
-| 4791 | `typing` |
+| 1267 | `liftable` |
+| 1312 | `leaving` |
+| 1326 | `carriedSpine` |
+| 1338 | `carriedInto` |
+| 1344 | `handleOf` |
+| 1352 | `markDrop` |
+| 1365 | `clearDrop` |
+| 1379 | `takeOffZone` |
+| 1407 | `markLanding` |
+| 1421 | `neighbour` |
+| 1439 | `arrangeBook` |
+| 1462 | `nudge` |
+| 1484 | `isPick` |
+| 1493 | `pickShelves` |
+| 1500 | `sourceOf` |
+| 1507 | `liveSources` |
+| 1513 | `liveFor` |
+| 1518 | `takeOff` |
+| 1539 | `offersBook` |
+| 1560 | `openRailMenu` |
+| 1586 | `booksOn` |
+| 1591 | `closeRailMenu` |
+| 1602 | `openMadeBook` |
+| 1627 | `closeMadeBook` |
+| 1634 | `madeAppearance` |
+| 1679 | · `update` |
+| 1699 | `indexLabel` |
+| 1703 | `indexChoices` |
+| 1725 | `indexPicker` |
+| 1747 | `setBookIndexes` |
+| 1772 | `writeMadeFields` |
+| 1781 | `readMadeFields` |
+| 1800 | `nameFor` |
+| 1808 | `previewMadeBook` |
+| 1818 | `saveMadeBook` |
+| 1847 | `writeMadeBook` |
+| 1868 | `deleteMadeBook` |
+| 1888 | `isIndex` |
+| 1894 | `widthOf` |
+| 1904 | `squeezeIndex` |
+| 1923 | `thicknessOf` |
+| 1940 | `dyeOf` |
+| 1970 | `showPeek` |
+| 2001 | `hidePeek` |
+| 2011 | `ribbonFor` |
+| 2024 | `paintRibbon` |
+| 2034 | `paintSpine` |
+| 2066 | `threadOf` |
+| 2096 | `hslHex` |
+| 2102 | · `two` |
+| 2109 | `hashSlot` |
+| 2129 | `handSlot` |
+| 2146 | `dyeRow` |
+| 2180 | `bindingRow` |
+| 2233 | `previewSpines` |
+| 2241 | `setBookSpines` |
+| 2257 | `dyeUnit` |
+| 2267 | `openDye` |
+| 2332 | `placeMenu` |
+| 2342 | `closeDye` |
+| 2353 | `setBookColors` |
+| 2366 | `ribbonsIn` |
+| 2379 | `applyQuery` |
+| 2418 | `suggestOpen` |
+| 2424 | `rowId` |
+| 2428 | `closeSuggest` |
+| 2442 | `markRow` |
+| 2462 | `takeSuggestion` |
+| 2473 | `placeSuggest` |
+| 2483 | `openSuggest` |
+| 2515 | `rowUnder` |
+| 2523 | `suggestKey` |
+| 2550 | `scrollToShelf` |
+| 2559 | `cssEscape` |
+| 2568 | `openBook` |
+| 2596 | `effectiveWear` |
+| 2601 | `markWear` |
+| 2611 | `closeReader` |
+| 2622 | `renderReader` |
+| 2654 | `readerDye` |
+| 2673 | `renderMarks` |
+| 2742 | `litText` |
+| 2758 | `litNeedle` |
+| 2762 | `renderContents` |
+| 2798 | `markContents` |
+| 2811 | `revealCurrent` |
+| 2846 | `indexSections` |
+| 2880 | `cutBy` |
+| 2904 | `letterTabs` |
+| 2925 | `titlePrefix` |
+| 2952 | `dateTabs` |
+| 2991 | `runsOf` |
+| 3006 | `renderTabs` |
+| 3054 | `findInBook` |
+| 3062 | `renderNote` |
+| 3133 | `renderMeta` |
+| 3171 | `linked` |
+| 3196 | `renderMarkdownInto` |
+| 3247 | `goTo` |
+| 3295 | `rightPage` |
+| 3301 | `landOn` |
+| 3312 | `paintPush` |
+| 3326 | `releasePush` |
+| 3350 | `abandonPush` |
+| 3358 | `pushStop` |
+| 3370 | `armPush` |
+| 3384 | `wheelPx` |
+| 3391 | `onPush` |
+| 3433 | `openNote` |
+| 3465 | `noteByLink` |
+| 3478 | `shelfById` |
+| 3486 | `isBookmarked` |
+| 3495 | `toggleBookmark` |
+| 3510 | `previousCollection` |
+| 3523 | `findBook` |
+| 3547 | `openBuilder` |
+| 3573 | `closeBuilder` |
+| 3579 | `writeBuilderFields` |
+| 3633 | `readBuilderFields` |
+| 3665 | `fillSourceValues` |
+| 3674 | `fillValuesInto` |
+| 3690 | `fillProperties` |
+| 3709 | `fillRecipes` |
+| 3728 | `previewBuilder` |
+| 3746 | `saveBuilder` |
+| 3779 | `seedOrder` |
+| 3790 | `uniqueId` |
+| 3798 | `openManage` |
+| 3807 | `newShelfFromManage` |
+| 3823 | `deleteShelf` |
+| 3852 | `renderManage` |
+| 4013 | `renderColours` |
+| 4042 | `colourRow` |
+| 4071 | `anyRibbon` |
+| 4087 | `slotControl` |
+| 4141 | `prunePainted` |
+| 4149 | `repaint` |
+| 4165 | `previewSlot` |
+| 4176 | `previewRibbon` |
+| 4187 | `previewColors` |
+| 4198 | `endPreview` |
+| 4210 | `openSwatchPick` |
+| 4274 | `offerPreviews` |
+| 4285 | `holdFocus` |
+| 4295 | `walkSwatches` |
+| 4319 | `closeSwatchPick` |
+| 4333 | `inkOn` |
+| 4335 | · `lin` |
+| 4344 | `pickSlot` |
+| 4352 | `resetSlot` |
+| 4365 | `setPalette` |
+| 4379 | `setRibbon` |
+| 4392 | `toHex` |
+| 4401 | · `hex` |
+| 4406 | `reorder` |
+| 4422 | `renderActiveFilters` |
+| 4435 | `clearFilters` |
+| 4464 | `fillLooks` |
+| 4477 | `applyLook` |
+| 4487 | `seedFavourites` |
+| 4496 | `refresh` |
+| 4549 | `edgeSpeedAt` |
+| 4560 | `edgeStop` |
+| 4573 | `edgeReplay` |
+| 4591 | `edgeTick` |
+| 4607 | `edgeScroll` |
+| 4759 | `offBook` |
+| 4793 | `typing` |
 
-## `scripts/smoke.mjs` — 9374 lines, 6 sections, 172 functions, 135 checks
+## `scripts/smoke.mjs` — 9389 lines, 6 sections, 173 functions, 135 checks
 
 ### Sections
 
 | lines | section |
 |---|---|
 | 158–273 | the checks |
-| 274–8574 | the invariants |
-| 8575–8723 | which vault, and why |
-| 8724–8783 | at rest, or |
-| 8784–9195 | one run |
-| 9196–9374 | main |
+| 274–8589 | the invariants |
+| 8590–8738 | which vault, and why |
+| 8739–8798 | at rest, or |
+| 8799–9210 | one run |
+| 9211–9389 | main |
 
 ### Functions
 
@@ -414,47 +414,48 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 5382 | · · `level` |
 | 5386 | · · `box` |
 | 5445 | · · `read` |
-| 5547 | · `row` |
-| 5834 | · `byUse` |
-| 5981 | · `key` |
-| 6087 | · `hits` |
-| 6111 | · `spellsIt` |
-| 6258 | · · `name` |
-| 6322 | · · · `step` |
-| 6367 | · `box` |
-| 6506 | · `tabsOf` |
-| 6514 | · `pick` |
-| 6518 | · `years` |
-| 6643 | · `inside` |
-| 6907 | · `place` |
-| 7202 | · `scrolled` |
-| 7207 | · `at` |
-| 7363 | · · · `step` |
-| 7421 | · `books` |
-| 7424 | · `holds` |
-| 7529 | · `press` |
-| 7575 | · `press` |
-| 7590 | · `spotOf` |
-| 7597 | · `byId` |
-| 7598 | · `bareTurn` |
-| 7611 | · `hit` |
-| 7665 | · `press` |
-| 7674 | · `nameOf` |
-| 8242 | · `px` |
-| 8310 | · `faceOnto` |
-| 8324 | · `faceOf` |
-| 8339 | · `read` |
-| 8600 | `resolveVaults` |
-| 8710 | `buildFor` |
-| 8730 | `atRest` |
-| 8758 | `settlePage` |
-| 8790 | `press` |
-| 8802 | `runOne` |
-| 8996 | `tagged` |
-| 9002 | `capture` |
-| 9048 | · · `pick` |
-| 9154 | `killBrowser` |
-| 9198 | `main` |
+| 5531 | · · `hover` |
+| 5562 | · `row` |
+| 5849 | · `byUse` |
+| 5996 | · `key` |
+| 6102 | · `hits` |
+| 6126 | · `spellsIt` |
+| 6273 | · · `name` |
+| 6337 | · · · `step` |
+| 6382 | · `box` |
+| 6521 | · `tabsOf` |
+| 6529 | · `pick` |
+| 6533 | · `years` |
+| 6658 | · `inside` |
+| 6922 | · `place` |
+| 7217 | · `scrolled` |
+| 7222 | · `at` |
+| 7378 | · · · `step` |
+| 7436 | · `books` |
+| 7439 | · `holds` |
+| 7544 | · `press` |
+| 7590 | · `press` |
+| 7605 | · `spotOf` |
+| 7612 | · `byId` |
+| 7613 | · `bareTurn` |
+| 7626 | · `hit` |
+| 7680 | · `press` |
+| 7689 | · `nameOf` |
+| 8257 | · `px` |
+| 8325 | · `faceOnto` |
+| 8339 | · `faceOf` |
+| 8354 | · `read` |
+| 8615 | `resolveVaults` |
+| 8725 | `buildFor` |
+| 8745 | `atRest` |
+| 8773 | `settlePage` |
+| 8805 | `press` |
+| 8817 | `runOne` |
+| 9011 | `tagged` |
+| 9017 | `capture` |
+| 9063 | · · `pick` |
+| 9169 | `killBrowser` |
+| 9213 | `main` |
 
 ### Checks
 
@@ -534,64 +535,64 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 5434 | book history seeds notes once and counts additions without stamping a visit |
 | 5472 | last opened defaults to never and persists actual source-book opens |
 | 5522 | shelf wear is recorded and drawn, and survives a rebuild |
-| 5541 | an open book shows the ribbons in it, three at most |
-| 5634 | a ribbon hangs from every book that holds a marked note |
-| 5660 | the shelf parts as you type, and no book leaves the room |
-| 5691 | a book the search drew forward says which of its notes matched |
-| 5729 | every book the shelf draws forward finds the same needle in its own find box |
-| 5772 | a book lit only by the name on its spine finds that name inside it, and says so |
-| 5826 | a note has a reason to be marked exactly when it is marked |
-| 5860 | the search box offers what the vault spells, and says what kind each one is |
-| 5903 | every suggestion the box offers marks at least one note when it is picked |
-| 5931 | a typo that spells nothing says so, and offers nothing to pick |
-| 5956 | the suggestion list is a combobox the keyboard can drive |
-| 6033 | a vocabulary that is not Latin is still offered |
-| 6063 | a vault with no vocabulary offers nothing |
-| 6084 | the search reads titles, covers and declared metadata, and never the body |
-| 6169 | a narrower window grows rows, and a wide one centres the shelf |
-| 6235 | the rail is fixed controls, and nothing in it scrolls sideways |
-| 6302 | scrolling the library stays smooth in every look |
-| 6360 | the room has a width, however wide the window is |
-| 6423 | the reader and the sheets are not painted until they are opened |
-| 6440 | a wide table scrolls inside the page and never widens the book |
-| 6484 | clicking a spine opens a book on the note it names |
-| 6503 | the date index is layered: years over months over days, each only where it separates |
-| 6560 | index tabs compress without scrolling and shelf icons edit and hide |
-| 6617 | the reader's index tabs stay countable on the biggest book |
-| 6635 | opening a searched book reveals its first matching contents row without changing the note |
-| 6713 | the contents scroll to the current row after a tab, Previous and a ribbon |
-| 6794 | clicking a row in the index moves the mark and leaves the index where it stood |
-| 6864 | previous and next walk the book and stop at its ends |
-| 6897 | the turn sits under the spread, says the place, and yields to a caret |
-| 7013 | pushing past the end of a page turns it, and one hard flick turns one page |
-| 7081 | a push made slowly still turns, and the latch still clears on its own |
-| 7144 | a turn arrives at the top going forward and the bottom going back |
-| 7191 | every way to another note starts at the top of it |
-| 7250 | the push resists at both ends of the book and never turns |
-| 7299 | the contents never turns the page, and nor does a key that scrolls one |
-| 7340 | a wheel on the spread stays smooth in every look |
-| 7412 | a wikilink in a book goes to that note in this book, this shelf, or the nearest |
-| 7472 | also shelved in moves to another book and keeps the note |
-| 7505 | previous collection walks back, and Alt+Left does the same |
-| 7527 | a click off the book puts it down, and a click on it does not |
-| 7573 | every part of the turn turns the page rather than putting the book down |
-| 7663 | nothing in the reader but the desk puts the book down |
-| 7737 | escape closes the reader and leaves the shelf where it was |
-| 7756 | the reading shelf survives its own shelf being hidden |
-| 7792 | a saved reading place re-resolves after its own book is gone |
-| 7807 | the builder previews the shelf it would actually save |
-| 7826 | a saved shelf gets a stable id and joins the library |
-| 7847 | parent tag inclusion is a setting, and it changes the answer |
-| 7867 | a person is read from every people property, and out of a wikilink |
-| 7901 | a link to a person's note names that person, once, by the note's name |
-| 7934 | people come from the property alone, never from prose |
-| 7955 | plain list mode keeps every book reachable |
-| 7972 | every control the keyboard can reach has a name |
-| 7994 | nothing on the page reaches the network |
-| 8004 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
-| 8064 | a lifted spine is painted whole, in every look |
-| 8236 | the room above a spine is the largest lift, in every look |
-| 8303 | a short cover is stood upright by one face, not the look's |
-| 8456 | a tag book's cover carries no hash, and every other place it is named keeps it |
-| 8506 | a spine lifts on hover and holds its size |
-| 8521 | the shelves are packed the way the golden snapshot says |
+| 5556 | an open book shows the ribbons in it, three at most |
+| 5649 | a ribbon hangs from every book that holds a marked note |
+| 5675 | the shelf parts as you type, and no book leaves the room |
+| 5706 | a book the search drew forward says which of its notes matched |
+| 5744 | every book the shelf draws forward finds the same needle in its own find box |
+| 5787 | a book lit only by the name on its spine finds that name inside it, and says so |
+| 5841 | a note has a reason to be marked exactly when it is marked |
+| 5875 | the search box offers what the vault spells, and says what kind each one is |
+| 5918 | every suggestion the box offers marks at least one note when it is picked |
+| 5946 | a typo that spells nothing says so, and offers nothing to pick |
+| 5971 | the suggestion list is a combobox the keyboard can drive |
+| 6048 | a vocabulary that is not Latin is still offered |
+| 6078 | a vault with no vocabulary offers nothing |
+| 6099 | the search reads titles, covers and declared metadata, and never the body |
+| 6184 | a narrower window grows rows, and a wide one centres the shelf |
+| 6250 | the rail is fixed controls, and nothing in it scrolls sideways |
+| 6317 | scrolling the library stays smooth in every look |
+| 6375 | the room has a width, however wide the window is |
+| 6438 | the reader and the sheets are not painted until they are opened |
+| 6455 | a wide table scrolls inside the page and never widens the book |
+| 6499 | clicking a spine opens a book on the note it names |
+| 6518 | the date index is layered: years over months over days, each only where it separates |
+| 6575 | index tabs compress without scrolling and shelf icons edit and hide |
+| 6632 | the reader's index tabs stay countable on the biggest book |
+| 6650 | opening a searched book reveals its first matching contents row without changing the note |
+| 6728 | the contents scroll to the current row after a tab, Previous and a ribbon |
+| 6809 | clicking a row in the index moves the mark and leaves the index where it stood |
+| 6879 | previous and next walk the book and stop at its ends |
+| 6912 | the turn sits under the spread, says the place, and yields to a caret |
+| 7028 | pushing past the end of a page turns it, and one hard flick turns one page |
+| 7096 | a push made slowly still turns, and the latch still clears on its own |
+| 7159 | a turn arrives at the top going forward and the bottom going back |
+| 7206 | every way to another note starts at the top of it |
+| 7265 | the push resists at both ends of the book and never turns |
+| 7314 | the contents never turns the page, and nor does a key that scrolls one |
+| 7355 | a wheel on the spread stays smooth in every look |
+| 7427 | a wikilink in a book goes to that note in this book, this shelf, or the nearest |
+| 7487 | also shelved in moves to another book and keeps the note |
+| 7520 | previous collection walks back, and Alt+Left does the same |
+| 7542 | a click off the book puts it down, and a click on it does not |
+| 7588 | every part of the turn turns the page rather than putting the book down |
+| 7678 | nothing in the reader but the desk puts the book down |
+| 7752 | escape closes the reader and leaves the shelf where it was |
+| 7771 | the reading shelf survives its own shelf being hidden |
+| 7807 | a saved reading place re-resolves after its own book is gone |
+| 7822 | the builder previews the shelf it would actually save |
+| 7841 | a saved shelf gets a stable id and joins the library |
+| 7862 | parent tag inclusion is a setting, and it changes the answer |
+| 7882 | a person is read from every people property, and out of a wikilink |
+| 7916 | a link to a person's note names that person, once, by the note's name |
+| 7949 | people come from the property alone, never from prose |
+| 7970 | plain list mode keeps every book reachable |
+| 7987 | every control the keyboard can reach has a name |
+| 8009 | nothing on the page reaches the network |
+| 8019 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
+| 8079 | a lifted spine is painted whole, in every look |
+| 8251 | the room above a spine is the largest lift, in every look |
+| 8318 | a short cover is stood upright by one face, not the look's |
+| 8471 | a tag book's cover carries no hash, and every other place it is named keeps it |
+| 8521 | a spine lifts on hover and holds its size |
+| 8536 | the shelves are packed the way the golden snapshot says |

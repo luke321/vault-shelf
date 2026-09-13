@@ -1188,7 +1188,6 @@ function mountVaultShelf(root, data, options) {
     if (source !== book) b.setAttribute("data-source", source.id);
 
     /* design/0008 -- the three things that make a shelf look used rather than printed. */
-    var opens = settings.wear[source.id] || 0;
     // design/0033
     if (ageWear[source.id] === undefined) ageWear[source.id] = core.bookAgeWear(source, data.generated.slice(0, 10));
     var level = effectiveWear(source.id);
@@ -1214,7 +1213,6 @@ function mountVaultShelf(root, data, options) {
     var peek = book.label + " -- " + book.notes.length +
       (book.notes.length === 1 ? " note" : " notes");
     if (ribbons) peek += " \u00b7 " + ribbons + (ribbons === 1 ? " ribbon" : " ribbons");
-    if (opens) peek += " \u00b7 " + opens + " entries and visits";
     if (book.bands.length) {
       peek += " \u00b7 " + book.bands.slice(0, 3).map(function (p) {
         return p.folder + " " + p.count;
@@ -1975,6 +1973,10 @@ function mountVaultShelf(root, data, options) {
     var text = spine.getAttribute("data-peek") || "";
     var lines = text.split("\n");
     var head = lines[0].split(" -- ");
+    // design/0033
+    var source = spine.getAttribute("data-source") || spine.getAttribute("data-book");
+    var activity = source ? settings.wear[source] || 0 : 0;
+    if (activity && head[1]) head[1] += " \u00b7 " + activity + " entries and visits";
     card.appendChild(el("div", "vs-peekname", head[0]));
     if (head[1]) card.appendChild(el("div", "vs-peekmeta", head[1]));
     var rest = lines.slice(1).filter(function (l) { return l.trim(); });
