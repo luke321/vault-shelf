@@ -1,5 +1,24 @@
 # Changelog detail
 
+## 2026-09-13 - Measure Reading rows beneath their intentional wear lift
+
+The release run at `0dbce28` counted two painted bottom edges on a single Reading row:
+296px for a level-3 aged book and 298px for a fresh one. With 32 ribbons it counted five
+painted bands over two actual tracks. These were the existing 0/1/2px wear transforms, not
+extra rows. The line-containment assertion also mistook the lifted top edge for overflow.
+
+The test now requires each transform to equal its exact permitted wear lift, then measures
+the untransformed top/bottom against the line and its board. Two and three ribbons each
+measure one track/one baseline; 32 ribbons measure two tracks/two baselines. Packing remains
+strict: 13px is left where the next book needs 42px plus the gap. Negative probes require
+rejection of a 3px layout margin and an invalid 3px transform; both are rejected. Probe
+transitions are disabled so their deliberately bad geometry is measured after it is applied.
+
+The targeted Reading check passes 1/1. `dist/reading-geometry-reading.png` was inspected:
+three ribboned books share one board, with legible labels, visible ribbons and the intended
+small wear lift. Only the harness and its documentation change; product appearance and
+approved recordings are unchanged. No full suite ran.
+
 ## 2026-09-13 - Approve the complete Vault Shelf 1.0.0 release preparation
 
 The owner approved hero v5, all 24 feature clips, the release body and actual update strip.

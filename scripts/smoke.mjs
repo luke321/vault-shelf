@@ -621,6 +621,7 @@ check("a ribbon left in a plaque-book re-resolves after a rebuild, and the Readi
 
 /* github#48, design/0014 -- one ribbon cannot see this; the y of the second can */
 check("the Reading shelf lays its books in a row, and draws as many rows as it packed", async (p) => {
+  await p.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
   const r = await p.j(`(function(){
     var settings = __vs.settings();
     var was = settings.reading.slice();
@@ -656,8 +657,15 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
         return [].slice.call(t.querySelectorAll(".vs-spine")).map(function (s) {
           var b = s.getBoundingClientRect();
           var lineBox = t.querySelector('.vs-books').getBoundingClientRect();
-          return { x: Math.round(b.left), bottom: Math.round(b.bottom),
-                   inside: b.top >= lineBox.top - 0.5 && b.bottom <= lineBox.bottom + 0.5,
+          /* design/0033 */
+          var css = getComputedStyle(s), wear = s.getAttribute('data-wear');
+          var lift = wear === '3' ? 2 : wear === '2' ? 1 : 0;
+          var matrix = new DOMMatrixReadOnly(css.transform === 'none' ? undefined : css.transform);
+          var baseline = Math.round(b.bottom + lift);
+          return { x: Math.round(b.left), bottom: baseline, paintedBottom: Math.round(b.bottom),
+                   lift: lift, exactLift: matrix.m42 === -lift && matrix.m41 === 0 && matrix.a === 1 && matrix.d === 1,
+                   onBoard: baseline === Math.round(lineBox.bottom),
+                   inside: b.top + lift >= lineBox.top - 0.5 && b.bottom + lift <= lineBox.bottom + 0.5,
                    r: Math.round(b.right), w: Math.round(b.width) };
         });
       }).filter(function (row) { return row.length; });
@@ -681,7 +689,7 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
         /* the packer's rows and the drawn rows are the same number, or the paint disagrees */
         bands: Object.keys(ys).length,
         flat: rows.every(function (row) {
-          return row.every(function (s) { return s.bottom === row[0].bottom && s.inside; });
+          return row.every(function (s) { return s.bottom === row[0].bottom && s.inside && s.onBoard && s.exactLift; });
         }),
         ascending: rows.every(function (row) {
           for (var i = 1; i < row.length; i++) if (row[i].x <= row[i - 1].x) return false;
@@ -694,12 +702,23 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
         pluses: rail.querySelectorAll(".vs-plusbook").length,
         plates: rail.querySelectorAll(".vs-plaque").length,
         slack: slack, next: next, roomLeftForOneMore: fits,
-        row0: rows.length ? rows[0].map(function (s) { return s.x + "," + s.bottom; }).join(" ") : ""
+        row0: rows.length ? rows[0].map(function (s) { return s.x + "," + s.paintedBottom + " (board " + s.bottom + ", lift " + s.lift + ", exact " + s.exactLift + ", inside " + s.inside + ")"; }).join(" ") : ""
       };
     }
 
     var two = read(mark(2));
+    /* design/0033 */
+    var probe = document.querySelector('[data-shelf="-reading"] .vs-spine');
+    probe.style.transition = 'none';
+    probe.style.marginBottom = '3px';
+    var rejectsLayoutShift = !read(2).flat;
+    probe.style.removeProperty('margin-bottom');
+    probe.style.transform = 'translateY(-3px)';
+    var rejectsInvalidLift = !read(2).flat;
+    probe.style.removeProperty('transform');
+    probe.style.removeProperty('transition');
     var three = read(mark(3));
+    var shotReading = settings.reading.slice();
 
     /* enough books to outgrow the room, so the packer has to break a row */
     var wide = null;
@@ -713,17 +732,26 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
     was.forEach(function (m) { settings.reading.push(m); });
     __vs.setFilters({});
     var restored = settings.reading.length;
-    return { found: true, two: two, three: three, wide: wide, restored: restored, was: was.length };
+    return { found: true, two: two, three: three, wide: wide, restored: restored, was: was.length, shotReading: shotReading, rejectsLayoutShift: rejectsLayoutShift, rejectsInvalidLift: rejectsInvalidLift };
   })()`);
+  if (SHOT && r.found) {
+    const saved = await p.j(`(function(){var s=__vs.settings(), saved=s.reading.slice(); s.reading=${JSON.stringify(r.shotReading)}; __vs.setFilters({}); window.scrollTo(0,0); return saved;})()`);
+    try {
+      const shot = await p.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+      writeFileSync(SHOT.replace(/\.png$/i, "-reading.png"), Buffer.from(shot.data, "base64"));
+    } finally {
+      await p.j(`(function(){__vs.settings().reading=${JSON.stringify(saved)}; __vs.setFilters({}); return true;})()`);
+    }
+  }
   if (!r.found) return { ok: false, detail: "fewer than two shelves with books in this library" };
   const sane = (m) => m && m.drawn && m.spines === m.asked && m.bands === m.tracks &&
                       m.flat && m.ascending && m.display === "flex" &&
                       m.spineH > 0 && m.lineH >= m.spineH && !m.grips && !m.pluses && !m.plates;
-  const ok = sane(r.two) && r.two.tracks === 1 && sane(r.three) && r.three.tracks === 1 &&
+  const ok = r.rejectsLayoutShift && r.rejectsInvalidLift && sane(r.two) && r.two.tracks === 1 && sane(r.three) && r.three.tracks === 1 &&
              sane(r.wide) && r.wide.tracks > 1 && r.wide.roomLeftForOneMore === false &&
              r.restored === r.was;
   const say = (m) => m
-    ? `${m.spines} spine(s) over ${m.tracks} track(s) on ${m.bands} band(s), one bottom edge per row ` +
+    ? `${m.spines} spine(s) over ${m.tracks} track(s) on ${m.bands} band(s), one board baseline per row with exact 0/1/2px wear lift ` +
       `(${m.flat}), x ascending (${m.ascending}), the line ${m.display} and ${m.lineH}px for a ` +
       `${m.spineH}px spine, ${m.grips} grips ${m.pluses} pluses ${m.plates} plates`
     : "never wrapped";
@@ -733,7 +761,7 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
                    (r.wide ? `, and the first row is packed tight -- ${r.wide.slack}px left over ` +
                              `for a ${r.wide.next}px next book (room for one more: ` +
                              `${r.wide.roomLeftForOneMore})` : "") +
-                   `; the ${r.was} it started with are back (${r.restored})` };
+                   `; rejects 3px layout shift (${r.rejectsLayoutShift}) and invalid 3px lift (${r.rejectsInvalidLift}); the ${r.was} it started with are back (${r.restored})` };
 });
 
 /* github#6, design/0018, design/0019 */

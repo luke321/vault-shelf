@@ -2658,3 +2658,10 @@ saved opens as well as level3 after a rebuild; its initial spines now correctly 
 `check-comments.mjs` requires exactly 1,479 non-pointer, non-type comment lines after the
 1.0.0 recorder cleanup, down from 1,481. Removing prose lowers the baseline in the same
 commit; a lower count is not permission to add prose back elsewhere.
+
+### Reading rows and wear
+
+The Reading shelf has one untransformed board baseline per packed row. Painted books may
+lift by exactly 0/1/2px at wear levels 0-1/2/3. The Reading-row check requires the exact
+transform, line containment and shared baseline, preserves its tight-packing assertions,
+and proves that a 3px layout shift or invalid 3px lift fails.
