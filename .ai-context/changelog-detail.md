@@ -1,5 +1,18 @@
 # Changelog detail
 
+## 2026-09-13 - Show the current activity count in a spine's peek
+
+After two opens, acoustics correctly held count 3 but its cached hover text still said 1.
+The peek now reads the current source-address count when shown; descriptive text stays
+cached, and no spine or shelf is rebuilt. Favourites read the same source count.
+
+**2/2 targeted checks pass in 3 seconds wall**. Visible peeks report **1, 2, 2, 3, 3** across
+the source and favourite before/after two opens; all preserve lastOpened, and the same
+spine nodes remain. Thirteen additional visits and rebuild persistence still pass, along
+with the timestamp regression. Strict lint, scope, network, comments (1477/1477), build
+and generated maps pass. Evidence: `dist/live-activity-peek.log`. No capture, media edits
+or full suite ran, following the user's instruction to retain the existing media.
+
 ## 2026-09-13 - Count note entries and visits without repeating the baseline
 
 The user extended the opening counter to include existing notes once and newly added notes.

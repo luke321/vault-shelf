@@ -5523,18 +5523,33 @@ check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
   const r = await p.j(`(function(){
     var saved=JSON.parse(JSON.stringify(__vs.settings()));
     try {
-      var book=__vs.views().find(function(v){return v.shelf.id==='years';}).books[0];
-      var before=__vs.settings().wear[book.id];
-      for(var i=0;i<13;i++){__vs.openBook(book.id,null);__vs.closeReader();}
+      var book=__vs.views().find(function(v){return v.shelf.id==='tags';}).books.find(function(b){return b.key==='acoustics';});
+      __vs.settings().shelves.find(function(s){return s.id==='favourites';}).picks=[book.id];__vs.setFilters({});
+      var spine=document.querySelector('[data-shelf="tags"] [data-book="'+book.id+'"]');
+      var alias=document.querySelector('[data-shelf="favourites"] [data-source="'+book.id+'"]');
+      var before=__vs.settings().wear[book.id],peeks=[];
+      var hover=function(target){
+        var stamp=__vs.settings().lastOpened[book.id];
+        target.dispatchEvent(new MouseEvent('mouseenter'));
+        var text=document.querySelector('#vs-peek .vs-peekmeta').textContent;
+        var unchanged=stamp===__vs.settings().lastOpened[book.id];
+        target.dispatchEvent(new MouseEvent('mouseleave'));
+        return {text:text,count:__vs.settings().wear[book.id],unchanged:unchanged};
+      };
+      peeks.push(hover(spine));
+      spine.click();__vs.closeReader();peeks.push(hover(spine));peeks.push(hover(alias));
+      alias.click();__vs.closeReader();peeks.push(hover(spine));peeks.push(hover(alias));
+      var sameNodes=spine===document.querySelector('[data-shelf="tags"] [data-book="'+book.id+'"]')&&alias===document.querySelector('[data-shelf="favourites"] [data-source="'+book.id+'"]');
+      for(var i=0;i<11;i++){__vs.openBook(book.id,null);__vs.closeReader();}
       var count=__vs.settings().wear[book.id];
-      var spine=document.querySelector('[data-book="'+book.id+'"]');
       var drawn=spine.getAttribute('data-wear');
       __vs.setFilters({});
-      return {book:book.id,before:before,count:count,drawn:drawn,afterRebuild:__vs.settings().wear[book.id],
+      return {book:book.id,before:before,count:count,drawn:drawn,afterRebuild:__vs.settings().wear[book.id],peeks:peeks,sameNodes:sameNodes,
         level:document.querySelector('[data-book="'+book.id+'"]').getAttribute('data-wear')};
     } finally {__vs.closeReader();window.vsHandle.setSettings(saved);}
   })()`);
-  return {ok:r.count===r.before+13&&r.drawn==='3'&&r.afterRebuild===r.count&&r.level==='3',detail:JSON.stringify(r)};
+  return {ok:r.count===r.before+13&&r.drawn==='3'&&r.afterRebuild===r.count&&r.level==='3'&&r.sameNodes&&
+    r.peeks.every((v,i)=>v.count===r.before+[0,1,1,2,2][i]&&v.unchanged&&v.text.includes(v.count+' entries and visits')),detail:JSON.stringify(r)};
 });
 
 /* design/0008 -- MAGIC 2. A ribbon hangs out of the book, visible from the shelf. */
