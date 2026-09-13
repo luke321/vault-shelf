@@ -297,7 +297,25 @@ the person reading the project's history a year on, who wants the dense record. 
    the previous tag (`git show <prev-tag>:src/page.js | grep ...`). Fixes that matter but are
    not visually demonstrable go in prose under the nearest `###`, or a `### Smaller things`
    list, with no clip forced onto them.
-4. **The record, under its own `###`**, dense and bug-by-bug, at the bottom of the same
+4. **The Ko-fi ask, every release, always the same spot** — right after the last feature
+   section, right before the record. One line of text, then the button on its own line:
+
+   ```markdown
+   If Vault Shelf is useful to you:
+
+   [![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/luke321)
+   ```
+
+   Ported from the sister repo 2026-09-13, matching its manifest `fundingUrl`, README badge and
+   `.github/FUNDING.yml` — all three already shipped with 1.0.0, but the release-body ask line
+   did not, since 1.0.0's body was drafted before this step existed here. Applies from 1.1.0
+   on: `1.0.0`'s published body is not amended (*once the tag exists nothing changes*). This is
+   where it reaches someone who just updated and is reading what's new — never embellished,
+   never repeated elsewhere on the page.
+
+   Posting an actual Ko-fi feed announcement for the release (title, description, a mirror-vault
+   screenshot) is a separate, manual step, not scripted here — see the `post-to-kofi` skill.
+5. **The record, under its own `###`**, dense and bug-by-bug, at the bottom of the same
    section. Nothing is maintained in two places: the reel and the record are one document, and
    `changelog-detail.md` holds the numbers behind both.
 
