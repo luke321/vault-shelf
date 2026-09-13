@@ -17,6 +17,7 @@ const arg = (name, fallback) => {
 
 const VAULT = resolve(arg("vault", join(ROOT, "vault")));
 const OUT = resolve(arg("out", join(ROOT, "vault-shelf.html")));
+const DEMO = argv.includes("--demo") || !!arg("demo-seed", "");
 const DATE_FIELDS = arg("date-fields", "date,created").split(",").map((s) => s.trim()).filter(Boolean);
 const PEOPLE_FIELDS = arg("people-props", "people,attendees,person")
   .split(",").map((f) => f.trim()).filter(Boolean);
@@ -213,7 +214,7 @@ const folders = [...folderCounts.entries()]
   .map(([path, count], i) => ({ path, count, slot: i }));
 
 const data = {
-  vault: VAULT.split(sep).pop(),
+  vault: DEMO ? "Vault Shelf Demo" : VAULT.split(sep).pop(),
   generated: new Date().toISOString().slice(0, 16).replace("T", " "),
   notes,
   folders,
@@ -252,7 +253,9 @@ const html = part("shell.html")
   .replace("<!--SCRIPT-->", () => asScript(part("page.js")))
   .replace("<!--LIBS-->", () => `<script>\n${core.trimEnd()}\n</script>`)
   .replace("<!--ASSETS-->", () => "")
-  .replace("<!--DATA-->", () => `<script>window.VAULT_DATA=${jsonForScript(data)};</script>`);
+  .replace("<!--DATA-->", () => `<script>window.VAULT_DATA=${jsonForScript(data)};` +
+    (DEMO ? `window.VAULT_SETTINGS=${jsonForScript(CORE.demoSettings(notes))};` : "") +
+    `</script>`);
 
 writeFileSync(OUT, html, "utf8");
 

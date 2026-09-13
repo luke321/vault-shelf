@@ -168,14 +168,16 @@
 /* github#14 -- the plank's depth is page.css's; the walnut on it is this look's. */
 .vault-shelf[data-look="leather"] .vs-track {
   background-image:
+    repeating-linear-gradient(178deg, transparent 0 4px, #20150920 4px 4.7px, #f3d1a110 4.7px 5.3px, transparent 5.3px 9px),
+    radial-gradient(ellipse 80px 3px at 31% 55%, transparent 40%, #24170824 48%, transparent 57%, #edc48b13 65%, transparent 75%),
     linear-gradient(180deg, #c3a275 0 1px, #ffffff12 1px 2px, transparent 2px 7px, #00000066),
     var(--vs-woodgrain),
     linear-gradient(180deg, #73583d, #62482f 60%, #3b2d22),
     linear-gradient(180deg, #00000040, transparent);
-  background-size: 100% var(--board), 300px var(--board), 100% var(--board), 100% 12px;
-  background-position: 0 var(--spine-h), 0 var(--spine-h), 0 var(--spine-h), 0 calc(var(--spine-h) + var(--board));
-  background-repeat: no-repeat, repeat-x, no-repeat, no-repeat;
-  background-blend-mode: normal, overlay, normal, normal;
+  background-size: 100% var(--board), 460px var(--board), 100% var(--board), 300px var(--board), 100% var(--board), 100% 12px;
+  background-position: 0 var(--spine-h), 0 var(--spine-h), 0 var(--spine-h), 0 var(--spine-h), 0 var(--spine-h), 0 calc(var(--spine-h) + var(--board));
+  background-repeat: no-repeat, repeat-x, no-repeat, repeat-x, no-repeat, no-repeat;
+  background-blend-mode: normal, normal, normal, overlay, normal, normal;
 }
 
 /* github#9, github#14 -- the brass is the tokens; THE LETTERING IS NOT THE LOOK'S, because a
@@ -278,6 +280,120 @@
   box-shadow: 0 0 0 1px #d0b68166, 0 7px 12px #00000050;
 }
 .vault-shelf[data-look="leather"][data-query="1"] .vs-spine[data-match="1"] .vs-n { color: var(--vs-gilt-hi); }
+
+/* design/0029 */
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="gilt"] {
+  --vs-gilt: #f5dc9e;
+  --vs-gilt-hi: #fff0c9;
+  background:
+    linear-gradient(180deg, rgb(238 207 159 / var(--vs-wear)), transparent 30% 72%, rgb(238 207 159 / var(--vs-wear))),
+    linear-gradient(90deg, #00000070, #ffffff28 12%, transparent 40% 75%, #00000050),
+    color-mix(in srgb, var(--spine-tint) var(--leather-dye, 92%), #17130f);
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="gilt"]::after {
+  border-color: #e7c67599;
+  box-shadow: 0 -3px 0 -2px #e7c67599, 0 3px 0 -2px #e7c67599;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="gilt"] .vs-ribbon,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="gilt"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="gilt"] .vs-markstub {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 70%, 0 100%);
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="pebbled"] {
+  --vs-gilt: #ebc8ad;
+  --vs-gilt-hi: #ffe1c5;
+  background:
+    radial-gradient(ellipse at 50% 50%, #ffffff18 0 18%, #00000028 32%, transparent 55%) var(--leather-grain-x, 0px) 0 / 4px 5px,
+    linear-gradient(180deg, rgb(238 207 159 / var(--vs-wear)), transparent 30% 72%, rgb(238 207 159 / var(--vs-wear))),
+    linear-gradient(90deg, #00000065, #ffffff10 18%, transparent 65%, #00000045),
+    color-mix(in srgb, var(--spine-tint) var(--leather-dye, 92%), #211a17);
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="pebbled"]::before { background-image: var(--vs-grain); }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="pebbled"]::after { border-style: dashed; border-color: #cfaa8580; border-radius: 3px; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="pebbled"] .vs-ribbon,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="pebbled"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="pebbled"] .vs-markstub {
+  clip-path: polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%);
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"] {
+  --vs-gilt: #463829;
+  --vs-gilt-hi: #251a10;
+  background:
+    linear-gradient(180deg, rgb(109 75 35 / var(--vs-wear)), transparent 30% 72%, rgb(109 75 35 / var(--vs-wear))),
+    linear-gradient(90deg, #67503345, #fff8dc55 15%, transparent 35% 80%, #67503335),
+    color-mix(in srgb, var(--spine-tint) 58%, #efe3c4);
+  border-color: #b8a889;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"]::before { background-image: var(--vs-grain); }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"]::after { border-color: #6a543c66; border-left: 0; border-right: 0; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"] .vs-title,
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"] .vs-n { text-shadow: none; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"][data-wear="3"] .vs-title { color: var(--vs-gilt); }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"] .vs-ribbon,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="vellum"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="vellum"] .vs-markstub {
+  clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%);
+  background: repeating-linear-gradient(90deg, #ffffff20 0 1px, transparent 1px 3px), var(--ribbon);
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="weathered"] {
+  --vs-gilt: #d8c5a4;
+  --vs-gilt-hi: #f5e3bd;
+  background:
+    linear-gradient(97deg, transparent 7%, #160f0980 9%, #efd2a64d 10%, transparent 12% 85%, #1d120a80 87%, #efd2a635 89%, transparent 92%),
+    repeating-linear-gradient(174deg, transparent 0 23px, #1c10093d 24px, #e5c79e24 25px, transparent 26px 39px),
+    linear-gradient(180deg, rgb(238 207 159 / var(--vs-wear)), transparent 30% 72%, rgb(238 207 159 / var(--vs-wear))),
+    radial-gradient(ellipse at 5% 0%, #d5b88565, transparent 38%),
+    radial-gradient(ellipse at 95% 100%, #bda06d55, transparent 45%),
+    linear-gradient(90deg, #00000055, transparent 25% 70%, #00000040),
+    color-mix(in srgb, var(--spine-tint) var(--leather-dye, 92%), #68503a);
+  border-radius: 5px 3px 2px 4px;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="weathered"]::before { opacity: 0.6; background-position: 0 0, 0 0, var(--leather-grain-x, 0px) 0; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="weathered"]::after { border-color: #cbb58940; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="weathered"] .vs-ribbon,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="weathered"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="weathered"] .vs-markstub {
+  clip-path: polygon(0 0, 100% 0, 100% 85%, 80% 100%, 65% 84%, 45% 96%, 30% 82%, 0 100%);
+}
+
+
+/* design/0029 */
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="gilt"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23e8cb87%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%2016h34M5%2013h30M20%2012V3m0%208c-9%200-13-8-8-8%205%200%204%206%208%208%204-2%203-8%208-8%205%200%201%208-8%208Z%22%2F%3E%3Cpath%20d%3D%22M20%202l2%203-2%203-2-3Zm-9%208c-7-8-11%202-4%202m22-2c7-8%2011%202%204%202%22%2F%3E%3Ccircle%20cx%3D%224%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2236%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23e8cb87%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%2016h34M5%2013h30M20%2012V3m0%208c-9%200-13-8-8-8%205%200%204%206%208%208%204-2%203-8%208-8%205%200%201%208-8%208Z%22%2F%3E%3Cpath%20d%3D%22M20%202l2%203-2%203-2-3Zm-9%208c-7-8-11%202-4%202m22-2c7-8%2011%202%204%202%22%2F%3E%3Ccircle%20cx%3D%224%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2236%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), var(--vs-grain);
+  background-size: calc(100% - 8px) 14px, calc(100% - 10px) 7px, 140px 140px;
+  background-position: center top 2px, center bottom 21px, var(--leather-grain-x, 0px) 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-blend-mode: normal, normal, soft-light;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="pebbled"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23cfaa85%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%202c-4%204-4%204%200%208-4-4-8-4-12%200%204%204%208%204%2012%200-4%204-4%204%200%208%204-4%204-4%200-8%204%204%208%204%2012%200-4-4-8-4-12%200%204-4%204-4%200-8Z%22%2F%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2210%22%20r%3D%223%22%2F%3E%3Cpath%20d%3D%22M2%204v12h4M38%204v12h-4M3%2010h3m28%200h3%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23cfaa85%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%202c-4%204-4%204%200%208-4-4-8-4-12%200%204%204%208%204%2012%200-4%204-4%204%200%208%204-4%204-4%200-8%204%204%208%204%2012%200-4-4-8-4-12%200%204-4%204-4%200-8Z%22%2F%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2210%22%20r%3D%223%22%2F%3E%3Cpath%20d%3D%22M2%204v12h4M38%204v12h-4M3%2010h3m28%200h3%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), var(--vs-grain);
+  background-size: calc(100% - 8px) 14px, calc(100% - 10px) 7px, 140px 140px;
+  background-position: center top 2px, center bottom 21px, var(--leather-grain-x, 0px) 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-blend-mode: normal, normal, soft-light;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23665032%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2017C15%2014%2023%208%2035%202M12%2014c-6%201-7-4-7-4%204-1%207%201%207%204Zm6-4c-5-2-4-6-4-6%204%200%205%203%204%206Zm6-4c-3-2-2-5-2-5%204%201%204%203%202%205Zm-9%206c3%200%208%201%208%204-5%202-8-1-8-4Zm9-6c3-1%207%200%207%203-4%202-7%200-7-3Z%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23665032%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2017C15%2014%2023%208%2035%202M12%2014c-6%201-7-4-7-4%204-1%207%201%207%204Zm6-4c-5-2-4-6-4-6%204%200%205%203%204%206Zm6-4c-3-2-2-5-2-5%204%201%204%203%202%205Zm-9%206c3%200%208%201%208%204-5%202-8-1-8-4Zm9-6c3-1%207%200%207%203-4%202-7%200-7-3Z%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), var(--vs-grain);
+  background-size: calc(100% - 8px) 14px, calc(100% - 10px) 7px, 140px 140px;
+  background-position: center top 2px, center bottom 21px, var(--leather-grain-x, 0px) 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-blend-mode: normal, normal, soft-light;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="weathered"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23c9ae79%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%2016h34M5%2013h30M20%2012V3m0%208c-9%200-13-8-8-8%205%200%204%206%208%208%204-2%203-8%208-8%205%200%201%208-8%208Z%22%2F%3E%3Cpath%20d%3D%22M20%202l2%203-2%203-2-3Zm-9%208c-7-8-11%202-4%202m22-2c7-8%2011%202%204%202%22%2F%3E%3Ccircle%20cx%3D%224%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2236%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2020%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23c9ae79%22%20stroke-width%3D%220.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%2016h34M5%2013h30M20%2012V3m0%208c-9%200-13-8-8-8%205%200%204%206%208%208%204-2%203-8%208-8%205%200%201%208-8%208Z%22%2F%3E%3Cpath%20d%3D%22M20%202l2%203-2%203-2-3Zm-9%208c-7-8-11%202-4%202m22-2c7-8%2011%202%204%202%22%2F%3E%3Ccircle%20cx%3D%224%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2236%22%20cy%3D%225%22%20r%3D%221%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), var(--vs-grain);
+  background-size: calc(100% - 8px) 14px, calc(100% - 10px) 7px, 140px 140px;
+  background-position: center top 2px, center bottom 21px, var(--leather-grain-x, 0px) 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-blend-mode: normal, normal, soft-light;
+}
+
+.vault-shelf[data-look="leather"] .vs-spine[data-light-dye="1"] {
+  --vs-gilt: #463829;
+  --vs-gilt-hi: #251a10;
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-light-dye="1"] .vs-title,
+.vault-shelf[data-look="leather"] .vs-spine[data-light-dye="1"] .vs-n { text-shadow: none; }
+.vault-shelf[data-look="leather"] .vs-spine[data-light-dye="1"][data-wear="3"] .vs-title { color: var(--vs-gilt); }
 
 /* ---- ivory pages, an oxblood cover and a quiet reading table ----------- */
 .vault-shelf[data-look="leather"] .vs-reader {
@@ -403,15 +519,15 @@
 .vault-shelf[data-look="leather"] .vs-preview .vs-track { background: none; }
 
 /* ---- list, narrow windows and motion preferences ---------------------- */
-.vault-shelf[data-look="leather"][data-list="1"] .vs-spine {
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine:not(.vs-binding-sample) {
   background: var(--vs-control);
   border-color: var(--border);
   box-shadow: none;
 }
-.vault-shelf[data-look="leather"][data-list="1"] .vs-spine::before,
-.vault-shelf[data-look="leather"][data-list="1"] .vs-spine::after { display: none; }
-.vault-shelf[data-look="leather"][data-list="1"] .vs-spine .vs-title { color: var(--text-1); text-shadow: none; font-size: 14px; }
-.vault-shelf[data-look="leather"][data-list="1"] .vs-spine .vs-n { color: var(--text-2); text-shadow: none; }
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine:not(.vs-binding-sample)::before,
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine:not(.vs-binding-sample)::after { display: none; }
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine:not(.vs-binding-sample) .vs-title { color: var(--text-1); text-shadow: none; font-size: 14px; }
+.vault-shelf[data-look="leather"][data-list="1"] .vs-spine:not(.vs-binding-sample) .vs-n { color: var(--text-2); text-shadow: none; }
 
 /* github#14 -- what is left of the private narrow layout is paint. */
 @media (max-width: 860px) {
@@ -425,3 +541,16 @@
   .vault-shelf[data-look="leather"] .vs-spine:focus-visible,
   .vault-shelf[data-look="leather"][data-query="1"] .vs-spine[data-match="1"] { transform: none; transition: none; }
 }
+
+/* design/0031 */
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="minimal"]::before { background-image: var(--vs-grain); }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="vellum"] .vs-ribbon { width: 4px; margin-left: -2px; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="minimal"]::after { display: none; }
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="minimal"] .vs-title { text-shadow: none; }
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="original"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="original"] .vs-markstub {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 74%, 0 100%);
+}
+.vault-shelf[data-look="leather"] .vs-spine[data-binding="minimal"] .vs-ribbon,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="minimal"] .vs-mark,
+.vault-shelf[data-look="leather"] .vs-marks[data-binding="minimal"] .vs-markstub { clip-path: inset(0); }

@@ -7,6 +7,23 @@ that fails.
 
 Run one: `node scripts/smoke.mjs --only "<substring>"`. Run all of them: the pre-push hook does.
 
+**Leather bindings and fresh defaults** (`design/0029`, supersedes older default/look counts
+below). A fresh library has six shelf definitions and only Leather is offered. People and
+Tags vary by book, Years by decade and Months by year; saved shelves keep their definitions.
+The colour menu offers 14 colours and 6 bindings including the existing Original. Previews
+save nothing, cancel restores paint, and a chosen binding survives rebuild and migration by
+source address. Decoration keeps at least 3px title clearance. Type determines height:
+Original 132px, Minimal 131px, Gilt 130px, Morocco 128px, Vellum 126px, Aged 124px, shared across looks.
+All books of one type have one height; dye mix is 88–94% and grain offset 0–30px. Vellum
+mixes 58% chosen dye with parchment. The board is 14px and its drag strip 22px; right-click
+on it opens the shelf picker. The golden remains 6 shelves, 10 rows, 227 spines and 52 plaques.
+The two checks named `leather bindings preview` and `fresh leather defaults` measure these
+contracts, including 15 coordinated period groups and 5 styles on each identity shelf.
+Demo defaults are deterministic, with zero colour or binding overrides; persisted settings
+win over embedded defaults on reload. Colour and binding selection, including Automatic,
+preserve the shelf nodes and scroll position: eight book/board actions measure 1495px before
+and after. A paint choice must not rebuild the shelf DOM (`Automatic keeps the scrolled shelf`).
+
 **A fresh library seeds its Favourites shelf** (`github#35`). The shelf still ships empty in
 `core.defaults()` — the check that pins that is unchanged — but a page mounted with no saved
 settings at all seeds it from the library it has just built: the newest year, the newest month,
@@ -120,14 +137,12 @@ disappearing quietly.
 
 ## A book opens on its oldest note
 
-`"a book opens on its oldest note, and the top bar says which end"` asserts that a date-ordered
-book's notes run **oldest first**, that the top-bar button reads `Oldest first` with
-`aria-pressed="false"`, that clicking it reorders the same book newest-first and the label
-becomes `Newest first`, and that an Encyclopedia volume stays **alphabetical under both**.
-Measured: `2022-10` holds 24 notes, opening on the earliest of them.
+`"date contents default to oldest and saved newest settings remain readable"` checks
+ascending date contents by default, descending contents for saved newest settings, and
+alphabetical Encyclopedia contents in either case. The old order button is absent
+(`design/0031`).
 
-The button says what it is rather than what pressing it would do; `design/0015` says why, and
-why the Encyclopedia is exempt.
+The A-Z/Date controls now select the contents index independently of shelf arrangement.
 
 ## A note with no date of its own
 
@@ -251,8 +266,9 @@ The number that catches it is the **y of the second spine**, which nothing read.
 asserts geometry rather than presence. It writes ribbons straight into `settings.reading` — a mark
 is `{noteId, shelfId, bookId, at}`, and `readingBooks()` resolves it through `core.resolveReading`
 exactly as a click on the stub would — at **two**, at **three**, and at a count large enough to
-wrap, and for each asserts: every spine on a track shares one `y`, `x` ascends across it, the
-drawn bands number the tracks `rowsOf` packed, the line computes `flex` and is one spine tall, and
+wrap, and for each asserts: every spine on a track shares one bottom edge, `x` ascends across
+it, every spine fits within its line box, the drawn bands number the tracks `rowsOf` packed,
+the line computes `flex` and accommodates the tallest binding (`design/0029`), and
 the shelf carries **0 grips, 0 pluses and 0 plates**. It puts back the ribbons it found.
 
 Measured before: two ribbons **1 track on 2 bands**, at `675,163` and `675,295` — the same `x`, one
@@ -379,8 +395,8 @@ spine was flagged as lifted, the payload was the address, and no mark was left b
 Measured on Months: **110 books over 4 rows**, the first dragged onto the last across rows
 (library) — a different row in all three, so the cross-row case is the one being measured.
 
-`"the reading order in the top bar leaves an arranged shelf alone"` gives the Years shelf a
-hand-made sequence, clicks the top bar's order button twice, and asserts the sequence did not
+`"saved reading order leaves an arranged shelf alone"` gives the Years shelf a
+hand-made sequence, changes the saved reading order twice, and asserts the sequence did not
 move — with the automatic Months shelf as the control, which must turn round. Measured:
 **17 / 6 / 12** year books held still while **136 / 30 / 122** month books reversed.
 
@@ -847,8 +863,11 @@ turns again. `github#40`, `design/0028`.
 against each other: the spent latch clears after **140ms** and the accumulator holds its push for
 **600ms**. Three notches **220ms** apart — further apart than the latch's silence — accumulate
 100px then 200px and turn the page, which turned **nothing at all** while one timer did both jobs;
-after **800ms** of silence a fresh notch starts again at **100px**, so a push is not remembered for
-ever. Measured with real wheel input: at 34ms, 44ms and 93ms between notches a flick turns
+after the latch clears, two new notches at the page bottom build a **200px** partial push.
+After **800ms** of silence it reads **0px** and a fresh notch starts again at **100px** without
+turning. The synthetic-wheel check explicitly reaches the page edge: the next page has
+29px to scroll, and a synthetic wheel event does not scroll it there. Measured with real
+wheel input: at 34ms, 44ms and 93ms between notches a flick turns
 **1** page, and a slow 229ms spin of 12 notches turns **3** — where one timer turned **0, ever**.
 `github#40`, `design/0028`.
 
@@ -1200,14 +1219,14 @@ every look` and `a look moves nothing on the page` are unchanged. Containment is
 (`src/leather.css`) and the cyber archive (`src/cyber.css`) — each one a stylesheet and a
 value of one setting. A look may repaint anything and it may move nothing.
 
-**One of them is shelved.** Since 2026-09-11 `core.LOOKS` marks cyber `shelved: true`
-(`design/0017`, addendum): `core.offeredLooks()` is what the selector lists — leather and
-modern — and `core.isOffered()` is what `migrate` accepts, so a settings file naming `cyber`
-comes up in leather (**schema 9**). The stylesheet still ships, `check-scope` and
+**Modern and Cyber are shelved.** `core.LOOKS` marks both `shelved: true`
+(`design/0029`): `core.offeredLooks()` lists only Leather, and `core.isOffered()` is what
+`migrate` accepts, so a settings file naming either shelved look comes up in Leather.
+Their stylesheets still ship, `check-scope` and
 `check-network` still read it, and every look check still paints it through
 `__vs.setLook()`, so a change to what the looks share reaches it and is measured there.
 The migration check asserts `{ schema: 8, look: "cyber" } → "leather"` and
-`{ schema: 8, look: "" } → ""`.
+`{ schema: 8, look: "" } → "leather"`.
 
 **Its name is `Cyber`**, from `github#56` (2026-09-12), matching the value. A name is only ever
 rendered through `core.offeredLooks()`, which filters shelved looks, so a shelved look's name
@@ -2448,3 +2467,54 @@ decoration. `design/0024` carries the argument.
 - **Performance at scale.** Nothing measures the product at 10,000 notes since
   `decisions/0014` retired that fixture; the one vault is 4,938. Nothing yet
   measures how long they take to, or what a virtualised rail would save.
+
+
+## Contents order and book creation ? design/0030
+
+Encyclopedia and Tags default to A-Z; other classifiers default to date-driven contents.
+`Shelf.indexMode` chooses the shelf default; `Shelf.bookIndexes` overrides by stable book key.
+The reader switch sits immediately below search and changes both ordering and index tabs,
+retaining the current note and its scroll position. Date mode respects saved direction settings.
+A favourite continues to resolve its source book. Shelf menu choices apply to future books;
+a plaque menu applies to its run and aggregate reader. Automatic restores inheritance.
+
+The two new checks cover classifier defaults, switching without losing the note, settings
+migration, reopening via an existing spine, shelf menu and builder changes, and book creation.
+Creation offers **14 colours and 6 bindings** plus inherited or explicit contents order;
+cancel changes nothing, edit restores all choices, and delete removes all three overrides.
+
+
+## Picker and reader controls - design/0031
+
+Colour pickers are seven columns, two rows for fourteen swatches. Binding order is Original,
+Minimal, Gilt, Morocco, Vellum, Aged. Minimal is plain leather with no raised bands or frame,
+and a straight ribbon. Its trim is 1px (131px spine height). Automatic selection includes it.
+
+Contents defaults use two pressed-state buttons, A-Z and Date. The index strip is 56px wide
+in either mode; long indexes compress and the right page reserves 72px to clear it. The library
+rail remains above the reader: search left, vault title centred, actions right. At narrow
+widths the title has its own centred row. The old oldest/newest button is removed, while
+saved note-order values remain readable. Open ribbons share their binding's cut with spine
+ribbons; Vellum keeps its narrow spine ribbon and linen texture.
+
+Manage says fourteen colours, gives colour rules a separate row and bounds selects to 160px.
+Pick shelves have no variation toggle in Manage or the builder, and ignore legacy varyColors.
+Selecting a date colour rule turns off variation so the chosen grouping takes effect.
+
+Measured: 56px index before/after switching; title centred within 2px; rail rectangles unchanged
+while reading, query retained and field clickable. All six ribbon cuts agree. Desktop and
+390px Manage controls fit their rows; no variation toggle on pick shelves. Creation at 390px
+has a 343px sheet, zero horizontal overflow, fourteen swatches and six binding samples.
+
+## Compressing index and shelf actions - design/0032
+
+Right-edge tabs share the available height without scrolling. Search and A-Z/Date stay
+28px high with unchanged type sizes. At 1180x480 all 25 alphabetical tabs fit inside the
+56px strip, with zero scroll overflow; switching to Date keeps both fixed controls equal.
+At narrow widths the horizontal index wraps below the pages.
+
+Shelf metadata ends in dot-separated gear and eye buttons. Both are always visible, use
+equal 12px SVGs and inherit the note count's colour. The regression drives Edit and Hide,
+verifies their shelf targets, and checks that hiding leaves the definition intact.
+The top-right Manage control uses a gear with an accessible name and tooltip. Book creation
+uses the plus spine; shelf headers no longer contain a separate New book button.

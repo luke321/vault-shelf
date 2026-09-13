@@ -250,6 +250,9 @@ const POINTER_DRIVEN = [
   "moves nothing",
   /* github#44, design/0022 -- it reads every spine's box, before and after a hover. */
   "hovered swatch",
+  "leather bindings",
+  "manage colour rules",
+  "automatic keeps",
   "a right-click dyes",
   /* github#29 -- it counts plates and reads tints, so it reads the packing */
   "its whole run from either copy",
@@ -281,9 +284,9 @@ check("__vs is present and the library rendered", async (p) => {
            detail: `${c.notes} notes, ${c.shelves} shelves, ${c.books} books, ${c.spines} spines drawn` };
 });
 
-check("the seven default shelves are there, in order, Favourites first", async (p) => {
+check("the six default shelves are there, in order, Favourites first", async (p) => {
   const ids = await p.j("__vs.views().map(function(v){return v.shelf.id})");
-  const want = ["favourites", "encyclopedia", "years", "months", "weeks", "people", "tags"];
+  const want = ["favourites", "encyclopedia", "years", "months", "people", "tags"];
   const ok = JSON.stringify(ids) === JSON.stringify(want);
   return { ok, detail: ok ? want.join(" -> ") : `got ${ids.join(" -> ")}` };
 });
@@ -366,56 +369,23 @@ check("an impossible date is not a date, and never a fifteenth month", async (p)
   };
 });
 
-check("a book opens on its oldest note, and the top bar says which end", async (p) => {
+/* design/0031 */
+check("date contents default to oldest and saved newest settings remain readable", async (p) => {
   const r = await p.j(`(function(){
-    function firstLast(id) {
-      __vs.openBook(id, null);
-      var t = [].slice.call(document.querySelectorAll("#vs-contents .vs-t"))
-        .map(function (e) { return e.textContent; });
-      __vs.closeReader();
-      return t;
-    }
-    var months = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0];
-    /* Seven at least: five to mark, and a free page past them to turn to. */
-    var book = months.books.filter(function (b) {
-      return b.key !== "-undated" && b.notes.length >= 7;
-    })[0];
-    var dates = book.notes.map(function (n) { return n.date || ""; });
-    var rising = dates.every(function (d, i) { return i === 0 || dates[i - 1] <= d; });
-    var button = document.getElementById("vs-order");
-    var before = { label: button.textContent, pressed: button.getAttribute("aria-pressed") };
-    var titles = firstLast(book.id);
-
-    button.click();
-    var after = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0]
-      .books.filter(function (b) { return b.id === book.id; })[0];
-    var flipped = after.notes.map(function (n) { return n.date || ""; });
-    var falling = flipped.every(function (d, i) { return i === 0 || flipped[i - 1] >= d; });
-    var swapped = { label: document.getElementById("vs-order").textContent,
-                    pressed: document.getElementById("vs-order").getAttribute("aria-pressed") };
-    document.getElementById("vs-order").click();
-
-    /* An Encyclopedia volume is alphabetical either way: "the oldest of the As" is not a
-     * thing anybody wants, and design/0015 cuts its tabs by letter on that assumption. */
-    var enc = __vs.views().filter(function (v) { return v.shelf.id === "encyclopedia"; })[0];
-    var vol = enc.books.filter(function (b) { return b.notes.length > 3; })[0];
-    var volTitles = vol.notes.map(function (n) { return n.title.toLowerCase(); });
-    var alphabetical = volTitles.every(function (t, i) { return i === 0 || volTitles[i - 1] <= t; });
-
-    return { book: book.key, notes: book.notes.length, rising: rising, falling: falling,
-             before: before, swapped: swapped, first: titles[0] || "",
-             alphabetical: alphabetical, volume: vol.key };
+    var core=window.VaultShelfCore, notes=__vs.data().notes;
+    var shelves=core.defaultShelves();
+    var shelf=shelves.find(function(s){return s.id==='months';});
+    var old=core.buildShelf(shelf,notes,'oldest');
+    var recent=core.buildShelf(shelf,notes,'newest');
+    var book=old.books.find(function(b){return b.notes.length>6&&b.key!=='-undated';});
+    var reverse=recent.books.find(function(b){return b.id===book.id;});
+    var rising=book.notes.every(function(n,i){return !i||n.date>=book.notes[i-1].date;});
+    var falling=reverse.notes.every(function(n,i){return !i||n.date<=reverse.notes[i-1].date;});
+    var enc=shelves.find(function(s){return s.id==='encyclopedia';});
+    var alpha=JSON.stringify(core.buildShelf(enc,notes,'oldest'))===JSON.stringify(core.buildShelf(enc,notes,'newest'));
+    return {rising:rising,falling:falling,alphabetical:alpha,removed:!document.getElementById('vs-order')};
   })()`);
-  const ok = r.rising && r.falling && r.alphabetical &&
-             r.before.label === "Oldest first" && r.before.pressed === "false" &&
-             r.swapped.label === "Newest first" && r.swapped.pressed === "true";
-  return {
-    ok,
-    detail: `${r.book} holds ${r.notes} notes oldest first (${r.rising}), opening on ` +
-            `"${r.first}"; the button reads "${r.before.label}" and flips to ` +
-            `"${r.swapped.label}", which reorders the same book newest first (${r.falling}). ` +
-            `The ${r.volume} volume stays alphabetical either way: ${r.alphabetical}`
-  };
+  return {ok:Object.values(r).every(Boolean),detail:JSON.stringify(r)};
 });
 
 check("a note with no date of its own takes the earliest stamp the file has", async (p) => {
@@ -681,12 +651,14 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
       var rows = [].slice.call(rail.querySelectorAll(".vs-track")).map(function (t) {
         return [].slice.call(t.querySelectorAll(".vs-spine")).map(function (s) {
           var b = s.getBoundingClientRect();
-          return { x: Math.round(b.left), y: Math.round(b.top),
+          var lineBox = t.querySelector('.vs-books').getBoundingClientRect();
+          return { x: Math.round(b.left), bottom: Math.round(b.bottom),
+                   inside: b.top >= lineBox.top - 0.5 && b.bottom <= lineBox.bottom + 0.5,
                    r: Math.round(b.right), w: Math.round(b.width) };
         });
       }).filter(function (row) { return row.length; });
       var ys = {};
-      rows.forEach(function (row) { row.forEach(function (s) { ys[s.y] = 1; }); });
+      rows.forEach(function (row) { row.forEach(function (s) { ys[s.bottom] = 1; }); });
 
       /* A ROW BREAKS BECAUSE THE NEXT BOOK DID NOT FIT, not because of a plate that is not
        * there. rowsOf charged plaqueWidth for every run even on a shelf that draws none, so
@@ -705,7 +677,7 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
         /* the packer's rows and the drawn rows are the same number, or the paint disagrees */
         bands: Object.keys(ys).length,
         flat: rows.every(function (row) {
-          return row.every(function (s) { return s.y === row[0].y; });
+          return row.every(function (s) { return s.bottom === row[0].bottom && s.inside; });
         }),
         ascending: rows.every(function (row) {
           for (var i = 1; i < row.length; i++) if (row[i].x <= row[i - 1].x) return false;
@@ -718,7 +690,7 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
         pluses: rail.querySelectorAll(".vs-plusbook").length,
         plates: rail.querySelectorAll(".vs-plaque").length,
         slack: slack, next: next, roomLeftForOneMore: fits,
-        row0: rows.length ? rows[0].map(function (s) { return s.x + "," + s.y; }).join(" ") : ""
+        row0: rows.length ? rows[0].map(function (s) { return s.x + "," + s.bottom; }).join(" ") : ""
       };
     }
 
@@ -742,12 +714,12 @@ check("the Reading shelf lays its books in a row, and draws as many rows as it p
   if (!r.found) return { ok: false, detail: "fewer than two shelves with books in this library" };
   const sane = (m) => m && m.drawn && m.spines === m.asked && m.bands === m.tracks &&
                       m.flat && m.ascending && m.display === "flex" &&
-                      m.lineH === m.spineH && !m.grips && !m.pluses && !m.plates;
+                      m.spineH > 0 && m.lineH >= m.spineH && !m.grips && !m.pluses && !m.plates;
   const ok = sane(r.two) && r.two.tracks === 1 && sane(r.three) && r.three.tracks === 1 &&
              sane(r.wide) && r.wide.tracks > 1 && r.wide.roomLeftForOneMore === false &&
              r.restored === r.was;
   const say = (m) => m
-    ? `${m.spines} spine(s) over ${m.tracks} track(s) on ${m.bands} band(s), one y per row ` +
+    ? `${m.spines} spine(s) over ${m.tracks} track(s) on ${m.bands} band(s), one bottom edge per row ` +
       `(${m.flat}), x ascending (${m.ascending}), the line ${m.display} and ${m.lineH}px for a ` +
       `${m.spineH}px spine, ${m.grips} grips ${m.pluses} pluses ${m.plates} plates`
     : "never wrapped";
@@ -828,12 +800,12 @@ check("one ribbon from an older schema becomes a ribbon on every colour", async 
       junkLength: junk.ribbons.length, junkSet: junk.ribbons.filter(function (c) { return c; }).length
     };
   })()`);
-  const ok = r.schema === 10 && r.spread === 12 && !r.hadRibbon && r.none === 0 && r.noneLength === 12 &&
-             r.keptFirst === "#111111" && r.keptThird === "#333333" && r.keptEmpty === 10 &&
-             r.junkLength === 12 && r.junkSet === 0;
+  const ok = r.schema === 10 && r.spread === 14 && !r.hadRibbon && r.none === 0 && r.noneLength === 14 &&
+             r.keptFirst === "#111111" && r.keptThird === "#333333" && r.keptEmpty === 12 &&
+             r.junkLength === 14 && r.junkSet === 0;
   return {
     ok,
-    detail: `schema ${r.schema}; one ribbon from 9 becomes ${r.spread} of 12, and the old field is ` +
+    detail: `schema ${r.schema}; one ribbon from 9 becomes ${r.spread} of 14, and the old field is ` +
             `${r.hadRibbon ? "STILL THERE" : "gone"}; a file with none comes up ${r.noneLength} empty; ` +
             `a sparse twelve keeps ${r.keptFirst} and ${r.keptThird} with ${r.keptEmpty} following their dyes; ` +
             `a junk array comes back ${r.junkLength} long with ${r.junkSet} set`
@@ -911,7 +883,7 @@ check("a settings file from an older schema comes up with the newer defaults", a
              r.wear === 3 && r.fields === "date" && r.keptOff === false &&
              r.stamp === true && r.keptStampOff === false && r.order === "oldest" &&
              r.weeksHidden === true && r.keptShown === true && r.lettered === true &&
-             r.shelvedLook === "leather" && r.keptLook === "";
+             r.shelvedLook === "leather" && r.keptLook === "leather";
   return {
     ok,
     detail: `schema 1 -> ${r.schema}: Years plaques ${r.years}, Months ${r.months}, People ` +
@@ -922,7 +894,7 @@ check("a settings file from an older schema comes up with the newer defaults", a
             `shelf comes up hidden (${r.weeksHidden}) unless the file already says 4 ` +
             `(${r.keptShown}); a People shelf written before schema 6 comes up with the ` +
             `alphabet on its plaques (${r.lettered}); a file naming the shelved cyber ` +
-            `look comes up in ${r.shelvedLook}, one naming modern keeps it ("${r.keptLook}")`
+            `look comes up in ${r.shelvedLook}, one naming shelved Modern also comes up in ${r.keptLook}`
   };
 });
 
@@ -969,11 +941,182 @@ check("years group under decade plaques, and a run that wraps is named on both r
   };
 });
 
+/* design/0030 */
+check("reader tabs keep their width and the search rail stays above matching ribbons", async (p) => {
+  const r = await p.j(`(function(){
+    var settings=__vs.settings(), saved=JSON.parse(JSON.stringify(settings));
+    var rect=function(selector){return document.querySelector(selector).getBoundingClientRect();};
+    try {
+      __vs.setLook('leather'); __vs.setQuery('garden');
+      var rail=rect('#vs-rail'), search=rect('#vs-q'), title=rect('#vs-vname');
+      var centred=Math.abs((title.left+title.right)/2-(rail.left+rail.right)/2)<2;
+      var book=__vs.views().find(function(v){return v.shelf.id==='tags';}).books.find(function(b){return b.notes.length>10;});
+      var marked=book.notes[5];
+      settings.reading=[{noteId:marked.id,shelfId:book.shelfId,bookId:book.id,at:Date.now()}];
+      var spine=document.querySelector('[data-book="'+book.id+'"]'), width=spine.getBoundingClientRect().width;
+      __vs.openBook(book.id,null);
+      var sameRail=JSON.stringify(rail.toJSON())===JSON.stringify(rect('#vs-rail').toJSON());
+      var keptQuery=document.getElementById('vs-q').value==='garden';
+      var exposed=rect('#vs-reader').top>=rect('#vs-rail').bottom;
+      var topmost=document.elementFromPoint(search.left+10,search.top+10)===document.getElementById('vs-q');
+      var before=rect('#vs-tabs').width;
+      document.querySelector('.vs-indextoggle').click();
+      var fixed=rect('#vs-tabs').width===before && spine.getBoundingClientRect().width===width;
+      document.querySelector('#vs-marks .vs-mark').click();
+      var ribbonTarget=__vs.reader().note===marked.id;
+      __vs.closeReader();
+      spine.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:300,clientY:300}));
+      var rows=new Set(Array.from(document.querySelectorAll('#vs-dye .vs-swatch')).map(function(b){return b.getBoundingClientRect().top;})).size;
+      var styles=Array.from(document.querySelectorAll('#vs-dye .vs-bindingchoice')).map(function(b){return b.dataset.style;});
+      var buttons=Array.from(document.querySelectorAll('#vs-dye .vs-indexbuttons button')).map(function(b){return b.dataset.indexMode;});
+      document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+      var ribbons=styles.map(function(style){
+        settings.bookSpines[book.id]=style; __vs.setFilters({}); __vs.openBook(book.id,null);
+        var closed=document.querySelector('[data-book="'+book.id+'"] .vs-ribbon');
+        var mark=document.querySelector('#vs-marks .vs-markstub')||document.querySelector('#vs-marks .vs-mark');
+        var sample=document.createElement('span');sample.className='vs-ribbon';
+        if (!closed) { document.querySelector('[data-book="'+book.id+'"]').appendChild(sample); closed=sample; }
+        var same=getComputedStyle(closed).clipPath===getComputedStyle(mark).clipPath;
+        if(sample.isConnected) sample.remove(); __vs.closeReader(); return [style,same];
+      });
+      return {centred:centred,sameRail:sameRail,keptQuery:keptQuery,exposed:exposed,topmost:topmost,fixed:fixed,ribbonTarget:ribbonTarget,width:before,rows:rows,styles:styles,buttons:buttons,ribbons:ribbons};
+    } finally { __vs.closeReader(); Object.assign(settings,saved); __vs.setQuery(''); __vs.setFilters({}); }
+  })()`);
+  return {ok:['centred','sameRail','keptQuery','exposed','topmost','fixed','ribbonTarget'].every(k=>r[k])&&r.rows===2&&r.styles[1]==='minimal'&&r.styles.length===6&&r.buttons.join(',')==='az,date'&&r.ribbons.every(([,same])=>same),detail:JSON.stringify(r)};
+});
+
+/* design/0031 */
+check("Manage colour rules fit and pick shelves offer no colour variation", async (p) => {
+  const read=()=>p.j(`(function(){
+    document.getElementById('vs-manageopen').click();
+    var rows=Array.from(document.querySelectorAll('.vs-managerow'));
+    var bad=[];
+    var fits=rows.every(function(row){var r=row.getBoundingClientRect();return Array.from(row.querySelectorAll('button,select,label')).every(function(control){var c=control.getBoundingClientRect();var fits=c.left>=r.left-1&&c.right<=r.right+1;if(!fits)bad.push([control.className,c.left-r.left,c.right-r.right]);return fits;});});
+    var pick=rows.find(function(row){return row.querySelector('[data-go="favourites"]');});
+    var noVary=!pick.querySelector('[data-fact="vary"]');
+    var count=document.querySelector('#vs-manage .vs-hint:not(.vs-lede)').textContent;
+    var words=document.getElementById('vs-manage').textContent.includes('Fourteen colours');
+    document.getElementById('vs-mclose').click();
+    __vs.editShelf('favourites');
+    var builder=document.getElementById('vs-bvary').closest('label').hidden;
+    document.getElementById('vs-bcancel').click();
+    return {fits:fits,noVary:noVary,builder:builder,words:words,bad:bad};
+  })()`);
+  const wide=await read();
+  let narrow;
+  try {
+    await p.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
+    narrow=await read();
+  } finally { await p.send('Emulation.clearDeviceMetricsOverride'); await sleep(150); }
+  return {ok:Object.values(wide).every(Boolean)&&Object.values(narrow).every(Boolean),detail:JSON.stringify({wide,narrow})};
+});
+
+/* design/0030 */
+check("contents defaults and the reader switch preserve the note and survive migration", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore, settings = __vs.settings();
+    var saved = JSON.parse(JSON.stringify(settings));
+    var select = function (scope, value) {
+      document.querySelector(scope + ' [data-index-mode="' + value + '"]').click();
+    };
+    var menu = function (element) {
+      element.dispatchEvent(new MouseEvent('contextmenu', {bubbles:true,clientX:300,clientY:300}));
+    };
+    try {
+      var defaults = core.defaultShelves().map(function(s) { return [s.id,core.indexMode(s)]; });
+      var tag = __vs.views().find(function(v){return v.shelf.id==='tags';}).books
+        .filter(function(b){return b.notes.length>10;})[0];
+      __vs.openBook(tag.id, tag.notes[5].id);
+      var chosen = document.querySelector('#vs-contents [aria-current="true"]').getAttribute('data-note');
+      var toggle = document.querySelector('.vs-indextoggle');
+      var initial = toggle.getAttribute('data-index-mode');
+      var belowSearch = toggle.previousElementSibling.classList.contains('vs-findtab');
+      toggle.click();
+      var mode = document.querySelector('.vs-indextoggle').getAttribute('data-index-mode');
+      var kept = document.querySelector('#vs-contents [aria-current="true"]').getAttribute('data-note')===chosen;
+      var notes = __vs.views().find(function(v){return v.shelf.id==='tags';}).books.find(function(b){return b.id===tag.id;}).notes;
+      var dates = notes.filter(function(n){return n.date;}).map(function(n){return n.date;});
+      var chronological = dates.every(function(d,i){return !i||d>=dates[i-1];});
+      var roundtrip = core.migrate(JSON.parse(JSON.stringify(settings)));
+      var persisted = roundtrip.shelves.find(function(s){return s.id==='tags';}).bookIndexes[tag.key]==='date';
+      __vs.closeReader();
+      menu(document.querySelector('[data-book="'+tag.id+'"]'));
+      select('#vs-dye','az');
+      document.querySelector('[data-book="'+tag.id+'"]').click();
+      var reopened = document.querySelector('.vs-indextoggle').getAttribute('data-index-mode')==='az';
+      __vs.closeReader();
+      menu(document.querySelector('[data-shelf="tags"] .vs-shelfrail'));
+      select('#vs-railmenu','date');
+      var shelf = settings.shelves.find(function(s){return s.id==='tags';});
+      var shelfDefault = shelf.indexMode==='date' && core.indexMode(shelf,'future-book')==='date';
+      __vs.editShelf('tags');
+      var builder = document.querySelector('#vs-bindex [data-index-mode="date"]').getAttribute('aria-pressed')==='true';
+      select('#vs-bindex','az'); document.getElementById('vs-bsave').click();
+      var edited = settings.shelves.find(function(s){return s.id==='tags';}).indexMode==='az';
+      var plate = document.querySelector('[data-shelf="years"] .vs-plaque');
+      menu(plate); select('#vs-dye','az'); plate.click();
+      var plaque = document.querySelector('.vs-indextoggle').getAttribute('data-index-mode')==='az';
+      __vs.closeReader();
+      __vs.newShelf(); document.getElementById('vs-bname').value='Alphabetical journal';
+      select('#vs-bindex','az'); document.getElementById('vs-bsave').click();
+      var created = settings.shelves.some(function(s){return s.name==='Alphabetical journal'&&s.indexMode==='az';});
+      return {defaults:defaults,initial:initial,belowSearch:belowSearch,mode:mode,kept:kept,
+        chronological:chronological,persisted:persisted,reopened:reopened,shelfDefault:shelfDefault,builder:builder,edited:edited,plaque:plaque,created:created};
+    } finally { __vs.closeReader(); Object.assign(settings,saved); __vs.setFilters({}); }
+  })()`);
+  return {ok:r.defaults.every(([id,mode])=>mode===(id==='tags'||id==='encyclopedia'?'az':'date')) &&
+    r.initial==='az' && r.mode==='date' && ['belowSearch','kept','chronological','persisted','reopened','shelfDefault','builder','edited','plaque','created'].every(k=>r[k]),
+    detail:JSON.stringify(r)};
+});
+
+/* design/0030 */
+check("new books save colour binding and contents defaults while cancelled drafts save nothing", async (p) => {
+  const r = await p.j(`(function(){
+    var settings=__vs.settings(), saved=JSON.parse(JSON.stringify(settings));
+    var choose=function(scope,value){document.querySelector(scope+' [data-index-mode="'+value+'"]').click();};
+    var start=function(){document.querySelector('[data-shelf="favourites"] .vs-plusbook').click();};
+    try {
+      var before=JSON.stringify(settings); start();
+      var swatches=document.querySelectorAll('#vs-mbappearance .vs-swatch');
+      var bindings=document.querySelectorAll('#vs-mbappearance .vs-bindingchoice');
+      var count=[swatches.length,bindings.length];
+      swatches[12].click(); bindings[3].click(); choose('#vs-mbindex','az');
+      document.getElementById('vs-mbcancel').click();
+      var cancelled=before===JSON.stringify(settings); start();
+      document.getElementById('vs-mbname').value='Index sample';
+      document.querySelectorAll('#vs-mbappearance .vs-swatch')[13].click();
+      document.querySelector('#vs-mbappearance [data-style="weathered"]').click();
+      choose('#vs-mbindex','az'); document.getElementById('vs-mbsave').click();
+      var shelf=settings.shelves.find(function(s){return s.id==='favourites';});
+      var key=Object.keys(shelf.made).find(function(k){return shelf.made[k].name==='Index sample';});
+      var id='favourites/'+key, spine=document.querySelector('[data-book="'+id+'"]');
+      var savedChoice=settings.bookColors[id]===13&&settings.bookSpines[id]==='weathered'&&shelf.bookIndexes[key]==='az';
+      var painted=spine.getAttribute('data-binding')==='weathered';
+      __vs.openBook(id,null);
+      var reader=document.querySelector('.vs-indextoggle').getAttribute('data-index-mode')==='az';
+      __vs.closeReader();
+      spine.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:300,clientY:300}));
+      Array.from(document.querySelectorAll('#vs-dye button')).find(function(b){return b.textContent==='Edit book…';}).click();
+      var edit=document.querySelector('#vs-mbindex [data-index-mode="az"]').getAttribute('aria-pressed')==='true' &&
+        document.querySelectorAll('#vs-mbappearance .vs-swatch')[13].getAttribute('aria-pressed')==='true' &&
+        document.querySelector('#vs-mbappearance [data-style="weathered"]').getAttribute('aria-pressed')==='true';
+      document.getElementById('vs-mbcancel').click();
+      var loaded=window.VaultShelfCore.migrate(JSON.parse(JSON.stringify(settings)));
+      var migrated=loaded.bookColors[id]===13&&loaded.bookSpines[id]==='weathered'&&loaded.shelves.find(function(s){return s.id==='favourites';}).bookIndexes[key]==='az';
+      __vs.unmakeBook(id);
+      var deleted=!settings.bookColors[id]&&!settings.bookSpines[id]&&!shelf.bookIndexes[key];
+      return {count:count,cancelled:cancelled,saved:savedChoice,painted:painted,reader:reader,edit:edit,migrated:migrated,deleted:deleted};
+    } finally { __vs.closeReader(); Object.assign(settings,saved); __vs.setFilters({}); }
+  })()`);
+  await sleep(150);
+  return {ok:r.count[0]===14&&r.count[1]===6&&['cancelled','saved','painted','reader','edit','migrated','deleted'].every(k=>r[k]),detail:JSON.stringify(r)};
+});
+
 check("the index tabs cut the book the way the book is ordered", async (p) => {
   const r = await p.j(`(function(){
     function tabsFor(id) {
       __vs.openBook(id, null);
-      var out = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab)"))
+      var out = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab):not(.vs-indextoggle)"))
         .map(function (b) { return b.textContent; });
       var titles = [].slice.call(document.querySelectorAll("#vs-contents .vs-t"))
         .map(function (t) { return t.textContent; });
@@ -1237,7 +1380,7 @@ check("a drag and drop moves a book the same way a key does, across rows", async
   };
 });
 
-check("the reading order in the top bar leaves an arranged shelf alone", async (p) => {
+check("saved reading order leaves an arranged shelf alone", async (p) => {
   const r = await p.j(`(function(){
     var shelves = __vs.settings().shelves;
     var years = shelves.filter(function (s) { return s.id === "years"; })[0];
@@ -1247,13 +1390,14 @@ check("the reading order in the top bar leaves an arranged shelf alone", async (
     __vs.setFilters({});
     var before = __vs.sequence("years");
     var autoBefore = __vs.sequence("months");
-    var button = document.getElementById("vs-order");
-    var said = button.textContent;
-    button.click();
-    var then = button.textContent;
+    var said = __vs.settings().noteOrder;
+    __vs.settings().noteOrder = said === "newest" ? "oldest" : "newest";
+    __vs.setFilters({});
+    var then = __vs.settings().noteOrder;
     var after = __vs.sequence("years");
     var autoAfter = __vs.sequence("months");
-    button.click();
+    __vs.settings().noteOrder = said;
+    __vs.setFilters({});
     var back = __vs.sequence("years");
     years.direction = was;
     delete years.order;
@@ -1382,7 +1526,7 @@ check("Favourites comes first and empty, fresh and by migration from schema 9", 
              hand: { direction: hand.direction, order: hand.order === undefined,
                      picks: hand.picks.join("|"), plaques: hand.plaques } };
   })()`);
-  const want = ["favourites", "encyclopedia", "years", "months", "weeks", "people", "tags"];
+  const want = ["favourites", "encyclopedia", "years", "months", "people", "tags"];
   const ok = r.freshFirst === "favourites" && r.freshKind === "pick" && r.freshPicks === 0 &&
              JSON.stringify(r.freshIds) === JSON.stringify(want) &&
              r.schema === 10 &&
@@ -2237,7 +2381,7 @@ check("a made book is edited, emptied and deleted from its own menu, and the vau
              notes: __vs.data().notes.length };
   })()`);
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const ok = r.first > 0 && same(r.lines, ["Edit book…", "Delete book"]) && r.swatches === 12 &&
+  const ok = r.first > 0 && same(r.lines, ["Edit book…", "Delete book"]) && r.swatches === 14 &&
              r.form.shown && r.form.menuShut && r.form.title === "Edit book" && r.form.name === "Dailies" &&
              r.form.kind === "folder" && r.form.value === r.folder && r.form.deleteOffered &&
              r.afterEdit.id === r.id && r.afterEdit.label === "Journal" &&
@@ -2625,6 +2769,7 @@ check("a shelf is deleted on the second press, made at the end the button is at,
       async (p) => {
   const r = await p.j(`(function(){
     var shelves = __vs.settings().shelves;
+    var savedPicks = shelves.filter(function(s){return s.classifier==='pick';}).map(function(s){return {id:s.id,picks:s.picks.slice()};});
     var order = function () { return __vs.views().map(function (v) { return v.shelf.id; }); };
     var was = order();
 
@@ -2670,6 +2815,7 @@ check("a shelf is deleted on the second press, made at the end the button is at,
 
     /* A spine drag is not a shelf drag: dropping a book must leave the shelf order alone. */
     var spine = document.querySelector('[data-shelf="years"] .vs-spine');
+    var favWant = new Set(__vs.picks()[0].picks.concat([spine.dataset.book])).size;
     var dt2 = new DataTransfer();
     spine.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt2 }));
     var favRail = document.querySelector('[data-shelf="favourites"] .vs-track');
@@ -2708,12 +2854,12 @@ check("a shelf is deleted on the second press, made at the end the button is at,
       .filter(function (k) { return k.indexOf("top-shelf/") === 0; }).length;
 
     __vs.settings().shelves.filter(function (s) { return s.classifier === "pick"; })
-      .forEach(function (s) { s.picks = []; });
+      .forEach(function (s) { s.picks = savedPicks.find(function(was){return was.id===s.id;}).picks; });
     __vs.setFilters({});
     return { was: was, afterTop: afterTop, afterEnd: afterEnd, grips: grips, rows: rows,
              board: board, carrying: carrying, payload: payload, mark: mark,
              afterDrag: afterDrag, marksLeft: marksLeft, afterBook: afterBook,
-             favHolds: favHolds, firstLabel: firstLabel, armedLabel: armedLabel,
+             favHolds: favHolds, favWant: favWant, firstLabel: firstLabel, armedLabel: armedLabel,
              armedFlag: armedFlag, stillThere: stillThere, afterDelete: afterDelete,
              otherArmed: otherArmed, afterBoth: afterBoth, wearKeys: wearKeys,
              back: order() };
@@ -2721,11 +2867,11 @@ check("a shelf is deleted on the second press, made at the end the button is at,
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const ok = r.afterTop[0] === "top-shelf" && same(r.afterTop.slice(1), r.was) &&
              r.afterEnd[r.afterEnd.length - 1] === "foot-shelf" &&
-             r.grips === r.rows && r.grips > 0 && /5px|10px/.test(r.board) &&
+             r.grips === r.rows && r.grips > 0 && r.board.startsWith("100% 14px") &&
              r.carrying === "1" && r.payload === "top-shelf" && r.mark === "after" &&
              r.afterDrag[r.afterDrag.length - 1] === "top-shelf" &&
              r.afterDrag[r.afterDrag.length - 2] === "foot-shelf" && r.marksLeft === 0 &&
-             same(r.afterBook, r.afterDrag) && r.favHolds === 1 &&
+             same(r.afterBook, r.afterDrag) && r.favHolds === r.favWant &&
              r.firstLabel === "Delete" && r.armedLabel === "Really delete?" &&
              r.armedFlag === "1" && r.stillThere &&
              r.afterDelete.indexOf("foot-shelf") < 0 && r.otherArmed === "1" &&
@@ -2926,7 +3072,7 @@ check("the room parts where a thing will land, the twelve are offered, and a she
       });
     });
     __vs.openBook(fattest.id, null);
-    var tabs = document.querySelectorAll("#vs-tabs button:not(.vs-findtab)");
+    var tabs = document.querySelectorAll("#vs-tabs button:not(.vs-findtab):not(.vs-indextoggle)");
     var glass = document.querySelector("#vs-tabs .vs-findtab");
     var left = document.querySelector("#vs-reader .vs-page.vs-left");
     left.scrollTop = 400;
@@ -2999,8 +3145,8 @@ check("the room parts where a thing will land, the twelve are offered, and a she
              shelfParted.above &&
              shelfSettled.ghosts === 0 && shelfSettled.carrying === 0 &&
              shelfResting.onScreen && shelfResting.grip &&
-             rest.pick.shown && rest.pick.swatches === 12 && rest.pick.distinct >= 10 &&
-             rest.pick.custom && rest.pick.took && rest.pick.saved === 12 &&
+             rest.pick.shown && rest.pick.swatches === 14 && rest.pick.distinct >= 10 &&
+             rest.pick.custom && rest.pick.took && rest.pick.saved === 14 &&
              rest.made && rest.binOnNew === false && rest.binOnEdit === true &&
              rest.first === "Delete shelf" && rest.armed === "Really delete?" &&
              rest.stillThere && rest.gone && rest.sheetClosed &&
@@ -3147,7 +3293,7 @@ check("the twelve colour slots are Vault Graph's own", async (p) => {
                           .indexOf(tint.toLowerCase()) >= 0 };
   })()`);
   const same = (a, b) => JSON.stringify(a.map((v) => v.toLowerCase())) === JSON.stringify(b);
-  const ok = same(r.light, LIGHT) && same(r.dark, DARK) && r.inSlots;
+  const ok = same(r.light.slice(0,12), LIGHT) && same(r.dark.slice(0,12), DARK) && r.inSlots;
   return { ok,
            detail: ok
              ? `all twelve match in both themes (light g1 ${r.light[0]}, dark g1 ${r.dark[0]}); ` +
@@ -3221,7 +3367,7 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
       if (n > best) { best = n; row = k; }
     });
     out.wearing = best;
-    var away = (row + 6) % 12;
+    var away = (row + 6) % 14;
 
     /* github#44 -- the checks before this leave palettes behind, and this measures a
      * difference, so it starts from none */
@@ -3255,7 +3401,7 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
     out.saved = __vs.settings().palette.length;
     out.stillPacked = samePacking(geometry, furniture());
     out.stillShelved = books() === shelved;
-    fire(offered((away + 3) % 12), "mouseenter");
+    fire(offered((away + 3) % 14), "mouseenter");
     var second = room();
     out.followed = second !== first && second !== before;
 
@@ -3296,7 +3442,7 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
     var offered = function (n) { return menu.querySelectorAll(".vs-swatches .vs-swatch")[n]; };
     ${ROOM_HELPERS}
     var at = function () {
-      for (var k = 0; k < 12; k++) if (offered(k) === document.activeElement) return k;
+      for (var k = 0; k < 14; k++) if (offered(k) === document.activeElement) return k;
       return -1;
     };
     return { menu: menu, offered: offered, room: room, at: at };
@@ -3320,13 +3466,13 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
   r.arrowLanded = landed >= 0;
   const from = Math.max(landed, 0);
   await press(p, "ArrowRight");
-  r.arrowMoved = await inMenu(`h.at() === ${(from + 1) % 12}`);
+  r.arrowMoved = await inMenu(`h.at() === ${(from + 1) % 14}`);
   r.arrowPainted = await inMenu(`h.room() !== ${JSON.stringify(before4)}`);
 
   /* github#55 -- a swatch reached by Tab, as the comment always claimed */
   const start = [0, 1, 2, 3].find((k) => k !== r.row && k + 1 !== r.row);
   if (start === undefined) throw new Error("no Tab start clear of the slot's own colour");
-  for (let step = ((start - from - 1) % 12 + 12) % 12; step > 0; step--) {
+  for (let step = ((start - from - 1) % 14 + 14) % 14; step > 0; step--) {
     await press(p, "ArrowRight");
   }
   const onStart = await inMenu("h.at()");
@@ -3373,9 +3519,9 @@ check("a hovered swatch paints the room, and leaving puts it back", async (p) =>
     slotSwatch(0).click();
     offered(away).click();
     var committed = room();
-    out.committed = committed !== before && __vs.settings().palette.length === 12;
+    out.committed = committed !== before && __vs.settings().palette.length === 14;
     slotSwatch(0).click();
-    fire(offered((away + 3) % 12), "mouseenter");
+    fire(offered((away + 3) % 14), "mouseenter");
     out.previewedOverCommitted = room() !== committed;
     escape();
     out.backToCommitted = room() === committed;
@@ -3485,7 +3631,7 @@ check("a right-click dyes a book, a plate's run or a shelf, and hovering paints 
     var spine = shelves.querySelector(".vs-spine[data-book]");
     var one = spine.getAttribute("data-book");
     fire(spine, "contextmenu");
-    out.spineMenu = !dye.hidden && swatches(dye).length === 12;
+    out.spineMenu = !dye.hidden && swatches(dye).length === 14;
     out.spineQuiet = boards() + "/" + threads() === before;
     enter(swatches(dye)[7]);
     out.spinePainted = boards() !== before.split("/")[0] && tinted([one]) !== "?";
@@ -3502,7 +3648,7 @@ check("a right-click dyes a book, a plate's run or a shelf, and hovering paints 
                             function (s) { return s.getAttribute("data-book"); });
       out.runSize = run.length;
       fire(plate, "contextmenu");
-      out.plateMenu = !dye.hidden && swatches(dye).length === 12 &&
+      out.plateMenu = !dye.hidden && swatches(dye).length === 14 &&
                       dye.querySelector(".vs-dyename").textContent === plate.textContent;
       out.plateNoLines = dye.querySelectorAll(".vs-dyepick").length === 0;
       out.plateQuiet = boards() + "/" + threads() === before;
@@ -3533,8 +3679,8 @@ check("a right-click dyes a book, a plate's run or a shelf, and hovering paints 
                            function (s) { return s.getAttribute("data-book"); });
     out.shelfSize = mine.length;
     fire(head, "contextmenu");
-    out.shelfMenu = !rail.hidden && swatches(rail).length === 12 &&
-                    !!rail.querySelector(".vs-railline");
+    out.shelfMenu = !rail.hidden && swatches(rail).length === 14 &&
+      !!rail.querySelector(".vs-railline") === (__vs.settings().shelves.find(function(s){return s.id===section.dataset.shelf;}).direction==='manual');
     out.shelfQuiet = boards() + "/" + threads() === before;
     enter(swatches(rail)[10]);
     var shelfPainted = tinted(mine).split(",");
@@ -3545,6 +3691,11 @@ check("a right-click dyes a book, a plate's run or a shelf, and hovering paints 
     out.shelfPacked = samePacking(geometry, furniture());
     escape();
     out.shelfBack = boards() + "/" + threads() === before && rail.hidden;
+    var grip = section.querySelector('.vs-floorgrip');
+    fire(grip, 'contextmenu');
+    out.floorMenu = !rail.hidden && swatches(rail).length === 14 &&
+      rail.querySelectorAll('.vs-bindingchoice').length === 6 && getComputedStyle(grip).height === '22px';
+    escape();
 
     /* github#44 -- 4. a click commits what a hover only offered */
     fire(head, "contextmenu");
@@ -3570,7 +3721,7 @@ check("a right-click dyes a book, a plate's run or a shelf, and hovering paints 
   const want = ["laidOut", "clean", "spineMenu", "spineQuiet", "spinePainted", "spinePacked",
                 "spineBack", "hasPlate", "plateMenu", "plateNoLines", "plateQuiet",
                 "plateWholeRun", "platePacked", "plateThreads", "plateBack", "shelfMenu",
-                "shelfQuiet", "shelfWhole", "shelfPacked", "shelfBack", "committed",
+                "shelfQuiet", "shelfWhole", "shelfPacked", "shelfBack", "floorMenu", "committed",
                 "committedSame", "railShut", "overCommitted", "backToCommitted", "automatic",
                 "shut"];
   const bad = want.filter((k) => r[k] !== true);
@@ -3579,7 +3730,7 @@ check("a right-click dyes a book, a plate's run or a shelf, and hovering paints 
   return { ok,
            detail: ok
              ? `a spine, a plate over ${r.runSize} books and a shelf of ${r.shelfSize} each ` +
-               "offer the twelve; a hover paints the whole unit and its threads and saves " +
+               "offer fourteen colours and six bindings, including from the 22px floor grip; a hover paints the whole unit and its threads and saves " +
                "nothing, a click saves one key per book, Automatic takes them all off, and no " +
                "box moved at any point"
              : bad.length
@@ -3703,7 +3854,7 @@ check("a plate dyes its whole run from either copy, and the colours survive a re
 
     /* 1. the SECOND copy of the plate, which is the whole point */
     fire(two[two.length - 1], "contextmenu");
-    out.menu = !dye.hidden && dye.querySelectorAll(".vs-swatches .vs-swatch").length === 12;
+    out.menu = !dye.hidden && dye.querySelectorAll(".vs-swatches .vs-swatch").length === 14;
     out.name = dye.querySelector(".vs-dyename").textContent;
     var unit = dye.querySelector(".vs-dyeunit");
     out.unit = unit ? unit.textContent : "";
@@ -3892,7 +4043,7 @@ check("a look is opt-in, repaints everything and moves nothing", async (p) => {
   /* The selector offers every look that is not shelved and none that is (design/0017). */
   const listed = r.seen.map((s) => s.value).filter((v) => !r.shelved.includes(v));
   const offersRight = r.offered.join("|") === listed.join("|");
-  const ok = r.offered.length >= 2 && offersRight && named &&
+  const ok = r.offered.length === 1 && r.offered[0] === "leather" && offersRight && named &&
              sameSize && sameRoom &&
              !moved.length && !flat.length && !twins.length && !stale.length && restored;
   return { ok,
@@ -3930,7 +4081,7 @@ check("every control is the same size in every look", async (p) => {
     };
     /* [selector, widthMatters]. A width follows its text unless the rule fixes it. */
     var library = [
-      ["#vs-q", true], ["#vs-order", true], ["#vs-look", false], ["#vs-manageopen", false],
+      ["#vs-q", true], ["#vs-look", false], ["#vs-manageopen", false],
       ["#vs-rail", true], ["#vs-newshelf", true],
       ["#vs-shelves .vs-shelfhead", true], ["#vs-shelves .vs-plaque", false],
       ["#vs-shelves .vs-spine", true]
@@ -4010,6 +4161,7 @@ check("every control is the same size in every look", async (p) => {
     });
   });
   const measured = names.filter((n) => base[n].box).length;
+  await sleep(150);
   return {
     ok: off.length === 0 && measured >= 34,
     detail: `${measured} controls measured in ${Object.keys(r).length} looks against modern ` +
@@ -4119,6 +4271,147 @@ check("a look moves nothing on the page", async (p) => {
 });
 
 /* github#45, design/0021 -- a title never touches a line the binding draws */
+/** design/0029 */
+check("leather bindings preview beside colours with consistent heights and saved choices", async (p) => {
+  const r = await p.j(`(function(){
+    __vs.setLook('leather');
+    var settings = __vs.settings(), saved = JSON.stringify(settings.bookSpines);
+    var addresses = JSON.stringify(__vs.addresses());
+    var spine = document.querySelector('#vs-shelves [data-shelf="months"] .vs-spine');
+    var id = spine.dataset.book, before = spine.dataset.binding;
+    var savedColours = JSON.stringify(settings.bookColors);
+    settings.bookColors[id] = 0;
+    var box = spine.getBoundingClientRect();
+    var open = function () {
+      spine.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 100, clientY: 100 }));
+    };
+    var close = function () { document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape',bubbles:true})); };
+    open();
+    var menu = document.getElementById('vs-dye');
+    var choices = Array.from(menu.querySelectorAll('.vs-bindingchoice'));
+    var colours = menu.querySelectorAll('.vs-swatch').length;
+    var states = choices.map(function (choice) {
+      choice.dispatchEvent(new MouseEvent('mouseenter'));
+      var title = spine.querySelector('.vs-title').getBoundingClientRect();
+      var b = spine.getBoundingClientRect(), cs = getComputedStyle(spine);
+      var frame = getComputedStyle(spine, '::after');
+      var top = b.top + parseFloat(cs.borderTopWidth) + parseFloat(frame.top) + parseFloat(frame.borderTopWidth);
+      var bottom = b.bottom - parseFloat(cs.borderBottomWidth) - parseFloat(frame.bottom) - parseFloat(frame.borderBottomWidth);
+      return { style:spine.dataset.binding, h:b.height, w:b.width,
+        gap:Math.min(title.top-top,bottom-title.bottom),
+        paint:cs.backgroundImage+'|'+cs.backgroundColor,
+        ink:getComputedStyle(spine.querySelector('.vs-title')).color };
+    });
+    var untouched = saved === JSON.stringify(settings.bookSpines);
+    close();
+    var reverted = spine.dataset.binding === before;
+    open();
+    menu.querySelector('[data-style="pebbled"]').click();
+    var persisted = VaultShelfCore.migrate(JSON.parse(JSON.stringify(settings))).bookSpines[id] === 'pebbled';
+    var closed = menu.hidden;
+    __vs.setFilters({});
+    spine = Array.from(document.querySelectorAll('#vs-shelves .vs-spine')).find(function(b){return b.dataset.book===id;});
+    var rebuilt = spine.dataset.binding === 'pebbled';
+    open();
+    menu.querySelector('[data-style="auto"]').click();
+    var reset = settings.bookSpines[id] === undefined && spine.dataset.binding === before;
+    open();
+    menu.querySelector('[data-style="vellum"]').click();
+    open();
+    var vellumPaints = Array.from(menu.querySelectorAll('.vs-swatch')).map(function(swatch){
+      swatch.dispatchEvent(new MouseEvent('mouseenter'));
+      return getComputedStyle(spine).backgroundColor;
+    });
+    menu.querySelectorAll('.vs-swatch')[13].click();
+    var brightSaved = VaultShelfCore.migrate(JSON.parse(JSON.stringify(settings))).bookColors[id] === 13;
+    settings.bookSpines = JSON.parse(saved);
+    settings.bookColors = JSON.parse(savedColours);
+    __vs.setFilters({});
+    var census = {};
+    Array.from(document.querySelectorAll('#vs-shelves .vs-spine')).forEach(function(book){
+      (census[book.dataset.binding] || (census[book.dataset.binding] = new Set())).add(getComputedStyle(book).height);
+    });
+    return { styles:choices.length,colours:colours, paints:new Set(states.map(function(s){return s.paint;})).size,
+      vellumDyes:new Set(vellumPaints).size, brightSaved:brightSaved,
+      sameTypeSameHeight:Object.values(census).every(function(heights){return heights.size===1;}),
+      inks:new Set(states.map(function(s){return s.ink;})).size,minGap:Math.min.apply(Math,states.map(function(s){return s.gap;})),
+      fixed:states.every(function(s){return s.w===box.width;}), heights:states.map(function(s){return s.h;}),
+      untouched:untouched,reverted:reverted,persisted:persisted,closed:closed,rebuilt:rebuilt,reset:reset,
+      addresses:addresses===JSON.stringify(__vs.addresses()) };
+  })()`);
+  return { ok: r.styles === 6 && r.colours === 14 && r.paints === 5 && r.inks === 5 && r.minGap >= 2.9 &&
+      r.vellumDyes === 14 && r.brightSaved && r.sameTypeSameHeight &&
+      r.fixed && JSON.stringify(r.heights) === JSON.stringify([132,131,130,128,126,124]) && r.untouched && r.reverted && r.persisted && r.closed && r.rebuilt && r.reset && r.addresses,
+    detail: JSON.stringify(r) };
+});
+
+/** design/0029 */
+check("Automatic keeps the scrolled shelf in place for colours and bindings", async (p) => {
+  const r = await p.eval(`(async function(){
+    var settings=__vs.settings(), savedColours=JSON.stringify(settings.bookColors), savedSpines=JSON.stringify(settings.bookSpines);
+    var lib=document.getElementById('vs-library'), results=[];
+    var wait=function(){return new Promise(function(resolve){setTimeout(resolve,80);});};
+    var close=function(){document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));};
+    try {
+      for (var target of ['.vs-spine','.vs-floorgrip']) {
+        for (var control of ['.vs-swatch','.vs-bindingchoice']) {
+          var section=document.querySelector('#vs-shelves [data-shelf="tags"]');
+          section.scrollIntoView({block:'start'}); await wait();
+          section.scrollIntoView({block:'start'}); await wait();
+          var anchor=section.querySelector('.vs-spine'), initialTop=lib.scrollTop;
+          for (var reset of [false,true]) {
+            section=document.querySelector('#vs-shelves [data-shelf="tags"]');
+            var node=section.querySelector(target), rect=node.getBoundingClientRect();
+            node.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:rect.left+10,clientY:Math.max(110,rect.top)}));
+            var menu=document.getElementById(target==='.vs-spine'?'vs-dye':'vs-railmenu');
+            var btn=menu.querySelector(reset?(control==='.vs-swatch'?'.vs-dyeauto':'[data-style="auto"]'):control);
+            btn.dispatchEvent(new MouseEvent('mouseenter')); btn.focus({preventScroll:true}); btn.click();
+            await wait();
+            results.push({target:target,control:control,reset:reset,before:initialTop,after:lib.scrollTop,sameBook:anchor.isConnected});
+          }
+        }
+      }
+    } finally {
+      close(); settings.bookColors=JSON.parse(savedColours); settings.bookSpines=JSON.parse(savedSpines);
+      __vs.setFilters({}); lib.scrollTop=0;
+    }
+    return results;
+  })()`);
+  return {ok:r.length===8 && r.every((x)=>x.before>100 && Math.abs(x.before-x.after)<1 && x.sameBook),detail:JSON.stringify(r)};
+});
+
+/** design/0029 */
+check("fresh leather defaults and automatic demo settings are deterministic", async (p) => {
+  const r = await p.j(`(function(){
+    var core = VaultShelfCore, fresh = core.emptySettings(), data = __vs.data();
+    var one = core.demoSettings(data.notes), again = core.demoSettings(data.notes);
+    var grouped = true, periods = 0;
+    fresh.shelves.filter(function(s){return s.classifier==='year'||s.classifier==='month';}).forEach(function(shelf){
+      var units = {};
+      core.buildShelf(shelf,data.notes).books.forEach(function(book){
+        var key = core.bindingUnit(shelf,book.key), style = core.automaticSpine(shelf,book.key)+'/'+core.dyePeriod(shelf,book.key);
+        if (units[key] && units[key] !== style) grouped = false;
+        units[key] = style;
+      });
+      periods += Object.keys(units).length;
+    });
+    var identities = fresh.shelves.filter(function(s){return s.classifier==='person'||s.classifier==='tag';})
+      .map(function(s){return new Set(core.buildShelf(s,data.notes).books.map(function(b){return core.automaticSpine(s,b.key);})).size;});
+    var old = core.migrate({schema:10,shelves:[{id:'weeks',name:'Weeks',source:{kind:'all'},classifier:'week',
+      direction:'chronological',hidden:false,position:0,plaques:true}],look:'',bookSpines:{good:'original',bad:'nope'}});
+    var storage = core.migrate(JSON.parse(JSON.stringify(one)));
+    return {fresh: fresh.shelves.map(function(s){return s.id;}), look:fresh.look,offered:core.offeredLooks().map(function(l){return l.value;}),
+      overrides:{colours:Object.keys(one.bookColors).length,bindings:Object.keys(one.bookSpines).length},
+      deterministic:JSON.stringify(one)===JSON.stringify(again),grouped:grouped,periods:periods,identities:identities,
+      persists:JSON.stringify(one.bookSpines)===JSON.stringify(storage.bookSpines),
+      legacy:old.shelves.some(function(s){return s.id==='weeks'&&!s.hidden;})&&old.bookSpines.good==='original'&&!old.bookSpines.bad&&old.look==='leather'};
+  })()`);
+  return { ok: r.fresh.join(',') === 'favourites,encyclopedia,years,months,people,tags' && r.look === 'leather' &&
+      r.offered.join(',') === 'leather' && r.overrides.colours === 0 && r.overrides.bindings === 0 && r.deterministic && r.grouped &&
+      r.periods > 1 && r.identities.every((n) => n > 1) && r.persists && r.legacy,
+    detail: JSON.stringify(r) };
+});
+
 check("a spine's title never touches a line the binding draws", async (p) => {
   const r = await p.j(`(function(){
     /* EVERY GEOMETRY CHECK HERE PASSED while the M of a month spine sat on leather's lower
@@ -4330,7 +4623,7 @@ check("the furniture is one material", async (p) => {
 
   /* github#2, design/0019 -- room plates match the plaque, paper plates the sheet's */
   const plates = {
-    library: { room: ["#vs-order", "#vs-manageopen"], paper: [] },
+    library: { room: ["#vs-manageopen"], paper: [] },
     /* github#9, github#3 -- the glass tab is accent-lit, like the primary button */
     reading: { room: ["#vs-back", "#vs-nextnote",
                       "#vs-tabs button:not([aria-current='true']):not(.vs-findtab)"],
@@ -4541,6 +4834,8 @@ check("every dropdown paints itself, whatever the host says a select is", async 
 /* design/0008 -- MAGIC 1. A book you open often looks handled. */
 check("a book's colour is the person's, then the shelf's, then the folder's", async (p) => {
   const r = await p.j(`(function(){
+    var settings = __vs.settings(), savedColours = VaultShelfCore.clone(settings.bookColors);
+    try {
     var years = __vs.views().filter(function (v) { return v.shelf.id === "years"; })[0];
     var people = __vs.views().filter(function (v) { return v.shelf.id === "people"; })[0];
     var tint = function (id) {
@@ -4572,7 +4867,7 @@ check("a book's colour is the person's, then the shelf's, then the folder's", as
       return getComputedStyle(sw).backgroundColor === want;
     }).length;
     document.body.removeChild(probe);
-    var pick = (folderSlot + 5) % 12;
+    var pick = (folderSlot + 5) % 14;
     menu.querySelectorAll(".vs-swatch")[pick].click();
     var byHand = tint(book.id);
     __vs.setFilters({});
@@ -4589,8 +4884,12 @@ check("a book's colour is the person's, then the shelf's, then the folder's", as
              pick: pick, byHand: byHand, want: slots[pick], afterRebuild: afterRebuild,
              closed: closed, distinctBefore: distinctBefore, chosen: chosen,
              peopleShown: before.length };
+    } finally {
+      settings.bookColors = savedColours;
+      __vs.setFilters({});
+    }
   })()`);
-  const ok = r.folderSlot >= 0 && r.opened && r.swatches === 12 && r.painted === 12 &&
+  const ok = r.folderSlot >= 0 && r.opened && r.swatches === 14 && r.painted === 14 &&
              r.byHand === r.want && r.afterRebuild === r.want && r.closed;
   return {
     ok,
@@ -4913,15 +5212,15 @@ check("colours and hidden shelves set in Manage persist through a reload", async
   });
   const opposed = apart.filter((x) => x.hue > 0.33 || x.light > 0.2).length;
   const visible = apart.filter((x) => x.light > 0.18).length;
-  const ok = r.swatches === 12 && r.painted === 12 && r.numbers === "1,2,3,4,5,6,7,8,9,10,11,12" &&
-             r.rows === 12 && r.threads === 12 && opposed === 12 && visible === 12 &&
+  const ok = r.swatches === 14 && r.painted === 14 && r.numbers === "1,2,3,4,5,6,7,8,9,10,11,12,13,14" &&
+             r.rows === 14 && r.threads === 14 && opposed === 14 && visible === 14 &&
              r.marksAtStart === 0 && r.resetDisabledAtStart === true &&
-             a.saved === 12 && a.allHex && a.slot3 === "#3355aa" && a.marks === 1 && a.marked === "3" &&
+             a.saved === 14 && a.allHex && a.slot3 === "#3355aa" && a.marks === 1 && a.marked === "3" &&
              a.resetEnabled && a.cascade === "#3355aa" &&
              r.ribbon.saved === "#aa3355" && r.ribbon.others === 1 && r.ribbon.marks === 2 &&
              r.ribbon.onSpine === "#aa3355" && r.ribbon.before !== "#aa3355" &&
              r.afterSlotReset.saved === 0 && r.afterSlotReset.marks === 1 && r.afterSlotReset.ribbonKept === "#aa3355" &&
-             r.oneOfTwo.saved === 12 && r.oneOfTwo.slot5 === "#445566" &&
+             r.oneOfTwo.saved === 14 && r.oneOfTwo.slot5 === "#445566" &&
              r.oneOfTwo.slot1 === r.afterReset.own1 &&
              r.afterReset.palette === 0 && r.afterReset.ribbons === 0 && r.afterReset.disabled === true &&
              r.afterReset.marks === 0 &&
@@ -4931,11 +5230,11 @@ check("colours and hidden shelves set in Manage persist through a reload", async
   return {
     ok,
     detail: `${r.rows} rows, ${r.swatches} dyes painted ${r.painted}, ${r.threads} ribbons, numbered ` +
-            `${r.numbers === "1,2,3,4,5,6,7,8,9,10,11,12" ? "1-12" : r.numbers}; ${opposed}/12 complements a ` +
-            `hue or a third of the lightness away, ${visible}/12 visibly lighter or darker than their dye; ` +
+            `${r.numbers === "1,2,3,4,5,6,7,8,9,10,11,12,13,14" ? "1-14" : r.numbers}; ${opposed}/14 complements a ` +
+            `hue or a third of the lightness away, ${visible}/14 visibly lighter or darker than their dye; ` +
             `${r.marksAtStart} marked and the reset ${r.resetDisabledAtStart ? "quiet" : "LIVE"} to start; ` +
             `slot 3 -> ${a.slot3}: ${a.saved} saved, ${a.marks} mark on slot ${a.marked}, cascade ${a.cascade}; ` +
-            `ribbon 7 ${r.ribbon.saved} alone (${r.ribbon.others} of 12), was ${r.ribbon.before} on its spine and ` +
+            `ribbon 7 ${r.ribbon.saved} alone (${r.ribbon.others} of 14), was ${r.ribbon.before} on its spine and ` +
             `is ${r.ribbon.onSpine}; slot 3's dye back: ${r.afterSlotReset.saved} saved, ribbon still ` +
             `${r.afterSlotReset.ribbonKept}; two picked, one back: ` +
             `${r.oneOfTwo.saved} saved, slot 1 ${r.oneOfTwo.slot1 === r.afterReset.own1 ? "the look's own" : r.oneOfTwo.slot1}, ` +
@@ -5481,21 +5780,24 @@ check("the rail is fixed controls, and nothing in it scrolls sideways", async (p
       /* CLIPPED IS NOT SCROLLED, and only one of the two is a defect: the vault's name is
        * overflow-hidden with an ellipsis on purpose (page.css -- the name is the first
        * thing to go when the rail is tight), so it is reported and not asserted on. */
-      var clipped = [], rows = [], span = 0;
+      var clipped = [], rows = [], spans = {};
       var name = function (k) { return k.id || (k.getAttribute("class") || k.tagName.toLowerCase()); };
       kids.forEach(function (k) {
         var b = k.getBoundingClientRect();
         if (k.scrollWidth - k.clientWidth > 1) clipped.push(name(k) + " +" + (k.scrollWidth - k.clientWidth));
         var mid = Math.round((b.top + b.bottom) / 2);
         if (rows.indexOf(mid) < 0) rows.push(mid);
-        span += b.width;
+        if (!spans[mid]) spans[mid] = [];
+        spans[mid].push(b);
       });
       var box = inner.getBoundingClientRect();
       var gap = parseFloat(getComputedStyle(inner).gap) || 0;
       return { width: ${width}, rows: rows.length, scrollers: scrollers,
                clipped: clipped, inner: Math.round(box.width),
                railHigh: Math.round(rail.getBoundingClientRect().height),
-               free: Math.round(box.width - span - gap * Math.max(0, kids.length - 1)),
+               free: Math.round(Math.min.apply(Math, Object.values(spans).map(function(row) {
+                 return box.width-row.reduce(function(total,b){return total+b.width;},0)-gap*Math.max(0,row.length-1);
+               }))),
                controls: kids.map(function (k) {
                  return name(k) + " " + Math.round(k.getBoundingClientRect().width);
                }) };
@@ -5507,9 +5809,9 @@ check("the rail is fixed controls, and nothing in it scrolls sideways", async (p
   await p.send("Emulation.clearDeviceMetricsOverride");
   await sleep(250);
 
-  /* github#38 -- one row at both widths: the strip was what wrapped it */
+  /* design/0031 */
   const ok = !wide.scrollers.length && !narrow.scrollers.length &&
-             wide.rows === 1 && narrow.rows === 1 && wide.free >= 0 && narrow.free >= 0;
+             wide.rows === 1 && narrow.rows === 2 && wide.free >= 0 && narrow.free >= 0;
   const say = (r) => `at ${r.width}px ${r.rows} row(s) ${r.railHigh}px high, ` +
                      `${r.free}px free of ${r.inner}px (${r.controls.join(", ")})`;
   const clipped = wide.clipped.concat(narrow.clipped);
@@ -5729,7 +6031,7 @@ check("the date index is layered: years over months over days, each only where i
   const r = await p.j(`(function(){
     var tabsOf = function (id) {
       __vs.openBook(id, null);
-      var t = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab)")).map(function (b) {
+      var t = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab):not(.vs-indextoggle)")).map(function (b) {
         return { label: b.textContent, level: Number(b.getAttribute("data-level") || 0) };
       });
       __vs.closeReader();
@@ -5743,8 +6045,8 @@ check("the date index is layered: years over months over days, each only where i
       return new Set(b.notes.map(function (n) { return n.date ? n.date.slice(0, 4) : ""; })
         .filter(Boolean)).size;
     };
-    /* A tag book spanning several years: years on the top layer, months under them. */
-    var tag = pick("tags", function (b) { return b.key !== "-unfiled" && years(b) > 1 && b.notes.length > 6; });
+    /* A person book spanning several years: years on the top layer, months under them. */
+    var tag = pick("people", function (b) { return b.key !== "-unfiled" && years(b) > 1 && b.notes.length > 6; });
     var tagTabs = tag ? tabsOf(tag.id) : [];
     var top = tagTabs.filter(function (t) { return t.level === 0; });
     var yearsShown = top.every(function (t) { return /^\\d{4}$/.test(t.label); });
@@ -5757,7 +6059,7 @@ check("the date index is layered: years over months over days, each only where i
     /* A book of three or fewer notes has no index at all. */
     var small = null;
     __vs.views().forEach(function (v) { v.books.forEach(function (b) {
-      if (!small && b.notes.length >= 2 && b.notes.length <= 3 && v.shelf.classifier !== "initial" &&
+      if (!small && b.notes.length >= 2 && b.notes.length <= 3 && v.shelf.classifier !== "initial" && v.shelf.classifier !== "tag" &&
           years(b) === 1) small = b;
     }); });
     var smallTabs = small ? tabsOf(small.id) : null;
@@ -5780,6 +6082,51 @@ check("the date index is layered: years over months over days, each only where i
   };
 });
 
+/* design/0032 */
+check("index tabs compress without scrolling and shelf icons edit and hide", async (p) => {
+  const read = () => p.j(`(function(){
+    var nav=document.getElementById('vs-tabs'), bounds=nav.getBoundingClientRect();
+    var tabs=Array.from(nav.querySelectorAll('.vs-indextab'));
+    return {count:tabs.length, height:tabs[0].getBoundingClientRect().height,
+      fits:tabs.every(function(t){var r=t.getBoundingClientRect();return r.top>=bounds.top&&r.bottom<=bounds.bottom+1;}),
+      scroll:nav.scrollHeight-nav.clientHeight, width:bounds.width,
+      controls:Array.from(nav.querySelectorAll('.vs-findtab,.vs-indextoggle')).map(function(t){var r=t.getBoundingClientRect();return [r.width,r.height,getComputedStyle(t).fontSize];})};
+  })()`);
+  let tall, short, date, icons;
+  await p.eval(`window.__savedIndexSettings=JSON.parse(JSON.stringify(__vs.settings()));`);
+  try {
+    icons=await p.j(`(function(){
+      var shelf=__vs.settings().shelves.find(function(s){return s.id==='tags';});
+      var before=JSON.stringify(shelf), head=document.querySelector('[data-shelf="tags"] .vs-shelfhead');
+      var meta=head.querySelector('.vs-meta'), buttons=Array.from(meta.querySelectorAll('button'));
+      var style=getComputedStyle(meta);
+      var matched=buttons.every(function(b){var s=getComputedStyle(b), r=b.querySelector('svg').getBoundingClientRect();return s.color===style.color&&s.fontSize===style.fontSize&&s.visibility==='visible'&&s.opacity==='1'&&r.width===12&&r.height===12;});
+      var dots=buttons.every(function(b){return b.previousSibling.textContent.trim()==='\u00b7';});
+      buttons[0].click();var edits=document.getElementById('vs-bname').value===shelf.name;
+      document.getElementById('vs-bcancel').click();buttons[1].click();
+      var hides=shelf.hidden&&!document.querySelector('[data-shelf="tags"]');
+      shelf.hidden=JSON.parse(before).hidden;var keeps=JSON.stringify(shelf)===before;__vs.setFilters({});
+      var books=__vs.views().find(function(v){return v.shelf.id==='tags';}).books.slice();books.sort(function(a,b){return b.notes.length-a.notes.length;});
+      __vs.openBook(books[0].id,null);
+      if(document.querySelector('.vs-indextoggle').dataset.indexMode!=='az')document.querySelector('.vs-indextoggle').click();
+      return {count:buttons.length,matched:matched,dots:dots,edits:edits,hides:hides,keeps:keeps};
+    })()`);
+    await p.send('Emulation.setDeviceMetricsOverride',{width:1180,height:1000,deviceScaleFactor:1,mobile:false});
+    tall=await read();
+    await p.send('Emulation.setDeviceMetricsOverride',{width:1180,height:480,deviceScaleFactor:1,mobile:false});
+    short=await read();
+    await p.eval(`document.querySelector('.vs-indextoggle').click();`);
+    date=await read();
+  } finally {
+    await p.eval(`__vs.closeReader();Object.assign(__vs.settings(),window.__savedIndexSettings);delete window.__savedIndexSettings;__vs.setFilters({});`);
+    await p.send('Emulation.clearDeviceMetricsOverride');await sleep(150);
+  }
+  return {ok:icons.count===2&&['matched','dots','edits','hides','keeps'].every(k=>icons[k])&&
+    [tall,short,date].every(r=>r.count>0&&r.fits&&r.scroll<=1&&r.width===56)&&short.height<tall.height&&
+    JSON.stringify(tall.controls)===JSON.stringify(short.controls)&&JSON.stringify(short.controls)===JSON.stringify(date.controls),
+    detail:JSON.stringify({icons,tall,short,date})};
+});
+
 check("the reader's index tabs stay countable on the biggest book", async (p) => {
   const r = await p.j(`(function(){
     var biggest = null;
@@ -5788,7 +6135,7 @@ check("the reader's index tabs stay countable on the biggest book", async (p) =>
     });
     __vs.openBook(biggest.id, null);
     var out = { book: biggest.id, notes: biggest.notes.length,
-                tabs: document.querySelectorAll("#vs-tabs button:not(.vs-findtab)").length };
+                tabs: document.querySelectorAll("#vs-tabs button:not(.vs-findtab):not(.vs-indextoggle)").length };
     /* github#39 -- close it, or it paints over the library for the next check */
     __vs.closeReader();
     return out;
@@ -6183,7 +6530,9 @@ check("a push made slowly still turns, and the latch still clears on its own", a
   await p.j(open);
   const slow = [];
   for (let i = 0; i < 3; i++) {
-    await p.j(`(function(){ __push.wheel(__push.right(), 100, 1);
+    await p.j(`(function(){ var page = __push.right();
+      page.scrollTop = page.scrollHeight - page.clientHeight;
+      __push.wheel(page, 100, 1);
       return __vs.overscroll().at; })()`);
     slow.push(await p.j(`(function(){ var o = __vs.overscroll();
       return { at: o.at, index: __vs.reader().index }; })()`));
@@ -6191,26 +6540,39 @@ check("a push made slowly still turns, and the latch still clears on its own", a
   }
   const slowIndex = await p.j(`__vs.reader().index`);
 
-  /* github#40 -- and the accumulator does give up eventually */
+  /* github#40, design/0028 */
+  await sleep(t.quiet + 80);
+  const partial = await p.j(`(function(){
+    var page = __push.right(), unlatched = !__vs.overscroll().spent;
+    page.scrollTop = page.scrollHeight - page.clientHeight;
+    __push.wheel(page, 100, 2);
+    return { unlatched: unlatched, at: __vs.overscroll().at, index: __vs.reader().index,
+             top: page.scrollTop, span: page.scrollHeight-page.clientHeight };
+  })()`);
   await sleep(t.hold + 200);
   const forgotten = await p.j(`(function(){
-    __push.wheel(__push.right(), 100, 1);
+    var page = __push.right();
+    var before = __vs.overscroll().at;
+    __push.wheel(page, 100, 1);
     var o = __vs.overscroll();
-    var out = { at: o.at, index: __vs.reader().index };
+    var out = { at: o.at, index: __vs.reader().index, before: before };
     __vs.closeReader();
     return out;
   })()`);
 
   const ok = t.quiet === 140 && t.hold === 600 && t.hold > t.quiet &&
-             slow[1].at === 200 && slowIndex === 1 && forgotten.at === 100;
+             slow[1].at === 200 && slowIndex === 1 && partial.unlatched &&
+             partial.at === 200 && partial.index === 1 && Math.abs(partial.top-partial.span) <= 1 &&
+             forgotten.before === 0 && forgotten.at === 100 && forgotten.index === 1;
   return {
     ok,
     detail: `the latch clears after ${t.quiet}ms of silence and the accumulator holds its push ` +
             `for ${t.hold}ms. Three notches ${t.quiet + 80}ms apart -- further apart than the ` +
             `latch's silence -- accumulated ${slow.map((s) => s.at).join("px, ")}px and turned ` +
-            `the page to ${slowIndex}, which turned nothing at all while one timer did both ` +
-            `jobs; after ${t.hold + 200}ms of silence a fresh notch starts again at ` +
-            `${forgotten.at}px, so a push is not remembered for ever`
+            `the page to ${slowIndex}; after the latch clears (${partial.unlatched}), two notches at the ` +
+            `page bottom (${partial.top}/${partial.span}px) build ${partial.at}px without turning. ` +
+            `After ${t.hold + 200}ms of silence that partial push is ${forgotten.before}px, ` +
+            `and a fresh notch starts at ${forgotten.at}px on page ${forgotten.index}`
   };
 });
 
@@ -8088,6 +8450,7 @@ async function capture(page, out) {
   if (SHOT_OPEN) {
     await page.eval(`(function(){
       var sheet = ${JSON.stringify(SHOT_OPEN)};
+      if (sheet === "book") { document.querySelector('[data-shelf="favourites"] .vs-plusbook').click(); return; }
       if (sheet === "builder") { document.getElementById("vs-newshelf").click(); return; }
       document.getElementById("vs-manageopen").click();
       /* github#44 -- the popover open, one of the twelve under the pointer */
@@ -8109,7 +8472,7 @@ async function capture(page, out) {
         });
         document.querySelectorAll("#vs-mpalette .vs-dyerows tr")[at]
           .querySelector(".vs-slot .vs-swatch").click();
-        var one = document.querySelectorAll("#vs-swatchpick .vs-swatches .vs-swatch")[(at + 6) % 12];
+        var one = document.querySelectorAll("#vs-swatchpick .vs-swatches .vs-swatch")[(at + 6) % 14];
         if (one) one.dispatchEvent(new MouseEvent("mouseenter", { bubbles: false }));
         return;
       }
@@ -8127,6 +8490,7 @@ async function capture(page, out) {
   await shoot(out);
   if (SHOT_OPEN) {
     await page.eval(`(function(){
+      if (${JSON.stringify(SHOT_OPEN)} === "book") { document.getElementById("vs-mbcancel").click(); return; }
       if (${JSON.stringify(SHOT_OPEN)} === "builder") { document.getElementById("vs-bcancel").click(); return; }
       if (${JSON.stringify(SHOT_OPEN)} === "swatch") {
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));

@@ -2,6 +2,9 @@
 
 The tabs down the edge of the reading spread, and the order of the contents they point into.
 
+Amended by [0030](0030-contents-order.md): Tags also defaults to A?Z, and every shelf and
+book can choose its contents order. The classifier-based table below records the original rule.
+
 ## A tab is a position, so the cut must follow the order
 
 The tabs jump to an index in `book.notes`. That is the whole constraint, and it was being

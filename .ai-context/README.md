@@ -63,6 +63,7 @@ changing what a shelf contains or how a book is addressed.
 | `0021-one-geometry-three-faces` | Where the line between a face and a box falls, the audit of every geometry and part declaration in the two look sheets, and the walk over every element that replaced a list of 38 named controls |
 | `0022-a-hovered-swatch-paints-the-room` | A hovered colour previews on the library itself, not in a sample: what the trial object is, and why a preview may paint and nothing else |
 | `0023-the-update-note` | The strip the plugin shows once after a MINOR or MAJOR: the note's grammar, the decision table, why the chain is parsed out of the CHANGELOG at build time, and why the marker cannot live in the core's settings |
+| `0029-leather-spine-bindings` | Five leather bindings beside colours, preserved Original, deterministic series and persisted demo settings |
 
 **ADR or DDR?** An ADR is a choice with alternatives that were weighed and one that won —
 it explains *why not the other thing*. A DDR describes how a part actually works and the
@@ -122,3 +123,9 @@ __vs.setListMode(true)    // the assistive-technology view
 If a change is about **what a shelf contains or where a book lives**, it needs a number
 before and after. The entries in `changelog-detail.md` carry those numbers on purpose — they
 are the regression suite.
+
+- [0030 ? Contents order](design/0030-contents-order.md): reader switch, saved shelf/book defaults, and book creation pickers.
+
+- [0031 - Picker and reader controls](design/0031-picker-and-reader-controls.md): two-row palette, Minimal binding, ribbon cuts, persistent title bar and Manage layout.
+
+- [0032 - Compressing index and shelf actions](design/0032-compressing-index-and-shelf-actions.md): fixed search/order controls, fitting tabs and inline gear/eye buttons.

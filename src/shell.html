@@ -68,6 +68,10 @@ function followSystemTheme(handle, root) {
 
 var vsRoot = document.getElementById("vs-app");
 var vsSettings = loadSettings();
+if (!vsSettings && window.VAULT_SETTINGS) {
+  vsSettings = window.VAULT_SETTINGS;
+  saveSettings(vsSettings);
+}
 var vsHandle = mountVaultShelf(vsRoot, window.VAULT_DATA, {
   core: window.VaultShelfCore,
   settings: vsSettings,

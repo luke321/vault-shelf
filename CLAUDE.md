@@ -42,19 +42,20 @@ of measuring it.** Build the page, drive it, read the numbers.
 - **The page is scoped, in both directions**: every CSS rule under `.vault-shelf`, every id
   and **every class** prefixed `vs-`, every document through `root.ownerDocument`; nothing
   shipped reaches the network. Obsidian's own `app.css` claims `.spread`, and it claimed ours.
-- **The twelve colour slots are Vault Graph's**, read from the cascade rather than copied, and
-  the theme is whatever the host says it is.
-- **A tab is a position in the contents**, so the index is cut the way the book is ordered: an
-  Encyclopedia volume is alphabetical inside and gets letters, everything else is in date order
-  and gets dates.
+- **The first twelve colour slots are Vault Graph's**, read from the cascade rather than
+  copied; two brighter slots extend the picker to fourteen (`design/0029`). The theme is
+  whatever the host says it is.
+- **A tab is a position in the contents**, so the index is cut the way the book is ordered: Encyclopedia
+  and Tags default to A-Z; other shelves default to dates. Shelf and book pickers can change
+  that default; the switch below search changes both contents and tabs (`design/0030`).
 - **A book opens on its oldest note, and so does a date shelf.** A notebook that starts on its
-  last page reads as if it were written backwards. One toggle in the top bar turns both round;
-  a shelf classified by anything else keeps its own A-to-Z. **A shelf can also have no rule**:
+  last page reads as if it were written backwards. The old top-bar direction button is removed;
+  saved direction settings still load. Shelf/book pickers choose A-Z or Date (`design/0031`). **A shelf can also have no rule**:
   `manual` is the order a person dragged the books into, held as `Shelf.order` — a list of
   classifier **keys**, so it survives a rebuild the way an address does. It moves the sequence
   and nothing else: not an address, not membership, not what is inside a book. A key it does
   not name goes to the end, a key the vault has lost is dropped on save, and the toggle in the
-  top bar cannot reach it. `design/0018`.
+  contents order cannot move it. `design/0018`.
 - **A favourite is a reference, never a copy.** The shelf at position 0 is a `pick` shelf: it
   classifies nothing and holds the **addresses** of other shelves' books, in the order they were
   dropped, so its label, notes and bands are the source's and are live. `picks` is the only
@@ -73,9 +74,9 @@ of measuring it.** Build the page, drive it, read the numbers.
   lives; a made book is**: the reader, the reading places and *also shelved in* skip references,
   never made books. Off the rail means delete, another pick shelf refuses it, a lost source is
   an empty spine rather than a dropped book, and nothing in the vault moves. `design/0020`.
-- **A look is paint.** `data-look` picks a stylesheet — `""` the default, `"leather"` the
-  other one on offer, `"cyber"` shelved until its redesign but still shipped and still
-  measured — and it may repaint anything and move nothing: not a shelf's
+- **A look is paint.** `data-look` picks a stylesheet — `"leather"` the default and sole
+  offered look, Modern (`""`) and Cyber (`"cyber"`) shelved but still shipped and still
+  measured (`design/0029`) — and it may repaint anything and move nothing: not a shelf's
   order, not a book's address, not a count, **not a book's size and not a control's** — a
   spine is the same width and height in all three, in a room of the same width, and every
   button, box, tab, ribbon and swatch is the same height, so switching does not move the
