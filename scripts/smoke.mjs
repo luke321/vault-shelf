@@ -991,28 +991,63 @@ check("reader tabs keep their width and the search rail stays above matching rib
 
 /* design/0031 */
 check("Manage colour rules fit and pick shelves offer no colour variation", async (p) => {
-  const read=()=>p.j(`(function(){
-    document.getElementById('vs-manageopen').click();
-    var rows=Array.from(document.querySelectorAll('.vs-managerow'));
-    var bad=[];
-    var fits=rows.every(function(row){var r=row.getBoundingClientRect();return Array.from(row.querySelectorAll('button,select,label')).every(function(control){var c=control.getBoundingClientRect();var fits=c.left>=r.left-1&&c.right<=r.right+1;if(!fits)bad.push([control.className,c.left-r.left,c.right-r.right]);return fits;});});
-    var pick=rows.find(function(row){return row.querySelector('[data-go="favourites"]');});
-    var noVary=!pick.querySelector('[data-fact="vary"]');
-    var count=document.querySelector('#vs-manage .vs-hint:not(.vs-lede)').textContent;
-    var words=document.getElementById('vs-manage').textContent.includes('Fourteen colours');
-    document.getElementById('vs-mclose').click();
-    __vs.editShelf('favourites');
-    var builder=document.getElementById('vs-bvary').closest('label').hidden;
-    document.getElementById('vs-bcancel').click();
-    return {fits:fits,noVary:noVary,builder:builder,words:words,bad:bad};
-  })()`);
-  const wide=await read();
-  let narrow;
+  const original = await p.j("({width:innerWidth,height:innerHeight,look:document.getElementById('vs-app').dataset.look||''})");
+  const resize = async (width, height) => {
+    await p.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+    await p.eval("window.dispatchEvent(new Event('resize')); void 0");
+    let stable=0;
+    for (let i=0;i<60;i++) {
+      const ready=await p.j(`innerWidth===${width} && innerHeight===${height} && !__vs.room().pending`);
+      stable=ready?stable+1:0;
+      if(stable>=5) return;
+      await sleep(50);
+    }
+    throw new Error('Manage viewport did not reach '+width+'x'+height);
+  };
+  const results=[];
   try {
-    await p.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
-    narrow=await read();
-  } finally { await p.send('Emulation.clearDeviceMetricsOverride'); await sleep(150); }
-  return {ok:Object.values(wide).every(Boolean)&&Object.values(narrow).every(Boolean),detail:JSON.stringify({wide,narrow})};
+    for (const width of [original.width,390,320]) {
+      await resize(width,width===original.width?original.height:844);
+      const states=await p.j(`(function(){
+        return VaultShelfCore.LOOKS.map(function(look){
+          __vs.setLook(look.value);document.getElementById('vs-manageopen').click();
+          var rows=Array.from(document.querySelectorAll('.vs-managerow'));
+          var bad=[];
+          var geometry=rows.map(function(row){
+            var r=row.getBoundingClientRect();
+            var controls=Array.from(row.querySelectorAll('button,select,label'));
+            controls.forEach(function(c){var b=c.getBoundingClientRect();if(b.left<r.left-1||b.right>r.right+1)bad.push(c.className);});
+            return {name:row.querySelector('.vs-name').textContent,height:r.height,
+              boxes:controls.map(function(c){var b=c.getBoundingClientRect();return [b.top-r.top,b.height];})};
+          });
+          var pick=rows.find(function(row){return row.querySelector('[data-go="favourites"]');});
+          var noVary=!pick.querySelector('[data-fact="vary"]');
+          var words=document.getElementById('vs-manage').textContent.includes('Fourteen colours');
+          document.getElementById('vs-mclose').click();__vs.editShelf('favourites');
+          var builder=document.getElementById('vs-bvary').closest('label').hidden;
+          document.getElementById('vs-bcancel').click();
+          return {look:look.value||'modern',bad:bad,noVary:noVary,builder:builder,words:words,geometry:geometry};
+        });
+      })()`);
+      const base=states.find(s=>s.look==='modern').geometry;
+      const differences=[];
+      for(const state of states) state.geometry.forEach((row,i)=>{
+        if(Math.abs(row.height-base[i].height)>1 || row.boxes.some((b,j)=>b.some((v,k)=>Math.abs(v-base[i].boxes[j][k])>1))) differences.push(state.look+' '+row.name);
+      });
+      results.push({width,heights:states.map(s=>[s.look,s.geometry.map(r=>r.height)]),differences,
+        ok:!differences.length&&states.every(s=>!s.bad.length&&s.noVary&&s.builder&&s.words)});
+      if(SHOT&&width===390) {
+        await p.eval("__vs.setLook('leather');document.getElementById('vs-manageopen').click();document.getElementById('vs-manage').scrollTop=0; void 0");
+        const shot=await p.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+        writeFileSync(SHOT.replace(/\.png$/i,'-manage.png'),Buffer.from(shot.data,'base64'));
+        await p.eval("document.getElementById('vs-mclose').click(); void 0");
+      }
+    }
+  } finally {
+    await p.eval(`__vs.setLook(${JSON.stringify(original.look)}); void 0`);
+    await resize(original.width,original.height);
+  }
+  return {ok:results.every(r=>r.ok),detail:JSON.stringify(results)};
 });
 
 /* design/0030 */
