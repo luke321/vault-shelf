@@ -102,6 +102,19 @@ search had *before* `github#58`: it would have claimed a `body` reason for a not
 longer marks, and stayed **silent** about a note marked only through a cover. The equivalence
 above is what catches that, and it catches it only because the sixth needle is a cover-only term.
 
+### The first matching contents row is visible when a searched book opens
+
+An ordinary spine open with an active library query reveals the first marked row in the
+book's current contents order. This scrolls only the left page: the selected note, right-page
+body and default opening order stay the same. An explicit note or ribbon destination takes
+precedence, and a blank query or book with no matches reveals the selected row as before.
+
+This is a single reveal at opening, consumed by the existing contents reveal bookkeeping.
+It sets the initial scroll position immediately; later navigation keeps its usual scrolling.
+Later page turns reveal their selected row; changing the query does not restart the initial
+search reveal or move the left page back to its first hit. Date and A-Z contents use the same
+rendered row order, with no second sort or matching rule.
+
 ## Paint
 
 A marked row wears the accent the way a matching spine does — a 15% ground and the title in the

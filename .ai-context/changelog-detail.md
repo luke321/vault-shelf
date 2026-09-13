@@ -1,5 +1,26 @@
 # Changelog detail
 
+## 2026-09-13 - A searched book reveals its first matching contents row
+
+An ordinary book open now places the first matching row near the top of the left contents
+page without changing the selected note or right-page position. The initial reveal is
+immediate and consumed once; explicit note/ribbon destinations and later navigation keep
+their existing selected-row behavior. Blank queries and books without a hit fall back to it.
+
+Before: on the 2,450-note No one named book, the first matching row was **1,225**, offscreen
+at left scroll **0px** in both Date and A-Z order. After: the same row is visible at
+**31,426px** (Date) and **31,443px** (A-Z); the selected note remains index **0**, right scroll
+**0px**. Next reveals row 1; changing the query then preserves that position. Explicit-note
+opens and both fallback cases reveal the selected row. A smooth initial reveal was replaced
+with immediate positioning after measurement caught it starting after the book opened.
+
+**6/6 targeted checks pass in 21 seconds**, including contents defaults, appearance drafts,
+match explanations, ribbon/tab/Previous navigation and index clicks retaining their scroll.
+Build, strict lint, scope, network, comments (1481/1481), static escaping, generated maps and
+PII patterns pass (no local name list). No full suite ran. Inspected
+`dist/first-finding-after-first-match.png`: Wide router cutters is visible and highlighted
+near the top of the left page while the right page still shows its original opening note.
+
 ## 2026-09-13 - Integrate search scope and match reasons with the spine picker
 
 The merge keeps both reader state fields: page-edge landing and the live query used for

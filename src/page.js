@@ -232,7 +232,7 @@ function mountVaultShelf(root, data, options) {
   var bookIndex = {};
   /** The biggest book in the library, which every thickness is scaled against. */
   var thickest = 1;
-  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, land?: "top"|"bottom"|null, lit?: string }|null} */
+  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, revealMatch?: boolean, land?: "top"|"bottom"|null, lit?: string }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
   var history = [];
@@ -2562,7 +2562,7 @@ function mountVaultShelf(root, data, options) {
       for (var i = 0; i < book.notes.length; i++) if (book.notes[i].id === noteId) index = i;
     }
     reader = { book: book, index: index, noteId: book.notes.length ? book.notes[index].id : null,
-               within: "", opener: /** @type {HTMLElement|null} */ (DOC.activeElement) };
+               within: "", revealMatch: !noteId, opener: /** @type {HTMLElement|null} */ (DOC.activeElement) };
     // design/0008, design/0019, github#35
     var worn = sourceOf(book).id;
     settings.wear[worn] = (settings.wear[worn] || 0) + 1;
@@ -2789,7 +2789,9 @@ function mountVaultShelf(root, data, options) {
   /** @param {HTMLElement} box */
   function revealCurrent(box) {
     if (!reader || reader.revealed === reader.noteId) return;
-    var row = /** @type {HTMLElement|null} */ (box.querySelector('button[aria-current="true"]'));
+    /* design/0027 -- the initial search reveal leaves the selected note alone */
+    var first = reader.revealMatch && box.querySelector('button[data-match="1"]');
+    var row = /** @type {HTMLElement|null} */ (first || box.querySelector('button[aria-current="true"]'));
     var page = /** @type {HTMLElement|null} */ (box.closest(".vs-page"));
     if (!row || !page || !page.clientHeight) return;
     var pageBox = page.getBoundingClientRect();
@@ -2798,12 +2800,13 @@ function mountVaultShelf(root, data, options) {
     var bottom = top + rowBox.height;
     var margin = Math.round(rowBox.height);
     var target = page.scrollTop;
-    if (top < page.scrollTop + margin) target = top - margin;
+    if (first || top < page.scrollTop + margin) target = top - margin;
     else if (bottom > page.scrollTop + page.clientHeight - margin) target = bottom - page.clientHeight + margin;
     target = Math.max(0, Math.min(target, page.scrollHeight - page.clientHeight));
     reader.revealed = reader.noteId;
+    delete reader.revealMatch;
     if (Math.abs(target - page.scrollTop) < 1) return;
-    if (reduceMotion || !page.scrollTo) page.scrollTop = target;
+    if (first || reduceMotion || !page.scrollTo) page.scrollTop = target;
     else page.scrollTo({ top: target, behavior: "smooth" });
   }
 

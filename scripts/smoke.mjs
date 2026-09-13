@@ -229,6 +229,7 @@ const POINTER_DRIVEN = [
   "keyboard",
   "plaque sits",
   "tabs",
+  "first matching contents row",
   "has a width",
   "same size",
   /* design/0018 -- a drop is a pointer position against a box, and it has to scroll a shelf
@@ -6396,6 +6397,82 @@ check("the reader's index tabs stay countable on the biggest book", async (p) =>
   })()`);
   return { ok: r.tabs > 0 && r.tabs <= 26,
            detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} tabs (cap 26)` };
+});
+
+/* design/0027 */
+check("opening a searched book reveals its first matching contents row without changing the note", async (p) => {
+  const saved = await p.j("__vs.settings()");
+  const read = () => p.j(`(function(){
+    var page = document.querySelector('.vs-page.vs-left');
+    var rows = Array.from(document.querySelectorAll('#vs-contents button'));
+    var first = rows.find(function (row) { return row.dataset.match === '1'; });
+    var current = rows.find(function (row) { return row.getAttribute('aria-current') === 'true'; });
+    var box = page.getBoundingClientRect();
+    var inside = function (row) { var r = row && row.getBoundingClientRect();
+      return !!r && r.top >= box.top && r.bottom <= box.bottom; };
+    return { top: Math.round(page.scrollTop), first: rows.indexOf(first), hitInside: inside(first),
+      currentInside: inside(current), note: __vs.reader().note, index: __vs.reader().index,
+      rightTop: document.querySelector('.vs-page.vs-right').scrollTop };
+  })()`);
+  const settled = async () => {
+    let last, stable = 0;
+    for (let i = 0; i < 60; i++) {
+      const now = await read();
+      stable = last && now.top === last.top ? stable + 1 : 0;
+      if (stable >= 3) return now;
+      last = now;
+      await sleep(50);
+    }
+    return last;
+  };
+  const results = [];
+  try {
+    for (const mode of ["date", "az"]) {
+      const pick = await p.j(`(function(){
+        __vs.closeReader(); __vs.setQuery('');
+        var settings = ${JSON.stringify(saved)};
+        settings.shelves.forEach(function (s) { s.indexMode = ${JSON.stringify(mode)}; delete s.bookIndexes; });
+        Object.assign(__vs.settings(), settings); __vs.setFilters({});
+        var core = window.VaultShelfCore, views = __vs.views();
+        var books = views.filter(function (v) { return !v.shelf.hidden && v.shelf.classifier !== 'pick'; })
+          .flatMap(function (v) { return v.books; }).sort(function (a,b) { return b.notes.length-a.notes.length; });
+        var book = books[0], index = core.buildSearchIndex(views, __vs.data().notes), pick;
+        for (var i = Math.floor(book.notes.length/2); i < book.notes.length; i++) {
+          var query = book.notes[i].title;
+          var at = book.notes.findIndex(function (n) { return core.matchesQuery(n, query.toLowerCase(), index); });
+          if (at > 60) { pick = { book: book.id, query: query, at: at, oldest: book.notes[0].id }; break; }
+        }
+        if (!pick) return null;
+        __vs.setQuery(pick.query); __vs.openBook(pick.book, null);
+        return pick;
+      })()`);
+      if (!pick) return { ok: false, detail: mode + " has no offscreen first match to measure" };
+      const open = await settled();
+      if (SHOT && mode === "date") {
+        const shot = await p.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+        writeFileSync(SHOT.replace(/\.png$/i, "-first-match.png"), Buffer.from(shot.data, "base64"));
+      }
+      await p.eval("document.getElementById('vs-nextnote').click(); void 0");
+      const next = await settled();
+      await p.eval(`__vs.setQuery('__no_such_catalogue_term__'); __vs.setQuery(${JSON.stringify(pick.query)}); void 0`);
+      const query = await settled();
+      await p.eval(`__vs.openBook(${JSON.stringify(pick.book)}, ${JSON.stringify(pick.oldest)}); void 0`);
+      const explicit = await settled();
+      const fallback = [];
+      for (const needle of ["__no_such_catalogue_term__", ""]) {
+        await p.eval(`__vs.closeReader(); __vs.setQuery(${JSON.stringify(needle)}); __vs.openBook(${JSON.stringify(pick.book)}, null); void 0`);
+        fallback.push(await settled());
+      }
+      results.push({ mode, at: pick.at, open, next, query, explicit, fallback,
+        ok: open.first === pick.at && open.hitInside && open.top > 0 && open.note === pick.oldest && open.rightTop === 0 &&
+          next.index === 1 && next.currentInside && !next.hitInside && query.top === next.top && query.note === next.note &&
+          explicit.note === pick.oldest && explicit.currentInside && !explicit.hitInside &&
+          fallback.every((r) => r.first === -1 && r.index === 0 && r.note === pick.oldest && r.currentInside) });
+    }
+  } finally {
+    await p.eval(`__vs.closeReader(); __vs.setQuery(''); Object.assign(__vs.settings(), ${JSON.stringify(saved)}); __vs.setFilters({}); void 0`);
+  }
+  return { ok: results.every((r) => r.ok), detail: JSON.stringify(results) };
 });
 
 /* github#11, design/0015 */

@@ -1709,6 +1709,17 @@ is also why the reason is read off **a marked row** rather than off whichever no
 on: a book is drawn forward by some of its notes, not all, and the note you land on need not be
 one of them.
 
+**An ordinary searched book reveals its first matching contents row on opening**
+(`design/0027`). The selected/right-page note stays at the normal opening place. Explicit
+note and ribbon destinations retain precedence; blank queries and books with no matches
+reveal the selected row. The check `opening a searched book reveals its first matching
+contents row without changing the note` measures an offscreen first hit in Date and A-Z
+order, then Next, changed queries, explicit-note opens and both fallback cases. Only the
+initial opening reveals the first hit; subsequent navigation continues to reveal its target.
+Measured on 2,450 notes: first hit at row **1,225**, previously offscreen at **0px**, is visible
+at **31,426px** in Date order and **31,443px** in A-Z. Selected note stays at index **0** and
+right-page scroll at **0px**; Next, query changes, explicit-note and fallback checks pass.
+
 ## What the vault spells
 
 `design/0026`, `github#41`. The search box is a **combobox** over the vocabulary the classifiers
