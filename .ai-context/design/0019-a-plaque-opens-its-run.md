@@ -1,5 +1,14 @@
 # 0019 — A plaque opens its run
 
+### 2026-09-13 — Keep the run supplied by the clicked plate
+
+The contents-picker refresh added address lookup at every book open. Two separated manual
+runs can share `tags/-plaque-A`, so resolving that address without a note discarded the
+clicked plate's already-built run and chose the first A run. Refresh ordinary books from
+the real-book index; retain supplied virtual books. Saved ribbons still resolve by address
+and note through their existing path. With acoustics moved to the end of Tags, its plate
+now opens one note instead of 1,812; the first A plate still opens its own 1,812 unique notes.
+
 > "would be cool if clicking a plaque does something"
 
 A plaque was a label and nothing else (`design/0003`): the year under a run of months, the

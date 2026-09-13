@@ -2560,7 +2560,8 @@ function mountVaultShelf(root, data, options) {
    */
   /** @param {Book} book @param {string|null} noteId */
   function openBook(book, noteId) {
-    book = findBook(book.id, noteId) || book;
+    // design/0019, design/0031
+    book = bookIndex[book.id] || book;
     if (reader && reader.book.id !== book.id) {
       history.push({ bookId: reader.book.id, noteId: reader.noteId });
     }
