@@ -150,6 +150,25 @@ const E = (expr) => c.eval(expr);
 const readData = () => existsSync(dataFile) ? readFileSync(dataFile, "utf8") : null;
 const lastSeen = () => { const t = readData(); if (t === null) return null; const j = JSON.parse(t); return "lastSeenVersion" in j ? j.lastSeenVersion : undefined; };
 
+// design/0033, design/0023
+async function settleSettings() {
+  const deadline = Date.now() + 15000;
+  let previous = null, stable = 0;
+  while (Date.now() < deadline) {
+    let bytes = null;
+    try {
+      const candidate = readData();
+      const data = JSON.parse(candidate);
+      if (data && data.bookNotes && data.lastOpened) bytes = candidate;
+    } catch { }
+    stable = bytes && bytes === previous ? stable + 1 : 0;
+    if (stable >= 3) return;
+    previous = bytes;
+    await sleep(120);
+  }
+  throw new Error("valid book-history settings did not settle within 15000 ms");
+}
+
 /** @param {object | null} data @param {string} installed */
 async function reloadPlugin(data, installed) {
   if (data === null) rmSync(dataFile, { force: true });
@@ -185,6 +204,7 @@ async function openLibrary() {
   await E("app.commands.executeCommandById(" + JSON.stringify(PLUGIN_ID + ":open") + "); void 0");
   await waitFor(c, READY, OPEN_TIMEOUT_MS, "the library");
   await settle();
+  await settleSettings();
 }
 
 async function closeLibrary() {
@@ -232,6 +252,11 @@ try {
   }
   await waitFor(c, "!!app.plugins.getPlugin(" + JSON.stringify(PLUGIN_ID) + ")", 30000, "the plugin load");
   await dismissModals();
+  // design/0033, decisions/0005
+  await waitFor(c, "app.vault.getMarkdownFiles().every(function (file) { return !!app.metadataCache.getFileCache(file); })",
+                OPEN_TIMEOUT_MS, "the complete fixture metadata cache");
+  const cachedNotes = await E("app.vault.getMarkdownFiles().filter(function (file) { return !!app.metadataCache.getFileCache(file); }).length");
+  console.log("fixture metadata ready: " + cachedNotes + " Markdown files");
 
   // github#33, design/0023
   for (const [kind, lastSeen, installed] of [["MINOR", "1.0.0", "1.1.0"], ["MAJOR", "0.9.0", "1.0.0"]]) {
@@ -373,12 +398,16 @@ try {
   report(lastSeen() === NEXT_PATCH, "a PATCH bump records the version", "lastSeenVersion " + lastSeen());
   await closeLibrary();
 
-  console.log("already seen ({ lastSeenVersion: " + N + " }, " + N + ")");
-  await reloadPlugin({ lastSeenVersion: N }, N);
+  console.log("already seen (migrated settings, lastSeenVersion " + N + ", " + N + ")");
+  // design/0033, design/0023
+  const alreadySeen = JSON.parse(readData());
+  alreadySeen.lastSeenVersion = N;
+  await reloadPlugin(alreadySeen, N);
   const bytesBefore = readData();
   await openLibrary();
   report(!await stripShown(), "an already-seen version shows nothing");
-  report(readData() === bytesBefore, "and writes nothing", "data.json unchanged");
+  const bytesAfter = readData();
+  report(bytesAfter === bytesBefore, "and writes nothing", "data.json unchanged");
   await closeLibrary();
 
   console.log("note for another minor ({ lastSeenVersion: " + N + " }, " + NEXT_MINOR + ")");

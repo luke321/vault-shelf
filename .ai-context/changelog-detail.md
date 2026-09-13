@@ -1,5 +1,25 @@
 # Changelog detail
 
+## 2026-09-13 - Wait for complete fixture history before the no-write strip check
+
+The actual update-strip harness passed 32/33 because its already-seen case supplied only
+a version marker, so the new book-history baseline legitimately needed saving. Reusing
+migrated settings alone still failed while the throwaway vault indexed: a concrete diff
+showed only wear/lastOpened/bookNotes changing, from 243 to 247 known addresses, with 161
+ledgers gaining metadata-derived notes. Another sample caught data.json briefly empty during
+an asynchronous write.
+
+The harness now waits for every fixture Markdown file's metadata before its scenarios and
+for valid history settings with stable bytes after opening the library, under bounded
+timeouts. The already-seen case reuses migrated settings; its exact byte-for-byte no-write
+assertion remains unchanged. No product code changed.
+
+The actual 1.0.0 run reports **4,938 metadata-ready notes and 33/33 passed**, including the
+unchanged data.json assertion. Syntax, strict lint, comments (1477/1477) and generated maps
+pass. Evidence: `dist/update-strip-1.0.0-history-final.log` and its sibling screenshot folder.
+The harness closed its own Obsidian and released screen-left. No full suite or release media
+changes ran.
+
 ## 2026-09-13 - Show the current activity count in a spine's peek
 
 After two opens, acoustics correctly held count 3 but its cached hover text still said 1.
