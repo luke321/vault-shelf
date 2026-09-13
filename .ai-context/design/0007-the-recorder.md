@@ -98,28 +98,105 @@ the point of `--act`.
 
 `--out` writes h.264 in an mp4 (`yuv420p`, `+faststart`, even dimensions forced — an odd
 width is the one thing that makes libx264 refuse). `--hero` additionally writes an animated
-WebP for the README at 12fps and 1000px wide.
+WebP for the README at 8fps and 1000px wide (quality 75 by default).
 
 The mp4 is gitignored (`demo-*.mp4`); the WebP is committed, because it is what the README
 shows and `scripts/release.ps1` warns when it has gone stale against `src/`.
 
-## Which look it shoots in (2026-09-11)
+## Release 1.0.0: the square hero
 
-`--look leather|modern|cyber` picks the look through the library's own selector, the way a
-person does, and the selector stays in shot because it is part of the product. `modern` is an
-alias for the selector's empty value, since an empty flag is no flag and a fresh library opens
-in leather now (`design/0016`). The recorder throws rather than shooting 98 seconds of the
-wrong look if the attribute does not come back as asked. Three films are kept in the review
-folder, one per look, and the hero is cut from the leather one.
+The `hero` act is an independently shootable 68-second story, following the requested order:
+scroll the populated library; open a year book; select a right-side index tab; select a note
+in the contents; leave a ribbon; close the book; scroll to the top; drag an Encyclopedia book
+onto Favourites; create **My Journal** on
+Favourites from the generated daily-notes folder; right-click that book and choose a binding
+and colour; then right-click a Months plaque and choose a binding and colour for its run.
+Menus reopen between a binding choice and a colour choice because each choice closes them.
+The pauses let the preview and the resulting books be seen before the next gesture.
 
-## The hero opens on the drag (github#21, 2026-09-11)
+The drag carries a real source book not already in Favourites. It asserts the visible insertion
+mark before dropping, then proves the saved reference was added exactly once and the source
+book and its notes stayed intact. A short hold shows the new favourite before book creation. The hand moves to empty rail
+and clicks to dismiss the focus-held peek; the recorder verifies it closed.
+
+The user revised the opening after reviewing v4: both the real CDP mouse and the drawn
+cursor stay beyond the right viewport edge through the opening hold and scroll (0-6.15s).
+The recorder asserts no peek appears during that introduction. At 6.15s the pointer eases
+in from the edge toward the first book, arrives by 6.8s, and clicks at 7s; it stays visible
+for the remaining story. Capture reports the intentional offscreen frames separately. Every control approach is eased per captured frame from the last pointer
+position to the actual target rectangle; the hand pauses before the click. The drag ghost
+follows a curved path. Capture reports visibility for every frame and the largest movement
+between adjacent frames, so hidden controls or instant cursor jumps cannot quietly pass.
+
+```powershell
+node scripts/record-demo.mjs --act hero --fps 24 --width 1000 --height 1000 --vault-name "Vault Shelf" --out dist/demo-vault-shelf-1.0.0-hero-v5.mp4 --hero dist/hero-v5.webp --hero-width 1000
+```
+
+Both outputs are natively square: the browser viewport is 1000x1000 at DPR 1 and the WebP
+preserves the aspect ratio. The animation-aware `libwebp_anim` encoder shares unchanged
+regions between frames; the review page records the current bytes alongside the preceding
+3,003,082-byte hero. No stretching or desktop recording is involved. `--first-frame
+<path.jpg>` captures only the opening frame for visual review before spending a full take;
+it also writes a one-frame MP4 to `--out`. `--keep-frames` retains the stills for inspection.
+`--hero-acts` now defaults to `hero`; the earlier feature acts remain independently available.
+The hero is shown first, before the full feature recordings are made. The approved 0.9.0
+v3 hero and v4 age-wear take are retained while the 1.0.0 v5 take incorporates the revised
+offscreen opening; v5 is reviewed
+from distinct files in `dist`, so neither the README asset nor the earlier Desktop copy is
+overwritten before replacement approval. Feature capture can proceed while the user reviews
+the new hero; committing any media still waits for the complete review.
+
+The existing `looks` feature act keeps its name for callers but now demonstrates the offered
+six spine bindings and colour preview. Leather is the sole offered look; it no longer
+advertises a removed two-look selector. Explicit `--look modern|cyber` remains a diagnostic
+using the suite's `__vs.setLook` hook, and verifies the requested look was applied.
+
+## Release 1.0.0: the complete feature set
+
+After the square hero was approved, its MP4 and WebP were preserved unchanged. The feature
+storyboard has 24 independent acts, with `close` last for the complete walkthrough. The five
+additional acts cover contents order, cover-name autocomplete, manual rearrangement, edge
+scroll while dragging, and Manage hide/reorder. `looks` demonstrates the six binding choices,
+colour previews, and both single-book and plaque-run changes; `turn` drives the actual wheel
+page-turn gesture as well as the buttons.
+
+Each feature uses the shared `scene` driver: setup establishes its starting fixture state,
+then timed steps approach the current control rectangle smoothly from the last pointer
+position before activating the real control. The pointer is visible from the opening frame
+through every take. Drag acts use the same visible ghost and live landing marks as the hero;
+their gates inspect saved order, references, and real edge scrolling. Builder and Manage
+scroll their own sheets so the final buttons remain visible in the square room.
+
+`--exact-act` disables substring selection: `--act read --exact-act` records only `read`.
+Each feature is captured at 1000x1000, 24fps, with an 8fps quality-75 animated WebP at the same
+native width. `--keep-frames` retains representative images; the capture reports pointer
+visibility and largest adjacent-frame movement for every act. A take's failed feature
+assertion stops that take before it can become a review asset.
+
+The `wear` act first proves an old year book starts visibly aged with no saved opens,
+while the recent year is fresh. Two actual open/close gestures then add the recent book's
+first level of use-wear. The scene reads the painted `data-wear` and saved count together.
+
+The search story uses an actual month cover name, opens the broader year book, shows the
+first matching contents row and cover-only reason, and repeats the query inside that book.
+The two searches must agree on the matching note count. Autocomplete accepts the real cover
+suggestion rather than inventing a keyword that happens to match.
+
+Feature WebPs live in `docs/features/<act>.webp`. The complete walkthrough concatenates the
+corrected 68-second hero first, followed by all 24 verified feature takes in source
+storyboard order with `close` last: 389 seconds (6m29s), natively square throughout. The
+review helper reads that same storyboard; its local scratch mapping resolves the dedicated
+hero to `assets/demo.webp` / `README.md`, and the 24 feature acts to their feature clips/pages.
+All media is reviewed before it is committed.
+
+## Earlier hero: the drag (github#21, 2026-09-11)
 
 *"re record all clips in leather, make the hero thematically interesting, start with favourite
 shelf drag and drop, then ribbons, then search."* The order is a claim about what the product
 is — you make the shelf yours, you mark your place, and the room answers you — so the film
 opens on those three, and the rest follows them.
 
-**The storyboard now runs** `open, favourite, ribbon, parting, room, shelves, plaques, peek,
+**That storyboard ran** `open, favourite, ribbon, parting, room, shelves, plaques, peek,
 read, index, alsoin, wear, build, makebook, editbook, plusbook, looks, close` — 149 seconds,
 3,576 frames at 24fps, 178 seconds of capture. The first five are the hero.
 
@@ -127,7 +204,7 @@ read, index, alsoin, wear, build, makebook, editbook, plusbook, looks, close` �
 a fresh library opens in (`design/0016`) and the old hero was cut before it was; `--look
 modern` still asks for the other one.
 
-**The hero is named by act, not by second.** `--hero-clip 5,12` stayed `5,12` while the acts
+**The hero is named by act, not by second.** (The defaults below describe the earlier cut.) `--hero-clip 5,12` stayed `5,12` while the acts
 under it were re-timed, so it cut a beat in half and nobody noticed. `--hero-acts` (default
 `open,favourite,ribbon,parting,room`) names the acts, and the window is wherever they land in
 the take being shot — `--act` moves it rather than cutting through it. `--hero-clip

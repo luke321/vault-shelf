@@ -2652,3 +2652,9 @@ and immutable inputs/settings. The targeted browser check `older books wear on f
 without invented reading history` measures the actual spines, defaults, restored settings,
 filters, hidden-source references and boxes. The opening-history check requires thirteen real
 saved opens as well as level3 after a rebuild; its initial spines now correctly carry age wear.
+
+### Comment ratchet after release recorder cleanup
+
+`check-comments.mjs` requires exactly 1,479 non-pointer, non-type comment lines after the
+1.0.0 recorder cleanup, down from 1,481. Removing prose lowers the baseline in the same
+commit; a lower count is not permission to add prose back elsewhere.

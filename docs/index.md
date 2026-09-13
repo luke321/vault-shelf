@@ -6,37 +6,39 @@ title: Vault Shelf
 
 # Vault Shelf
 
-**Your Obsidian vault as a browsable library.** Shelves of books built from titles, dates,
-people, tags, folders or any note property — read as a two-page spread, with an index down the
-right edge and a ribbon that survives the shelf being rearranged.
+**Your Obsidian vault as a browsable library.** Build your shelves, bind your books, and read
+with a ribbon keeping your place. The files never move.
 
-**The notes never move.** Shelves and books are views over the files that are already there, so
-one note sits in Encyclopedia **A**, the **2026** yearbook, **September 2026**, **Mira's**
-volume and the **Attention** anthology at the same time. That overlap is the point: each shelf
-is another useful address into one vault.
+One note can sit in a yearbook, a person's volume and a tag's anthology at the same time.
+Each book is another way into the same vault.
 
-<img src="https://raw.githubusercontent.com/luke321/vault-shelf/main/assets/demo.webp" width="100%" alt="A book dragged from the Years shelf onto the empty Favourites shelf and a second dropped into the gap before it, the favourite opened and a ribbon left in it that hangs out of every book holding the note, the shelf parting around a search and closing back up, and the room as it was left, with the notes exactly where they were">
+<img src="https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/assets/demo.webp" width="1000" height="1000" style="max-width:100%;height:auto" alt="Scroll through the library, open a book, use its index, read a note and leave a ribbon, return to the top, drag a book onto Favourites, create a book, choose its binding and colour, and change the binding and colour of a plaque’s run">
 
 ## Try it live
 
-The demo below is a real export of an invented 394-note vault covering fifteen years — click
-it, open a book, search it and build a shelf exactly like your own.
-**[Open the live demo →](demo/)**
+[Open the live demo →](demo/)
 
-Nothing about it phones home. It is one self-contained HTML file, which is also how the
-standalone exporter ships: the same page, off a disk, with no Obsidian at all.
+Open a book, search the library and build a shelf in a vault of invented notes. The demo
+is a standalone export; your changes stay in this browser. The plugin reads your own vault
+inside Obsidian.
 
-## Every feature, in the words of its design record
+## Build, collect, read
 
-The bookcase, plaques, thickness, the reading spread, ribbons, shelf wear, the shelf that parts
-as you type, and the two looks — each with what it does and where the reasoning lives.
-**[See the full feature list →](features.html)**
+Start with Favourites, Encyclopedia, Years, Months, People and Tags. Make more shelves from
+folders, dates or any note property. Arrange books by hand, choose among six leather bindings
+and fourteen colours, and open a plaque to read its whole run.
 
-## Install the plugin
+Read a two-page spread with contents and index tabs. Choose A–Z or Date, follow links
+between collections, or push past the end of a note to turn the page. Ribbons and the Reading
+shelf bring you back to the notes you saved.
 
-Ships as an **Obsidian plugin** and as a **standalone HTML exporter** — one page, two mounts,
-from the same source. Install steps, settings, and what the plugin reads and writes are all in
-the [README on GitHub](https://github.com/luke321/vault-shelf#readme).
+[See every feature →](features.html)
 
-It never writes to your notes, it makes no network requests, and it never guesses: a note with
-no date is **Undated** rather than filed under a date nobody declared.
+## Install
+
+Download the three plugin files from the [latest release](https://github.com/luke321/vault-shelf/releases/latest)
+and follow the [install steps](https://github.com/luke321/vault-shelf#install).
+
+Vault Shelf writes nothing to your notes and makes no network requests. Dates and people come
+from declared metadata; missing values get their own books. An optional file-date fallback
+helps organise notes without a date property or dated title.

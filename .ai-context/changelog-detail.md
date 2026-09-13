@@ -1,5 +1,16 @@
 # Changelog detail
 
+## 2026-09-13 - Approve the complete Vault Shelf 1.0.0 release preparation
+
+The owner approved hero v5, all 24 feature clips, the release body and actual update strip.
+The promoted hero is 68 seconds, 1000 x 1000, with 365 WebP frames; the full walkthrough
+is hero first plus all features: 389 seconds and 9,336 MP4 frames. Feature media totals
+321 seconds and 14,050,604 WebP bytes. The current generated demo has 1,242 notes and
+1,689,693 bytes, with the age, first-match and narrow Manage changes embedded. Its four
+inline scripts parse, and exact current page/CSS comparisons pass. The comment checker
+measured two fewer prose-comment lines after recorder cleanup, so its ratchet moves from
+1,481 to 1,479. Release verification records approval separately from pending final gates.
+
 ## 2026-09-13 - Test a real predecessor for the 1.0 update strip
 
 The actual 1.0.0 update-strip run initially passed **28/31**: the harness called 1.0.0 its
@@ -92,6 +103,37 @@ and generated-map checks pass; PII patterns pass without a local name list. No f
 The live `project` query was inspected in `dist/search-integration-vault.png` and
 `dist/search-integration-vault-reader.png`: the reader shows 673 of 1,755 matches alongside
 marked rows and metadata, with the Date control and reading ribbons intact.
+
+## 2026-09-13 - Refresh the release's live demo from the declared fixture
+
+After integrating search scope and match reasons, exported the same generated cut again.
+The final demo remains **1,242 notes**, now **1,687,448 bytes**, and embeds the current
+page source, search index and reason engine. Four inline scripts parse; automatic overrides
+remain empty; PII patterns and network checks pass. The plugin build names version **0.9.0**.
+This second export received source-only verification; the screenshot below precedes search integration.
+
+Regenerated `docs/demo/index.html` with the current `make-vault.mjs`, `--notes 1200`,
+seed `20260909` and end `2026-09-11`, matching the shared fixture `vault-178c03f6` stamp.
+The scratch fixture is `dist/demo-fixture-0.9.0`; the exporter uses `--demo` and the stable
+name `Vault Shelf Demo`. No real vault or mirror was read. Notes remain **1,242 -> 1,242**,
+and the export is **1,679,455 bytes**. Existing embedded product code was already current;
+the regenerated fixture data now follows the shared fixture's end date. All inline scripts
+parse, embedded page code matches current source, and automatic colour/binding overrides
+remain empty. PII patterns pass (no local name list). A separate headless Chrome captured
+`dist/demo-0.9.0-visual.png` at 1000x1000, with 231 rendered spines and zero console errors,
+then closed. The screenshot was inspected: seeded Favourites, library controls, varied leather
+bindings, shelf counts and decade plaques render clearly with no overlay covering the library.
+
+## 2026-09-13 - Update-note pulse check follows the current Manage control
+
+The real Obsidian update-note check passed **30/31** before repair: its synthetic note
+pointed at the removed `vs-order` control. It now points at `vs-manageopen`, preserving
+the positive animation assertion and both dismissal/reopening checks; product code is unchanged.
+`node scripts/update-note-check.mjs --out dist/update-strip-0.9.0 --lock-timeout-ms 1000`
+passes **31/31**: Manage animates with `vs-new-pulse` for 1.9s, then zero controls pulse
+after dismissal or reopening. The screen lock was released and plugin console errors were zero.
+Syntax and targeted ESLint pass. Screenshot `dist/update-strip-0.9.0/04-pulse.png` was inspected:
+the Manage gear is visibly highlighted while the update strip is open.
 
 ## 2026-09-13 - Compressing tabs and inline shelf actions
 
