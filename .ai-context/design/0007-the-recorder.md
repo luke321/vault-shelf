@@ -173,9 +173,12 @@ native width. `--keep-frames` retains representative images; the capture reports
 visibility and largest adjacent-frame movement for every act. A take's failed feature
 assertion stops that take before it can become a review asset.
 
-The `wear` act first proves an old year book starts visibly aged with no saved opens,
-while the recent year is fresh. Two actual open/close gestures then add the recent book's
-first level of use-wear. The scene reads the painted `data-wear` and saved count together.
+The 19-second `wear` act shows the old year book's existing note entries, then scrolls to
+the one-note acoustics book. Its real initial counter is 1 and `lastOpened` is `never`.
+Two actual open/close gestures produce 2 then 3 entries and visits, while `bookNotes` keeps
+the same single note identity. The first visit raises visible wear to level 1; the final
+peek shows the total. No counter is reset or seeded by the recorder. A recent book with
+many notes can already be worn, so the earlier fresh-2026 assertion is intentionally gone.
 
 The search story uses an actual month cover name, opens the broader year book, shows the
 first matching contents row and cover-only reason, and repeats the query inside that book.
@@ -187,6 +190,10 @@ corrected 68-second hero first, followed by all 24 verified feature takes in sou
 storyboard order with `close` last: 389 seconds (6m29s), natively square throughout. The
 review helper reads that same storyboard; its local scratch mapping resolves the dedicated
 hero to `assets/demo.webp` / `README.md`, and the 24 feature acts to their feature clips/pages.
+The owner explicitly kept the approved v5 hero, feature clips and full walkthrough after
+the note-counter change, with no further release recording. The updated wear recipe is
+for a future take; the 68-second hero choreography stays exactly as approved in v5,
+including its offscreen introduction.
 All media is reviewed before it is committed.
 
 ## Earlier hero: the drag (github#21, 2026-09-11)

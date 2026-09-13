@@ -545,12 +545,24 @@ function storyboard(P) {
         {at:3,target:'#vs-alsoin button',run:async s=>{await prove(`__vs.reader().note===${JSON.stringify(s.note)}`,'alsoin: note was lost');}},
         {at:7,target:'#vs-prevcollection',run:async s=>{await prove(`__vs.reader().book===${JSON.stringify(s.book)}`,'alsoin: previous collection did not return');}}
       ] }),
-    scene({ name: "wear", seconds: 19, title: sec=>sec<6?'Older books <b>carry their history</b>.':'Reading leaves <b>its mark, too</b>.', sub: 'Time and use give each spine its character.', setup:async s=>{await go(`__vs.settings().wear={};__vs.setFilters({folders:[]});void 0`);await onShelf()(s);await prove(`document.querySelector('[data-shelf="years"] .vs-spine[data-book="years/2015"]').getAttribute('data-wear')==='3' && !document.querySelector('[data-shelf="years"] .vs-spine[data-book="years/2026"]').hasAttribute('data-wear')`,'wear: old and recent books have no age contrast');},steps:[
+    scene({ name: "wear", seconds: 19, title: sec=>sec<6?'Books carry <b>the notes they have gathered</b>.':'Every visit <b>adds to their story</b>.', sub: 'Existing notes, new notes and real visits leave their mark.', setup:async s=>{
+        await onShelf()(s);
+        await prove(`document.querySelector('[data-shelf="years"] .vs-spine[data-book="years/2015"]').getAttribute('data-wear')==='3' && __vs.settings().wear['years/2015']>=54`,'wear: the old book did not keep its note entries');
+        s.book='tags/acoustics';s.shelf='tags';
+        s.notes=await j(`__vs.settings().bookNotes[${JSON.stringify(s.book)}].slice()`);
+        await prove(`__vs.settings().wear[${JSON.stringify(s.book)}]===1 && __vs.settings().lastOpened[${JSON.stringify(s.book)}]==='never' && __vs.views().find(function(v){return v.shelf.id==='tags';}).books.find(function(b){return b.id===${JSON.stringify(s.book)};}).notes.length===1 && !document.querySelector(${JSON.stringify(bookTarget(s))}).hasAttribute('data-wear')`,'wear: one-note book must begin with one entry and no visits');
+        if(s.notes.length!==1)throw new Error('wear: one-note book has unexpected entry history');
+        s.from=await j(`document.getElementById('vs-library').scrollTop`);s.to=await shelfTop('tags');
+        s.assertCount=async count=>{await prove(`__vs.settings().wear[${JSON.stringify(s.book)}]===${count} && JSON.stringify(__vs.settings().bookNotes[${JSON.stringify(s.book)}])===${JSON.stringify(JSON.stringify(s.notes))} && __vs.settings().lastOpened[${JSON.stringify(s.book)}]!=='never'`,'wear: visits must increment the real counter without inventing notes');};
+      },frame:async(sec,s)=>{if(sec>=3.6 && sec<5.4)await scrollTo(lerp(s.from,s.to,easeInOut((sec-3.6)/1.8)));},steps:[
         {at:2,target:'[data-shelf="years"] .vs-spine[data-book="years/2015"]',action:'hover'},
-        {at:4,target:bookTarget,action:'hover'},
-        {at:6,target:bookTarget},{at:9,target:'#vs-back'},
-        {at:11,target:bookTarget},{at:14,target:'#vs-back',run:async s=>{await prove(`__vs.settings().wear[${JSON.stringify(s.book)}]===2 && document.querySelector(${JSON.stringify(bookTarget(s))}).getAttribute('data-wear')==='1'`,'wear: real reading did not add visible wear');}},
-        {at:17,target:neutral}
+        {at:3.5,start:2.6,target:neutral,action:'hover'},
+        {at:6.6,start:5.4,target:bookTarget,action:'hover'},
+        {at:7.5,start:7.35,target:bookTarget,run:async s=>{await s.assertCount(2);}},
+        {at:10.5,target:'#vs-back',run:async s=>{await prove(`document.querySelector(${JSON.stringify(bookTarget(s))}).getAttribute('data-wear')==='1'`,'wear: the first real visit did not add visible wear');}},
+        {at:12.5,target:bookTarget,run:async s=>{await s.assertCount(3);}},
+        {at:15.5,target:'#vs-back'},
+        {at:17,target:bookTarget,action:'hover',run:async s=>{await prove(`document.getElementById('vs-peek').textContent.includes('3 entries and visits')`,'wear: the peek did not show the real entry and visit total');say('wear counter verified: '+s.book+'; 1 entry -> 2 -> 3 through two real opens; note IDs unchanged');}}
       ] }),
     scene({ name: "build", seconds: 17, title: 'Make a shelf <b>around your own ideas</b>.', sub: 'Choose what belongs, then how the books are made.', setup:async()=>{await scrollTo(0);},
       frame:async(sec)=>{if(sec>=4 && sec<6)await typeInto('vs-bname','Garden notes',sec,4,5.8);if(sec>=8 && sec<10)await go(`var sheet=document.getElementById('vs-builder');sheet.scrollTop=(sheet.scrollHeight-sheet.clientHeight)*${easeInOut((sec-8)/2)};void 0`);},steps:[

@@ -1,5 +1,19 @@
 # Changelog detail
 
+## 2026-09-13 - Keep approved films and update the future wear recipe
+
+The owner explicitly requested no more recordings after the counter change. Approved v5
+hero, all 24 feature clips and the 389-second full walkthrough remain untouched. Only the
+future 19-second wear recipe changes: existing entries on the old year book, then the
+one-note acoustics book and two real opens. Its counter advances 1 to 2 to 3, its single
+`bookNotes` identity stays unchanged, and `lastOpened` changes from `never` on a real open.
+No counter is seeded or reset. Hero choreography and the other 23 feature acts are identical.
+
+The one pre-waiver validation reached the correct counter 3 and visible wear level 1,
+then rejected a stale peek still showing 1. That product defect is handled separately;
+the recorder keeps its assertion rather than hiding the failure with a rebuild. Syntax
+and strict lint pass. No additional take, product change or media replacement is included.
+
 ## 2026-09-13 - Count note entries and visits without repeating the baseline
 
 The user extended the opening counter to include existing notes once and newly added notes.
