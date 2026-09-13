@@ -194,6 +194,8 @@ const SHOT_NOTE = arg("shot-note", "");
  * shows none of the marks the block exists to show; both are put back before the sheet closes.
  * github#44 -- `swatch` shoots a live preview with one of them hovered */
 const SHOT_OPEN = arg("shot-open", "");
+/* github#13 -- --shot-query shoots a room and a book mid-search */
+const SHOT_QUERY = arg("shot-query", "");
 /* github#11 */
 const SHOT_BOOK = arg("shot-book", "");
 const SHOT_TAB = arg("shot-tab", "");
@@ -5465,6 +5467,175 @@ check("the shelf parts as you type, and no book leaves the room", async (p) => {
                    `(hits read "${r.hits}")` };
 });
 
+/* github#13, design/0027 -- THE OTHER HALF OF design/0008: what the lit book says. */
+check("a book the search drew forward says which of its notes matched", async (p) => {
+  const r = await p.j(`(function(){
+    /* THE NEEDLE COMES FROM THE VAULT, as it does for the shelf's own half. */
+    var tags = {};
+    __vs.data().notes.forEach(function (n) {
+      n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+    });
+    var needle = Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] ||
+                 __vs.data().notes[0].title.slice(0, 4);
+    __vs.setQuery(needle);
+    var lit = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) {
+        if (!lit && b.matches > 0 && b.matches < b.notes.length) lit = b;
+      });
+    });
+    if (!lit) return { lit: false, needle: needle };
+    __vs.openBook(lit.id, null);
+    var open = __vs.readerMatches();
+    __vs.setQuery("");
+    var quiet = __vs.readerMatches();
+    __vs.closeReader();
+    return { lit: true, needle: needle, open: open, quiet: quiet };
+  })()`);
+  if (!r.lit) {
+    return { ok: false, detail: `no book on this vault is part-matched by "${r.needle}"` };
+  }
+  const o = r.open;
+  return { ok: o.marked === o.matches && o.marked > 0 && o.rows === o.notes &&
+               o.why.indexOf(o.matches + " of " + o.notes + " match") >= 0 &&
+               r.quiet.marked === 0 && r.quiet.rows === o.notes,
+           detail: `"${r.needle}" lit ${o.book}: ${o.marked} of ${o.rows} rows marked against ` +
+                   `${o.matches} matching notes, all ${o.notes} still in the index ` +
+                   `(it reads "${o.why}"); clearing the box leaves ${r.quiet.marked} marked ` +
+                   `and ${r.quiet.rows} rows` };
+});
+
+/* github#13, design/0027 -- ONE RULE: a book can no longer deny the shelf behind it. */
+check("every book the shelf draws forward finds the same needle in its own find box", async (p) => {
+  const r = await p.j(`(function(){
+    var tags = {};
+    __vs.data().notes.forEach(function (n) {
+      n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+    });
+    var needle = Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] ||
+                 __vs.data().notes[0].title.slice(0, 4);
+    __vs.setQuery(needle);
+    var lit = [];
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { if (b.matches > 0) lit.push(b); });
+    });
+    var box = document.getElementById("vs-within");
+    /* github#13 -- forty opens wear forty books, and wear persists */
+    var wear = __vs.settings().wear;
+    var wasWorn = JSON.parse(JSON.stringify(wear));
+    var tried = 0, denied = [];
+    lit.slice(0, 40).forEach(function (b) {
+      __vs.openBook(b.id, null);
+      box.value = needle;
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+      var r = __vs.readerMatches();
+      tried++;
+      if (r.empty || r.rows === 0) denied.push(b.id + " (" + r.rows + " rows)");
+      box.value = "";
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    __vs.setQuery("");
+    __vs.closeReader();
+    for (var k in wear) delete wear[k];
+    Object.keys(wasWorn).forEach(function (k) { wear[k] = wasWorn[k]; });
+    return { needle: needle, lit: lit.length, tried: tried, denied: denied.slice(0, 3),
+             denials: denied.length };
+  })()`);
+  return { ok: r.tried > 0 && r.denials === 0,
+           detail: r.denials
+             ? `${r.denials} of ${r.tried} books denied the shelf: ${r.denied.join(", ")}`
+             : `"${r.needle}" drew ${r.lit} books forward; ${r.tried} of them were opened and ` +
+               `every one found it again in its own find box` };
+});
+
+/* github#13 + github#58, design/0027 -- where the two tickets meet, and neither caught alone */
+check("a book lit only by the name on its spine finds that name inside it, and says so",
+      async (p) => {
+  const r = await p.j(`(function(){
+    var cover = __vs.vocabulary().filter(function (t) {
+      return t.kinds.length === 1 && t.kinds[0] === "book";
+    })[0];
+    if (!cover) return { skipped: true };
+    __vs.setQuery(cover.text);
+    var lit = [];
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) { if (b.matches > 0) lit.push(b); });
+    });
+    var box = document.getElementById("vs-within");
+    var wear = __vs.settings().wear;
+    var wasWorn = JSON.parse(JSON.stringify(wear));
+    var tried = 0, denied = [], unsaid = [], marked = 0;
+    lit.slice(0, 20).forEach(function (b) {
+      __vs.openBook(b.id, null);
+      var before = __vs.readerMatches();
+      marked += before.marked;
+      /* design/0008, design/0018 -- a marked row, not whichever note the book opens on */
+      var row = document.querySelector('#vs-contents button[data-match="1"]');
+      if (!row) unsaid.push(b.id + " (no marked row)");
+      else {
+        row.click();
+        if (__vs.readerMatches().meta.indexOf("on the shelf as") < 0) unsaid.push(b.id);
+      }
+      box.value = cover.text;
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+      var r = __vs.readerMatches();
+      tried++;
+      if (r.empty || r.rows === 0) denied.push(b.id + " (" + r.rows + " rows)");
+      box.value = "";
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    __vs.setQuery("");
+    __vs.closeReader();
+    for (var k in wear) delete wear[k];
+    Object.keys(wasWorn).forEach(function (k) { wear[k] = wasWorn[k]; });
+    return { cover: cover.text, covers: cover.notes, lit: lit.length, tried: tried,
+             marked: marked, denied: denied.slice(0, 3), denials: denied.length,
+             unsaid: unsaid.length };
+  })()`);
+  if (r.skipped) return { ok: false, detail: "no cover-only term in the vocabulary to try" };
+  return { ok: r.tried > 0 && r.denials === 0 && r.unsaid === 0 && r.marked > 0,
+           detail: r.denials || r.unsaid
+             ? `${r.denials} of ${r.tried} books denied the shelf (${r.denied.join(", ")}), ` +
+               `${r.unsaid} opened without saying why`
+             : `“${r.cover}” is on ${r.covers} notes and no note spells it; it drew ${r.lit} ` +
+               `books forward, ${r.tried} were opened, ${r.marked} rows marked, every one ` +
+               `found it again in its own find box and named the spine` };
+});
+
+/* github#13, design/0027 -- the rule and its explanation, kept in step by measurement. */
+check("a note has a reason to be marked exactly when it is marked", async (p) => {
+  const r = await p.j(`(function(){
+    var notes = __vs.data().notes;
+    var tags = {}, people = {};
+    notes.forEach(function (n) {
+      n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+      n.people.forEach(function (x) { people[x] = (people[x] || 0) + 1; });
+    });
+    var byUse = function (m) { return Object.keys(m).sort(function (a, b) { return m[b] - m[a]; }); };
+    var needles = [];
+    if (byUse(tags)[0]) needles.push(byUse(tags)[0]);
+    if (byUse(people)[0]) needles.push(byUse(people)[0].split(" ")[0]);
+    needles.push(notes[0].title.slice(0, 4));
+    needles.push(notes[0].folder.slice(0, 4));
+    var cover = __vs.vocabulary().filter(function (t) {
+      return t.kinds.length === 1 && t.kinds[0] === "book";
+    })[0];
+    if (cover) needles.push(cover.text);
+    needles.push("zz-nothing-spells-this");
+    return { cover: cover ? cover.text : "", notes: cover ? cover.notes : 0,
+             r: __vs.checkReasons(needles) };
+  })()`);
+  const { cover, r: c } = r;
+  const kinds = Object.keys(c.fields).length;
+  return { ok: c.disagree === 0 && c.matched > 0 && c.matched === c.reasoned && kinds >= 4 &&
+               c.fields.cover > 0 && !c.fields.body && !c.fields.path,
+           detail: c.disagree
+             ? `${c.disagree} note/needle pairs disagree, e.g. ${c.sample.join("; ")}`
+             : `${c.needles} needles over ${c.notes} notes: ${c.matched} marked, ${c.reasoned} ` +
+               `with a reason, 0 disagreements (${JSON.stringify(c.fields)}); the cover-only ` +
+               `needle was “${cover}” over ${r.notes} notes` };
+});
+
 /* github#41, design/0026 -- WHAT THE VAULT SPELLS. The box knows the vocabulary now. */
 check("the search box offers what the vault spells, and says what kind each one is", async (p) => {
   const r = await p.j(`(function(){
@@ -5687,6 +5858,89 @@ check("a vault with no vocabulary offers nothing", async (p) => {
              ? `an empty vault spells ${r.terms} terms and offers ${r.offered}; one note spells ` +
                `${r.oneTerms} and offers "${r.oneText}" [${r.oneKinds}]`
              : `an empty vault spelled ${r.terms} terms and offered ${r.offered}` };
+});
+
+/* github#58, design/0008 -- WHAT THE SEARCH READS. Every needle comes from the vault. */
+check("the search reads titles, covers and declared metadata, and never the body", async (p) => {
+  const r = await p.j(`(function(){
+    var notes = __vs.data().notes;
+    var hits = function (q) {
+      __vs.setQuery(q);
+      return parseInt(document.getElementById("vs-hits").textContent, 10) || 0;
+    };
+
+    /* A NEEDLE THE PROSE SPELLS AND NOTHING ELSE DOES. The generator writes this name into
+     * note bodies and never into a people property, which is what makes it the honest probe. */
+    var prose = ${JSON.stringify(PROSE_ONLY)};
+    var inProse = notes.filter(function (n) {
+      return n.body.toLowerCase().indexOf(prose.toLowerCase()) >= 0;
+    }).length;
+
+    /* A PATH IS NOT A TITLE AND NOT A FOLDER, so a whole path spells nothing on its own. */
+    var path = notes[0].path;
+
+    /* A COVER NO NOTE SPELLS: the string a person reads on a spine and nowhere else. */
+    var spelt = {};
+    notes.forEach(function (n) {
+      spelt[n.title.toLowerCase()] = 1;
+      spelt[n.folder.toLowerCase()] = 1;
+      n.tags.forEach(function (t) { spelt[t.toLowerCase()] = 1; });
+      n.people.forEach(function (x) { spelt[x.toLowerCase()] = 1; });
+    });
+    var keys = Object.keys(spelt);
+    var spellsIt = function (needle) {
+      return keys.some(function (k) { return k.indexOf(needle) >= 0; });
+    };
+    var cover = null, coverNotes = 0, folderShelves = 0;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.hidden) return;
+      if (v.shelf.classifier === "folder") folderShelves++;
+      v.books.forEach(function (b) {
+        var text = (b.cover || "").trim();
+        if (!text || !b.notes.length) return;
+        if (spellsIt(text.toLowerCase())) return;
+        if (b.notes.length > coverNotes) { cover = text; coverNotes = b.notes.length; }
+      });
+    });
+
+    /* DECLARED METADATA STANDS WITHOUT A SHELF: the biggest folder, which nothing classifies. */
+    var byFolder = {};
+    notes.forEach(function (n) { byFolder[n.folder] = (byFolder[n.folder] || 0) + 1; });
+    var folder = Object.keys(byFolder).sort(function (a, b) {
+      return byFolder[b] - byFolder[a];
+    })[0] || "";
+
+    /* THE WART github#41 SHIPPED: the room and the box said opposite things a few cm apart. */
+    __vs.typeQuery(prose);
+    var rows = __vs.suggest().rows.length;
+    var said = document.querySelector("#vs-suggest .vs-sugempty");
+    var agree = rows === 0 && !!said && hits(prose) === 0;
+    __vs.setQuery("");
+    __vs.closeSuggest();
+
+    var out = { inProse: inProse, prose: hits(prose), path: hits(path),
+                cover: cover, coverHits: cover ? hits(cover) : 0, coverNotes: coverNotes,
+                folder: folder, folderHits: folder ? hits(folder) : 0,
+                folderNotes: byFolder[folder] || 0, folderShelves: folderShelves,
+                title: hits(notes[0].title), agree: agree };
+    __vs.setQuery("");
+    out.cleared = document.getElementById("vs-hits").textContent;
+    return out;
+  })()`);
+  const ok = r.inProse > 0 && r.prose === 0 && r.path === 0 && r.title > 0 &&
+             !!r.cover && r.coverNotes > 0 && r.coverHits >= r.coverNotes &&
+             r.folderNotes > 0 && r.folderHits >= r.folderNotes && r.agree && r.cleared === "";
+  return { ok,
+           detail: r.prose > 0
+             ? `"${PROSE_ONLY}" is in ${r.inProse} bodies and still marked ${r.prose} note(s)`
+             : r.path > 0
+               ? `a whole path still marked ${r.path} note(s); the path is meant to be dropped`
+               : !r.agree
+                 ? `the room read ${r.prose} notes while the box said nothing spells it`
+                 : `"${PROSE_ONLY}" is in ${r.inProse} bodies and marks ${r.prose}, a whole ` +
+                   `path marks ${r.path}; the cover "${r.cover}" marks ${r.coverHits} for its ` +
+                   `${r.coverNotes}-note book, and "${r.folder}" marks ${r.folderHits} of ` +
+                   `${r.folderNotes} with ${r.folderShelves} folder shelf on the rail` };
 });
 
 /* design/0009 -- A ROOM HAS A WIDTH. Measured by overriding the viewport rather than by
@@ -8439,6 +8693,8 @@ async function capture(page, out) {
     console.log("wrote " + file);
   };
   await page.eval('__vs.closeReader(); document.getElementById("vs-library").scrollTop = 0; void 0');
+  /* github#13, design/0027 -- the search is live in both pictures, or in neither */
+  if (SHOT_QUERY) await page.eval(`__vs.setQuery(${JSON.stringify(SHOT_QUERY)}); void 0`);
   if (SHOT_SHELF) {
     await page.eval(`(function(){
       var lib = document.getElementById("vs-library");
@@ -8524,7 +8780,16 @@ async function capture(page, out) {
           }); });
           return __vs.openBook(pick ? pick.id : want, null);
         })()`)
-      : await page.j('__vs.openBook(__vs.addresses()[0], null)');
+      : SHOT_QUERY
+        ? await page.j(`(function(){
+            /* github#13 -- a book the query LIT, or the picture shows nothing of it */
+            var pick = null;
+            __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+              if (!pick && b.matches > 0 && b.matches < b.notes.length && b.notes.length > 8) pick = b;
+            }); });
+            return pick ? __vs.openBook(pick.id, null) : __vs.openBook(__vs.addresses()[0], null);
+          })()`)
+        : await page.j('__vs.openBook(__vs.addresses()[0], null)');
   if (opened) {
     /* WITH RIBBONS IN IT. A reader with none shows an empty strip where the feature is, which
      * is a picture of the wrong thing; two are marked for the shot and taken out again. */

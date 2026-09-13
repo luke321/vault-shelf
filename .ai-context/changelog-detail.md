@@ -1,5 +1,22 @@
 # Changelog detail
 
+## 2026-09-13 - Integrate search scope and match reasons with the spine picker
+
+The merge keeps both reader state fields: page-edge landing and the live query used for
+match explanations. Search indexes flow through library marking, contents filtering and
+note reasons; contents-order controls and all six bindings remain present. Both branches'
+verification records are preserved and the code map/index regenerated.
+
+**15/15 targeted checks pass in 12 seconds** over 4,938 generated notes: metadata/cover
+search excludes prose and complete paths, 4,140 matches have 4,140 reasons with zero
+disagreements, and cover-only names still work inside books. Vocabulary, contents-order
+persistence, book appearance drafts and reader/index geometry checks pass too. Build,
+strict lint, scope, network, comments (1481/1481), static escaping, refresh wiring (7/7)
+and generated-map checks pass; PII patterns pass without a local name list. No full suite ran.
+The live `project` query was inspected in `dist/search-integration-vault.png` and
+`dist/search-integration-vault-reader.png`: the reader shows 673 of 1,755 matches alongside
+marked rows and metadata, with the Date control and reading ribbons intact.
+
 ## 2026-09-13 - Compressing tabs and inline shelf actions
 
 The right-edge section tabs compress without scrolling; Search and A-Z/Date stay 28px high.
@@ -138,6 +155,106 @@ See `design/0029` for persistence and the title/decoration contract.
 Build, strict typecheck, lint, scope, network, comment budget, data escaping, refresh wiring,
 generator determinism and build-order determinism pass. PII patterns pass; no local name list
 was available. Eleven distinct targeted smoke checks pass; the full suite was not run.
+
+## 2026-09-12 — The search reads titles, covers and declared metadata (github#58)
+
+> "just note titles and real book cover names, otherwise we match way too much…"
+
+`core.matchesQuery` read a note's title, **path**, tags, people and **body**. More than half the
+library answered to `which`, `#vs-hits` counted a number with no information in it, and — because
+the match was somewhere in the prose — opening a book told you nothing about why it had been drawn
+forward. The other half of the same fault: a cover a person can *read on a spine*, **Aug 2026**,
+could not be found at all, because `labelFor()` builds that string for reading and no note contains
+it.
+
+The rule, decided 2026-09-12: **a note matches if the needle is in its title, in the cover of any
+book it sits behind, or in its declared metadata — tags, people, folder. Body and path are
+dropped.** Covers alone was the other candidate and was rejected: it makes the search
+*shelf-dependent*, so `inbox` finds nothing in a vault with no Folders shelf — which is the default
+library — and hiding a shelf quietly makes its notes unfindable.
+
+Measured on the one vault, 4,938 notes in 687 books:
+
+| typed | before | after | why |
+|---|---|---|---|
+| `afternoon` | 1,446 | **0** | prose |
+| `which` | **2,867** | **0** | prose |
+| `agreed` | 1,842 | **0** | prose |
+| `Dagny Halvorsen` | 451 | **0** | the name the generator writes only into bodies |
+| `.md` | **4,938** | **0** | path |
+| a whole note path | 1 | **0** | path |
+| `garden` | 1,462 | **1,459** | tag · book — the signal moves by 0.2% |
+| `mira` | 631 | **621** | person |
+| `学び` | 137 | **136** | tag · book |
+| `inbox` | 192 | **192** | folder, with **no Folders shelf on the rail** |
+| `project` | 1,818 | **1,818** | folder and tag |
+| `aug 2026` | **0** | **285** | a cover became searchable |
+| `sep 2026` | **0** | **301** | a cover became searchable |
+| `undated` | **0** | **531** | so did a sentinel's cover |
+| `No one named` | **0** | **2,450** | so did that one |
+| `2026-08` | 114 | **89** | the **key** stops matching; the label more than replaces it |
+| `a` | 4,938 | 4,936 | the Encyclopedia volume `A` is a real cover |
+
+**The noise goes to zero and the signal does not move.** Every number in the issue's own table is
+reproduced exactly, which is what says the rule that shipped is the rule that was measured.
+
+### A cover is not a property of a note
+
+`matchesQuery(note, needle)` could no longer answer alone: the covers a note sits behind are known
+only once the library is built. Two candidates — resolve them per book inside `markMatches`, or
+build a note→covers index where the vocabulary is built. The index won, because `markMatches` walks
+**33,871 book-note slots** per keystroke and the per-book form does the same work 687 times over.
+
+`core.buildSearchIndex(views, notes)` folds each note's own text and every cover it stands behind
+into **one string**, once, in `rebuild()`. Matching is then one map lookup and one `indexOf`, and
+`markMatches` reads a note **once per query** rather than once per each of the 7.6 books it stands
+in. That is why the change is a speed-up rather than a cost:
+
+| sustained typing, per keystroke (one run, `project`, 210 keystrokes) | before | after |
+|---|---|---|
+| marking only | **11.8 ms** | **1.2 ms** |
+| marking and offering the list | 11.8 ms | **1.4 ms** |
+| `core.markMatches` alone, headless | 11.59 ms | **1.31 ms** |
+| `core.buildSearchIndex`, **once per rebuild** | — | **5.2 ms** |
+
+The old rule called `toLowerCase()` on 33,871 titles **and** 33,871 bodies on every key; the new one
+folds 4,938 strings once per rebuild and never again.
+
+### github#41's workaround is deleted, and its invariant is now true by identity
+
+The vocabulary offered a book by its **key** (`2026-08`) rather than the cover you read on the
+spine, precisely because a label matched nothing — that was the honesty check failing at 29 of 77
+on its first run. A book contributes `book.cover` now, and the build-time verification that no key
+is offered that no note spells is **gone**: with covers searchable, *the vocabulary and the search
+are the same set*, so every suggestion marks at least one note by construction rather than by a
+pass that checks it.
+
+| | before | after |
+|---|---|---|
+| terms the box knows | 5,147 | **5,151** |
+| — people / tags / folders / books / titles | 25 / 43 / 12 / 222 / 4,938 | 25 / 43 / 12 / **226** / 4,938 |
+| — spelled by more than one kind | 68 | **68** |
+| a suggestion that marks nothing, over all terms | not measured | **0 of 5,151** |
+| a suggestion that marks nothing, the check's probes | 0 of 73 | **0 of 73** |
+| `the shelf parts as you type` | 231 spines, 189 forward, 42 ghosts | **unchanged** |
+
+The four new book terms are the **sentinel covers** — `Undated`, `Unfiled`, `No one named`,
+`Untagged`. `github#41` excluded a key beginning with `-` because `-undated` is not a word; the key
+is no longer what is offered, and `Undated` is a cover you can read. Leaving them out would have
+left four words showing hits beside *Nothing in this vault spells that*, which is the wart this
+change exists to dissolve.
+
+**And it does dissolve it.** Typing a body-only word used to read *1446 notes in N books* in
+`#vs-hits` while the row a few centimetres away said *Nothing in this vault spells that* — two true
+statements that read as a contradiction. The room now says `0 notes in 0 books` beside it, and the
+new check asserts both halves together rather than either alone.
+
+### What was left alone
+
+`#vs-within` still matches titles only — the other half of `github#13`, out of scope by the issue's
+own line. A **one-character query** still offers and still marks: `a` reaches 4,936 of 4,938 through
+the Encyclopedia volume `A`, which is defensible, and suppressing single characters would break
+`a vocabulary that is not Latin is still offered`, which types one character (`学`) on purpose.
 
 ## 2026-09-12 — A lifted spine is painted whole (github#51)
 
@@ -3580,3 +3697,135 @@ had settled. Build/lint/static gates pass. Full suite not run for this change.
 Screenshots inspected: `dist/reader-refinement-vault.png`,
 `dist/reader-refinement-vault-reader.png`, `dist/book-creation-narrow-bottom.png` and
 `dist/leather-spine-picker.png`.
+
+## 2026-09-12 — why this book is lit (`github#13`, `design/0027`)
+
+The shelf said *which* books matched and the reader said nothing. A book drawn forward on a tag
+opened on an unmarked index, and retyping the same needle into *Find within this book* — which
+tested **titles only** while the library tested title, path, tags, people and body — printed
+*"Nothing in this book matches."* under a spine that was drawn as a match.
+
+**The book no longer denies the shelf.** *Find within this book* narrows by `core.matchesQuery`,
+the same function `applyQuery` calls. On `Encyclopedia I` with `garden` live — 36 notes, 6
+matching, every one of them on a tag:
+
+| | before | after |
+|---|---|---|
+| rows on open | 36, **0 marked** | 36, **6 marked** |
+| the head reads | `36 notes · 8 source folders` | `… · 6 of 36 match “garden”` |
+| typing `garden` in the find box | **0 rows**, *"Nothing in this book matches."* | **6 rows**, no such sentence |
+| the matched note's details | `#garden/seeds`, unmarked | `#garden/seeds` with `garden` on a ground |
+
+Across the vault: `project/website-migration` drew **475** books forward and **40 of 40** opened
+found it again in their own box. On `favourites/years/2026`, **304 of 1,755** rows marked against
+**304** matching notes with all **1,755** still in the index; the box cleared leaves **0** marked
+and **1,755** rows.
+
+**The cost of one rule, stated.** With body matching still in the scope rule, the find box returns
+many more rows than it used to: `garden` on `favourites/years/2026` goes **10 → 497**. `github#58`
+does not remove that — those are tag matches and it keeps tags. The judgement is that a narrow
+reader rule compensating for a broad library rule is the wrong layer; the breadth is `github#58`'s
+ticket, and a second rule in here only hides it while making the book lie.
+
+**`matchReasons` mirrors `matchesQuery` rather than replacing it.** The boolean stays a fast early
+return — it runs over every note of every book on every keystroke, millions of calls on this vault
+— and a check holds the two in step instead of a refactor making it structural: **4,938 notes × 5
+needles, 1,700 marked, 1,700 with a reason, 0 disagreements** over `tag` 876, `person` 620,
+`folder` 192, `title` 43, `body` 11.
+
+**A third rebuild path, and the guard that keeps it from being a fourth.** The library's search
+box stays in the tab order behind the open reader, so the query really can move under an open
+book. `renderReader` records the needle it drew against; `applyQuery` re-renders only when it
+differs. Every other caller — a ribbon toggled, a dye picked, a shelf moved — leaves the index
+standing, so `design/0026`'s un-rebuilt list still measures **2,450 of 2,450 rows the same nodes**.
+
+**Found only by looking.** The first pass tinted a marked row at **8%** of the accent, which on
+leather's paper is invisible. The check read `data-match` and passed; the screenshot showed an
+unmarked index. It ships at **15%** with the title in the accent at 600, above `aria-current` so
+the row being read keeps its own mark, and the needle inside a detail on a **34%** ground. Fourth
+entry in this file whose cause was a picture.
+
+Checks **114 → 117**. Comment budget unchanged at **1490/1490** — every new comment is
+pointer-shaped and the reasoning is here and in `design/0027`. `--shot-query <needle>` is new:
+the search live in both pictures, and the reader opened on a book the query actually lit.
+
+**What the extra work costs, measured on the biggest index** (`people/-unfiled`, 2,450 notes).
+`renderContents` now asks `core.matchesQuery` once more per row to decide the mark, and the find
+box asks it instead of comparing titles:
+
+| opening it | before | after |
+|---|---|---|
+| with no query live | 68 ms | 72 ms |
+| with a query live | 87 ms | **99 ms** |
+| typing in the find box | 5 ms | **10 ms** |
+
+Twelve milliseconds on the largest book in the library, and only while a search is live. The
+boolean is the reason it is that cheap: `matchReasons` builds an array and is called once per
+*open note*, never per row.
+
+**A fold that changes length is not marked.** `litText` locates the needle in `text.toLowerCase()`
+and slices the original, so a case fold that changes the string's length (Turkish `İ`, and the
+vault deliberately carries four scripts) would map the offsets onto the wrong characters and
+mangle a title. Lengths are compared first and the text is left unmarked when they differ —
+nothing is claimed rather than something being drawn wrong.
+
+**Opening forty books wears forty books.** The find-box check drives 40 real `openBook` calls, and
+wear is counted per address and persisted. It snapshots `settings.wear` and puts it back, so the
+check leaves the library exactly as it found it.
+
+## 2026-09-12 — the two searches meet (`github#13` + `github#58`, `design/0008`, `design/0027`)
+
+Two branches, each green on its own gates, merged into one. `git merge` reported conflicts in
+three documents and **none in the code** — and the code is where the damage was.
+
+`github#58` had narrowed what the search reads to a note's title, its declared metadata, and the
+**cover of any book it stands behind**; because a cover is not a property of a note, it threaded a
+`SearchIndex` through `matchesQuery` and `markMatches`. `github#13`, opened against the older
+rule, added `core.matchReasons` to say *why* a note was marked, a find box that narrows by the
+same function the library searches with, and five new call sites. Textually the two fit together.
+Semantically the merge produced a library that would have:
+
+| | the merged text would say | what is true after `github#58` |
+|---|---|---|
+| a note whose only hit is in its prose | reason: `body`, *matches in the text* | **not marked at all** |
+| a note whose only hit is in its path | reason: `path`, *matches in the path* | **not marked at all** |
+| a note marked through a spine | **no reason at all**, silently | marked, and the one reason worth saying |
+| that note's own find box, same needle | *"Nothing in this book matches."* | the needle that lit it |
+
+So `matchReasons` was rewritten to mirror the rule as it now is — `title`, `tag`, `person`,
+`folder`, `cover`, with `body` and `path` deleted from `MatchReason.field` so the compiler refuses
+the old vocabulary — and all **five** reader-side calls were handed the same index the library
+builds once in `rebuild()`. `SearchIndex` went from `Map<string, string>` to
+`Map<string, SearchEntry>`: `text` is still the one folded haystack the boolean reads with a
+single `indexOf`, and `covers` keeps the spines **unfolded** beside it, because `aug 2026` is not
+what is printed on the book. The fast path is unchanged; only the naming needed the extra field.
+
+**The reason a cover match gives is better than the one it replaced.** `design/0027` had written
+*"that phrase disappears on its own the day those surfaces leave the rule"* about *matches in the
+text* — an admission that the reason was somewhere the reader could not see. Its replacement
+**names** the thing: `on the shelf as “No one named”`.
+
+Measured on the one vault, 4,938 notes. The equivalence check goes from 5 needles to 6, the sixth
+being a term the vocabulary spells as a book and as nothing else:
+
+| | before the merge | after |
+|---|---|---|
+| notes marked / with a reason | 1,700 / 1,700 | **4,140 / 4,140** |
+| disagreements | 0 | **0** |
+| reason kinds | `tag` `person` `title` `folder` `body` | `tag` 876 · **`cover` 3,946** · `person` 620 · `title` 43 · `folder` 192 |
+| `body` or `path` reasons | present | **0, and unrepresentable** |
+
+The new check `"a book lit only by the name on its spine finds that name inside it, and says so"`
+types `No one named` — on **2,450** notes, in the text of none — takes the **612** books it draws
+forward, opens **20**, clicks a marked row in each, and asserts the detail line names the spine
+and the book's own find box finds the needle again. **3,066** rows marked across the twenty, 0
+denials, 0 silent notes.
+
+**It fails on the first draft, and the first draft was the check's fault.** Asserting the reason
+on whichever note the book *opens* on gave `7 of 20 opened without saying why` — correct
+behaviour, wrongly demanded: a book is drawn forward by *some* of its notes and still opens on its
+oldest (`design/0018`), which need not be one of them. The check now clicks a marked row first.
+
+**And the picture was taken.** `782 of 1,755 match “No one named”` in the head, the matched rows
+painted, and the detail line ending `· on the shelf as “No one named”` — the fifth time this file
+records that a number could not have seen it.
