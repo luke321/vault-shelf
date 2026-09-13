@@ -192,6 +192,12 @@ ISO date.
 
 ## Plaques are date-only and asked for
 
+**A run is whatever is adjacent.** A shelf arranged by hand can carry the same label twice in
+one row — a plate says what is under it, never what it wishes were under it. This is the
+sentence CLAUDE.md's compressed law paraphrases; kept verbatim here because it is preventing a
+specific wrong implementation (merging two non-adjacent same-labelled runs into one plaque)
+rather than padding.
+
 `"year plaques only appear on date classifiers, and only when asked for"` compares, per shelf,
 whether it *wants* plaques (`shelf.plaques`) against whether any of its books *has* one. The
 two booleans must be equal on every shelf. A "year" plaque over a People shelf would be a year

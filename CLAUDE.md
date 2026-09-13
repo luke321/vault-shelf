@@ -11,100 +11,59 @@ of measuring it.** Build the page, drive it, read the numbers.
 
 ## Laws — every one has a check in `scripts/smoke.mjs` and a section in `.ai-context/invariants.md`
 
-- **A shelf's note count is unique notes, never the sum of its books.** A note with three
-  people is in three books and is still one note.
+- **A shelf's note count is unique notes, never the sum of its books.** A note in three books
+  is still one note.
 - **Every note has at least one address.** Nothing a predicate admits may fall off a shelf.
 - **A book's address is `shelfId/classifierKey`** and survives a rebuild. A saved reading
-  place re-resolves rather than breaking: the named book, else the first visible book that
-  still holds the note.
-- **Metadata is declared, never inferred, and the file stamp is the floor.** A date comes from
-  a property, then a title, then the earliest stamp the filesystem has (`dates.stampOf` — the
-  earlier of creation and modification, since a bulk edit moves one and a copied vault moves
-  the other). People come from the people property and never from prose. A missing value gets
-  its own book (`-undated`, `-unfiled`), never an exclusion. `decisions/0003`, amended.
+  place re-resolves: the named book, else the first visible book still holding the note.
+- **Metadata is declared, never inferred.** A date comes from a property, then a title, then
+  the earliest file stamp; people come from the people property, never prose; a missing value
+  gets its own book, never an exclusion (`decisions/0003`).
 - **The ISO week keeps its week-year.** 2027-01-01 is 2026-W53.
-- **A plaque names the unit above the book**: months and weeks under their year, years under
-  their decade, people and tags under their letter. Only when asked for. A plaque lives in the
-  same row as the books it names, and a run that wraps is named on every row it reaches. **A
-  run is whatever is adjacent**, so a shelf arranged by hand can carry the same label twice in
-  one row — a plate says what is under it, never what it wishes were under it. **And a plaque
-  opens its run as one book**: unique notes across the books under it, addressed
-  `shelfId/-plaque-<label>` so a ribbon left in it re-resolves; a plate drawn on two rows opens
-  the same book; a plaque-book is never on the shelf, so no address, count or golden moves.
-  `design/0019`.
+- **A plaque names the unit above the book** (months/weeks→year, years/people/tags→decade or
+  letter), only when asked, in the same row as its books — **a run is whatever is adjacent**, so
+  a hand-arranged row can carry the same label twice. **It opens its run as one book** of unique
+  notes at `shelfId/-plaque-<label>`; the plaque itself gets no address, count or golden
+  (`design/0019`).
 - **A shelf is a bookcase, not a conveyor belt.** Nothing scrolls sideways; a run too long for
   the room continues on the next row down.
-- **A filter narrows; the query marks.** A filter removes notes before books are built. The
-  search query never does: every book stays on the shelf and draws forward or thins to a ghost.
-  **And it reads a catalogue, not prose**: a note matches on its title, on the **cover** of any
-  book it sits behind, or on its declared metadata — tags, people, folder. Body and path are
-  dropped, so `which` fell from 2,867 of 4,938 notes to 0 while `Aug 2026` — a name printed on a
-  spine and contained in no note — became findable at all. A cover is not a property of a note, so
-  `core.buildSearchIndex` folds each note's own text and every cover it stands behind into one
-  string, built once in `rebuild()` beside the vocabulary and never per keystroke; the box offers
-  a book by that same cover, so **the vocabulary and the search are one set** and every suggestion
-  marks a note by identity rather than by a pass that checks it. `design/0008`, `design/0026`.
-- **A marked book says why, and its own find box never denies it.** The head reads *N of M
-  match*, the matching rows wear the accent, and the note names the surface the needle sits in —
-  `core.matchReasons` mirrors `matchesQuery` rather than reimplementing it, and a check over the
-  vault asserts a reason exists **exactly** when there is a match. *Find within this book* narrows
-  by that same `matchesQuery`, so a book can never contradict the shelf it stands on. **Every one
-  of these reads the same `SearchIndex` the library builds**: a cover is the one reason not
-  written on the note, so a reader-side call without the index marks a note it cannot explain and
-  a find box without it denies the very word that lit the book. `design/0027`, `design/0008`.
+- **A filter narrows; the query marks.** A filter removes notes before books are built; the
+  query never does — every book stays on the shelf, drawing forward or thinning to a ghost. It
+  matches on title, on the **cover** of any book a note sits behind, or on declared metadata
+  (tags, people, folder) — never body or path — against one search index built once per
+  rebuild, never per keystroke (`design/0008`, `design/0026`).
+- **A marked book says why, and its own find box never denies it.** `core.matchReasons` mirrors
+  `matchesQuery` exactly, and *Find within this book* narrows by that same function, so a book
+  can never show a match the shelf can't explain, or deny one it does (`design/0008`,
+  `design/0027`).
 - **A filter changes membership and nothing else.** Shelf order and book addresses do not move.
 - **A hidden shelf keeps its definition and its books.** Hiding never deletes; hiding
   everything still offers a way back.
-- **The page is scoped, in both directions**: every CSS rule under `.vault-shelf`, every id
-  and **every class** prefixed `vs-`, every document through `root.ownerDocument`; nothing
-  shipped reaches the network. Obsidian's own `app.css` claims `.spread`, and it claimed ours.
-- **The first twelve colour slots are Vault Graph's**, read from the cascade rather than
+- **The page is scoped, in both directions.** Every CSS rule under `.vault-shelf`, every id and
+  class prefixed `vs-`, every document through `root.ownerDocument`; nothing shipped reaches
+  the network (`design/0005`).
+- **The first twelve colour slots are Vault Graph's**, read live from the cascade, never
   copied; two brighter slots extend the picker to fourteen (`design/0029`). The theme is
   whatever the host says it is.
-- **A tab is a position in the contents**, so the index is cut the way the book is ordered: Encyclopedia
-  and Tags default to A-Z; other shelves default to dates. Shelf and book pickers can change
-  that default; the switch below search changes both contents and tabs (`design/0030`).
-- **A book opens on its oldest note, and so does a date shelf.** A notebook that starts on its
-  last page reads as if it were written backwards. The old top-bar direction button is removed;
-  saved direction settings still load. Shelf/book pickers choose A-Z or Date (`design/0031`). **A shelf can also have no rule**:
-  `manual` is the order a person dragged the books into, held as `Shelf.order` — a list of
-  classifier **keys**, so it survives a rebuild the way an address does. It moves the sequence
-  and nothing else: not an address, not membership, not what is inside a book. A key it does
-  not name goes to the end, a key the vault has lost is dropped on save, and the toggle in the
-  contents order cannot move it. `design/0018`.
-- **A favourite is a reference, never a copy.** The shelf at position 0 is a `pick` shelf: it
-  classifies nothing and holds the **addresses** of other shelves' books, in the order they were
-  dropped, so its label, notes and bands are the source's and are live. `picks` is the only
-  list — membership and sequence are one question here — a dead pick is dropped **on save** like
-  a manual key, a hidden source still resolves, and the reader is never told a pick shelf
-  exists: opening a favourite opens the source book. **Dragging one off the shelf takes it off**,
-  and it is bound to a drop rather than to `dragend` so Escape cancels. A pick shelf is a **kind**
-  of shelf, not one shelf: the builder makes as many as a person wants, a book may sit on several,
-  and every reference is its own. `design/0019`.
-- **A book can be made on any shelf arranged by hand, and it is a saved query.** Right-click
-  empty rail space, or press the quiet plus where the books end: a name and a `Source` —
-  folder, tag, person, the whole vault — held in `Shelf.made` under a key `-made-<slug>` that
-  also stands in `picks` (a pick shelf) or `order` (any other manual shelf), so the sequence is
-  still one list. The key is fixed at creation, so a rename keeps the address. An automatic
-  shelf has no plus and keeps a made book it inherits, sorted last. **A reference is not a place a note
-  lives; a made book is**: the reader, the reading places and *also shelved in* skip references,
-  never made books. Off the rail means delete, another pick shelf refuses it, a lost source is
-  an empty spine rather than a dropped book, and nothing in the vault moves. `design/0020`.
-- **A look is paint.** `data-look` picks a stylesheet — `"leather"` the default and sole
-  offered look, Modern (`""`) and Cyber (`"cyber"`) shelved but still shipped and still
-  measured (`design/0029`) — and it may repaint anything and move nothing: not a shelf's
-  order, not a book's address, not a count, **not a book's size and not a control's** — a
-  spine is the same width and height in all three, in a room of the same width, and every
-  button, box, tab, ribbon and swatch is the same height, so switching does not move the
-  furniture. **Every element's top is the same in every look, and so is its box across the way
-  its text runs**; the one thing a face may move is a label's neighbour **along its own row**,
-  because a wider face draws wider glyphs and nothing can be done about that. `page.css` owns
-  the geometry — a control's, a head's, a plank's, a line box's — and a look sets colour,
-  border, shadow and face, plus decoration that is absolutely positioned and so moves nothing.
-  A **responsive layout is not a look's**: leather carried a private one below 860px, and below
-  that width the two looks were not the same product. `core.LOOKS` is the one list of them, in
-  the order the selector offers them (leather first, which is what a fresh library opens in),
-  and `migrate` validates against it. `design/0016`, `design/0021`.
+- **A tab is a position in the contents.** Encyclopedia/Tags default A-Z, others date; pickers
+  can override either, and the switch below search changes both together (`design/0030`).
+- **A book opens on its oldest note, and so does a date shelf.** Pickers choose A-Z or Date
+  (`design/0031`); a shelf can also run **manual** — a dragged sequence held as classifier
+  **keys** in `Shelf.order`, surviving a rebuild, dropping a lost key on save, sending an
+  unlisted one to the end (`design/0018`).
+- **A favourite is a reference, never a copy.** Position 0 can be a `pick` shelf — a **kind** of
+  shelf, not a single one — holding **addresses** of other shelves' books, live. Taking one off
+  is bound to `drop` not `dragend` (Escape cancels); a dead pick drops on save; the reader never
+  knows a pick shelf exists, so opening a favourite opens the source book (`design/0019`).
+- **A book made on a hand-arranged shelf is a saved query.** Right-click empty rail space, or
+  the quiet plus at the row's end, for a name and `Source`; its key `-made-<slug>` is fixed at
+  creation, so renaming keeps the address. **A reference is not a place a note lives; a made
+  book is** — the reader, reading places and *also shelved in* skip references, never made
+  books. A lost source is an empty spine, not a dropped book (`design/0020`).
+- **A look is paint.** `data-look` picks a stylesheet — `"leather"` the only offered look
+  (`design/0029`) — and may repaint anything but move nothing: not a shelf's order, a book's
+  address, count or size, or any control's size. `page.css` alone owns geometry; `core.LOOKS` is
+  the one list `migrate` validates against (`design/0016`, `design/0021`).
 
 ## How to work here
 
