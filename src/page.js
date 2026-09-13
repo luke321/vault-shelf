@@ -66,7 +66,7 @@
  * instead of repainting from a stale array.
  */
 var SLOT_KEYS = ["--g1", "--g2", "--g3", "--g4", "--g5", "--g6",
-                 "--g7", "--g8", "--g9", "--g10", "--g11", "--g12"];
+                 "--g7", "--g8", "--g9", "--g10", "--g11", "--g12", "--g13", "--g14"];
 
 /* design/0011 -- A BOOK'S THICKNESS IS ITS NOTE COUNT, on a log scale between these two.
  * Linear would give the Encyclopedia's 0-9 volume (184 notes on the demo vault) a spine
@@ -262,6 +262,8 @@ function mountVaultShelf(root, data, options) {
    * @type {{ palette: string[], ribbons: string[], colors: Record<string, number|null> }|null}
    */
   var trial = null;
+  /** @type {Record<string, import("./core/index").SpineStyle|null>|null} */
+  var trialSpines = null;
 
   /**
    * github#44, design/0022 -- every spine standing, so a preview can repaint it
@@ -293,9 +295,9 @@ function mountVaultShelf(root, data, options) {
   function readSlots() {
     /* github#44, design/0022 -- a trial palette beats the chosen one and is never saved */
     var palette = trial ? trial.palette : settings.palette;
-    var chosen = palette.length === 12;
+    var chosen = palette.length > 0;
     SLOT_KEYS.forEach(function (k, i) {
-      if (chosen) root.style.setProperty(k, palette[i]);
+      if (chosen && palette[i]) root.style.setProperty(k, palette[i]);
       else root.style.removeProperty(k);
     });
     var cs = WIN.getComputedStyle(root);
@@ -463,30 +465,22 @@ function mountVaultShelf(root, data, options) {
       openRailMenu(view.shelf, null, me.clientX, me.clientY);
     });
     head.appendChild(el("h2", "", view.shelf.name));
-    head.appendChild(el("span", "vs-meta",
+    var meta = el("span", "vs-meta",
       view.books.length + (view.books.length === 1 ? " book" : " books") + " \u00b7 " +
-      view.noteCount + (view.noteCount === 1 ? " note" : " notes")));
-    var menu = el("div", "vs-mini");
-    var edit = el("button", "", "Edit");
-    edit.type = "button";
+      view.noteCount + (view.noteCount === 1 ? " note" : " notes"));
+    var edit = shelfAction("Edit " + view.shelf.name, "gear");
     on(edit, "click", function () { openBuilder(view.shelf); });
-    var hide = el("button", "", "Hide");
-    hide.type = "button";
+    var hide = shelfAction("Hide " + view.shelf.name, "eye");
     on(hide, "click", function () {
       view.shelf.hidden = true;
       persist();
       refresh();
     });
-    menu.appendChild(edit);
-    menu.appendChild(hide);
-    /* design/0020 -- the keyboard's way to make a book. */
-    if (view.shelf.direction === "manual") {
-      var make = el("button", "", "New book");
-      make.type = "button";
-      on(make, "click", function () { openMadeBook(view.shelf, null, null); });
-      menu.appendChild(make);
-    }
-    head.appendChild(menu);
+    meta.appendChild(DOC.createTextNode(" \u00b7 "));
+    meta.appendChild(edit);
+    meta.appendChild(DOC.createTextNode(" \u00b7 "));
+    meta.appendChild(hide);
+    head.appendChild(meta);
     wrap.appendChild(head);
 
     /* design/0020 -- a hand-arranged shelf ends in a plus. */
@@ -498,9 +492,39 @@ function mountVaultShelf(root, data, options) {
       rail.appendChild(renderTrack(row, view.shelf, true, makes && last ? plusOf(view.shelf) : null));
     });
     if (isPick(view.shelf)) landingOf(rail, view);
-    if (makes) offersBook(rail, view);
+    offersBook(rail, view);
     wrap.appendChild(rail);
     return wrap;
+  }
+
+  /** design/0032 */
+  /** @param {string} label @param {"gear"|"eye"} kind @returns {HTMLButtonElement} */
+  function shelfAction(label, kind) {
+    var button = el("button", "vs-shelfaction");
+    button.type = "button";
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.setAttribute("data-action", kind);
+    var svg = DOC.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "1.8");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    var outline = DOC.createElementNS("http://www.w3.org/2000/svg", "path");
+    outline.setAttribute("d", kind === "eye"
+      ? "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"
+      : "M10 2h4l.5 3 2 1 2.8-1 2 3.5-2.3 2v3l2.3 2-2 3.5-2.8-1-2 1-.5 3h-4l-.5-3-2-1-2.8 1-2-3.5 2.3-2v-3l-2.3-2 2-3.5 2.8 1 2-1Z");
+    var centre = DOC.createElementNS("http://www.w3.org/2000/svg", "circle");
+    centre.setAttribute("cx", "12");
+    centre.setAttribute("cy", "12");
+    centre.setAttribute("r", "3");
+    svg.appendChild(outline);
+    svg.appendChild(centre);
+    button.appendChild(svg);
+    return button;
   }
 
   /** design/0020 -- the plus: a spine's height, quiet until hovered.
@@ -1491,7 +1515,7 @@ function mountVaultShelf(root, data, options) {
    * design/0020 -- a saved query on the shelf, in the one picks list.
    */
 
-  /** @type {{ shelf: Shelf, key: string|null, before: string|null, draft: import("./core/index").MadeBook }|null} */
+  /** @type {{ shelf: Shelf, key: string|null, before: string|null, draft: import("./core/index").MadeBook, colour?: number, spine?: import("./core/index").SpineStyle, indexMode?: import("./core/index").IndexMode }|null} */
   var making = null;
   /** @type {Shelf|null} */
   var railing = null;
@@ -1504,12 +1528,12 @@ function mountVaultShelf(root, data, options) {
     on(rail, "contextmenu", function (e) {
       var me = /** @type {MouseEvent} */ (e);
       if (!(me.target instanceof Element)) return;
-      if (me.target.closest(".vs-spine") || me.target.closest(".vs-floorgrip")) return;
+      if (me.target.closest(".vs-spine") || me.target.closest(".vs-plaque")) return;
       me.preventDefault();
       var track = me.target.closest(".vs-track");
       /** @type {string|null} */
       var before = null;
-      if (track instanceof HTMLElement) {
+      if (track instanceof HTMLElement && view.shelf.direction === "manual") {
         var place = placeIn(track, me.clientX);
         if (place.spine) {
           before = place.side === "before" ? keyOfSpine(place.spine)
@@ -1531,14 +1555,17 @@ function mountVaultShelf(root, data, options) {
     var line = /** @type {HTMLButtonElement} */ (el("button", "vs-railline", "New book here…"));
     line.type = "button";
     on(line, "click", function () { closeRailMenu(); openMadeBook(shelf, null, before); });
-    menu.appendChild(line);
+    if (shelf.direction === "manual") menu.appendChild(line);
     /* github#44 -- right-clicking a shelf dyes every book standing on it */
     var books = booksOn(shelf);
     /* github#29 -- and it says so */
     menu.appendChild(el("div", "vs-dyeunit", dyeUnit(books, "on this shelf")));
     var offers = dyeRow(menu, books, function (slot) { setBookColors(books, slot); });
+    offers = offers.concat(bindingRow(menu, books));
+    indexPicker(menu, books, shelf);
     placeMenu(menu, x, y);
-    line.focus();
+    if (line.isConnected) line.focus();
+    else holdFocus(menu);
     offerPreviews(offers);
   }
 
@@ -1564,6 +1591,16 @@ function mountVaultShelf(root, data, options) {
     var def = key && shelf.made && shelf.made[key] ? shelf.made[key] : null;
     making = { shelf: shelf, key: def ? key : null, before: before, named: !!def,
                draft: def ? core.clone(def) : { name: "", source: { kind: "folder" } } };
+    var address = key ? core.bookId(shelf.id, key) : "";
+    making.colour = settings.bookColors[address];
+    making.spine = settings.bookSpines[address];
+    making.indexMode = key && shelf.bookIndexes ? shelf.bookIndexes[key] : undefined;
+    madeAppearance();
+    var order = node("mbindex");
+    clear(order);
+    indexChoices(order, making.indexMode, core.indexMode(shelf), function (mode) {
+      making.indexMode = mode || undefined;
+    });
     $("mbtitle").textContent = def ? "Edit book" : "New book on " + shelf.name;
     $("mbsave").textContent = def ? "Save changes" : "Make the book";
     node("mbdelete").hidden = !def;
@@ -1579,6 +1616,145 @@ function mountVaultShelf(root, data, options) {
     making = null;
     $("madebook").hidden = true;
     node("library").focus();
+  }
+
+  /** design/0030 */
+  function madeAppearance() {
+    var box = node("mbappearance");
+    clear(box);
+    box.appendChild(el("div", "vs-bindinglabel", "Book colour"));
+    var colours = el("div", "vs-swatches");
+    SLOTS.forEach(function (colour, i) {
+      var button = el("button", "vs-swatch");
+      button.type = "button";
+      button.style.setProperty("--swatch", colour);
+      button.setAttribute("aria-label", "Colour " + (i + 1));
+      button.setAttribute("aria-pressed", String(making.colour === i));
+      on(button, "click", function () { making.colour = i; update(); });
+      colours.appendChild(button);
+    });
+    box.appendChild(colours);
+    var auto = el("button", "vs-dyeauto", "Automatic colour");
+    auto.type = "button";
+    on(auto, "click", function () { making.colour = undefined; update(); });
+    box.appendChild(auto);
+    box.appendChild(el("div", "vs-bindinglabel", "Spine binding"));
+    var bindings = el("div", "vs-bindingchoices");
+    core.SPINE_STYLES.forEach(function (style) {
+      var button = el("button", "vs-bindingchoice");
+      button.type = "button";
+      button.setAttribute("data-style", style.id);
+      button.setAttribute("aria-label", style.name + ": " + style.description);
+      var sample = el("span", "vs-spine vs-binding-sample");
+      sample.setAttribute("data-binding", style.id);
+      sample.setAttribute("data-upright", "1");
+      sample.setAttribute("aria-hidden", "true");
+      sample.style.setProperty("--spine-trim", style.trim + "px");
+      sample.appendChild(el("span", "vs-title", "Aa"));
+      sample.appendChild(el("span", "vs-ribbon"));
+      button.appendChild(sample);
+      button.appendChild(el("span", "vs-bindingname", style.name));
+      on(button, "click", function () { making.spine = style.id; update(); });
+      bindings.appendChild(button);
+    });
+    box.appendChild(bindings);
+    var autoSpine = el("button", "vs-dyeauto", "Automatic binding");
+    autoSpine.type = "button";
+    on(autoSpine, "click", function () { making.spine = undefined; update(); });
+    box.appendChild(autoSpine);
+    on(colours, "keydown", function (e) { walkSwatches(e, colours, null); });
+    on(bindings, "keydown", function (e) { walkSwatches(e, bindings, null); });
+    function update() {
+      Array.from(colours.children).forEach(function (button, i) {
+        button.setAttribute("aria-pressed", String(making.colour === i));
+      });
+      var dye = SLOTS[making.colour === undefined ? 0 : making.colour];
+      Array.from(bindings.children).forEach(function (button) {
+        button.setAttribute("aria-pressed", String(making.spine === button.getAttribute("data-style")));
+        var sample = /** @type {HTMLElement} */ (button.querySelector(".vs-spine"));
+        sample.style.setProperty("--spine-tint", dye);
+        sample.setAttribute("data-light-dye", inkOn(toHex(dye)) === "#1a1a1a" ? "1" : "0");
+        paintRibbon(sample, dye);
+      });
+      auto.setAttribute("aria-pressed", String(making.colour === undefined));
+      autoSpine.setAttribute("aria-pressed", String(making.spine === undefined));
+    }
+    update();
+  }
+
+  /** design/0030 */
+  /** @param {import("./core/index").IndexMode} mode @returns {string} */
+  function indexLabel(mode) { return mode === "az" ? "A\u2013Z" : "Date"; }
+
+  /** @param {HTMLElement} box @param {import("./core/index").IndexMode|undefined} mode
+   * @param {import("./core/index").IndexMode} automatic @param {(mode: import("./core/index").IndexMode|null) => void} pick */
+  function indexChoices(box, mode, automatic, pick) {
+    var label = el("div", "vs-indexchoice");
+    label.appendChild(el("span", "vs-bindinglabel", "Default contents order"));
+    var choices = el("div", "vs-indexbuttons");
+    choices.setAttribute("role", "group");
+    choices.setAttribute("aria-label", "Default contents order");
+    ["az", "date"].forEach(function (value) {
+      var button = el("button", "", value === "az" ? "A\u2013Z" : "Date");
+      button.type = "button";
+      button.setAttribute("data-index-mode", value);
+      button.setAttribute("aria-pressed", String((mode || automatic) === value));
+      on(button, "click", function () {
+        Array.from(choices.children).forEach(function (other) { other.setAttribute("aria-pressed", String(other === button)); });
+        pick(value === "az" ? "az" : "date");
+      });
+      choices.appendChild(button);
+    });
+    label.appendChild(choices);
+    box.appendChild(label);
+  }
+
+  /** @param {HTMLElement} menu @param {Book[]} books @param {Shelf} [shelf] @param {boolean} [plaque] */
+  function indexPicker(menu, books, shelf, plaque) {
+    var source = books.length ? sourceOf(books[0]) : null;
+    var home = shelf || (source && shelfById(source.shelfId));
+    if (!home) return;
+    var mode = shelf ? shelf.indexMode : source && home.bookIndexes && home.bookIndexes[source.key];
+    if (plaque) {
+      var aggregate = core.plaqueBook(viewById(home.id), books, settings.noteOrder);
+      if (aggregate) {
+        books = books.concat([aggregate]);
+        mode = home.bookIndexes && home.bookIndexes[aggregate.key];
+      }
+    }
+    indexChoices(menu, mode, core.indexMode(home), function (choice) {
+      if (shelf) {
+        if (choice) shelf.indexMode = choice; else delete shelf.indexMode;
+        delete shelf.bookIndexes;
+      }
+      setBookIndexes(books, shelf ? null : choice);
+    });
+  }
+
+  /** @param {Book[]} books @param {import("./core/index").IndexMode|null} mode */
+  function setBookIndexes(books, mode) {
+    books.forEach(function (book) {
+      var source = sourceOf(book), shelf = shelfById(source.shelfId);
+      if (!shelf) return;
+      if (!shelf.bookIndexes) shelf.bookIndexes = {};
+      if (mode) shelf.bookIndexes[source.key] = mode; else delete shelf.bookIndexes[source.key];
+    });
+    persist();
+    closeDye();
+    closeRailMenu();
+    rebuild();
+    if (reader) {
+      var right = root.querySelector(".vs-page.vs-right");
+      var scroll = right ? right.scrollTop : 0;
+      reader.book = findBook(reader.book.id, reader.noteId) || reader.book;
+      reader.index = Math.max(0, reader.book.notes.findIndex(function (note) { return note.id === reader.noteId; }));
+      reader.revealed = null;
+      renderContents();
+      renderMarks();
+      renderTabs();
+      renderNote();
+      if (right) right.scrollTop = scroll;
+    }
   }
 
   function writeMadeFields() {
@@ -1634,8 +1810,18 @@ function mountVaultShelf(root, data, options) {
     var def = making.draft;
     if (!def.name) def.name = nameFor(def.source) || "Untitled book";
     if (def.source.kind !== "all" && !def.source.value) { node("mbsourceval").focus(); return; }
+    key = key || core.madeKey(def.name, Object.keys(shelf.made || {}));
+    var address = core.bookId(shelf.id, key);
+    if (making.colour === undefined) delete settings.bookColors[address];
+    else settings.bookColors[address] = making.colour;
+    if (making.spine === undefined) delete settings.bookSpines[address];
+    else settings.bookSpines[address] = making.spine;
+    if (!shelf.bookIndexes) shelf.bookIndexes = {};
+    if (making.indexMode) shelf.bookIndexes[key] = making.indexMode;
+    else delete shelf.bookIndexes[key];
+    var existingKey = making.key;
     closeMadeBook();
-    var made = writeMadeBook(shelf, key, def, before);
+    var made = writeMadeBook(shelf, existingKey, def, before);
     var spine = /** @type {HTMLElement|null} */ (root.querySelector(
       "#" + ID + 'shelves .vs-spine[data-book="' + cssEscape(core.bookId(shelf.id, made)) + '"]'));
     if (spine) spine.focus();
@@ -1675,6 +1861,8 @@ function mountVaultShelf(root, data, options) {
     var id = core.bookId(shelf.id, key);
     delete settings.wear[id];
     delete settings.bookColors[id];
+    delete settings.bookSpines[id];
+    if (shelf.bookIndexes) delete shelf.bookIndexes[key];
     persist();
     refresh();
   }
@@ -1828,6 +2016,18 @@ function mountVaultShelf(root, data, options) {
   function paintSpine(b, book, shelf) {
     var dye = dyeOf(book, shelf);
     b.style.setProperty("--spine-tint", dye);
+    b.setAttribute("data-light-dye", inkOn(toHex(dye)) === "#1a1a1a" ? "1" : "0");
+    var source = sourceOf(book);
+    var home = source === book ? shelf : shelfById(source.shelfId) || shelf;
+    var given = trialSpines && Object.prototype.hasOwnProperty.call(trialSpines, source.id)
+      ? trialSpines[source.id] : settings.bookSpines[source.id];
+    var binding = b.getAttribute("data-sample-binding") || given || core.automaticSpine(home, source.key);
+    b.setAttribute("data-binding", binding);
+    var seed = core.bindingHash(source.id);
+    var style = core.SPINE_STYLES.find(function (s) { return s.id === binding; });
+    b.style.setProperty("--spine-trim", (style ? style.trim : 0) + "px");
+    b.style.setProperty("--leather-dye", (88 + seed % 7) + "%");
+    b.style.setProperty("--leather-grain-x", (seed % 31) + "px");
     paintRibbon(b, dye);
   }
 
@@ -1957,6 +2157,81 @@ function mountVaultShelf(root, data, options) {
     return offers;
   }
 
+  /** design/0029 */
+  /** @param {HTMLElement} menu @param {Book[]} books @returns {{ btn: HTMLElement, show: () => void }[]} */
+  function bindingRow(menu, books) {
+    menu.setAttribute("data-bindings", "1");
+    menu.appendChild(el("div", "vs-bindinglabel", "Spine binding"));
+    var row = el("div", "vs-bindingchoices");
+    row.setAttribute("role", "group");
+    row.setAttribute("aria-label", "Spine binding");
+    /** @type {{ btn: HTMLElement, show: () => void }[]} */
+    var offers = [];
+    var sampleBook = books[0];
+    var home = sampleBook ? shelfById(sourceOf(sampleBook).shelfId) : null;
+    core.SPINE_STYLES.forEach(function (style) {
+      var choice = el("button", "vs-bindingchoice");
+      choice.type = "button";
+      choice.setAttribute("data-style", style.id);
+      choice.setAttribute("aria-label", style.name + ": " + style.description);
+      choice.setAttribute("aria-pressed", String(books.length > 0 && books.every(function (book) {
+        var source = sourceOf(book);
+        return (settings.bookSpines[source.id] || core.automaticSpine(shelfById(source.shelfId) || home, source.key)) === style.id;
+      })));
+      var sample = el("span", "vs-spine vs-binding-sample");
+      sample.setAttribute("data-sample-binding", style.id);
+      sample.setAttribute("data-upright", "1");
+      sample.setAttribute("aria-hidden", "true");
+      sample.appendChild(el("span", "vs-title", "Aa"));
+      sample.appendChild(el("span", "vs-ribbon"));
+      if (sampleBook && home) {
+        paintSpine(sample, sampleBook, home);
+        painted.push({ spine: sample, book: sampleBook, shelf: home });
+      } else sample.setAttribute("data-binding", style.id);
+      choice.appendChild(sample);
+      choice.appendChild(el("span", "vs-bindingname", style.name));
+      on(choice, "click", function () { setBookSpines(books, style.id); });
+      offers.push({ btn: choice, show: function () { previewSpines(books, style.id); } });
+      row.appendChild(choice);
+    });
+    on(row, "keydown", function (e) {
+      var key = /** @type {KeyboardEvent} */ (e);
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].indexOf(key.key) < 0) return;
+      e.stopPropagation();
+      walkSwatches(key, row, null);
+    });
+    menu.appendChild(row);
+    var auto = el("button", "vs-dyeauto", "Automatic binding");
+    auto.type = "button";
+    auto.setAttribute("data-style", "auto");
+    on(auto, "click", function () { setBookSpines(books, null); });
+    menu.appendChild(auto);
+    offers.push({ btn: auto, show: function () { previewSpines(books, null); } });
+    return offers;
+  }
+
+  /** design/0029 */
+  /** @param {Book[]} books @param {import("./core/index").SpineStyle|null} style */
+  function previewSpines(books, style) {
+    trial = null;
+    trialSpines = {};
+    books.forEach(function (book) { trialSpines[sourceOf(book).id] = style; });
+    repaint();
+  }
+
+  /** @param {Book[]} books @param {import("./core/index").SpineStyle|null} style */
+  function setBookSpines(books, style) {
+    books.forEach(function (book) {
+      var id = sourceOf(book).id;
+      if (style === null) delete settings.bookSpines[id];
+      else settings.bookSpines[id] = style;
+    });
+    persist();
+    closeDye();
+    closeRailMenu();
+    repaint();
+  }
+
   /**
    * github#29, design/0022 -- how many books this gesture is about, said out loud.
    * @param {Book[]} books @param {string} where @returns {string}
@@ -1981,6 +2256,8 @@ function mountVaultShelf(root, data, options) {
     menu.appendChild(el("div", "vs-dyename", label));
     if (where) menu.appendChild(el("div", "vs-dyeunit", dyeUnit(books, where)));
     var offers = dyeRow(menu, books, function (slot) { setBookColors(books, slot); });
+    offers = offers.concat(bindingRow(menu, books));
+    indexPicker(menu, books, undefined, !!where);
     if (where || books.length !== 1) {
       placeMenu(menu, x, y);
       holdFocus(menu);
@@ -2064,8 +2341,7 @@ function mountVaultShelf(root, data, options) {
     persist();
     closeDye();
     closeRailMenu();
-    renderLibrary();
-    applyQuery();
+    repaint();
   }
 
   /** @param {Book} book @returns {number} */
@@ -2267,6 +2543,7 @@ function mountVaultShelf(root, data, options) {
    */
   /** @param {Book} book @param {string|null} noteId */
   function openBook(book, noteId) {
+    book = findBook(book.id, noteId) || book;
     if (reader && reader.book.id !== book.id) {
       history.push({ bookId: reader.book.id, noteId: reader.noteId });
     }
@@ -2358,6 +2635,8 @@ function mountVaultShelf(root, data, options) {
     /* Every ribbon in this row is in the same book, so they are all the same thread -- the
      * one the closed spine hangs, which is how you recognise the book you just opened. */
     paintRibbon(box, readerDye());
+    var source = sourceOf(reader.book);
+    box.setAttribute("data-binding", settings.bookSpines[source.id] || core.automaticSpine(shelfById(source.shelfId), source.key));
     var here = reader.book.notes
       .map(function (note, i) { return { note: note, at: i }; })
       .filter(function (row) { return isBookmarked(row.note.id); });
@@ -2492,11 +2771,11 @@ function mountVaultShelf(root, data, options) {
    */
   /** @param {Book} book @returns {{ label: string, at: number }[]} */
   function indexSections(book) {
-    var shelf = shelfById(book.shelfId);
-    var kind = shelf ? shelf.classifier : "initial";
+    var source = sourceOf(book);
+    var shelf = shelfById(source.shelfId);
     /** @type {{ label: string, at: number }[]} */
     var out = [];
-    if (kind === "initial") {
+    if (core.indexMode(shelf, source.key) === "az") {
       out = letterTabs(book.notes);
     } else {
       /* design/0015 -- ONE INDEX FOR EVERY DATE-ORDERED BOOK, however it was classified. A
@@ -2652,7 +2931,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   function renderTabs() {
-    var box = $("tabs");
+    var box = node("tabs");
     clear(box);
     /* github#0 -- THE FIRST TAB IS THE ONE THAT FINDS. The index down the right edge jumps to a
      * place in the book; the box that searches inside the book is at the top of the left page,
@@ -2668,8 +2947,23 @@ function mountVaultShelf(root, data, options) {
     find.setAttribute("aria-label", "Search inside this book");
     on(find, "click", findInBook);
     box.appendChild(find);
-    indexSections(reader.book).forEach(function (section) {
-      var b = el("button", "", section.label);
+    var source = sourceOf(reader.book);
+    var mode = core.indexMode(shelfById(source.shelfId), source.key);
+    var toggle = el("button", "vs-indextoggle", indexLabel(mode));
+    toggle.type = "button";
+    toggle.setAttribute("data-index-mode", mode);
+    toggle.setAttribute("aria-label", "Contents: " + indexLabel(mode) + ". Switch to " + indexLabel(mode === "az" ? "date" : "az"));
+    toggle.title = "Switch contents order";
+    on(toggle, "click", function () {
+      setBookIndexes([reader.book], mode === "az" ? "date" : "az");
+      var next = node("tabs").querySelector(".vs-indextoggle");
+      if (next instanceof HTMLElement) next.focus({ preventScroll: true });
+    });
+    box.appendChild(toggle);
+    var sections = indexSections(reader.book);
+    box.style.setProperty("--vs-tab-count", String(Math.max(1, sections.length)));
+    sections.forEach(function (section) {
+      var b = el("button", "vs-indextab", section.label);
       b.type = "button";
       b.setAttribute("data-level", String(section.level || 0));
       if (section.at <= reader.index) b.setAttribute("aria-current", "true");
@@ -3205,7 +3499,7 @@ function mountVaultShelf(root, data, options) {
      * have always been ascending and descending; only the words were wrong. */
     var dated = d.classifier === "year" || d.classifier === "month" || d.classifier === "week";
     var order = /** @type {HTMLSelectElement} */ ($("bdirection"));
-    order.options[0].textContent = dated ? "Reading order (top bar)" : "A to Z";
+    order.options[0].textContent = dated ? "Date order" : "A to Z";
     order.options[1].textContent = dated ? "Newest first" : "Z to A";
     /* design/0015 -- a date shelf takes its direction from the top bar, so the second automatic
      * answer here is not a second answer, it is the same one written twice. It is taken off the
@@ -3217,17 +3511,24 @@ function mountVaultShelf(root, data, options) {
     order.title = d.direction === "manual"
       ? "The books stay where you put them. Drag a spine along the shelf, or Alt+Left and " +
         "Alt+Right from the keyboard."
-      : dated ? "Date shelves follow the reading order in the top bar." : "";
+      : dated ? "Books follow their dates." : "";
     field("bplaques").checked = !!d.plaques;
     field("bplaques").disabled = !PLAQUABLE[d.classifier];
     field("bsubtags").checked = d.includeSubtags !== false;
     field("bvary").checked = core.variesColors(d);
+    var index = node("bindex");
+    clear(index);
+    indexChoices(index, d.indexMode, core.indexMode(d), function (mode) {
+      if (mode) d.indexMode = mode; else delete d.indexMode;
+      previewBuilder();
+    });
     field("bsubtags").disabled = d.classifier !== "tag" && d.source.kind !== "tag";
     /* design/0019 -- A PICK SHELF HAS NO PREDICATE AND NO RULE, so the first question and the
      * order come off the form -- but "what makes a book" STAYS, because it is the control that
      * made the shelf a pick shelf and the only way back out of it. The recipes go too: every
      * one of them answers the question this shelf does not ask. */
     var pick = isPick(d);
+    field("bvary").closest("label").hidden = pick;
     /** @type {(HTMLElement|null)[]} */
     var ruled = [field("bsource").closest("fieldset"), order.closest("label"),
                  $("recipes").closest(".vs-field")];
@@ -3264,7 +3565,8 @@ function mountVaultShelf(root, data, options) {
     }
     d.plaques = !isPick(d) && !!PLAQUABLE[d.classifier] && field("bplaques").checked;
     d.includeSubtags = field("bsubtags").checked;
-    d.varyColors = field("bvary").checked;
+    if (!isPick(d)) d.varyColors = field("bvary").checked;
+    else delete d.varyColors;
     writeBuilderFields();
   }
 
@@ -3577,6 +3879,8 @@ function mountVaultShelf(root, data, options) {
         by.value = core.colorRule(shelf);
         on(by, "change", function () {
           shelf.colorBy = /** @type {import("./core/index").ColorRule} */ (by.value);
+          shelf.varyColors = false;
+          sw.checked = false;
           persist();
           refresh();
         });
@@ -3585,10 +3889,14 @@ function mountVaultShelf(root, data, options) {
       row.appendChild(up);
       row.appendChild(down);
       row.appendChild(shown);
-      row.appendChild(vary);
-      if (by) row.appendChild(by);
       row.appendChild(edit);
       row.appendChild(del);
+      if (!isPick(shelf)) {
+        var rules = el("div", "vs-managerules");
+        rules.appendChild(vary);
+        if (by) rules.appendChild(by);
+        row.appendChild(rules);
+      }
       box.appendChild(row);
     });
   }
@@ -3607,13 +3915,13 @@ function mountVaultShelf(root, data, options) {
   function renderColours() {
     var box = $("mpalette");
     clear(box);
-    var chosen = settings.palette.length === 12;
+    var chosen = settings.palette.length > 0;
     /* FOUR COLUMNS OF THREE, not one of twelve: twelve rows is a sheet you scroll to reach
      * the buttons on. Four tables rather than one with four column-groups, because a grid
      * can only make as many columns as it has children -- two tables could only ever stand
      * two abreast however wide the sheet got. They fall back to two columns and then one as
      * the sheet narrows. */
-    [[0, 3], [3, 6], [6, 9], [9, 12]].forEach(function (range) {
+    [[0, 4], [4, 8], [8, 11], [11, 14]].forEach(function (range) {
       /* NO COLUMN HEADINGS. Four of them across a sheet is "BOOK RIBBON" written four times
        * over twelve swatches that already say which is which -- and a heading is TEXT, so
        * the column was as wide as the face rendered it and the table came out 109.9px under
@@ -3757,7 +4065,7 @@ function mountVaultShelf(root, data, options) {
    * @param {number} i @param {string} hex @returns {void}
    */
   function previewSlot(i, hex) {
-    var next = (settings.palette.length === 12 ? settings.palette : OWN.slots).slice();
+    var next = OWN.slots.map(function (hex, i) { return settings.palette[i] || hex; });
     next[i] = hex || OWN.slots[i];
     trial = { palette: next, ribbons: settings.ribbons.slice(), colors: {} };
     repaint();
@@ -3779,6 +4087,7 @@ function mountVaultShelf(root, data, options) {
    * @param {Book[]} books @param {number|null} slot @returns {void}
    */
   function previewColors(books, slot) {
+    trialSpines = null;
     /** @type {Record<string, number|null>} */
     var colors = {};
     books.forEach(function (book) { colors[sourceOf(book).id] = slot; });
@@ -3789,8 +4098,9 @@ function mountVaultShelf(root, data, options) {
 
   /** github#44, design/0022 -- back to exactly what was there when the popover opened */
   function endPreview() {
-    if (!trial) return;
+    if (!trial && !trialSpines) return;
     trial = null;
+    trialSpines = null;
     repaint();
   }
 
@@ -3934,7 +4244,7 @@ function mountVaultShelf(root, data, options) {
 
   /** @param {number} i @param {string} hex */
   function pickSlot(i, hex) {
-    var next = settings.palette.length === 12 ? settings.palette.slice() : OWN.slots.slice();
+    var next = OWN.slots.map(function (own, at) { return settings.palette[at] || own; });
     next[i] = hex;
     setPalette(next);
   }
@@ -3942,8 +4252,8 @@ function mountVaultShelf(root, data, options) {
   /** github#4 -- one slot back to the look's own; the other eleven stay the person's. */
   /** @param {number} i */
   function resetSlot(i) {
-    if (settings.palette.length !== 12) return;
-    var next = settings.palette.slice();
+    if (!settings.palette.length) return;
+    var next = OWN.slots.map(function (own, at) { return settings.palette[at] || own; });
     next[i] = OWN.slots[i];
     setPalette(next);
   }
@@ -4046,17 +4356,6 @@ function mountVaultShelf(root, data, options) {
    * It says what it IS, not what pressing it would do -- a button labelled "Newest first"
    * that gives you oldest-first is a coin toss every time.
    */
-  function paintOrder() {
-    var newest = settings.noteOrder === "newest";
-    var b = node("order");
-    b.textContent = newest ? "Newest first" : "Oldest first";
-    b.setAttribute("aria-pressed", newest ? "true" : "false");
-    b.title = newest
-      ? "Books open on their most recent note. Click for oldest first."
-      : "Books open on their earliest note, the way a notebook is written. " +
-        "Click for newest first.";
-  }
-
   /**
    * design/0016 -- THE LOOK IS PICKED WHERE IT IS SEEN. It was a toggle in the plugin's
    * settings tab and a button bolted to the standalone's chrome -- two controls, in two
@@ -4074,15 +4373,7 @@ function mountVaultShelf(root, data, options) {
       select.appendChild(o);
     });
     select.value = core.isOffered(settings.look) ? settings.look : "";
-  }
-
-  function toggleOrder() {
-    settings.noteOrder = settings.noteOrder === "newest" ? "oldest" : "newest";
-    persist();
-    paintOrder();
-    /* A book's notes are sorted where it is built, so this is a rebuild and not a repaint --
-     * and the reading place re-resolves through it the way it does after any rebuild. */
-    refresh();
+    select.hidden = core.offeredLooks().length < 2;
   }
 
   function applyLook() {
@@ -4242,8 +4533,6 @@ function mountVaultShelf(root, data, options) {
   edgeScroll($("library"));
   takeOffZone($("shelves"));
   shelfDropZone($("shelves"));
-  paintOrder();
-  on($("order"), "click", toggleOrder);
   fillLooks();
   on($("look"), "change", function () {
     settings.look = /** @type {import("./core/index").Look} */ (field("look").value);

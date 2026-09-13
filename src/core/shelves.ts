@@ -265,7 +265,7 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
       label: labelFor(key, shelf.classifier),
       cover: coverFor(key, shelf.classifier),
       plaque: plaqueFor(key, shelf),
-      notes: list.slice().sort(readingOrder(shelf, order)),
+      notes: list.slice().sort(readingOrder(shelf, order, key)),
       bands: bandsOf(list),
       matches: 0,
     });
@@ -301,7 +301,7 @@ function madeBookOf(shelf: Shelf, key: string, notes: Note[], order: NoteOrder):
      * classifier key underneath it to strip a hash from. */
     cover: made.name,
     plaque: null,
-    notes: members.slice().sort((a, b) => (order === "newest" ? 1 : -1) * byDateThenTitle(a, b)),
+    notes: members.slice().sort(readingOrder(shelf, order, key)),
     bands: bandsOf(members),
     matches: 0,
   };
@@ -410,8 +410,8 @@ export function unpick(picks: string[] | undefined, live: Set<string>, sourceId:
  * fall into, so it is A-to-Z and the reading order in the top bar cannot reach it.
  */
 /* design/0015 */
-function readingOrder(shelf: Shelf, order: NoteOrder): (a: Note, b: Note) => number {
-  return alphabetical(shelf)
+function readingOrder(shelf: Shelf, order: NoteOrder, key?: string): (a: Note, b: Note) => number {
+  return indexMode(shelf, key) === "az"
     ? byTitleThenDate
     : (a, b) => (order === "newest" ? 1 : -1) * byDateThenTitle(a, b);
 }
@@ -474,12 +474,11 @@ function compareKeys(a: string, b: string, direction: "alphabetical" | "chronolo
 }
 
 /**
- * design/0015 -- AN ENCYCLOPEDIA VOLUME IS ALPHABETICAL INSIDE, and every other book is a
- * record of when. The order is not decoration: the reader's index tabs jump to a position in
- * this list, so tabs that read A, B, C over a list ordered by date point at nothing.
+ * design/0030
  */
-function alphabetical(shelf: Shelf): boolean {
-  return shelf.classifier === "initial";
+export function indexMode(shelf: Shelf, key?: string): import("./types").IndexMode {
+  return (key && shelf.bookIndexes?.[key]) || shelf.indexMode ||
+    (shelf.classifier === "initial" || shelf.classifier === "tag" ? "az" : "date");
 }
 
 function byTitleThenDate(a: Note, b: Note): number {
@@ -567,6 +566,7 @@ export function colorRule(shelf: Shelf): ColorRule {
 
 /** github#33, design/0005 -- a shelf of identities varies unless the file says otherwise. */
 export function variesColors(shelf: Shelf): boolean {
+  if (shelf.classifier === "pick") return false;
   if (shelf.varyColors !== undefined) return shelf.varyColors;
   return shelf.classifier === "person" || shelf.classifier === "tag";
 }
@@ -672,7 +672,7 @@ export function plaqueBook(view: ShelfView, run: Book[], order: NoteOrder = "old
       notes.push(note);
     }
   }
-  notes.sort(readingOrder(view.shelf, order));
+  notes.sort(readingOrder(view.shelf, order, PLAQUE_KEY + plaque));
   return {
     id: plaqueBookId(view.shelf.id, plaque),
     shelfId: view.shelf.id,

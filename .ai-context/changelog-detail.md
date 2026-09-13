@@ -1,5 +1,144 @@
 # Changelog detail
 
+## 2026-09-13 - Compressing tabs and inline shelf actions
+
+The right-edge section tabs compress without scrolling; Search and A-Z/Date stay 28px high.
+Shelf Edit/Hide hover buttons become always-visible 12px gear/eye icons after the note count,
+with matching colour and dot separators. A targeted headed check verifies all 25 tabs fit
+at 1180x1000 and 1180x480, mode switching keeps control sizes, and both shelf actions work.
+The index checks and cross-look geometry checks pass. No full suite was run for this change.
+Manage is a gear icon, and the redundant New book header button is removed in favour of
+the plus spine.
+
+## 2026-09-13 — All checks pass in visible Chrome on the left monitor
+
+User-authorized `node scripts/smoke.mjs --headed --jobs 1 --lock-timeout-ms 1000` ran all
+121 checks in visible Chrome using the harness's left-monitor placement and screen lock.
+**121/121 passed in 58 seconds** (85/85 general checks, 36/36 layout checks). Both locks
+were released. Log: ignored `dist/full-suite-headed-2026-09-13.log`. The harness does not
+stamp headed runs, even when every check is selected.
+
+## 2026-09-13 — Full suite passes after the four check repairs
+
+User-authorized `node scripts/smoke.mjs --jobs 1 --lock-timeout-ms 1000` completed in
+headless Chrome: **121/121 passed in 56 seconds** (85/85 general checks and 36/36 layout
+checks). All four previously failing checks pass in the full run. The complete log is kept
+in ignored `dist/full-suite-2026-09-13.log`. Both locks were released. No suite stamp was
+written because the working tree has uncommitted changes.
+
+## 2026-09-12 — Repair the four full-suite failures
+
+All four failures were in the checks or their shared-page setup; no product code changed.
+Five targeted checks, including the hand-colour check immediately before decade grouping,
+pass together in both headless and headed Chrome (7 seconds each).
+
+- Migration now expects both shelved looks to resolve to Leather, matching the offered-look
+  rule. All other legacy settings assertions remain.
+- Reading shelves measure common **bottom** edges and require every spine to fit inside its
+  row. The two-book case has 128px and 132px books ending at y=295; 32 books occupy exactly
+  two rows. The first row still has only 13px spare for a 42px next book.
+- The hand-colour check restores `bookColors` in `finally`. Running it before the date check
+  now leaves zero split periods across 11 month-years and 2 year-decades.
+- The page-turn check had sent a synthetic wheel event at the top of a page with **29px**
+  left to scroll. Synthetic wheel events do not perform native scrolling. It now reaches
+  the bottom explicitly and checks the two timers independently: slow notches accumulate
+  100px, 200px and turn; the latch clears; a new 200px partial push expires to 0px after
+  800ms; the next notch starts at 100px without turning. The 140ms/600ms timers are unchanged.
+
+The full suite has not been rerun after these fixes.
+
+## 2026-09-12 — Full-suite verification of the spine-picker branch
+
+User-authorized `node scripts/smoke.mjs --jobs 1 --lock-timeout-ms 1000`: **117/121 passed
+in 56 seconds** (82/85 general checks, 35/36 layout checks). No successful-suite stamp.
+
+Four failures remain:
+
+- Older-settings migration still expects Modern to survive; the requested sole offered
+  Leather look migrates it to Leather.
+- Reading-shelf row checks still compare spine tops and expect uniform height. The requested
+  binding types have different heights while sharing a bottom edge.
+- Decade colouring sees one split decade in the full run. It passes in isolation; the
+  preceding hand-colour check leaves a book override in the shared page.
+- Slow page-turn accumulation reaches 100px, 200px and then turns as expected, but its next
+  push after 800ms reports 0px rather than the asserted 100px. This also fails in isolation.
+
+The isolated follow-up selected only decade colouring and slow page turns: 1/2 passed.
+No second full-suite run and no implementation or assertion changes were made for this audit.
+
+## 2026-09-12 — Automatic preserves scroll and the demo starts automatically
+
+Reproduced the reported jump: choosing a colour or Automatic while scrolled to Tags took
+the library from 1495px to 0px and disconnected the book nodes. `setBookColors` rebuilt the
+whole library even though the change was paint. It now uses the same repaint path as the
+binding picker. Eight book/board actions (choose/reset colour/binding) now keep 1495px
+unchanged and retain the same nodes. The regression settles the destination's lazy layout
+before measuring so intrinsic-height estimation is not counted as a paint movement.
+
+The demo now embeds automatic defaults with zero `bookColors` and `bookSpines` overrides.
+`--demo` enables the export settings; the former `--demo-seed` flag remains compatible but
+does not stamp book choices. Grouping is deterministic, the initial four Favourites remain,
+and saved settings still win on subsequent reloads. Both generated demos were refreshed;
+the open Chrome demo's existing book overrides were cleared as requested and stayed empty
+after reload. Its previous settings were backed up in the ignored `dist/` directory.
+
+## 2026-09-12 — Binding heights, antique tooling and grabbable wood shelves
+
+User correction: height belongs to the binding type, not the book address. Measured heights
+are Original 132px, Gilt 130px, Morocco 128px, Vellum 126px and Aged 124px, with exactly
+one height per type across the library. Widths and addresses remain fixed during previews;
+the title-to-decoration minimum stays 3px. Original's artwork remains intact. The other
+four use locally drawn antique tooling inspired by the supplied reference; Aged gains edge
+creases and diagonal wrinkles. Vellum now mixes 58% dye, up from 18%, and measurements
+confirm 14 distinct painted backgrounds for the 14 choices.
+
+Warm gold and pale teal extend the picker from 12 colours to 14. Saved twelve-slot palettes
+still load. The new last slot survives migration, and Manage measures 14 dyes, 14 matching
+ribbons and 14 distinct complements with working edits, resets and persistence.
+
+Boards grow from 10px to 14px, their grab strips from 18px to 22px, and the leather boards
+carry subtle grain and knots. Right-click now works on the board and empty automatic rail;
+New book here stays limited to manual shelves. The shelf drag check now preserves the
+four seeded Favourites and measures the dropped book against that starting set.
+Shelf drag/drop, board picker, colour previews, title clearance, list mode and look geometry
+checks pass. The updated golden keeps 6 shelves, 10 rows, 227 spines and 52 plaques in a
+1125px room; every control and 4,226 elements remain aligned across the three measured looks.
+Fourteen distinct targeted smoke checks pass. Build, lint, scope, network, comment budget,
+data escaping, refresh wiring and build-order determinism pass; PII patterns pass with no
+name list available. A real Chrome right-click on Years' wooden board opens 14 colours and
+5 bindings, at both desktop width and 390px. The narrow picker stays between x=12 and x=382
+and within the viewport vertically. Screenshots were inspected and Chrome reported no errors.
+The generated offline demo was refreshed; the full suite was not run.
+Original retains the chosen dye across the full spine, including its raised head and foot bands.
+
+## 2026-09-12 — Five leather bindings beside the colour picker
+
+Implemented on `develop` at `eb746bb`. The earlier work from the outdated base is stashed.
+The existing Original leather remains available alongside Gilt, Morocco, Vellum and Aged.
+The same menu now holds 12 colours and 5 bindings, with live preview and saved selection.
+
+Fresh definitions go from 7 shelves (Weeks hidden) to 6 (Weeks absent); saved Weeks survive.
+People and Tags vary per book, Years by decade and Months by year. Leather is the only
+offered look; Modern and Cyber remain available to the measurement harness.
+
+Measured on the declared vault: 5 distinct binding paints and inks, 3px minimum title
+clearance, no size or address changes during preview, no preview writes, cancellation
+restores paint, and saved choices survive migration and rebuilding. Seeded demo settings
+cover 227 source books, coordinate 15 period groups, and use all 5 styles on each identity
+shelf. Same seed repeats; a different seed varies the result. A real Chrome reload preserved
+settings and painted bindings/colours, with no console errors.
+
+Height variation is 0–4px per source address. The refreshed golden retains 6 shelves,
+10 rows, 227 spines, 52 plaques and a 1125px room in all 3 measured looks. The title census,
+existing colour previews and selection, ribbon placement, list mode and new binding checks
+pass. Screenshots of the library and combined picker were inspected in Chrome.
+The committed demo was regenerated from the declared 1,200-note cut with a stable seed.
+See `design/0029` for persistence and the title/decoration contract.
+
+Build, strict typecheck, lint, scope, network, comment budget, data escaping, refresh wiring,
+generator determinism and build-order determinism pass. PII patterns pass; no local name list
+was available. Eleven distinct targeted smoke checks pass; the full suite was not run.
+
 ## 2026-09-12 — A lifted spine is painted whole (github#51)
 
 > "a book is cut off at the top when you hover it near the shelf header"
@@ -3391,3 +3530,53 @@ reasoning `design/0024` used for the edge scroll being the gesture's reach rathe
 
 Comment budget unchanged at **1500/1500**: the blocks written for this landed 15 lines over, and
 the reasoning moved to `design/0026` rather than the baseline moving.
+
+
+## 2026-09-13 ? Contents order and book creation pickers
+
+Previously only Encyclopedia had an alphabetical index; book creation offered name/source.
+Now Encyclopedia and Tags default to A?Z, other shelves to dates. A switch below the reader's
+search tab changes contents and tabs together. Shelf, plaque and book menus expose the saved
+default, as do shelf and book creation/editing. New books offer 14 colours and 5 bindings.
+
+Measured on 4,938 notes: Tags' mode changes A?Z ? date while retaining the selected note;
+chronological contents, migration, a subsequent spine click, shelf defaults for future books,
+and builder edits all pass. Cancel leaves settings byte-identical; make/edit/migrate/delete
+preserve or remove colour, binding and contents mode correctly. Existing index, navigation,
+contents scrolling, builder and made-book checks pass in visible Chrome on the left display.
+Desktop screenshots inspected: `dist/index-switch-vault-reader.png` and
+`dist/book-creation-vault.png`. At 390px, the creation form measures 343px wide with zero
+horizontal overflow; all five samples and the save controls remain reachable. Plaque menu
+defaults and new shelf defaults pass too. Build, strict typecheck, lint, static gates,
+generator/build determinism and refresh wiring pass. PII checked patterns only (no name list).
+Full suite has not been run for this feature.
+
+
+## 2026-09-13 - Picker, reader and Manage refinements
+
+Fourteen swatches now occupy two rows of seven. Minimal follows Original, with plain leather,
+no bands/frame, a straight ribbon and 131px height. All six bindings are offered in creation
+and context pickers and automatic selection. A-Z/Date buttons replace the contents dropdown.
+
+The reader sits below the original library rail. Search stays left, title centred, and query
+visible; the oldest/newest button is removed while existing settings still load. The index
+measures 56px in both modes, with a scrolling overflow and 72px page clearance. Ribbon cuts
+match all six bindings, and after changing sort a ribbon still opens its marked note.
+
+Manage now says Fourteen colours. Date colour rules occupy a separate row and fit a 160px
+select; choosing one disables colour variation. Pick shelves have no variation toggle in
+Manage or creation/editing and ignore legacy variation flags.
+
+Measured in visible Chrome: centred title within 2px, identical rail rectangles before/after
+opening a book, query retained and clickable, fixed index and spine widths, two swatch rows,
+six matching ribbon cuts and correct ribbon target after switching. Manage controls fit at
+desktop and 390px. The narrow creation sheet is 343px wide with zero horizontal overflow.
+Cross-look checks report zero movement or resizing across 4,230 elements and 39 controls.
+Golden updated for automatic binding heights: still 6 shelves, 10 rows, 227 spines, 52 plaques.
+Targeted creation, persistence, date colours, drag, overlay and layout checks pass. Resize
+cleanup waits were added to two tests whose assertions passed before their pending resize
+had settled. Build/lint/static gates pass. Full suite not run for this change.
+
+Screenshots inspected: `dist/reader-refinement-vault.png`,
+`dist/reader-refinement-vault-reader.png`, `dist/book-creation-narrow-bottom.png` and
+`dist/leather-spine-picker.png`.

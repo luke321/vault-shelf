@@ -1,7 +1,9 @@
-import type { MadeBook, Shelf, SourceKind } from "./types";
-import { isMadeKey } from "./shelves";
+import type { MadeBook, Note, Shelf, SourceKind } from "./types";
+import { buildShelf, isMadeKey, seedPicks } from "./shelves";
+import { bookSpinesOf, isSpineStyle } from "./bindings";
+import type { SpineStyle } from "./bindings";
 
-/* ---- the seven default shelves -------------------------------------------
+/* ---- the six default shelves ---------------------------------------------
  * design/0002
  *
  * The same note is meant to appear on several of these at once. That overlap is the product,
@@ -25,31 +27,22 @@ export function defaultShelves(): Shelf[] {
     {
       id: "years", name: "Years", source: { kind: "all" },
       classifier: "year", direction: "chronological", hidden: false, position: 2,
-      plaques: true,
+      plaques: true, spineSeries: "decade",
     },
     {
       id: "months", name: "Months", source: { kind: "all" },
       classifier: "month", direction: "chronological", hidden: false, position: 3,
-      plaques: true,
-    },
-    {
-      /* HIDDEN, AND STILL THERE. A vault of any age has hundreds of ISO weeks, which under
-       * design/0014 is a shelf a dozen rows deep between Months and People -- the longest
-       * thing in the library and the one nobody opened. It keeps its definition and one
-       * click in Manage brings it back; hiding never deletes (decisions/0002). */
-      id: "weeks", name: "Weeks", source: { kind: "all" },
-      classifier: "week", direction: "chronological", hidden: true, position: 4,
-      plaques: true,
+      plaques: true, spineSeries: "year",
     },
     {
       id: "people", name: "People", source: { kind: "all" },
-      classifier: "person", direction: "alphabetical", hidden: false, position: 5,
-      plaques: true,
+      classifier: "person", direction: "alphabetical", hidden: false, position: 4,
+      plaques: true, spineSeries: "book",
     },
     {
       id: "tags", name: "Tags", source: { kind: "all" },
-      classifier: "tag", direction: "alphabetical", hidden: false, position: 6,
-      plaques: true, includeSubtags: true,
+      classifier: "tag", direction: "alphabetical", hidden: false, position: 5,
+      plaques: true, includeSubtags: true, spineSeries: "book",
     },
   ];
 }
@@ -167,6 +160,8 @@ export interface Persisted {
    * it survives a rebuild the way a reading place does (decisions/0002).
    */
   bookColors: Record<string, number>;
+  /** design/0029 */
+  bookSpines: Record<string, SpineStyle>;
 }
 
 /** design/0016 -- the looks that exist. A blob naming any other one falls back to "". */
@@ -180,7 +175,7 @@ export type Look = "" | "leather" | "cyber";
  */
 export const LOOKS: { value: Look; name: string; shelved?: true }[] = [
   { value: "leather", name: "Leather" },
-  { value: "", name: "Modern" },
+  { value: "", name: "Modern", shelved: true },
   /* design/0017 -- SHELVED, NOT REMOVED. The stylesheet ships and every check still paints
    * it, but the selector does not offer it and a saved file asking for it comes up in leather
    * until the redesign lands. */
@@ -229,6 +224,7 @@ export function emptySettings(): Persisted {
     palette: [],
     ribbons: ribbonsOf(null, null),
     bookColors: {},
+    bookSpines: {},
   };
 }
 
@@ -248,7 +244,7 @@ export function migrate(raw: unknown): Persisted {
     schema: SETTINGS_SCHEMA,
     shelves: shelves.length
       ? withFavourites(shelves.map((s) =>
-          pickedBy(arrangedBy(variesOn(alphabetOn(weeksAway(decadesOn(s, from), from), from), data)))),
+          boundBy(pickedBy(arrangedBy(variesOn(alphabetOn(weeksAway(decadesOn(s, from), from), from), data))))),
           from)
       : base.shelves,
     reading: Array.isArray(data.reading) ? data.reading.filter(isMark) : [],
@@ -279,7 +275,29 @@ export function migrate(raw: unknown): Persisted {
      * the person's mind rather than their file. */
     ribbons: ribbonsOf(data.ribbons, (data as { ribbon?: unknown }).ribbon),
     bookColors: bookColorsOf(data.bookColors),
+    bookSpines: bookSpinesOf(data.bookSpines),
   };
+}
+
+/** design/0029 */
+function boundBy(shelf: Shelf): Shelf {
+  const out = { ...shelf };
+  if (out.indexMode !== "az" && out.indexMode !== "date") delete out.indexMode;
+  if (out.bookIndexes) {
+    out.bookIndexes = Object.fromEntries(Object.entries(out.bookIndexes)
+      .filter(([, mode]) => mode === "az" || mode === "date"));
+  }
+  if (!isSpineStyle(out.spineStyle)) delete out.spineStyle;
+  if (!["one", "book", "year", "decade"].includes(out.spineSeries || "")) delete out.spineSeries;
+  return out;
+}
+
+/** design/0029 */
+export function demoSettings(notes: Note[]): Persisted {
+  const settings = emptySettings();
+  const views = settings.shelves.map((shelf) => buildShelf(shelf, notes));
+  settings.shelves[0].picks = seedPicks(views);
+  return settings;
 }
 
 /**
@@ -420,7 +438,7 @@ function isHex(value: unknown): value is string {
 
 /** Twelve hex colours or nothing: eleven is a palette with a hole in it, which is nothing. */
 function paletteOf(raw: unknown): string[] {
-  if (!Array.isArray(raw) || raw.length !== 12) return [];
+  if (!Array.isArray(raw) || (raw.length !== 12 && raw.length !== 14)) return [];
   return raw.every(isHex) ? raw.map((c) => String(c).toLowerCase()) : [];
 }
 
@@ -430,8 +448,8 @@ function paletteOf(raw: unknown): string[] {
  */
 function ribbonsOf(raw: unknown, legacy: unknown): string[] {
   const one = isHex(legacy) ? String(legacy).toLowerCase() : "";
-  const from = Array.isArray(raw) && raw.length === 12 ? raw : null;
-  return Array.from({ length: 12 }, (_unused, i) => {
+  const from = Array.isArray(raw) && (raw.length === 12 || raw.length === 14) ? raw : null;
+  return Array.from({ length: 14 }, (_unused, i) => {
     if (from) return isHex(from[i]) ? String(from[i]).toLowerCase() : "";
     return one;
   });
@@ -441,7 +459,7 @@ function bookColorsOf(raw: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   if (!raw || typeof raw !== "object") return out;
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof value === "number" && Number.isInteger(value) && value >= 0 && value < 12) {
+    if (typeof value === "number" && Number.isInteger(value) && value >= 0 && value < 14) {
       out[key] = value;
     }
   }

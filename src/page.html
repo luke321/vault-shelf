@@ -1,17 +1,24 @@
 <div id="vs-app" class="vault-shelf">
   <header id="vs-rail">
     <div class="vs-inner">
-      <span id="vs-vname" class="vs-railname">Vault Shelf</span>
+      <div class="vs-railsearch">
       <label class="vs-sr" for="vs-q">Search the library</label>
       <input type="search" id="vs-q" placeholder="Search the library..."
              role="combobox" aria-expanded="false" aria-controls="vs-suggest"
              aria-autocomplete="list" autocomplete="off">
       <span id="vs-hits" role="status"></span>
-      <span class="vs-spacer"></span>
-      <button id="vs-order" aria-pressed="false">Oldest first</button>
+      </div>
+      <span id="vs-vname" class="vs-railname">Vault Shelf</span>
+      <div class="vs-railactions">
       <label class="vs-sr" for="vs-look">Look</label>
       <select id="vs-look"></select>
-      <button id="vs-manageopen">Manage</button>
+      <button id="vs-manageopen" type="button" title="Manage shelves" aria-label="Manage shelves">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 2h4l.5 3 2 1 2.8-1 2 3.5-2.3 2v3l2.3 2-2 3.5-2.8-1-2 1-.5 3h-4l-.5-3-2-1-2.8 1-2-3.5 2.3-2v-3l-2.3-2 2-3.5 2.8 1 2-1Z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+      </div>
     </div>
   </header>
 
@@ -131,6 +138,7 @@
         </label>
       </div>
 
+      <div id="vs-bindex" class="vs-field"></div>
       <div class="vs-field">
         <div class="vs-lbl">Recipes</div>
         <div id="vs-recipes" class="vs-mini vs-wide"></div>
@@ -171,6 +179,8 @@
         <select id="vs-mbsourceval" aria-label="Which folder, tag or person"></select>
       </fieldset>
 
+      <div id="vs-mbindex" class="vs-field"></div>
+      <div id="vs-mbappearance" class="vs-field vs-appearance"></div>
       <p id="vs-mbcount" class="vs-hint" aria-live="polite"></p>
 
       <div class="vs-mini vs-wide vs-sheetactions">
@@ -181,7 +191,7 @@
     </div>
   </div>
 
-  <div id="vs-dye" class="vs-dye" hidden role="menu" aria-label="Colour of this book"></div>
+  <div id="vs-dye" class="vs-dye" hidden role="menu" aria-label="Book colour and spine binding"></div>
   <div id="vs-railmenu" class="vs-dye" hidden role="menu" aria-label="This shelf"></div>
   <div id="vs-swatchpick" class="vs-dye" hidden role="menu" aria-label="Choose a colour"></div>
   <div id="vs-peek" class="vs-peek" hidden role="tooltip"></div>
@@ -196,7 +206,7 @@
         is the order of the library.</p>
       <div id="vs-managelist"></div>
       <h3 class="vs-sheetsub">Colours</h3>
-      <p class="vs-hint">Twelve rows: the colour a book is bound in, and the ribbon it hangs. A
+      <p class="vs-hint">Fourteen colours, each with the ribbon its books hang. A
         ribbon you have not chosen is the complement of its dye, so it follows the look; a book
         keeps a colour you gave it by right-clicking its spine.</p>
       <div id="vs-mpalette" class="vs-palette" role="group" aria-label="Book colours and their ribbons"></div>

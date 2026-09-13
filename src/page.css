@@ -35,6 +35,8 @@
   --g10:#9412ad;
   --g11:#6f6e67;
   --g12:#45443f;
+  --g13:#e8c779;
+  --g14:#81c4bc;
   --n1: #6f6e67;
   --n2: #45443f;
   --n3: #8a897f;
@@ -131,7 +133,7 @@
    * and an impossible thing to grab.
    * github#14, design/0021 -- and ONE PLANK, in every look: each sheet used to declare its own
    * (5, 10, 7) and the board is charged twice a row. 10px is leather's. */
-  --board: 10px;
+  --board: 14px;
   /* design/0009 -- A ROOM HAS A WIDTH. On a WQHD screen the leaf is ~2,200px after Obsidian's
    * own sidebar, and full-bleed put four books on an 1,800px shelf board and left the note a
    * 380px column of text adrift in a 2,000px page with its index tabs pinned to the far edge.
@@ -164,8 +166,8 @@
   --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
   --prose: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
 
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   color: var(--text-1);
@@ -202,6 +204,7 @@
 /* ---- the top rail -------------------------------------------------------- */
 
 .vault-shelf #vs-rail {
+  grid-area: 1 / 1;
   display: flex;
   flex: 0 0 auto;
   border-bottom: 1px solid var(--border);
@@ -287,7 +290,16 @@
  * number of pixels, so a button that sizes to its text shoves the search box sideways every
  * time you press it. */
 .vault-shelf #vs-order { flex: 0 0 92px; width: 92px; white-space: nowrap; text-align: center; }
-.vault-shelf #vs-manageopen { flex: 0 0 auto; white-space: nowrap; }
+.vault-shelf #vs-manageopen { flex: 0 0 auto; width: 30px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.vault-shelf #vs-manageopen svg { width: 16px; height: 16px; }
+
+/* design/0031 */
+.vault-shelf #vs-rail .vs-inner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
+.vault-shelf .vs-railsearch { display: flex; align-items: center; column-gap: 10px; flex-wrap: wrap; min-width: 0; }
+.vault-shelf .vs-railactions { display: flex; justify-content: flex-end; gap: 8px; }
+.vault-shelf #vs-vname { justify-self: center; text-align: center; max-width: 100%; }
+.vault-shelf #vs-rail #vs-q { width: min(232px, 100%); min-width: 0; }
+.vault-shelf #vs-hits:empty { display: none; }
 
 .vault-shelf #vs-hits {
   flex: 0 0 auto;
@@ -427,6 +439,8 @@
  */
 
 .vault-shelf #vs-library {
+  grid-area: 2 / 1;
+  min-width: 0;
   flex: 1 1 auto;
   overflow-y: auto;
   min-height: 0;
@@ -503,6 +517,7 @@
 /* github#14, design/0021 -- THE HEAD IS ITS BUTTONS' HEIGHT, in every look: it aligned on the
  * baseline, so a bigger face lowered the baseline and the head grew under it. */
 .vault-shelf .vs-shelfhead {
+  min-height: 32.25px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -521,9 +536,15 @@
 }
 
 .vault-shelf .vs-shelfhead .vs-meta { color: var(--text-3); font-size: 11.5px; line-height: 20px; }
-.vault-shelf .vs-shelfhead .vs-mini { margin-left: auto; opacity: 0; transition: opacity 120ms ease; }
-.vault-shelf .vs-shelf:hover .vs-shelfhead .vs-mini,
-.vault-shelf .vs-shelfhead .vs-mini:focus-within { opacity: 1; }
+/* design/0032 */
+.vault-shelf .vs-shelfhead .vs-meta { white-space: nowrap; }
+.vault-shelf .vs-shelfhead .vs-shelfaction {
+  display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  width: 16px; height: 20px; min-height: 0; padding: 0; border: 0;
+  font: inherit; color: inherit; background: none; box-shadow: none; text-shadow: none;
+}
+.vault-shelf .vs-shelfaction svg { width: 12px; height: 12px; }
+.vault-shelf .vs-shelfhead .vs-shelfaction:hover { color: var(--text-1); }
 
 /* design/0014 -- A BOOKCASE. The rail holds one or more boards, each one a full-width row of
  * books; a run too long for the room continues on the next one down. Nothing scrolls
@@ -553,7 +574,7 @@
   position: relative;
   align-items: flex-start;
   gap: 3px;
-  min-height: calc(var(--spine-h) + 34px);
+  min-height: calc(var(--spine-h) + var(--board) + 24px);
   width: 100%;
   min-width: 0;
   background-image: linear-gradient(var(--border-strong), var(--border-strong));
@@ -619,7 +640,7 @@
  */
 .vault-shelf .vs-spine {
   width: var(--spine-w);
-  height: var(--spine-h);
+  height: calc(var(--spine-h) - var(--spine-trim, 0px));
   flex: 0 0 auto;
   position: relative;
   display: flex;
@@ -981,8 +1002,10 @@
 /* ---- the reader ---------------------------------------------------------- */
 
 .vault-shelf .vs-reader {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  grid-area: 2 / 1;
+  min-height: 0;
+  min-width: 0;
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -1132,7 +1155,7 @@
 .vault-shelf .vs-page.vs-right {
   background: var(--surface-2);
   padding-left: 32px;
-  padding-right: 56px;
+  padding-right: 72px;
 }
 .vault-shelf .vs-page.vs-right::after {
   left: 0;
@@ -1306,13 +1329,15 @@
 /* github#16, design/0015 -- A BOOK WITH NOTHING TO INDEX DRAWS A CLOSED INDEX. The strip is
  * always there and the tabs are cut from it; a lone find glass read as a tab that fell off. */
 .vault-shelf .vs-tabs {
+  container-type: size;
+  width: 56px;
   position: absolute;
   top: 16px;
   right: 0;
   z-index: 4;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 0;
   height: calc(100% - 32px);
   padding-left: 5px;
   background: linear-gradient(90deg,
@@ -1348,6 +1373,7 @@
 
 /* Protruding tabs, cut from the page rather than stuck on it. */
 .vault-shelf .vs-tabs button {
+  flex-shrink: 0;
   border-radius: 0 3px 3px 0;
   border-left: 0;
   min-width: 42px;
@@ -1363,6 +1389,29 @@
   border-color: var(--accent);
   text-shadow: none;
 }
+
+/* design/0030 */
+.vault-shelf .vs-indexchoice { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+.vault-shelf .vs-tabs { overflow: hidden; }
+.vault-shelf .vs-indexbuttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.vault-shelf .vs-indexbuttons button[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: -2px; font-weight: 600; }
+.vault-shelf .vs-tabs .vs-indextoggle { font-size: 10px; margin-bottom: 8px; border-style: dashed; }
+/* design/0032 */
+.vault-shelf .vs-tabs .vs-findtab,
+.vault-shelf .vs-tabs .vs-indextoggle { height: 28px; min-height: 28px; max-height: 28px; flex: 0 0 28px; }
+.vault-shelf .vs-tabs .vs-findtab { margin-bottom: 3px; }
+.vault-shelf .vs-tabs .vs-indextab {
+  --vs-tab-step: min(31px, calc((100cqh - 67px) / var(--vs-tab-count)));
+  --vs-tab-gap: min(3px, calc(var(--vs-tab-step) * 0.1));
+  flex: 0 0 max(0px, calc(var(--vs-tab-step) - var(--vs-tab-gap)));
+  height: max(0px, calc(var(--vs-tab-step) - var(--vs-tab-gap)));
+  min-height: 0; padding: 0 6px; margin-top: var(--vs-tab-gap); line-height: 1;
+  font-size: min(11.5px, max(0px, calc(var(--vs-tab-step) * 0.7))); overflow: hidden;
+}
+.vault-shelf .vs-tabs .vs-indextab[data-level="2"] { font-size: min(10px, max(0px, calc(var(--vs-tab-step) * 0.7))); }
+.vault-shelf .vs-appearance .vs-swatch { background: var(--swatch); }
+.vault-shelf .vs-appearance .vs-swatches { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.vault-shelf .vs-appearance .vs-swatch { width: 100%; }
 
 /* ---- the sheets ---------------------------------------------------------- */
 
@@ -1548,6 +1597,23 @@
   border-radius: 4px;
   box-shadow: 0 6px 18px color-mix(in srgb, #000 30%, transparent);
 }
+
+/* design/0029 */
+.vault-shelf .vs-dye[data-bindings="1"] { width: min(370px, calc(100% - 16px)); max-height: calc(100% - 16px); overflow-y: auto; }
+.vault-shelf .vs-bindinglabel { font-size: 11px; line-height: 18px; margin: 10px 0 6px; color: var(--text-2); }
+.vault-shelf .vs-bindingchoices { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+.vault-shelf .vs-bindingchoices .vs-bindingchoice {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  height: 144px; padding: 6px 2px; gap: 16px; min-width: 0;
+  border: 1px solid var(--border); border-radius: 3px; background: var(--surface-2);
+}
+.vault-shelf .vs-bindingchoice[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vault-shelf .vs-bindingchoice:focus-visible { outline: 2px dashed var(--text-1); outline-offset: 1px; }
+.vault-shelf .vs-bindingchoice .vs-binding-sample {
+  --spine-h: 100px; --spine-w: 36px; --spine-trim: 0px;
+  pointer-events: none; width: 36px; height: calc(100px - var(--spine-trim)); flex: 0 0 auto;
+}
+.vault-shelf .vs-bindingchoice .vs-bindingname { font: 11px/16px var(--ui); white-space: nowrap; }
 .vault-shelf .vs-dyename {
   font-size: 11px;
   color: var(--text-3);
@@ -1565,7 +1631,7 @@
 }
 /* Under the name it closes the gap the name left; under a button it stands alone. */
 .vault-shelf .vs-dyename + .vs-dyeunit { margin-top: -4px; }
-.vault-shelf .vs-swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.vault-shelf .vs-swatches { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 /* THREE CLASSES DEEP ON PURPOSE. Every look paints `button` with its own rule at
  * `.vault-shelf[data-look] button` -- one class, one attribute, one element -- which beats a
  * two-class selector, and under leather the twelve swatches came out as twelve leather
@@ -1648,6 +1714,7 @@
 
 .vault-shelf .vs-managerow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--border);
@@ -1669,7 +1736,7 @@
   border: 1px solid transparent;
   border-radius: 3px;
   padding: 0 4px;
-  margin-left: -5px;
+  margin-left: 0;
   min-height: 0;
   box-shadow: none;
   text-shadow: none;
@@ -1679,7 +1746,8 @@
   border-color: var(--border);
 }
 .vault-shelf .vs-managerow .vs-meta { color: var(--text-3); font-size: 11px; }
-.vault-shelf .vs-managerow .vs-colourby { flex: 0 0 auto; }
+.vault-shelf .vs-managerow .vs-colourby { flex: 0 1 160px; width: 160px; min-width: 0; max-width: 100%; }
+.vault-shelf .vs-managerules { display: flex; flex: 1 0 100%; gap: 12px; align-items: center; flex-wrap: wrap; }
 
 /* ---- plain list mode, narrow screens, reduced motion -------------------- */
 
@@ -1688,7 +1756,7 @@
 .vault-shelf[data-list="1"] .vs-group .vs-books { display: block; }
 .vault-shelf[data-list="1"] .vs-shelfrail { display: block; }
 
-.vault-shelf[data-list="1"] .vs-spine {
+.vault-shelf[data-list="1"] .vs-spine:not(.vs-binding-sample) {
   width: 100%;
   height: auto;
   display: flex;
@@ -1700,7 +1768,7 @@
   border-top: 1px solid var(--border);
 }
 
-.vault-shelf[data-list="1"] .vs-spine .vs-title {
+.vault-shelf[data-list="1"] .vs-spine:not(.vs-binding-sample) .vs-title {
   writing-mode: horizontal-tb;
   transform: none;
   /* github#14 -- a list row runs across, so the title sits on its baseline, not down the row. */
@@ -1845,8 +1913,8 @@
 }
 
 /* github#14 -- a list row is padded once, above: leather's own 8/12 is gone. */
-.vault-shelf[data-list="1"] .vs-spine .vs-n { position: static; text-align: left; margin-left: auto; }
-.vault-shelf[data-list="1"] .vs-spine .vs-ribbon { position: static; width: 7px; height: 12px; margin: 0 0 0 8px; }
+.vault-shelf[data-list="1"] .vs-spine:not(.vs-binding-sample) .vs-n { position: static; text-align: left; margin-left: auto; }
+.vault-shelf[data-list="1"] .vs-spine:not(.vs-binding-sample) .vs-ribbon { position: static; width: 7px; height: 12px; margin: 0 0 0 8px; }
 
 /* design/0018 -- a list runs down, so the gap the book lands in is above or below it. */
 .vault-shelf[data-list="1"] .vs-drop {
@@ -1873,8 +1941,7 @@
   .vault-shelf #vs-manageopen { order: 3; }
   .vault-shelf #vs-hits:empty { display: none; }
   /* A hover control nobody can hover is a control nobody has. */
-  .vault-shelf .vs-shelfhead { flex-wrap: wrap; gap: 6px 10px; }
-  .vault-shelf .vs-shelfhead .vs-mini { opacity: 1; }
+  .vault-shelf .vs-shelfhead { flex-wrap: wrap; gap: 6px 10px; min-height: 39px; }
   .vault-shelf .vs-spread { margin: 0 auto 20px; }
   .vault-shelf .vs-page { padding: 20px; }
   .vault-shelf .vs-page::after { display: none; }
@@ -1882,10 +1949,12 @@
   .vault-shelf .vs-page.vs-left { border-right: 0; border-bottom: 1px solid var(--border); }
   .vault-shelf .vs-page.vs-right { padding-right: 22px; }
   /* github#16 -- the strip is an EDGE, and a row has none: the index lies flat down here. */
-  .vault-shelf .vs-tabs { flex-direction: row; position: static; padding: 0 18px 12px; flex-wrap: wrap;
+  .vault-shelf .vs-tabs { container-type: normal; gap: 3px; width: 100%; flex-direction: row; position: static; padding: 0 18px 12px; flex-wrap: wrap;
                           height: auto; background: none; }
   /* github#14 -- the same side as upright, so a tab is one box. */
   .vault-shelf .vs-tabs button { border-radius: 3px 3px 0 0; border-left: 0; }
+  .vault-shelf .vs-tabs .vs-indextab { flex: 0 0 auto; height: 28px; margin-top: 0; font-size: 11.5px; }
+  .vault-shelf .vs-tabs .vs-indextab[data-level="2"] { font-size: 10px; }
   .vault-shelf button { min-height: 34px; }
 }
 
@@ -1901,7 +1970,6 @@
   .vault-shelf .vs-spine { transition: none; }
   .vault-shelf .vs-spine:hover, .vault-shelf .vs-spine:focus-visible { transform: none; }
   .vault-shelf[data-query="1"] .vs-spine[data-match="1"] { transform: none; }
-  .vault-shelf .vs-shelfhead .vs-mini { transition: none; }
   /* github#40 -- no spring; the offset stays, or nothing shows the push at all */
   .vault-shelf .vs-page[data-settling] .vs-leaf { transition: none; }
 }
@@ -2034,4 +2102,17 @@
 .vault-shelf .vs-markstub[aria-pressed="true"] {
   background: var(--ribbon);
   opacity: 0.95;
+}
+
+/* design/0031 */
+@media (max-width: 860px) {
+  .vault-shelf #vs-rail .vs-inner { grid-template-columns: minmax(0, 1fr) auto; }
+  .vault-shelf #vs-vname { grid-column: 1 / -1; grid-row: 1; }
+  .vault-shelf .vs-railsearch { grid-column: 1; grid-row: 2; flex-wrap: wrap; gap: 2px; }
+  .vault-shelf .vs-railactions { grid-column: 2; grid-row: 2; }
+}
+@media (max-width: 480px) {
+  .vault-shelf .vs-bindingchoices { gap: 3px; }
+  .vault-shelf .vs-bindingchoice .vs-binding-sample { width: 30px; --spine-w: 30px; }
+  .vault-shelf .vs-bindingchoice .vs-bindingname { font-size: 10px; }
 }

@@ -55,6 +55,9 @@ export interface MadeBook {
 }
 
 export interface Shelf {
+  /** design/0030 */
+  indexMode?: IndexMode;
+  bookIndexes?: Record<string, IndexMode>;
   /** decisions/0002 */
   id: string;
   name: string;
@@ -95,10 +98,14 @@ export interface Shelf {
   varyColors?: boolean;
   /** github#21 -- what a dye follows here; unset is the classifier's own. */
   colorBy?: ColorRule;
+  /** design/0029 */
+  spineStyle?: import("./bindings").SpineStyle;
+  spineSeries?: import("./bindings").SpineSeries;
 }
 
 /** github#21, github#33 -- design/0005 */
 export type ColorRule = "folder" | "year" | "decade" | "one";
+export type IndexMode = "az" | "date";
 
 export interface Book {
   /** decisions/0002 */
