@@ -345,8 +345,10 @@ function mountVaultShelf(root, data, options) {
     /* github#41, design/0026 -- ONCE, here, where the books are. */
     vocabulary = core.buildVocabulary(views, visible);
     // design/0033
-    ageWear = core.buildAgeWear(visible.length === notes.length ? views :
-      core.buildLibrary(settings.shelves, notes, settings.noteOrder), data.generated.slice(0, 10));
+    var fullViews = visible.length === notes.length ? views :
+      core.buildLibrary(settings.shelves, notes, settings.noteOrder);
+    ageWear = core.buildAgeWear(fullViews, data.generated.slice(0, 10));
+    if (core.reconcileBookHistory(settings, fullViews).changed) persist();
   }
 
   /* ================================================================= the rail ==
@@ -1212,7 +1214,7 @@ function mountVaultShelf(root, data, options) {
     var peek = book.label + " -- " + book.notes.length +
       (book.notes.length === 1 ? " note" : " notes");
     if (ribbons) peek += " \u00b7 " + ribbons + (ribbons === 1 ? " ribbon" : " ribbons");
-    if (opens) peek += " \u00b7 opened " + opens + (opens === 1 ? " time" : " times");
+    if (opens) peek += " \u00b7 " + opens + " entries and visits";
     if (book.bands.length) {
       peek += " \u00b7 " + book.bands.slice(0, 3).map(function (p) {
         return p.folder + " " + p.count;
@@ -1873,6 +1875,7 @@ function mountVaultShelf(root, data, options) {
     var id = core.bookId(shelf.id, key);
     delete settings.wear[id];
     delete settings.lastOpened[id];
+    delete settings.bookNotes[id];
     delete settings.bookColors[id];
     delete settings.bookSpines[id];
     if (shelf.bookIndexes) delete shelf.bookIndexes[key];
@@ -2574,7 +2577,7 @@ function mountVaultShelf(root, data, options) {
                within: "", revealMatch: !noteId, opener: /** @type {HTMLElement|null} */ (DOC.activeElement) };
     // design/0008, design/0019, github#35
     var worn = sourceOf(book).id;
-    settings.wear[worn] = (settings.wear[worn] || 0) + 1;
+    settings.wear[worn] = Math.min((settings.wear[worn] || 0) + 1, Number.MAX_SAFE_INTEGER);
     settings.lastOpened[worn] = new Date().toISOString();
     persist();
     markWear(worn);
@@ -3828,6 +3831,9 @@ function mountVaultShelf(root, data, options) {
     });
     Object.keys(settings.lastOpened).forEach(function (key) {
       if (key.indexOf(dead) === 0) delete settings.lastOpened[key];
+    });
+    Object.keys(settings.bookNotes).forEach(function (key) {
+      if (key.indexOf(dead) === 0) delete settings.bookNotes[key];
     });
     Object.keys(settings.bookColors).forEach(function (key) {
       if (key.indexOf(dead) === 0) delete settings.bookColors[key];

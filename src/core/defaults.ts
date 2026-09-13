@@ -98,12 +98,14 @@ export interface Persisted {
   shelves: Shelf[];
   reading: { noteId: string; shelfId: string; bookId: string; at: number }[];
   /**
-   * design/0008 -- how many times each book has been opened, keyed by its stable address.
-   * Alongside lastOpened, this records reading activity rather than note metadata.
+   * design/0033 -- entries and visits, keyed by the stable source address.
+   * Existing notes, later membership additions and actual opens each add one.
    */
   wear: Record<string, number>;
   /** design/0033 */
   lastOpened: Record<string, string>;
+  /** design/0033 */
+  bookNotes: Record<string, string[]>;
   dateFields: string[];
   /**
    * decisions/0003 -- the frontmatter properties that name people, tried in order and merged.
@@ -217,6 +219,7 @@ export function emptySettings(): Persisted {
     reading: [],
     wear: {},
     lastOpened: {},
+    bookNotes: {},
     dateFields: ["date", "created"],
     peopleFields: ["people", "attendees", "person"],
     personNote: "type: people",
@@ -252,6 +255,7 @@ export function migrate(raw: unknown): Persisted {
     reading: Array.isArray(data.reading) ? data.reading.filter(isMark) : [],
     wear: wearOf(data.wear),
     lastOpened: lastOpenedOf(data.lastOpened),
+    bookNotes: bookNotesOf(data.bookNotes),
     dateFields: Array.isArray(data.dateFields) && data.dateFields.length
       ? data.dateFields.filter((f): f is string => typeof f === "string")
       : base.dateFields,
@@ -495,13 +499,13 @@ function peopleFieldsOf(data: Partial<Persisted> & { peopleProperty?: unknown },
   return one ? [...new Set([one, ...fallback])] : fallback.slice();
 }
 
-/** Only positive finite counts survive: a hand-edited file cannot make a spine infinitely worn. */
+/** Only nonnegative finite counts survive: a hand-edited file cannot make a spine infinitely worn. */
 function wearOf(raw: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   if (!raw || typeof raw !== "object") return out;
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-      out[key] = Math.min(Math.round(value), 9999);
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+      out[key] = Math.min(Math.round(value), Number.MAX_SAFE_INTEGER);
     }
   }
   return out;
@@ -528,12 +532,21 @@ export function lastOpenedAt(settings: Pick<Persisted, "lastOpened">, bookId: st
 function lastOpenedOf(raw: unknown): Record<string, string> {
   const entries: [string, string][] = [];
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-  for (const [key, value] of Object.entries(raw)) {
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (value === "never") { entries.push([key, value]); continue; }
     if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) continue;
     const time = Date.parse(value);
     if (Number.isFinite(time) && new Date(time).toISOString() === value) entries.push([key, value]);
   }
   return Object.fromEntries(entries);
+}
+
+/** design/0033 */
+function bookNotesOf(raw: unknown): Record<string, string[]> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  return Object.fromEntries(Object.entries(raw).filter((entry): entry is [string, string[]] =>
+    Array.isArray(entry[1]) && entry[1].every((id: unknown) => typeof id === "string"))
+    .map(([key, ids]) => [key, Array.from(new Set(ids)).sort()]));
 }
 
 function isShelf(value: unknown): value is Shelf {

@@ -1,5 +1,27 @@
 # Changelog detail
 
+## 2026-09-13 - Count note entries and visits without repeating the baseline
+
+The user extended the opening counter to include existing notes once and newly added notes.
+`wear` retains legacy counts; `bookNotes` records distinct seen IDs per stable source address.
+Mount/rebuild reconciliation uses full unfiltered membership and saves through the existing
+onSettings callback. Removal/reappearance cannot count an ID twice. Hidden sources, made
+books, reference sharing and stable plaque-address unions are covered. Known books and old
+wear keys receive explicit `lastOpened: "never"`; only a real open records a timestamp.
+The 9,999 cap is replaced by MAX_SAFE_INTEGER, and the existing peek says “entries and visits”.
+
+**5/5 targeted browser checks pass in 12 seconds wall**. Measured 7 legacy opens plus 54
+notes become **61**, repeated load/filter remains **61**, a new note gives **62** with
+`never`, removal/rebuild remains **62**, and a favourite visit gives **63** plus its timestamp.
+Reset seeds **54** again, and all **275** known fixture addresses explicitly read `never`.
+The separate core check proves distinct-note deduplication, monotonic ledgers through
+removal/reappearance, obsolete history preservation, large counts, made books and plaques.
+Timestamp persistence, age wear, thirteen additional visits and manual plaque runs pass too.
+Strict lint, scope, network, comments (1477/1477), escaping, PII patterns (no name list), build
+and generated maps pass. Inspected `dist/book-note-counters-after-vault.png`: populated books
+now show stronger wear, so release media needs refreshing. Results are in
+`dist/book-note-counters-after.log`. No private vault mutation, media edits or full suite.
+
 ## 2026-09-13 - Refresh the demo after release-gate repairs
 
 The demo was refreshed from current source `8d52c82` using the same 1,242-note generated cut: 1,690,661 bytes, four inline scripts parse, exact current page/shared CSS included, and the stable preview copy is byte-identical. It now includes the manual plaque fix and last-opened metadata. No UI or approved capture changed: manual split-run repair does not affect the recorded default plaques; Reading/index fixes are harness-only; timestamps add persistence without a visible control. The approved hero SHA-256 remains `752825f3881781810c350cb0c91038194fe98d2b74142788a93d51253afe778e`.

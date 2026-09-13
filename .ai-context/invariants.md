@@ -2628,23 +2628,33 @@ uses the plus spine; shelf headers no longer contain a separate New book button.
 
 ## Age wear on a fresh library
 
-`lastOpened` is a separate sparse ISO UTC map keyed by the same source address as `wear`.
-An absent stamp means `never`, including migrated settings with existing opening counts.
+`lastOpened` is a separate ISO UTC/`never` map keyed by the same source address as `wear`.
+Reconciliation writes explicit `never` for known books and obsolete legacy wear keys without
+timestamps. The helper also returns `never` for an absent entry.
 Only actual book opens update it; favourites share the source entry. Saves and rebuilds
 retain it, while made-book deletion, shelf deletion and reset clean it with the counts.
 `last opened defaults to never and persists actual source-book opens` measures those paths;
 `scripts/check-age-wear.mjs` validates fresh/legacy defaults and rejects invalid timestamps.
 
-`design/0033`. A book's displayed wear is max(real-opening level, age floor). Real openings
-remain the saved count with thresholds 2/5/12. The age floor is 1/2/3 after 1/3/7 completed years
+`bookNotes` is a sorted, distinct ledger of IDs already counted at each stable source address.
+Full unfiltered membership, including hidden shelves, contributes existing notes once and
+each unseen note once thereafter; real opens also increment `wear`. Removal, reappearance,
+filtering and repeated rebuilds cannot count the same note twice. Made books have their own
+ledger; references share sources; virtual plaques count the union at their stable address.
+Explicit deletion clears ledgers with counts; reset seeds current notes again. Migration
+preserves counts above 9,999, bounded only by MAX_SAFE_INTEGER. `check-book-history.mjs`
+and the browser's `book history seeds notes once` check exercise these rules and persistence.
+
+`design/0033`. A book's displayed wear is max(entries/visits level, age floor), with thresholds
+2/5/12 for the combined counter. The age floor is 1/2/3 after 1/3/7 completed years
 since the newest resolved date among its notes, measured against the library's generated day.
 Undated, empty, invalid and future dates get no floor; an active collection is dated by its
 newest note. A leap-day anniversary completes on March 1 in a non-leap year.
 
 Age is cached per source address over the unfiltered library once per rebuild. A virtual plaque
 book is cached at first rendering. Filters cannot age a collection by hiding its recent notes.
-A favourite uses its source's level even when that shelf is hidden. No saved open count, chosen
-binding, colour, address, width, height, manual order or membership is invented or replaced.
+A favourite uses its source's level even when that shelf is hidden. Existing counts are retained;
+chosen binding, colour, address, width, height, manual order and membership are not replaced.
 The existing wear lift remains at most two pixels, identically across looks.
 
 Leather edge-fade opacity is 0/0.08/0.18/0.30. The strongest level blends its binding's own ink
@@ -2658,12 +2668,12 @@ missing values, mixed active collections, deterministic order, references, virtu
 and immutable inputs/settings. The targeted browser check `older books wear on first launch
 without invented reading history` measures the actual spines, defaults, restored settings,
 filters, hidden-source references and boxes. The opening-history check requires thirteen real
-saved opens as well as level3 after a rebuild; its initial spines now correctly carry age wear.
+additional visits as well as level3 after a rebuild; initial spines carry note-count and age wear.
 
 ### Comment ratchet after release recorder cleanup
 
-`check-comments.mjs` requires exactly 1,479 non-pointer, non-type comment lines after the
-1.0.0 recorder cleanup, down from 1,481. Removing prose lowers the baseline in the same
+`check-comments.mjs` requires exactly 1,477 non-pointer, non-type comment lines after the
+1.0.0 recorder/history cleanup, down from 1,481. Removing prose lowers the baseline in the same
 commit; a lower count is not permission to add prose back elsewhere.
 
 ### Reading rows and wear
