@@ -6909,8 +6909,8 @@ check("a volume of numbers reads by number, and only such a volume is offered it
     var core = window.VaultShelfCore, settings = __vs.settings();
     var saved = JSON.parse(JSON.stringify(settings));
     var numberOf = function (title) {
-      var digits = core.leadingNumber(title);
-      return digits ? digits.replace(/^0+(?=\\d)/, "") : null;
+      var run = core.leadingNumber(title);
+      return run ? run.replace(/^0+(?=\\d)/, "") : null;
     };
     try {
       var enc = __vs.views().filter(function (v) { return v.shelf.id === "encyclopedia"; })[0];
