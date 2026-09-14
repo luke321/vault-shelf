@@ -1462,7 +1462,9 @@
  * cannot see. It shares down to VS_TAB_MIN and no further, and below that the cut gathers
  * instead -- which is what `fitTabs` measures against. */
 .vault-shelf .vs-tabs .vs-indextab {
-  --vs-tab-step: clamp(20px, calc((100cqh - 67px) / var(--vs-tab-count)), 31px);
+  /* github#0 -- 28px at the top of the range is the glass tab's box exactly; it was 31px less
+   * a 3px gap until design/0034 took the gap away, and the look check reads the difference. */
+  --vs-tab-step: clamp(20px, calc((100cqh - 67px) / var(--vs-tab-count)), 28px);
   flex: 0 0 var(--vs-tab-step);
   height: var(--vs-tab-step);
   min-height: 0; padding: 0 5px 0 13px; line-height: 1;
