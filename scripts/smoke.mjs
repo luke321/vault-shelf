@@ -6361,9 +6361,11 @@ check("a draining room measure is waited out, and nothing else is", async (p) =>
     return __vs.room().pending;
   })()`);
 
-  const named = withSheet.some((w) => w.indexOf("manage") >= 0);
+  /* decisions/0013 -- named, never "the page is silent": that blames a neighbour */
+  const says = (out) => out.some((w) => w.indexOf("manage") >= 0);
+  const named = says(withSheet) && !says(shut);
   return {
-    ok: named && shut.length === 0 && pending === 1,
+    ok: named && pending === 1,
     detail: `an open sheet is still named by the busy-page rule (${named}: ` +
             `${withSheet.join("; ") || "nothing"}), and gone once shut ` +
             `(${shut.join("; ") || "nothing"}); returning with settleRoom's timer pending ` +
@@ -9005,6 +9007,8 @@ async function runOne(vault, work) {
 
     /* github#57 -- the load's own resizes, drained before the first check reads */
     await settled(page).catch(() => {});
+    /* github#57 -- the window every check must hand back; decisions/0016 */
+    const base = await page.j("({width:innerWidth,height:innerHeight})").catch(() => null);
 
     let failed = 0;
     const timings = [];
@@ -9033,12 +9037,24 @@ async function runOne(vault, work) {
       catch (e) { r = { ok: false, detail: "threw: " + e.message }; }
       /* github#57, decisions/0016 -- past the coalescing timer before judging */
       const drained = await settled(page).catch(() => true);
+      /* github#57, decisions/0016 -- a check that threw mid-resize leaves the override on */
+      let leaked = false;
+      if (base) {
+        leaked = await page.j(`innerWidth !== ${base.width} || innerHeight !== ${base.height}`)
+          .catch(() => false);
+        if (leaked) {
+          await page.send("Emulation.clearDeviceMetricsOverride").catch(() => {});
+          await settled(page, base).catch(() => {});
+        }
+      }
       /* github#39, decisions/0013 -- blame the check that left it, not its neighbour */
       const busy = await atRest(page);
-      if (busy.length) {
-        r = { ok: false, detail: (r.detail || "") + ` -- LEFT THE PAGE BUSY: ${busy.join("; ")}` +
-                                 (drained ? "" : ` (still there after ${SETTLE_MS}ms)`) };
-        await settlePage(page);
+      if (busy.length || leaked) {
+        r = { ok: r.ok && !busy.length, detail: (r.detail || "") +
+              (leaked ? ` -- LEFT THE VIEWPORT OVERRIDDEN (${base.width}x${base.height} restored)` : "") +
+              (busy.length ? ` -- LEFT THE PAGE BUSY: ${busy.join("; ")}` +
+                             (drained ? "" : ` (still there after ${SETTLE_MS}ms)`) : "") };
+        if (busy.length) await settlePage(page);
       }
       const ms = Date.now() - t0;
       timings.push({ name: c.name, ms });
