@@ -159,6 +159,23 @@ widest label the rail draws — inside the 48px of cut with 9px to spare, **0 cr
 and at 1180×480, so the rail stays **60px**. The measured claim above is amended rather than the
 geometry: 32px was what the labels needed when every one of them was a year.
 
+**Rejected, and built first: making the digits volume a date book outright.** The obvious next
+step, and Lukas asked for it on seeing the rail — *"we are ordering by date so why showing where it
+is and have it's own index? it should be at its date position"*. One line does it: default
+`indexMode` to `date` for the `0-9` key on an `initial` shelf, and because `readingOrder` reads the
+same function, the contents and the index move together. It measured beautifully — 11 cuts, all
+years, **11 of 11 opening**, 0 rows out of date order, and `202212331243` at its own 2026-09-03
+instead of between 2022 and 2023.
+
+It was pulled because of what it does to the shelf *around* it. `readingOrder`'s date comparator is
+multiplied by the top bar's oldest/newest, so the `0-9` volume began flipping with a control its
+25 siblings ignore — and *date contents default to oldest and saved newest settings remain
+readable* turned red on exactly that: it asserts `buildShelf(encyclopedia, 'oldest')` is
+byte-identical to `'newest'`, which is the law that **an alphabetical shelf has nothing to say
+about oldest and newest** (design/0015). One volume of twenty-six answering a switch the rest do
+not is two shelves wearing one name. The reader who wants that volume by date still has the toggle,
+which is what the toggle is for.
+
 **Rejected: a plausible year range.** Bounding it to, say, 1900–2099 would also stop `1000 small
 decisions` drawing a cut labelled `1000` beside `2015`. It is a magic number standing in for a
 judgement the data cannot support, and a vault of history notes would pay for it. `1000` stays a
