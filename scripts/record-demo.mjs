@@ -35,6 +35,8 @@ const HERO_W = Number(arg("hero-width", "1000"));
 const HERO_Q = Number(arg("hero-q", "75"));
 const KEEP = argv.includes("--keep-frames");
 const QUIET = argv.includes("--quiet");
+/* github#23 -- shoot an act from the empty shelf. */
+const EMPTY_PICKS = argv.includes("--empty-picks");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const say = (m) => { if (!QUIET) console.log(m); };
@@ -484,7 +486,8 @@ function storyboard(P) {
       setup: async()=>{await scrollTo(0);}, steps:[] }),
     scene({ name: "favourite", seconds: 11, title: 'Keep your favourite books <b>close</b>.', sub: 'Drag a reference onto Favourites. The original stays on its shelf.',
       setup:favouriteSetup, frame:dragFrame(3,7), steps:[
-        {at:3,target:bookTarget,action:'hover',run:async s=>{s.dragFrom=await lift(bookTarget(s));s.dragTo=await centreOf(`[data-shelf="${s.fav}"] .vs-plusbook`,90,0);if(!s.dragFrom)throw new Error('favourite: lift failed');}},
+        /* github#23 -- an empty rail has a landing to aim at, not a plus. */
+        {at:3,target:bookTarget,action:'hover',run:async s=>{s.dragFrom=await lift(bookTarget(s));s.dragTo=await centreOf(`[data-shelf="${s.fav}"] .vs-dropzone`)||await centreOf(`[data-shelf="${s.fav}"] .vs-plusbook`,90,0);if(!s.dragFrom)throw new Error('favourite: lift failed');if(!s.dragTo)throw new Error('favourite: no landing to drop on');}},
         {at:7,action:'hover',run:async s=>{await drop(s.dragTo);await prove(`__vs.picks()[0].picks.length===${s.before+1} && __vs.picks()[0].picks.includes(${JSON.stringify(s.book)})`,'favourite: drop failed');}},
         {at:9,target:{x:650,y:235},run:async()=>{await prove(`document.getElementById('vs-peek').hidden`,'favourite: peek remained');}}
       ] }),
@@ -735,6 +738,18 @@ try {
     })()`);
     if (applied !== look) throw new Error(`--look ${LOOK}: the page came up as "${applied}"`);
     say("look: " + LOOK);
+  }
+
+  /* github#23, design/0007 -- the demo build seeds picks; this takes them off. */
+  if (EMPTY_PICKS) {
+    const left = await j(`(function(){
+      var shelf = __vs.picks()[0];
+      if (!shelf) return -1;
+      shelf.picks.forEach(function (id) { __vs.unpick(id, shelf.id); });
+      return __vs.picks()[0].picks.length;
+    })()`);
+    if (left !== 0) throw new Error(`--empty-picks: the pick shelf still holds ${left}`);
+    say("picks: cleared");
   }
 
   await go(`(function(){

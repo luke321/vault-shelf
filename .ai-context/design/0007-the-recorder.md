@@ -271,3 +271,39 @@ retried, once.
   parts a shelf harder than a tag does.
 - Favourites, which the library opens on, was never mentioned. It is the first beat.
 
+
+## Shooting the empty shelf (github#23, 2026-09-14)
+
+A review that has to show a **drag** cannot do it with a still, and #23 is the first ticket to
+test that rule against this recorder. The recorder passed the part everybody expected to fail: a
+synthetic `DataTransfer` paints correctly here because the *page* draws the carried book, not the
+browser (see "The ghost" above), so the landing lights, the mark stands in the gap and the book
+settles by the product's own code.
+
+What it could not do was shoot Favourites **empty**. `core.seedPicks` puts four picks — the
+latest year, the latest month, the fullest person and the fullest tag — on the shelf in a demo
+build, and no act clears them. So the state a fresh library actually opens in, the dashed *Drag a
+book here* landing that takes the accent as a book crosses it, was the one Favourites state the
+film had never shown, and the review that needed it had only a still.
+
+`--empty-picks` takes them off through the page's own write (`__vs.unpick`) after the look is
+applied and before the first act, and asserts the shelf came up at zero. It is a **diagnostic**,
+like `--look` and `--mirror-of`: off by default, so no act, no film and no committed asset
+changes, and any act can now be shot from the empty state rather than only this one.
+
+One act moved with it. `favourite`'s drop target was the plus at the row's end; an empty pick
+rail draws a `.vs-dropzone` instead of a row. The target prefers the dropzone and falls back to
+the plus, so a normal take — where no dropzone exists — is unchanged, and the act now throws
+rather than dropping into nothing when neither resolves.
+
+**The review window is the act's own timing.** `favourite` and `rearrange` share their beats:
+rest at `neutral` to 1.8s, glide, lift at 3s, carry to 7s, drop, and the next step's glide at
+7.8s. `--hero-clip 1.8,7.7` is therefore rest → lift → carry → drop → rest without a frame of
+guessing. It runs past the six-second review guideline on purpose: cutting at 6s ends the take
+with a peek card lying across the library, because the act does not dismiss it until 9s.
+
+**Taking a favourite off still has no act**, by choice. An act in the film owes a
+`docs/features/<act>.md` page and clip, and those are the maintainer's to authorise — nothing
+reaches a feature page on a worker's judgement. So the third clip #23 asked for "if it is cheap"
+was reported as a gap instead of
+quietly costing the film an act it never asked for.

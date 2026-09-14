@@ -4188,3 +4188,50 @@ edges; recent books stay darker and fresh; all chosen bindings remain recognisab
 shows all 4,938 fixture notes after filter cleanup, with the Years row and multiple Months rows.
 Reader screenshot is beside it. Core boundary/parity/immutability checks, lint/typecheck and
 static release gates are recorded in the worker handover after the final pass.
+
+## 2026-09-14 — The Favourites review gets its clips, and the recorder learns the empty shelf
+
+`github#23`. #3's review carried one still of the drag and said so: *"Mid-drag… note the lifted
+spine at 35% opacity"* is the most a screenshot can do, and it still cannot show the landing
+lighting as the pointer crosses it, the insertion mark stepping between spines, or the book
+settling. Worker `luke321/vault-shelf-23-favourites-clips`, based on `fdaddb3`.
+
+**The answer to the question the issue asked.** The machinery *can* film a drag. A synthetic
+`DataTransfer` paints correctly because the page draws the carried book, not the browser —
+`#vsrec-ghost` is the spine cloned inside `.vault-shelf`, so the product's own stylesheet reaches
+it (`design/0007`, "The ghost"). What the recorder could not do was shoot Favourites **empty**:
+`core.seedPicks` puts four picks on the shelf in a demo build, so the state a fresh library
+actually opens in — the dashed *Drag a book here* landing — was the one Favourites state the film
+had never shown.
+
+| Measurement | Before | After |
+|---|---|---|
+| Recorder flags | `--look`, `--vault-name`, `--mirror-of` | plus `--empty-picks` |
+| `__vs.picks()[0].picks.length` at the `favourite` act's setup | 4 (seeded) | 0 under `--empty-picks` |
+| Favourites head during that take | `4 books · 2611 notes` | `0 books · 0 notes` → `1 book · 481 notes` |
+| Storyboard acts | 24 | **24, unchanged** |
+| `docs/features/` clips | 24 | **24, unchanged** |
+| Clip 1, the drag onto the empty shelf | none | 1000×1000, 7.7s, 15fps, q92, 1,098,106 bytes |
+| Clip 2, the reorder | none | 1000×1000, 7.7s, 15fps, q92, 1,051,204 bytes |
+| #3's review artifact | 3.3 MB, stills only | 6.07 MB, two clips inlined, same URL |
+
+**The window is the act's own timing, not a guess.** `favourite` and `rearrange` share their
+beats: the pointer rests at `neutral` until 1.8s, glides to the spine, lifts at 3s, carries to
+7s, drops, and the next step's glide begins at 7.8s. `--hero-clip 1.8,7.7` is rest → lift →
+carry → drop → rest. It runs 1.7s past the six-second review guideline deliberately: cutting at
+6s ends the first clip with a peek card lying across the library, because the act does not
+dismiss it until 9s.
+
+**One act change, and it is a fallback rather than a branch.** `favourite`'s drop target was
+`.vs-plusbook` offset +90; an empty pick rail draws a `.vs-dropzone` instead. The target now
+prefers the dropzone and falls back to the plus, so a normal take — where no dropzone exists — is
+byte-identical, and the act now throws rather than dropping into nothing if neither resolves.
+
+**The optional third clip was not shipped.** Taking a favourite off through the right-click menu
+has no storyboard act, and adding one owes a `docs/features/<act>.md` page and clip — surfaces
+the maintainer alone puts something on. Recorded as a known gap on the issue
+rather than guessed at.
+
+**Nothing in `src/` moved**, so no invariant moved and the suite was not re-run; the tree earns
+no stamp from this. Lint, `check-comments`, `check-pii`, `check-scope`, `check-network` and the
+generated code-map check are what gate it.
