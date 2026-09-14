@@ -1704,24 +1704,37 @@ function mountVaultShelf(root, data, options) {
 
   /** design/0030 */
   /** @param {import("./core/index").IndexMode} mode @returns {string} */
-  function indexLabel(mode) { return mode === "az" ? "A\u2013Z" : "Date"; }
+  function indexLabel(mode) {
+    return mode === "az" ? "A\u2013Z" : mode === "number" ? "Number" : "Date";
+  }
+
+  /** github#70, design/0035
+   * @param {boolean} numeric @returns {import("./core/index").IndexMode[]} */
+  function indexPair(numeric) { return numeric ? ["number", "date"] : ["az", "date"]; }
+
+  /**
+   * github#70, design/0035
+   * @param {import("./core/index").IndexMode} mode @returns {string}
+   */
+  function railFace(mode) { return mode === "number" ? "0–9" : indexLabel(mode); }
 
   /** @param {HTMLElement} box @param {import("./core/index").IndexMode|undefined} mode
-   * @param {import("./core/index").IndexMode} automatic @param {(mode: import("./core/index").IndexMode|null) => void} pick */
-  function indexChoices(box, mode, automatic, pick) {
+   * @param {import("./core/index").IndexMode} automatic @param {(mode: import("./core/index").IndexMode|null) => void} pick
+   * @param {boolean} [numeric] */
+  function indexChoices(box, mode, automatic, pick, numeric) {
     var label = el("div", "vs-indexchoice");
     label.appendChild(el("span", "vs-bindinglabel", "Default contents order"));
     var choices = el("div", "vs-indexbuttons");
     choices.setAttribute("role", "group");
     choices.setAttribute("aria-label", "Default contents order");
-    ["az", "date"].forEach(function (value) {
-      var button = el("button", "", value === "az" ? "A\u2013Z" : "Date");
+    indexPair(!!numeric).forEach(function (value) {
+      var button = el("button", "", indexLabel(value));
       button.type = "button";
       button.setAttribute("data-index-mode", value);
       button.setAttribute("aria-pressed", String((mode || automatic) === value));
       on(button, "click", function () {
         Array.from(choices.children).forEach(function (other) { other.setAttribute("aria-pressed", String(other === button)); });
-        pick(value === "az" ? "az" : "date");
+        pick(value);
       });
       choices.appendChild(button);
     });
@@ -1742,13 +1755,16 @@ function mountVaultShelf(root, data, options) {
         mode = home.bookIndexes && home.bookIndexes[aggregate.key];
       }
     }
+    /* github#70, design/0035 */
+    var numeric = !shelf && books.length > 0 &&
+      books.every(function (book) { return core.numericBook(book.notes); });
     indexChoices(menu, mode, core.indexMode(home), function (choice) {
       if (shelf) {
         if (choice) shelf.indexMode = choice; else delete shelf.indexMode;
         delete shelf.bookIndexes;
       }
       setBookIndexes(books, shelf ? null : choice);
-    });
+    }, numeric);
   }
 
   /** @param {Book[]} books @param {import("./core/index").IndexMode|null} mode */
@@ -2856,11 +2872,44 @@ function mountVaultShelf(root, data, options) {
    * @param {Book} book @returns {Cut[]}
    */
   function indexCuts(book) {
-    var source = sourceOf(book);
-    var shelf = shelfById(source.shelfId);
-    if (core.indexMode(shelf, source.key) === "az") return letterCuts(book.notes);
+    var mode = bookIndexMode(book);
+    if (mode === "az") return letterCuts(book.notes);
+    /* github#70, design/0035 */
+    if (mode === "number") return numberCuts(book.notes);
     /* design/0015 -- one index for every date-ordered book, however it was classified */
     return dateCuts(book.notes);
+  }
+
+  /** github#70, design/0035
+   * @param {Book} book @returns {import("./core/index").IndexMode} */
+  function bookIndexMode(book) {
+    var source = sourceOf(book);
+    return core.indexMode(shelfById(source.shelfId), source.key, book.notes);
+  }
+
+  /**
+   * github#70, design/0035
+   * @param {ShelfNote[]} notes @param {number} [base] @returns {Cut[]}
+   */
+  function numberCuts(notes, base) {
+    var at = base || 0;
+    var runs = runsOf(notes, function (n) { return core.leadingNumber(n.title); });
+    if (runs.length <= 1) {
+      /* design/0015 */
+      if (!runs.length || runs[0].size <= 3) return [];
+      return cutTree(runs[0].notes, at + runs[0].at, TITLE_DATE_LAYERS);
+    }
+    return runs.map(function (r) {
+      return { label: numberLabel(r.key), at: at + r.at,
+               kids: r.size <= 3 || !/^\d{4}$/.test(r.key) ? []
+                   : cutTree(r.notes, at + r.at, TITLE_DATE_LAYERS) };
+    });
+  }
+
+  /** design/0034
+   * @param {string} digits @returns {string} */
+  function numberLabel(digits) {
+    return digits.length <= 4 ? digits : digits.slice(0, 4) + "x";
   }
 
   /**
@@ -3064,19 +3113,20 @@ function mountVaultShelf(root, data, options) {
     find.setAttribute("aria-label", "Search inside this book");
     on(find, "click", findInBook);
     box.appendChild(find);
-    var source = sourceOf(reader.book);
-    var mode = core.indexMode(shelfById(source.shelfId), source.key);
+    var mode = bookIndexMode(reader.book);
+    /* github#70, design/0035 */
+    var other = mode === "date" ? indexPair(core.numericBook(reader.book.notes))[0] : "date";
     /* github#32, design/0034 -- the face names the mode the rail below is cut BY; the glyph
      * says it is pressable. Flipping the face would put `Date` over a column of letters. */
     /* The glyph is part of the label, not a span of its own: a span is an element the look
      * check measures, and leather drew it 12px high against modern's 10px. */
-    var toggle = el("button", "vs-indextoggle", indexLabel(mode) + " ⇄");
+    var toggle = el("button", "vs-indextoggle", railFace(mode) + " ⇄");
     toggle.type = "button";
     toggle.setAttribute("data-index-mode", mode);
-    toggle.setAttribute("aria-label", "Contents: " + indexLabel(mode) + ". Switch to " + indexLabel(mode === "az" ? "date" : "az"));
+    toggle.setAttribute("aria-label", "Contents: " + indexLabel(mode) + ". Switch to " + indexLabel(other));
     toggle.title = "Switch contents order";
     on(toggle, "click", function () {
-      setBookIndexes([reader.book], mode === "az" ? "date" : "az");
+      setBookIndexes([reader.book], other);
       var next = node("tabs").querySelector(".vs-indextoggle");
       if (next instanceof HTMLElement) next.focus({ preventScroll: true });
     });
