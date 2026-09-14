@@ -31,8 +31,23 @@ ancestor path. Owned icons must come to one per icon button, so an `<svg>` hidde
 button fails too, and the absolute 13 is never asserted.
 
 **The census proves itself on every run.** It plants an `<svg>` in `#vs-library`, re-reads the
-same census, and requires exactly 1 stray naming `vs-escape-probe`. The old assertion had no way
-to fail for having stopped looking; this one does.
+same census, and requires one more stray than was already there, naming `vs-escape-probe`. The
+old assertion had no way to fail for having stopped looking; this one does. It asserts one *more*
+rather than exactly one so that a run which has already found a genuine escape reports that
+escape, instead of also claiming the probe went missing.
+
+**Proved the other way too, end to end.** A stray `<svg id="vs-fake-escape">` added to
+`#vs-library` in `src/page.html` — an svg in the page that no icon button owns, which is what an
+escape looks like — and the gate caught it and said where:
+
+```
+check-data-escape: FAIL
+  FAIL 1 <svg> element(s) outside the page's own icon buttons -- the payload named one:
+       body > div#vs-app.vault-shelf > main#vs-library > svg#vs-fake-escape
+```
+
+Reverted immediately; `src/page.html` is untouched in the diff. That ancestor path is the whole
+point of naming a stray rather than counting one — the old gate could only have said `14`.
 
 | | before | after |
 |---|---|---|
