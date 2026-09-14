@@ -44,7 +44,7 @@ Hover or focus a choice to preview it before saving.
 
 **Read a book.** Contents and search on the left; your note on the right, rendered by
 Obsidian with links, embeds, callouts, tasks, tables and code. Choose A–Z or Date for the
-contents and edge tabs. Turn with the footer buttons, arrow keys, or a wheel push past
+contents and edge tabs — or Number, where every note in the book starts with one. Turn with the footer buttons, arrow keys, or a wheel push past
 the end of a note. Also shelved in opens another book on the same note; Previous collection
 and Alt+Left return.
 

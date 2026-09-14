@@ -170,7 +170,9 @@ instead of between 2022 and 2023.
 It was pulled because of what it does to the shelf *around* it. `readingOrder`'s date comparator is
 multiplied by the top bar's oldest/newest, so the `0-9` volume began flipping with a control its
 25 siblings ignore — and *date contents default to oldest and saved newest settings remain
-readable* turned red on exactly that: it asserts `buildShelf(encyclopedia, 'oldest')` is
+readable* turned red on exactly that ([0035](0035-a-volume-of-numbers.md) is the answer that
+does not: a `number` mode ignores the reading order the way `az` does): it asserts
+`buildShelf(encyclopedia, 'oldest')` is
 byte-identical to `'newest'`, which is the law that **an alphabetical shelf has nothing to say
 about oldest and newest** (design/0015). One volume of twenty-six answering a switch the rest do
 not is two shelves wearing one name. The reader who wants that volume by date still has the toggle,
@@ -185,6 +187,10 @@ cut, which is what a volume spine does with a number it cannot read.
 then `12 weeks of running`, then the years, then `24 hours…` — and a run is whatever is adjacent,
 so the rail draws **three** cuts labelled `0-9` around them. Correct by the rule, scruffy to read.
 Suppressing a cut that holds one note of 2,063 is a rule about every volume, not this one.
+
+**Since fixed at the root** by [0035](0035-a-volume-of-numbers.md), which is where it belonged:
+the three `0-9` cuts were the index telling the truth about contents in the wrong order. Read by
+number, the numerics are adjacent, and each gets a cut of its own.
 
 ## One word cannot be both a state and an act
 

@@ -2748,6 +2748,43 @@ verifies their shelf targets, and checks that hiding leaves the definition intac
 The top-right Manage control uses a gear with an accessible name and tooltip. Book creation
 uses the plus spine; shelf headers no longer contain a separate New book button.
 
+## A volume of numbers - design/0035
+
+`core.IndexMode` is `az | date | number`. **`number` orders by the leading digit run of a
+title** - `firstLetter`'s trim, then the digits - comparing by length with leading zeros
+stripped and then by characters, so `202212331243` is exact and no float is involved. A tie
+falls to the title comparator and a note with no leading digit sorts last, which keeps the
+comparator total.
+
+**It stands in the A-Z slot, never beside it.** A book is offered two modes; where every one of
+its notes opens with a digit the pair is Number and Date. `number` replaces the **automatic**
+`az` only - never `date`, so a Months book of daily notes is untouched, and never a saved mode.
+`indexMode(shelf, key, notes)` takes the notes as an optional third argument, so a shelf picker,
+which has no one book, is unchanged. **Like `az` it ignores the reading order**, which is why
+*date contents default to oldest and saved newest settings remain readable* stays green where
+the rejected date-book version of this turned it red (design/0034).
+
+**The cuts are one per distinct leading number**, not ranges: 20 over the vault shape's `0-9`
+volume, inside the rail's ceiling of 32 closed, with `fitTabs` still owning what happens when a
+level will not fit. A `/^\d{4}$/` cut hands its notes to `TITLE_DATE_LAYERS` exactly as
+`prefixCuts` does, so a year still opens into `Mmm` and `dd`; anything else is a leaf. A run
+longer than four digits keeps design/0034's `2022x` label.
+
+**The rail's face is `0-9`, the picker's word is `Number`.** Measured: `Number` plus the glyph
+runs **6px** past the toggle's 55x28 box and **wraps**, which passes every measurement of its
+width - found by looking, not by the check. `0-9` fits with a pixel to spare in the same box the
+lettered volume draws. The `aria-label` and the manage-sheet buttons keep the word.
+
+`INDEX_MODES` is the one list of modes, beside `LOOKS`, and `migrate` validates `indexMode` and
+every `bookIndexes` entry against it. No schema bump.
+
+Measured on the vault shape: the `0-9` volume's 2,064 notes open **0 3 7 12 24 42 99 1000** and
+end `202212331243` (index **2063**, was 649), behind **20** cuts (was 16) of which **11 of 11**
+fat ones open (was 11 of 12), with **no dead end** (was `0-9` x5) and **no** cut labelled `0-9`
+(was three, scattered around the years). `"a volume of numbers reads by number, and only such a
+volume is offered it"` asserts all of it, plus the face fitting its box in both directions and
+migration keeping `number` while dropping an unknown mode.
+
 ## Age wear on a fresh library
 
 `lastOpened` is a separate ISO UTC/`never` map keyed by the same source address as `wear`.

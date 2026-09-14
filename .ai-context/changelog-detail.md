@@ -4404,3 +4404,41 @@ rather than guessed at.
 **Nothing in `src/` moved**, so no invariant moved and the suite was not re-run; the tree earns
 no stamp from this. Lint, `check-comments`, `check-pii`, `check-scope`, `check-network` and the
 generated code-map check are what gate it.
+
+## 2026-09-15 — A volume of numbers reads by number (`github#70`, `design/0035`)
+
+A third `core.IndexMode`. `number` orders a book by the leading digit run of each title —
+`firstLetter`'s trim, then the digits, compared by length with leading zeros stripped and then
+by characters, so `202212331243` is exact and no float is involved. It is offered **in the A–Z
+slot**, never beside it, and only for a non-empty book whose every note opens with a digit; it
+replaces the **automatic** `az` only, never `date` and never a saved mode. Like `az` it ignores
+the top bar's oldest/newest, which is the coupling that killed the date-book version of this in
+`design/0034`.
+
+Measured on the vault shape (`vault-c1f3a5ca`, 4,939 notes), the Encyclopedia's `0-9` volume:
+
+| | before | after |
+|---|---|---|
+| the contents open | `0 to 1`, `1000 small decisions`, `12 weeks of running`, 2015-… | **`0 to 1`, `3 notes on attention`, `7 day sourdough`, `12 weeks of running`, `24 hours…`, `42 and after`, `99 problems…`, `1000 small decisions`**, 2015-… |
+| top cuts | 16 | **20** |
+| cuts labelled `0-9` | **3**, scattered around the years | **0** |
+| fat cuts that open | 11 of 12 | **11 of 11** |
+| biggest dead end | `0-9` ×5 | **none** |
+| `202212331243` | index 649, between 2022 and 2023 | **index 2063, last** |
+| its cut | `2022x`, 0 under it | `2022x`, 0 under it — unchanged |
+| widest rail label / rail width | `2022x` 39px / 60px | unchanged |
+| the toggle's face | `A–Z ⇄` in 55×28 | **`0–9 ⇄` in 55×28** |
+| Encyclopedia `oldest` vs `newest` | byte-identical | **byte-identical** |
+
+**The face was found by looking.** `Number ⇄` measures −1px against the toggle's width and so
+passes every width assertion — because it **wraps** onto a second line, running **6px** past the
+55×28 box. The screenshot showed it; the check now measures the height too, and the rail says
+`0–9` (the same shape and width as `A–Z`) while the `aria-label` and the manage-sheet buttons
+keep the word `Number`.
+
+**Nothing in the packing moved**, so no layout golden was rewritten: this changes the order of
+notes inside a book, not where books stand. `INDEX_MODES` is now the one list of modes beside
+`LOOKS` and `migrate` validates against it; no schema bump, since an older file never carries
+`number` and an older build already drops what it does not know.
+
+One new check, *a volume of numbers reads by number, and only such a volume is offered it*.

@@ -4,7 +4,12 @@ The reader's contents and its cut index must use the same ordering. The classifi
 an initial choice, rather than locking the reader into it: Encyclopedia and Tags use A–Z;
 other classifiers use dates. Date ordering respects saved direction settings; fresh settings use oldest first.
 
-`Shelf.indexMode` stores an explicit shelf default (`az` or `date`). Optional
+As amended by [0035](0035-a-volume-of-numbers.md), there is a third mode: `number`, which reads
+a title's leading digit run as a number and is offered **in place of** `az`, and only for a book
+whose every note opens with a digit. It replaces the automatic `az`, never a saved mode and
+never `date`, and like `az` it ignores the reading order.
+
+`Shelf.indexMode` stores an explicit shelf default (`az`, `date` or `number`). Optional
 `Shelf.bookIndexes` stores overrides by stable book key, including made books and plaque
 aggregates. Missing values inherit. Migration discards unknown modes. Favourites resolve
 their source's choice, just as they resolve its contents and binding.

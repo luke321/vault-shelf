@@ -28,7 +28,7 @@ Start with Favourites, Encyclopedia, Years, Months, People and Tags. Make more s
 folders, dates or any note property. Arrange books by hand, choose among six leather bindings
 and fourteen colours, and open a plaque to read its whole run.
 
-Read a two-page spread with contents and index tabs. Choose A–Z or Date, follow links
+Read a two-page spread with contents and index tabs. Choose A–Z, Date or Number, follow links
 between collections, or push past the end of a note to turn the page. Ribbons and the Reading
 shelf bring you back to the notes you saved.
 

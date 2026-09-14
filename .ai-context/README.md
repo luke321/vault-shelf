@@ -131,3 +131,7 @@ are the regression suite.
 - [0032 - Compressing index and shelf actions](design/0032-compressing-index-and-shelf-actions.md): fixed search/order controls, fitting tabs and inline gear/eye buttons.
 
 - [0033 - Age and reading wear](design/0033-age-and-reading-wear.md): older books start worn without inventing opening history; recent notes keep active collections fresh.
+
+- [0034 - The thumb index](design/0034-the-thumb-index.md): a cut is a tree and the rail lists one level of it, under the trail it came through; fit is measured, not calculated.
+
+- [0035 - A volume of numbers](design/0035-a-volume-of-numbers.md): a third contents mode that reads digits as numbers, offered in the A-Z slot where every note opens with one.
