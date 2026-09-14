@@ -96,6 +96,84 @@ unguessable. Banking is more room for a list that should never have been that lo
 **Rejected: scrolling the rail.** The same lie as a clipped one — what you cannot see, you do not
 know is there.
 
+## The volume that opened into nothing
+
+> "when opening 0-9 encyclopedia there are no sub tags althought we have many notes starting with
+> 2022 for example"
+
+The section above gave the rail its levels, and one volume never got any. `titlePrefix` had a
+special case — **the 0-9 volume is indexed by year**, because "0-9" is the only tab a letter cut
+can give a book of daily notes — and it returned `word.slice(0, 4)` at *every* depth. So depth 3
+asked for a longer prefix and got the same four digits back, the layer separated nothing,
+`prefixCuts` recursed once more and fell out at its own `depth > 3` cap. Every year in the volume
+was a leaf by construction, whatever it held.
+
+Measured on the vault shape, over every volume in the library:
+
+| volume | notes | top cuts | cuts that open | biggest dead end |
+|---|---|---|---|---|
+| **0-9** | 2,063 | 15 | **0** | **`2026` × 587** |
+| S | 481 | 16 | 12 | `Sq` × 12 |
+| C | 209 | 8 | 7 | `Cy` × 1 |
+| A | 78 | 14 | 3 | `Ad` × 11 |
+
+The only volume where nothing opened, and the one holding a quarter of the vault.
+
+**A year hands its notes to the layers a date book already uses**, read off the title rather than
+the date property. That is the whole fix: `cutTree` with a `TITLE_DATE_LAYERS` twin of
+`DATE_LAYERS`. It is also the only fix that keeps the promise this file opened with — the reader
+learns one index, not two — and the one that keeps the rail 60px, because `DATE_LAYERS` already
+labels a month `Mar` and a day `04` where a raw `2026-03` key would want the same **71px** that
+made a span name its start rather than its range.
+
+**Four digits are a year only if they stop at four.**
+
+> "we could have a note that is not a date like 202212123123, incorporate that"
+
+`202212123123` opens with the same four characters as `2022-12-12`. Filed under 2022 it would hang
+a run of months off a title that has no date in it at all, so the test carries `(?!\d)` and a
+longer digit run falls to the `0-9` bucket instead. A month is validated by probing its first day
+through `isIsoDay`, for the reason `build-shelf.mjs` already carries in a comment: a real vault
+produced `2024-15-03`, which the exporter once shelved as a fifteenth month called "15 2024".
+
+**Rejected: a plausible year range.** Bounding it to, say, 1900–2099 would also stop `1000 small
+decisions` drawing a cut labelled `1000` beside `2015`. It is a magic number standing in for a
+judgement the data cannot support, and a vault of history notes would pay for it. `1000` stays a
+cut, which is what a volume spine does with a number it cannot read.
+
+**Known and left**: the non-year numerics are not adjacent in title order — `0 to 1`, then `1000`,
+then `12 weeks of running`, then the years, then `24 hours…` — and a run is whatever is adjacent,
+so the rail draws **three** cuts labelled `0-9` around them. Correct by the rule, scruffy to read.
+Suppressing a cut that holds one note of 2,063 is a rule about every volume, not this one.
+
+## One word cannot be both a state and an act
+
+> "shouldn't we flip the Date A-Z button? So that users think, what does AZ mean when date is shown
+> and vice versa"
+
+The ambiguity is real: a lone button reading `A–Z` cannot say whether it is telling you where you
+are or offering to take you somewhere. But **flipping it moves the ambiguity somewhere worse**. The
+toggle sits at the head of the rail, and the cuts immediately under it are cut by that mode —
+letters under `A–Z`, years under `Date`. A face showing the mode it would switch *to* would stand
+the word `Date` directly on top of a column of letters.
+
+So the word stays the state, and `⇄` carries the act. The `aria-label` already said both in full
+("Contents: A–Z. Switch to Date") and is unchanged; the glyph gives a sighted reader what a screen
+reader already had. It comes after the word, so what the rail is cut *by* still reads first, and
+the toggle's box stays **55×28 at 10px** — the glass tab's box exactly.
+
+**The glyph is text, not a span**, and that was not the first cut of it. A `<span>` carrying its
+own `font-size: 9px` and `opacity: .55` is an element *a look moves nothing on the page* measures,
+and it caught it immediately: leather and cyber drew that span **12px high against modern's 10px**
+and 1.7px lower, because it inherited each look's own face. Pinning its box would have meant
+page.css owning a third set of numbers for a decoration. As part of the label it has no box at
+all, which is the same answer [0016](0016-the-leather-look.md) gives everywhere else — the look
+may repaint the type, and there is nothing else there to move.
+
+**Rejected: both labels, one pressed** — the manage sheet's control, which is unambiguous because
+it shows the pair. In the rail it would cost a second row, in the one strip whose whole problem is
+running out of rows.
+
 ## Fit is measured, not calculated
 
 How tall a cut is — in whichever look, at whatever font the host has, in a window of whatever shape
@@ -166,10 +244,11 @@ Measured 2026-09-14 on the vault shape, over the fourteen fattest books, at 1180
 | most cuts on show at once | 27 | 32 closed, and the fold is a press away |
 | `people/-unfiled`, 2,450 notes | 11 year tabs, **months and days dropped** | 11 years, each opening its months, **nothing dropped** |
 | cuts lit at the end of a book | up to **26 of 26** | **1** |
+| **Encyclopedia `0-9`, 2,063 notes** | 15 cuts, **0 opening**, `2026` a leaf of **587** | 15 cuts, **11 of 12 fat ones open**; `2026`→9 months, `Aug`→27 days; biggest dead end **5** |
 
 ## The checks
 
-Three new, 88 → **91**.
+Four new, 88 → **92**.
 
 - **no index cut is clipped, and none is shrunk past reading** — every cut's box inside the rail's,
   the rail's inside the spread's and never over a fifth of it, and no cut's type under 11px, over
@@ -182,6 +261,13 @@ Three new, 88 → **91**.
   under it and asserts exactly that many appear, that the press moved the reader to the cut's own
   note, that the trail step above is marked back and stands further in from the fore-edge, and that
   pressing it comes back to the level it left.
+
+- **a numeric volume is indexed like a date book, not stopped at its years** — opens the `0-9`
+  volume, and asserts that every cut holding more than three notes opens (bar the `0-9` bucket,
+  which has nothing under it to cut by), that its fattest year opens into months named `Mmm` and
+  standing inside it, and that the fattest of those opens into days named `dd`. It asserts the
+  *fold*, not the presence of cuts: 15 cuts was already true and already useless. Red before the
+  fix at 0 of 15 open, biggest dead end 587.
 
 Three others learned the new vocabulary: *the date index is layered* reads the fitted cut from
 `__vs.indexTabs()` rather than counting the DOM — counting the DOM would count whichever level the

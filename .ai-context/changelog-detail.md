@@ -1,5 +1,50 @@
 # Changelog detail
 
+## 2026-09-14 - The 0-9 volume opens, and the contents toggle says it is one (github#32, design/0034)
+
+Lukas, looking at the demo: *"when opening 0-9 encyclopedia there are no sub tags althought we
+have many notes starting with 2022 for example"*.
+
+**It was the only volume in the library where nothing opened.** `titlePrefix` pinned the 0-9 key
+at four digits at every depth, so a deeper ask returned the same key, the layer separated nothing,
+and `prefixCuts` fell out at its own `depth > 3` cap. Measured over every volume:
+
+| volume | notes | top cuts | cuts that open | biggest dead end |
+|---|---|---|---|---|
+| **0-9** | 2,063 | 15 | **0** | **`2026` x 587** |
+| S | 481 | 16 | 12 | `Sq` x 12 |
+| C | 209 | 8 | 7 | `Cy` x 1 |
+| A | 78 | 14 | 3 | `Ad` x 11 |
+
+A year now hands its notes to `cutTree` with a `TITLE_DATE_LAYERS` twin of `DATE_LAYERS`, read off
+the title rather than the date property: **11 of 12 fat cuts open**, `2026` (587 notes) opens into
+**9 months** and `Aug` (89) into **27 days**, and the biggest dead end is `0-9` x**5**. The labels
+stay `Mar` and `04`, so the rail is still **60px** and the widest label is still `2020` at 32px -
+a raw `2026-03` key would have wanted the 71px that made a span name its start rather than its
+range.
+
+**Four digits are a year only if they stop at four** - Lukas: *"we could have a note that is not a
+date like 202212123123, incorporate that"*. The test carries `(?!\d)`, so a longer digit run falls
+to the `0-9` bucket rather than hanging twelve months off a title with no date in it; a month is
+validated by probing its first day through `isIsoDay`, which is what stops `2024-15-03` becoming a
+fifteenth month called "15 2024". Not a plausible *range*, deliberately: `1000 small decisions`
+still files under `1000`.
+
+**And the contents toggle grew a `⇄`** - Lukas: *"shouldn't we flip the Date A-Z button?"*. Not
+flipped: the cuts directly under that button are cut by that mode, so a face showing the mode it
+would switch *to* would stand `Date` on top of a column of letters. The word stays the state, the
+glyph carries the act, and the `aria-label` says both as it already did. The control's box is
+unchanged at **55x28 at 10px**, the glass tab's box exactly.
+
+The glyph started as a dimmed `<span>` and *a look moves nothing on the page* rejected it inside a
+minute: leather and cyber drew that span **12px high against modern's 10px**, 1.7px lower, because
+it inherited each look's face. It is part of the label's text now, so there is no box to move.
+
+One new check, 91 -> **92**. Known and left: the non-year numerics are not adjacent in title order,
+so the rail draws **three** cuts labelled `0-9` around the years. Correct by *a run is whatever is
+adjacent*, scruffy to read; suppressing a cut that holds one note of 2,063 is a rule about every
+volume rather than this one.
+
 ## 2026-09-14 - The rail is 60px, and a span says where it starts (github#32, design/0034)
 
 Lukas, on the first cut of this: *"make the new design less width"*. It was 72px - 56px of cut

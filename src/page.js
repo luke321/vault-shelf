@@ -2896,8 +2896,11 @@ function mountVaultShelf(root, data, options) {
       return runs.length ? prefixCuts(runs[0].notes, base + runs[0].at, depth + 1) : [];
     }
     return runs.map(function (r) {
+      /* design/0034 -- only the 0-9 branch can produce a four-digit key */
       return { label: r.key, at: base + r.at,
-               kids: r.size <= 3 ? [] : prefixCuts(r.notes, base + r.at, depth + 1) };
+               kids: r.size <= 3 ? []
+                   : /^\d{4}$/.test(r.key) ? cutTree(r.notes, base + r.at, TITLE_DATE_LAYERS)
+                   : prefixCuts(r.notes, base + r.at, depth + 1) };
     });
   }
 
@@ -2924,9 +2927,42 @@ function mountVaultShelf(root, data, options) {
     /* THE 0-9 VOLUME IS INDEXED BY YEAR. It is one book of 351 notes in a vault of daily
      * notes, and "0-9" is the only tab a letter cut can give it. What a title beginning
      * `2023-02-16` is actually filed under is 2023. */
-    if (head === "0-9") return /^\d{4}/.test(word[0]) ? word[0].slice(0, 4) : head;
+    if (head === "0-9") return titleYear(title) || head;
     return head + word[0].slice(1, depth).toLowerCase();
   }
+
+  /**
+   * design/0034 -- four digits are a year only if they stop at four: `202212123123` is not 2022
+   * @param {string} title @returns {string} the year, or ""
+   */
+  function titleYear(title) {
+    var m = /^(\d{4})(?!\d)/.exec(title.replace(/^[^\p{L}\p{N}]+/u, ""));
+    return m ? m[1] : "";
+  }
+
+  /**
+   * design/0034 -- the ISO date a title BEGINS with, cut to a year, a month or a day; "" if it
+   * carries none or an impossible one, which the cut skips the way it skips an undated note
+   * @param {string} title @param {number} length 4, 7 or 10 @returns {string}
+   */
+  function titleIso(title, length) {
+    var trimmed = title.replace(/^[^\p{L}\p{N}]+/u, "");
+    var m = /^(\d{4})-(\d{2})(?:-(\d{2}))?(?!\d)/.exec(trimmed);
+    if (!m) return length === 4 ? titleYear(title) : "";
+    var day = m[3] ? m[0] : m[0] + "-01";
+    if (!core.isIsoDay(day)) return length === 4 ? titleYear(title) : "";
+    if (length === 10 && !m[3]) return "";
+    return m[0].slice(0, length);
+  }
+
+  /* github#32, design/0034 -- the 0-9 volume is a date book wearing a letter's clothes: its
+   * years take DATE_LAYERS read off the title, not a fifth digit the key does not have. */
+  var TITLE_DATE_LAYERS = [
+    { key: function (/** @type {ShelfNote} */ n) { return titleIso(n.title, 7); },
+      label: function (/** @type {string} */ k) { return core.monthLabel(k).slice(0, 3); } },
+    { key: function (/** @type {ShelfNote} */ n) { return titleIso(n.title, 10); },
+      label: function (/** @type {string} */ k) { return k.slice(8); } }
+  ];
 
   /**
    * design/0015 -- THE LAYERED DATE INDEX. Years, then the months inside a year, then the days
@@ -3020,7 +3056,11 @@ function mountVaultShelf(root, data, options) {
     box.appendChild(find);
     var source = sourceOf(reader.book);
     var mode = core.indexMode(shelfById(source.shelfId), source.key);
-    var toggle = el("button", "vs-indextoggle", indexLabel(mode));
+    /* github#32, design/0034 -- the face names the mode the rail below is cut BY; the glyph
+     * says it is pressable. Flipping the face would put `Date` over a column of letters. */
+    /* The glyph is part of the label, not a span of its own: a span is an element the look
+     * check measures, and leather drew it 12px high against modern's 10px. */
+    var toggle = el("button", "vs-indextoggle", indexLabel(mode) + " ⇄");
     toggle.type = "button";
     toggle.setAttribute("data-index-mode", mode);
     toggle.setAttribute("aria-label", "Contents: " + indexLabel(mode) + ". Switch to " + indexLabel(mode === "az" ? "date" : "az"));

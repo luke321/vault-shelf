@@ -2647,6 +2647,25 @@ spans naming what they open (`Jan-Apr`), and the cuts it held become what those 
 range of ranges is still one range, so gathering twice reads `Jan-Aug`. Every level at that
 depth is gathered together, never one at a time.
 
+**A numeric volume is indexed like a date book.** The Encyclopedia's `0-9` volume is a date
+book wearing a letter's clothes, and `titlePrefix` used to pin its key at four digits: asking
+for a deeper prefix returned the same key, so the layer separated nothing and the recursion
+fell out at its own depth cap. Measured before: **15 top cuts, 0 of them opening, 587 notes
+behind `2026`** - the only volume in the library where the rail went nowhere, against A's 3 of
+14 and S's 12 of 16. A year now hands its notes to the layers a date book already uses, read
+off the **title** rather than the date property: **11 of 12 fat cuts open**, `2026` opens into
+9 months and `Aug` into 27 days, and the biggest dead end is `0-9` x5. The labels stay `Mar`
+and `04`, which is what keeps the rail 60px - a raw `2026-03` key would want the same 71px
+that made a span label a range rather than its start.
+
+**Four digits are a year only if they stop at four.** `202212123123` opens with the same four
+characters as `2022-12-12`, so the year test carries `(?!\d)` and a longer digit run falls to
+the `0-9` bucket rather than hanging twelve months off a title with no date in it. A month is
+validated by probing its first day through `isIsoDay` for the same reason the exporter learned:
+a real vault produced `2024-15-03`, once shelved as a fifteenth month called "15 2024". The
+test is deliberately **not a plausible range**, so `1000 small decisions` still files under
+`1000` beside `2015` - what a volume spine does with a number it cannot read.
+
 **Fit is measured, not calculated**, off the last cut's own bottom and never `scrollHeight` -
 the rail's overflow is visible by design, and a box that does not scroll does not reliably
 report a scrolling area. It is fitted to the **fattest level the book can show**, not the one
@@ -2667,6 +2686,16 @@ and it was being cropped on the left in **30** places before any check could see
 text's own laid-out rect can. And the crop only shows on the **deepest** fold, since every notch
 of the staircase takes another 5px off the label beside it: one level open, 0 cropped; all of
 them, 6.
+
+**The face of the contents toggle names the rail, and a glyph says it is pressable.** The cuts
+directly under it are cut by that mode - letters under `A-Z`, years under `Date` - so a face
+showing the mode it would switch *to* would stand the word `Date` on top of a column of
+letters. A lone word cannot say both what a control is and what it does, so the word stays the
+state and `⇄` carries the act; the `aria-label` says both in full ("Contents: A-Z. Switch to
+Date"). The glyph is part of the label's own text, not a span: a span is an element *a look
+moves nothing on the page* measures, and leather and cyber drew it **12px high against modern's
+10px** and 1.7px lower. As text it adds no box, and the toggle stays **55x28 at 10px** - the
+same as before and the same as the glass tab above it.
 
 **A tab is a cut, not a plate**: `border-radius: 3px 0 0 3px` with `border-right: 0`, the gap
 between cuts gone and adjacent hairlines collapsed by `margin-top: -1px`, and the shadow

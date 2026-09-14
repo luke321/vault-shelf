@@ -6832,6 +6832,63 @@ check("the rail lists one level under the trail it came through", async (p) => {
                    `pressing it comes back (${r.cameBack})` };
 });
 
+/* github#32, design/0034 -- it asserts the FOLD, not the cuts: 15 cuts was already true and
+ * already useless, while 0 of them opened and 587 notes sat behind `2026`. */
+check("a numeric volume is indexed like a date book, not stopped at its years", async (p) => {
+  const putWearBack = await holdWear(p);
+  const r = await p.j(`(function(){
+    var book = null;
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+      if (b.id.indexOf("encyclopedia/") === 0 && b.key === "0-9") book = b;
+    }); });
+    if (!book) return null;
+    __vs.openBook(book.id, null);
+    var cuts = __vs.indexTabs().cuts;
+    /* Every cut's own size, from where the next one starts -- the tree carries positions. */
+    var sizeOf = function (list, total) {
+      return list.map(function (c, i) {
+        return { cut: c, size: (i + 1 < list.length ? list[i + 1].at : total) - c.at };
+      });
+    };
+    var top = sizeOf(cuts, book.notes.length);
+    var years = top.filter(function (t) { return /^\\d{4}$/.test(t.cut.label); });
+    var fat = top.filter(function (t) { return t.size > 3; });
+    var dead = fat.filter(function (t) { return !t.cut.kids.length; })
+                  .sort(function (a, b) { return b.size - a.size; })[0];
+    /* The fattest year, and the fattest month under it. */
+    var year = years.sort(function (a, b) { return b.size - a.size; })[0];
+    var months = year ? sizeOf(year.cut.kids, year.cut.at + year.size) : [];
+    var month = months.slice().sort(function (a, b) { return b.size - a.size; })[0];
+    __vs.closeReader();
+    return {
+      notes: book.notes.length, top: top.length, years: years.length,
+      fat: fat.length, opened: fat.filter(function (t) { return t.cut.kids.length; }).length,
+      deadLabel: dead ? dead.cut.label : null, deadSize: dead ? dead.size : 0,
+      year: year ? year.cut.label : null, yearSize: year ? year.size : 0,
+      months: months.length,
+      monthsNamed: months.every(function (m) { return /^[A-Z][a-z]{2}$/.test(m.cut.label); }),
+      monthsInside: months.every(function (m) {
+        return m.cut.at >= year.cut.at && m.cut.at < year.cut.at + year.size; }),
+      month: month ? month.cut.label : null, monthSize: month ? month.size : 0,
+      days: month ? month.cut.kids.length : 0,
+      daysNamed: month ? month.cut.kids.every(function (d) { return /^\\d{2}$/.test(d.label); }) : false
+    };
+  })()`);
+  await putWearBack();
+  if (!r) return { ok: false, detail: "this vault has no 0-9 volume" };
+  /* design/0034 -- the `0-9` bucket is the one fat cut that may not open: a numeric title that
+   * is not a year has nothing under it to cut by. */
+  return { ok: r.years >= 2 && r.opened === r.fat - (r.deadLabel === "0-9" ? 1 : 0) &&
+               r.months >= 2 && r.monthsNamed && r.monthsInside && r.days >= 2 && r.daysNamed &&
+               r.deadSize < 20,
+           detail: `0-9 holds ${r.notes} notes behind ${r.top} cuts, ${r.years} of them years; ` +
+                   `${r.opened} of ${r.fat} fat cuts open (was 0 of 15). ` +
+                   `${r.year} (${r.yearSize} notes) opens into ${r.months} months ` +
+                   `named Mmm (${r.monthsNamed}) and inside it (${r.monthsInside}); ` +
+                   `${r.month} (${r.monthSize}) opens into ${r.days} days named dd (${r.daysNamed}); ` +
+                   `biggest dead end ${r.deadLabel} x${r.deadSize} (was 2026 x587)` };
+});
+
 /* design/0032 */
 check("index tabs compress without scrolling and shelf icons edit and hide", async (p) => {
   const original = await p.j("({width:innerWidth,height:innerHeight})");
