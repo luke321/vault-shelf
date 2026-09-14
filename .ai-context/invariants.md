@@ -2487,6 +2487,57 @@ re-measurement has something to diff rather than a number to argue with.
 
 `--timings <file>` writes every check's milliseconds as JSON, which is how every column was made.
 
+## A draining room measure is waited out, and nothing else is
+
+`decisions/0016`, `decisions/0013`, github#57, github#69. The busy-page rule is aimed, not
+dropped, and the aiming has a check of its own.
+
+**Three constants, and they are reads rather than milliseconds.** `SETTLE_MS = 3000` is the
+budget — fifty of `settleRoom`'s 60 ms coalescing timer, and under `cdp.mjs`'s 10 s reply
+timeout. `SETTLE_QUIET = 5` and `SETTLE_GAP = 20` are the shape of "quiet": **five consecutive
+reads at zero**, 20 ms apart. One read is not enough because a resize Chrome has not dispatched
+yet reads `pending === 0` and sets it a tick later. Five at 20 ms is the pattern the github#32
+worker reached independently for its index-rail check.
+
+**The waiting happens inside the page.** `settled()` polls `__vs.room().pending` on the page's
+own `setTimeout`, in one CDP round trip — *not* `await sleep()` in Node. That is the whole fix:
+a Node sleep is wall clock on a process the machine starves, which is the failure; the page's
+timer is the same clock `settleRoom` is coalescing into.
+
+**`settleRoom`'s timer is the only item `atRest()` names that drains on its own.** A sheet left
+open, a drag in the air, an edge scroll, an overscroll band — every one of those is state a check
+must clear, and every one still fails the check that left it, unchanged. A room measure that has
+*not* drained inside `SETTLE_MS` also still fails, now saying `(still there after 3000ms)` so a
+rescheduling repack is told apart from a merely late one.
+
+**Measured, before and after, at `--jobs 1` with all 24 cores under synthetic load.**
+`"the room has a width, however wide the window is"` failed **2 of 14** runs before and **0 of
+12** after; idle it was 14 of 14 either way. Every number the failing runs measured was correct
+— shelves 1180 (683/698), rail 1180, row 1180, spread 1084, worst overflow 0px — which is what
+made it a runner defect rather than a page one.
+
+**All seven viewport-driving checks go through one pair of helpers.** `viewport(p, w, h)` sets
+the override, dispatches the resize CDP does not reliably deliver, and waits for the page's own
+`innerWidth`/`innerHeight` to agree *and* the repack to drain; `unviewport(p, was)` clears it and
+comes back. No check calls `Emulation.setDeviceMetricsOverride` by hand any more, and the three
+private copies of the stability loop are gone.
+
+**The guarantee is checked, both ways.** `"a draining room measure is waited out, and nothing
+else is"` returns with the timer deliberately just scheduled, so it is the check that goes red if
+the runner ever stops draining — and it asks `atRest()` directly whether an open sheet is still
+named, so the exemption cannot widen into the rule unnoticed. With the drain removed it fails
+with `LEFT THE PAGE BUSY: a pending room measure (settleRoom's 60ms timer)`; with it, it passes.
+
+**The cost is about 80 ms per check** in the quiet case. Several converted checks got faster
+instead, because a `sleep(400)` or `sleep(250)` sized for the worst case now returns as soon as
+the page agrees.
+
+**github#69 is not claimed as measured.** `"a lifted spine is painted whole, in every look"` did
+not reproduce here in **29 runs** at `--jobs 1` under full load, alone and after its neighbour.
+It shares github#57's mechanism and the runner now guarantees it a page at rest at both ends;
+whether that was its mechanism is unproven, and its pixel logic and thresholds are untouched. If
+it recurs, look at the compositor read in `paintedAbove()`, never at a tolerance.
+
 ## Every release guard fires, and none of them writes a tag
 
 `.\scripts
