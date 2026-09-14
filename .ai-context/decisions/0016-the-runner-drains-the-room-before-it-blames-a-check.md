@@ -108,11 +108,23 @@ third correction would have been the third of an unbounded series.
 `"the room has a width, however wide the window is"`: **0 failures in 12 runs** under the same
 24-core load that produced 2 in 14 before. Idle, unchanged.
 
-**The suite pays about 80 ms per check** in the quiet case — five reads 20 ms apart, in one CDP
-round trip. Against a run that takes 41-43 s over 146 check runs that is real but small, and it
-buys the difference between a stamp that means something and a stamp that is a coin toss twice.
-Several converted checks got *faster*, because a `sleep(400)` or `sleep(250)` sized for the worst
+**Gated on the merge result.** `develop` moved eleven commits while this was in hand, so it was
+merged in before the suite ran: **140/140 twice, 103 s and 108 s wall**, stamping tree `ec48616`
+under `github#55`'s two-green law — the law that caught the defect. Neither check known flaky on
+`develop` (`github#76`, `github#77`) bit in either run.
+
+**The cost is one `settled()` call per check**, floor five reads 20 ms apart in one CDP round
+trip. **No before-figure is claimed on this base**: it moved, and the suite grew from 135 checks
+to 139, so a wall comparison would be measuring the merge rather than the drain. Several
+converted checks plainly got *faster*, because a `sleep(400)` or `sleep(250)` sized for the worst
 case now returns as soon as the page actually agrees.
+
+**A leaked viewport override is cleared but not yet failed.** `viewport()` throws where the
+helpers it replaced also threw, and a check that throws mid-resize leaves `Emulation`'s override
+on for every check after it in that lane. The runner restores the window it recorded at load and
+names it in the detail. It is deliberately **not** a failure yet: it never fired across 280 check
+runs here, and promoting it before anything has ever tripped it would be adding a failure mode on
+an argument rather than a measurement. Promote it the first time it fires.
 
 **What is not claimed.** `github#69` **did not reproduce here** — 29 runs at `--jobs 1` under
 full load, in isolation and immediately after its neighbour, all green. Its shared mechanism with

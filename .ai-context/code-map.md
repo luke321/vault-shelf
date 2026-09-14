@@ -284,7 +284,7 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 5011 | `offBook` |
 | 5045 | `typing` |
 
-## `scripts/smoke.mjs` — 9800 lines, 6 sections, 182 functions, 140 checks
+## `scripts/smoke.mjs` — 9806 lines, 6 sections, 182 functions, 140 checks
 
 ### Sections
 
@@ -294,8 +294,8 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 294–8934 | the invariants |
 | 8935–9083 | which vault, and why |
 | 9084–9189 | at rest, or |
-| 9190–9621 | one run |
-| 9622–9800 | main |
+| 9190–9627 | one run |
+| 9628–9806 | main |
 
 ### Functions
 
@@ -478,11 +478,11 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 9164 | `settlePage` |
 | 9196 | `press` |
 | 9208 | `runOne` |
-| 9422 | `tagged` |
-| 9428 | `capture` |
-| 9474 | · · `pick` |
-| 9580 | `killBrowser` |
-| 9624 | `main` |
+| 9428 | `tagged` |
+| 9434 | `capture` |
+| 9480 | · · `pick` |
+| 9586 | `killBrowser` |
+| 9630 | `main` |
 
 ### Checks
 

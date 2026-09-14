@@ -40,8 +40,18 @@ returns with the timer deliberately just scheduled and asks `atRest()` directly 
 sheet is still named. Verified both ways — it passes on this tree, and with the drain removed it
 fails with the exact words `github#57` was filed over.
 
-**Cost: about 80 ms per check** in the quiet case. Several converted checks got *faster* —
-`sleep(400)` and `sleep(250)` sized for the worst case now return as soon as the page agrees.
+**Gated on the merge result, not on the stale base.** `develop` moved eleven commits mid-ticket
+(to `9be1fb6`, 139 checks, fixture digest `c1f3a5ca`), so it was merged in first. Two consecutive
+full runs then passed **140/140** at **103 s and 108 s wall**, stamping tree `ec48616` under
+github#55's two-green law — the same law that caught this defect in the first place. Neither of
+the two checks known flaky on `develop` (github#76, github#77) bit in either run, and
+`LEFT THE VIEWPORT OVERRIDDEN` never fired.
+
+**Cost is one `settled()` call per check** — a floor of five reads 20 ms apart in one CDP round
+trip. **No before-figure is claimed:** the base moved and the suite grew from 135 checks to 139,
+so a wall comparison would be measuring the merge rather than the drain. Several converted checks
+plainly got *faster* — `sleep(400)` and `sleep(250)` sized for the worst case now return as soon
+as the page agrees.
 
 **github#69 is not claimed as measured.** `"a lifted spine is painted whole, in every look"` did
 not reproduce here in **29 runs** at `--jobs 1` under full load, alone and immediately after its

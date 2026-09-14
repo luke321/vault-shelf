@@ -2528,9 +2528,18 @@ the runner ever stops draining — and it asks `atRest()` directly whether an op
 named, so the exemption cannot widen into the rule unnoticed. With the drain removed it fails
 with `LEFT THE PAGE BUSY: a pending room measure (settleRoom's 60ms timer)`; with it, it passes.
 
-**The cost is about 80 ms per check** in the quiet case. Several converted checks got faster
-instead, because a `sleep(400)` or `sleep(250)` sized for the worst case now returns as soon as
-the page agrees.
+**The cost is one `settled()` call per check, whose floor is the arithmetic — five reads 20 ms
+apart, so ~80 ms — in one CDP round trip.** Measured *after*: two consecutive full runs on the
+merge result at **103 s and 108 s wall** for **140 check runs**, 140/140 both times, which
+stamped tree `ec48616`. **No before-figure is claimed on this base.** The branch's own base moved
+eleven commits mid-ticket and the suite grew from 135 checks to 139, so a wall comparison across
+the two would be measuring the merge, not the drain — the same caution the column above records
+about comparing runs taken on unlike days. Several converted checks plainly got *faster*, because
+a `sleep(400)` or `sleep(250)` sized for the worst case now returns as soon as the page agrees.
+
+**A `--timings` row now includes the drain**, as it already included `atRest()`. A JSON written
+before 2026-09-14 and one written after are therefore not directly comparable per check; the
+column above is the last one taken without it.
 
 **github#69 is not claimed as measured.** `"a lifted spine is painted whole, in every look"` did
 not reproduce here in **29 runs** at `--jobs 1` under full load, alone and after its neighbour.

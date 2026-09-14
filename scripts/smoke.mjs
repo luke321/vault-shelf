@@ -9334,7 +9334,7 @@ async function runOne(vault, work) {
     /* github#57 -- the load's own resizes, drained before the first check reads */
     await settled(page).catch(() => {});
     /* github#57 -- the window every check must hand back; decisions/0016 */
-    const base = await page.j("({width:innerWidth,height:innerHeight})").catch(() => null);
+    let base = await page.j("({width:innerWidth,height:innerHeight})").catch(() => null);
 
     let failed = 0;
     const timings = [];
@@ -9371,6 +9371,12 @@ async function runOne(vault, work) {
         if (leaked) {
           await page.send("Emulation.clearDeviceMetricsOverride").catch(() => {});
           await settled(page, base).catch(() => {});
+          /* github#57, decisions/0016 -- the window itself moved, not a check */
+          const now = await page.j("({width:innerWidth,height:innerHeight})").catch(() => null);
+          if (now && (now.width !== base.width || now.height !== base.height)) {
+            base = now;
+            leaked = false;
+          }
         }
       }
       /* github#39, decisions/0013 -- blame the check that left it, not its neighbour */
