@@ -291,6 +291,11 @@ applied and before the first act, and asserts the shelf came up at zero. It is a
 like `--look` and `--mirror-of`: off by default, so no act, no film and no committed asset
 changes, and any act can now be shot from the empty state rather than only this one.
 
+**It is for a take, not for the film.** The acts share one page, and several later ones assume
+the picks are there — `autocomplete` looks for a `months/` pick, `rearrange` for a sequence to
+reorder. Running the whole storyboard under `--empty-picks` fails in those acts rather than
+filming something wrong, which is the right way round for a diagnostic; pair it with `--act`.
+
 One act moved with it. `favourite`'s drop target was the plus at the row's end; an empty pick
 rail draws a `.vs-dropzone` instead of a row. The target prefers the dropzone and falls back to
 the plus, so a normal take — where no dropzone exists — is unchanged, and the act now throws

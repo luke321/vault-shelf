@@ -744,10 +744,11 @@ try {
   if (EMPTY_PICKS) {
     const left = await j(`(function(){
       var shelf = __vs.picks()[0];
-      if (!shelf) return -1;
+      if (!shelf) return null;
       shelf.picks.forEach(function (id) { __vs.unpick(id, shelf.id); });
       return __vs.picks()[0].picks.length;
     })()`);
+    if (left === null) throw new Error("--empty-picks: this library has no pick shelf");
     if (left !== 0) throw new Error(`--empty-picks: the pick shelf still holds ${left}`);
     say("picks: cleared");
   }
