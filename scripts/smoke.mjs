@@ -6888,7 +6888,7 @@ check("a numeric volume is indexed like a date book, not stopped at its years", 
    * is not a year has nothing under it to cut by. */
   return { ok: r.years >= 2 && r.opened === r.fat - (r.deadLabel === "0-9" ? 1 : 0) &&
                r.months >= 2 && r.monthsNamed && r.monthsInside && r.days >= 2 && r.daysNamed &&
-               r.deadSize < 20 && r.runAt >= 0 && r.runCut === "0-9" && r.runKids === 0,
+               r.deadSize < 20 && r.runAt >= 0 && r.runCut === "2022x" && r.runKids === 0,
            detail: `202212331243 sits under "${r.runCut}" with ${r.runKids} under it, not in a ` +
                    `year (found at ${r.runAt}); ` +
                    `0-9 holds ${r.notes} notes behind ${r.top} cuts, ${r.years} of them years; ` +

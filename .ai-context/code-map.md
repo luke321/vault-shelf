@@ -4,7 +4,7 @@
 declarations of the files too large to read top to bottom, with line numbers. Open the
 range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 
-## `src/page.js` — 5460 lines, 26 sections, 241 functions
+## `src/page.js` — 5470 lines, 26 sections, 242 functions
 
 ### Sections
 
@@ -25,17 +25,17 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 2125–2381 | the dye menu |
 | 2382–2419 | the shelf parts as you type |
 | 2420–2570 | what the vault spells |
-| 2571–3503 | reader |
-| 3504–3767 | reading off the bottom turns the page |
-| 3768–4035 | builder |
-| 4036–4365 | manage |
-| 4366–4659 | the twelve, offered |
-| 4660–4683 | filters |
-| 4684–4765 | refresh |
-| 4766–4869 | a drag that reaches the edge |
-| 4870–5080 | the wiring |
-| 5081–5420 | debug api — stripped from the plugin build |
-| 5421–5460 | the wiring (continued) |
+| 2571–3513 | reader |
+| 3514–3777 | reading off the bottom turns the page |
+| 3778–4045 | builder |
+| 4046–4375 | manage |
+| 4376–4669 | the twelve, offered |
+| 4670–4693 | filters |
+| 4694–4775 | refresh |
+| 4776–4879 | a drag that reaches the edge |
+| 4880–5090 | the wiring |
+| 5091–5430 | debug api — stripped from the plugin build |
+| 5431–5470 | the wiring (continued) |
 
 ### Functions
 
@@ -189,99 +189,100 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 2908 | `prefixAt` |
 | 2922 | `titlePrefix` |
 | 2938 | `titleYear` |
-| 2948 | `titleIso` |
-| 2984 | `dateCuts` |
-| 3005 | `cutTree` |
-| 3025 | `runsOf` |
-| 3040 | `renderTabs` |
-| 3101 | `keepAt` |
-| 3112 | `cutRow` |
-| 3137 | `railView` |
-| 3151 | `cutAt` |
-| 3164 | `fitTabs` |
-| 3186 | `widestOf` |
-| 3202 | `drawsInside` |
-| 3223 | `gathered` |
-| 3243 | `spanned` |
-| 3264 | `strip` |
-| 3274 | `headOf` |
-| 3276 | `tailOf` |
-| 3278 | `membersOf` |
-| 3287 | `findInBook` |
-| 3295 | `renderNote` |
-| 3366 | `renderMeta` |
-| 3404 | `linked` |
-| 3429 | `renderMarkdownInto` |
-| 3480 | `goTo` |
-| 3528 | `rightPage` |
-| 3534 | `landOn` |
-| 3545 | `paintPush` |
-| 3559 | `releasePush` |
-| 3583 | `abandonPush` |
-| 3591 | `pushStop` |
-| 3603 | `armPush` |
-| 3617 | `wheelPx` |
-| 3624 | `onPush` |
-| 3666 | `openNote` |
-| 3698 | `noteByLink` |
-| 3711 | `shelfById` |
-| 3719 | `isBookmarked` |
-| 3728 | `toggleBookmark` |
-| 3743 | `previousCollection` |
-| 3756 | `findBook` |
-| 3780 | `openBuilder` |
-| 3806 | `closeBuilder` |
-| 3812 | `writeBuilderFields` |
-| 3866 | `readBuilderFields` |
-| 3905 | `fillSourceValues` |
-| 3914 | `fillValuesInto` |
-| 3930 | `fillProperties` |
-| 3949 | `fillRecipes` |
-| 3968 | `previewBuilder` |
-| 3986 | `saveBuilder` |
-| 4019 | `seedOrder` |
-| 4030 | `uniqueId` |
-| 4038 | `openManage` |
-| 4047 | `newShelfFromManage` |
-| 4063 | `deleteShelf` |
-| 4092 | `renderManage` |
-| 4253 | `renderColours` |
-| 4282 | `colourRow` |
-| 4311 | `anyRibbon` |
-| 4327 | `slotControl` |
-| 4381 | `prunePainted` |
-| 4389 | `repaint` |
-| 4405 | `previewSlot` |
-| 4416 | `previewRibbon` |
-| 4427 | `previewColors` |
-| 4438 | `endPreview` |
-| 4450 | `openSwatchPick` |
-| 4514 | `offerPreviews` |
-| 4525 | `holdFocus` |
-| 4535 | `walkSwatches` |
-| 4559 | `closeSwatchPick` |
-| 4573 | `inkOn` |
-| 4575 | · `lin` |
-| 4584 | `pickSlot` |
-| 4592 | `resetSlot` |
-| 4605 | `setPalette` |
-| 4619 | `setRibbon` |
-| 4632 | `toHex` |
-| 4641 | · `hex` |
-| 4646 | `reorder` |
-| 4662 | `renderActiveFilters` |
-| 4675 | `clearFilters` |
-| 4704 | `fillLooks` |
-| 4717 | `applyLook` |
-| 4727 | `seedFavourites` |
-| 4736 | `refresh` |
-| 4791 | `edgeSpeedAt` |
-| 4802 | `edgeStop` |
-| 4815 | `edgeReplay` |
-| 4833 | `edgeTick` |
-| 4849 | `edgeScroll` |
-| 5001 | `offBook` |
-| 5035 | `typing` |
+| 2948 | `titleRun` |
+| 2958 | `titleIso` |
+| 2994 | `dateCuts` |
+| 3015 | `cutTree` |
+| 3035 | `runsOf` |
+| 3050 | `renderTabs` |
+| 3111 | `keepAt` |
+| 3122 | `cutRow` |
+| 3147 | `railView` |
+| 3161 | `cutAt` |
+| 3174 | `fitTabs` |
+| 3196 | `widestOf` |
+| 3212 | `drawsInside` |
+| 3233 | `gathered` |
+| 3253 | `spanned` |
+| 3274 | `strip` |
+| 3284 | `headOf` |
+| 3286 | `tailOf` |
+| 3288 | `membersOf` |
+| 3297 | `findInBook` |
+| 3305 | `renderNote` |
+| 3376 | `renderMeta` |
+| 3414 | `linked` |
+| 3439 | `renderMarkdownInto` |
+| 3490 | `goTo` |
+| 3538 | `rightPage` |
+| 3544 | `landOn` |
+| 3555 | `paintPush` |
+| 3569 | `releasePush` |
+| 3593 | `abandonPush` |
+| 3601 | `pushStop` |
+| 3613 | `armPush` |
+| 3627 | `wheelPx` |
+| 3634 | `onPush` |
+| 3676 | `openNote` |
+| 3708 | `noteByLink` |
+| 3721 | `shelfById` |
+| 3729 | `isBookmarked` |
+| 3738 | `toggleBookmark` |
+| 3753 | `previousCollection` |
+| 3766 | `findBook` |
+| 3790 | `openBuilder` |
+| 3816 | `closeBuilder` |
+| 3822 | `writeBuilderFields` |
+| 3876 | `readBuilderFields` |
+| 3915 | `fillSourceValues` |
+| 3924 | `fillValuesInto` |
+| 3940 | `fillProperties` |
+| 3959 | `fillRecipes` |
+| 3978 | `previewBuilder` |
+| 3996 | `saveBuilder` |
+| 4029 | `seedOrder` |
+| 4040 | `uniqueId` |
+| 4048 | `openManage` |
+| 4057 | `newShelfFromManage` |
+| 4073 | `deleteShelf` |
+| 4102 | `renderManage` |
+| 4263 | `renderColours` |
+| 4292 | `colourRow` |
+| 4321 | `anyRibbon` |
+| 4337 | `slotControl` |
+| 4391 | `prunePainted` |
+| 4399 | `repaint` |
+| 4415 | `previewSlot` |
+| 4426 | `previewRibbon` |
+| 4437 | `previewColors` |
+| 4448 | `endPreview` |
+| 4460 | `openSwatchPick` |
+| 4524 | `offerPreviews` |
+| 4535 | `holdFocus` |
+| 4545 | `walkSwatches` |
+| 4569 | `closeSwatchPick` |
+| 4583 | `inkOn` |
+| 4585 | · `lin` |
+| 4594 | `pickSlot` |
+| 4602 | `resetSlot` |
+| 4615 | `setPalette` |
+| 4629 | `setRibbon` |
+| 4642 | `toHex` |
+| 4651 | · `hex` |
+| 4656 | `reorder` |
+| 4672 | `renderActiveFilters` |
+| 4685 | `clearFilters` |
+| 4714 | `fillLooks` |
+| 4727 | `applyLook` |
+| 4737 | `seedFavourites` |
+| 4746 | `refresh` |
+| 4801 | `edgeSpeedAt` |
+| 4812 | `edgeStop` |
+| 4825 | `edgeReplay` |
+| 4843 | `edgeTick` |
+| 4859 | `edgeScroll` |
+| 5011 | `offBook` |
+| 5045 | `typing` |
 
 ## `scripts/smoke.mjs` — 9750 lines, 6 sections, 179 functions, 139 checks
 

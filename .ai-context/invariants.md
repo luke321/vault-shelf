@@ -2668,11 +2668,17 @@ a real vault produced `2024-15-03`, once shelved as a fifteenth month called "15
 test is deliberately **not a plausible range**, so `1000 small decisions` still files under
 `1000` beside `2015` - what a volume spine does with a number it cannot read.
 
+**A digit run is named by the digits it opens with.** `202212331243` files after every `2022-`
+note and before every `2023-` one, so its cut says **`2022x`** - where it sits, and that it is
+not the year. `0-9` said neither, three times over, since the numerics are not adjacent. This
+made `2022x` at **39px** the widest label the rail draws, against `2020`'s 32px: inside the 48px
+of cut with 9px to spare, **0 cropped** at 1180x1000 and 1180x480, so the rail stays **60px**.
+
 **The vault carries the digit run, and the generator refuses to finish without it.**
 `202212331243` - twelve digits opening with a plausible year - sits in `00 - Inbox`, and
 `make-vault.mjs` names it in `DIGIT_RUN` and lists it with the sentinels: without one in the
 vault, the `(?!\d)` that stops it is unreachable from any check and would go quiet rather than
-red. It lands at index 649 of the `0-9` volume, under a cut labelled **`0-9` with 0 under it**,
+red. It lands at index 649 of the `0-9` volume, under a cut labelled **`2022x` with 0 under it**,
 between the 2022 and 2023 runs - which is what takes the volume from 15 top cuts to 16.
 
 **Fit is measured, not calculated**, off the last cut's own bottom and never `scrollHeight` -

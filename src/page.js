@@ -2927,7 +2927,7 @@ function mountVaultShelf(root, data, options) {
     /* THE 0-9 VOLUME IS INDEXED BY YEAR. It is one book of 351 notes in a vault of daily
      * notes, and "0-9" is the only tab a letter cut can give it. What a title beginning
      * `2023-02-16` is actually filed under is 2023. */
-    if (head === "0-9") return titleYear(title) || head;
+    if (head === "0-9") return titleYear(title) || titleRun(title) || head;
     return head + word[0].slice(1, depth).toLowerCase();
   }
 
@@ -2938,6 +2938,16 @@ function mountVaultShelf(root, data, options) {
   function titleYear(title) {
     var m = /^(\d{4})(?!\d)/.exec(title.replace(/^[^\p{L}\p{N}]+/u, ""));
     return m ? m[1] : "";
+  }
+
+  /**
+   * design/0034 -- a digit run that opens like a year and keeps going: `2022x` for
+   * `202212331243`, so the cut files where the reader looks for it and still says it is not 2022
+   * @param {string} title @returns {string} the label, or ""
+   */
+  function titleRun(title) {
+    var m = /^(\d{4})\d/.exec(title.replace(/^[^\p{L}\p{N}]+/u, ""));
+    return m ? m[1] + "x" : "";
   }
 
   /**

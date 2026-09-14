@@ -84,7 +84,7 @@ reflow the prose under the hand that was pressing it. The index therefore costs 
 
 **And it is as narrow as its widest label, measured.** The first cut of this record reserved 16px
 and ran 72px wide, and nothing in it said what the labels actually needed. They need **32px** —
-`2020`, the widest thing the rail ever says — so the rail is 60px, and a trail step keeps a
+`2020`, the widest thing the rail said at the time — so the rail is 60px, and a trail step keeps a
 tighter gutter than a cut that opens, paying for its own notches out of its own room.
 
 **Rejected: banks.** Three columns (`flex-wrap: wrap-reverse`, the bookcase law applied to the
@@ -146,6 +146,18 @@ Planting it re-cut the whole fixture: the digest went `178c03f6` → **`c1f3a5ca
 stamp on this machine now misses, and `scripts/layout-snapshots/vault.json` was rewritten by
 `update-layout-snapshots.mjs` (9 boxes moved, all of them month plaques, by up to 4px). That is
 the standing price of touching the generator, and the reason a sentinel has to earn its place.
+
+**A digit run is named by the digits it opens with, not by the bucket it falls into.** Lukas, on
+seeing `0-9` sitting between 2022 and 2023: *"hmm it shoulld be called 2022x instead of 0-9"*. He
+is right, and the reason is the law this record already keeps — **a tab is a position**. `0-9` tells
+a reader nothing about where in a volume of 2,064 they have landed, and it tells them so three
+times over, since the numerics are not adjacent. `202212331243` files after every `2022-` note and
+before every `2023-` one, so its cut says `2022x`: where it sits, and that it is not the year.
+
+It cost the rail's own headline number. `2022x` is **39px** against `2020`'s 32px and is now the
+widest label the rail draws — inside the 48px of cut with 9px to spare, **0 cropped** at 1180×1000
+and at 1180×480, so the rail stays **60px**. The measured claim above is amended rather than the
+geometry: 32px was what the labels needed when every one of them was a year.
 
 **Rejected: a plausible year range.** Bounding it to, say, 1900–2099 would also stop `1000 small
 decisions` drawing a cut labelled `1000` beside `2015`. It is a magic number standing in for a

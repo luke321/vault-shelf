@@ -19,9 +19,8 @@ and `prefixCuts` fell out at its own `depth > 3` cap. Measured over every volume
 A year now hands its notes to `cutTree` with a `TITLE_DATE_LAYERS` twin of `DATE_LAYERS`, read off
 the title rather than the date property: **11 of 12 fat cuts open**, `2026` (596 notes) opens into
 **9 months** and `Sep` (91) into **13 days**, and the biggest dead end is `0-9` x**5**. The labels
-stay `Mar` and `04`, so the rail is still **60px** and the widest label is still `2020` at 32px -
-a raw `2026-03` key would have wanted the 71px that made a span name its start rather than its
-range.
+stay `Mar` and `04`, so the rail is still **60px** - a raw `2026-03` key would have wanted the
+71px that made a span name its start rather than its range.
 
 **Four digits are a year only if they stop at four** - Lukas: *"we could have a note that is not a
 date like 202212123123, incorporate that"*. The test carries `(?!\d)`, so a longer digit run falls
@@ -37,6 +36,14 @@ nothing under it, between the 2022 and 2023 runs: the volume goes 15 cuts -> **1
 4,938 notes -> **4,939**. Planting it re-cut the fixture - digest `178c03f6` -> **`c1f3a5ca`**,
 every suite stamp on this machine now misses, and `layout-snapshots/vault.json` was rewritten (9
 boxes moved, all month plaques, by up to 4px).
+
+**And its cut is named `2022x`, not `0-9`** - Lukas: *"hmm it shoulld be called 2022x instead of
+0-9"*. A tab is a position, and `0-9` says nothing about where in 2,064 notes you have landed - it
+says it three times over, since the numerics are not adjacent. `202212331243` files after every
+`2022-` note and before every `2023-` one, so the cut says so. It makes `2022x` at **39px** the
+widest label the rail draws, against `2020`'s 32px: 9px inside the 48px of cut, **0 cropped** at
+either window size, rail unchanged at **60px**. The record's "what the labels need is 32px" is
+amended - that held while every label was a year.
 
 **And the contents toggle grew a `⇄`** - Lukas: *"shouldn't we flip the Date A-Z button?"*. Not
 flipped: the cuts directly under that button are cut by that mode, so a face showing the mode it
