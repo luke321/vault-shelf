@@ -56,10 +56,11 @@ export const SVG_CENSUS = `(function () {
   }
   var all = Array.prototype.slice.call(document.querySelectorAll("svg"));
   var sel = ${JSON.stringify(CHROME_ICONS)};
+  var strays = all.filter(function (s) { return !s.closest(sel); });
   return {
-    svgs: all.length,
+    owned: all.length - strays.length,
     chrome: document.querySelectorAll(sel).length,
-    strays: all.filter(function (s) { return !s.closest(sel); }).map(where)
+    strays: strays.map(where)
   };
 })()`;
 
@@ -154,7 +155,7 @@ async function inABrowser(htmlPath, data, tags) {
       return {
         markers: markers,
         imgs: document.querySelectorAll("img").length,
-        svgs: icons.svgs,
+        owned: icons.owned,
         chrome: icons.chrome,
         strays: icons.strays,
         scripts: document.querySelectorAll("script").length,
@@ -172,8 +173,8 @@ async function inABrowser(htmlPath, data, tags) {
                     `the payload named one: ${live.strays.join(" | ")}`);
     }
     // github#75 -- one icon each, so nothing hides inside a button either
-    if (live.svgs - live.strays.length !== live.chrome) {
-      problems.push(`${live.svgs - live.strays.length} icon <svg> inside ${live.chrome} ` +
+    if (live.owned !== live.chrome) {
+      problems.push(`${live.owned} icon <svg> inside ${live.chrome} ` +
                     `"${CHROME_ICONS}" button(s) -- one each was expected`);
     }
     // github#75 -- plant a stray, so a clean read is a census that looked
@@ -186,7 +187,8 @@ async function inABrowser(htmlPath, data, tags) {
       return census.strays;
     })())`);
     const caught = JSON.parse(planted);
-    if (caught.length !== 1 || !/vs-escape-probe/.test(caught[0])) {
+    if (caught.length !== live.strays.length + 1 ||
+        !caught.some((s) => /vs-escape-probe/.test(s))) {
       problems.push(`the svg census missed a planted stray: ${JSON.stringify(caught)}`);
     }
     if (live.scripts !== tags) {
@@ -198,7 +200,7 @@ async function inABrowser(htmlPath, data, tags) {
     for (const e of page.errors) problems.push("console: " + String(e.text).split("\n")[0]);
     if (!problems.length) {
       console.log(`check-data-escape: in a browser -- 0 console errors, ${live.scripts} script elements ` +
-                  `(${tags} in the file), 0 img, ${live.chrome} icon svg in ${live.chrome} icon ` +
+                  `(${tags} in the file), 0 img, ${live.owned} icon svg in ${live.chrome} icon ` +
                   `buttons, 0 stray svg (a planted one caught), 0 of ${MARKERS.length} markers ran, ` +
                   `__vs.data() identical to the data block`);
     }
