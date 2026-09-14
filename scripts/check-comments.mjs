@@ -11,7 +11,7 @@ const ROOT = rootArg >= 0 ? resolve(argv[rootArg + 1]) : resolve(dirname(fileURL
 const DIRS = ["plugin", "src", "scripts"];
 const EXT = /\.(m?js|ts)$/;
 
-const BASELINE = 1533;
+const BASELINE = 1540;
 
 const VERBOSE = argv.includes("--verbose");
 const LIST = argv.includes("--list");

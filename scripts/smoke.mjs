@@ -6856,11 +6856,19 @@ check("a numeric volume is indexed like a date book, not stopped at its years", 
     var dead = fat.filter(function (t) { return !t.cut.kids.length; })
                   .sort(function (a, b) { return b.size - a.size; })[0];
     /* The fattest year, and the fattest month under it. */
+    /* github#32 -- the digit run the generator plants: twelve digits opening with a plausible
+     * year, which must stay in the numeric bucket rather than being filed under 2022. */
+    var runAt = -1;
+    book.notes.forEach(function (n, i) { if (n.title === "202212331243") runAt = i; });
+    var holder = null;
+    top.forEach(function (t) { if (runAt >= t.cut.at && runAt < t.cut.at + t.size) holder = t; });
     var year = years.sort(function (a, b) { return b.size - a.size; })[0];
     var months = year ? sizeOf(year.cut.kids, year.cut.at + year.size) : [];
     var month = months.slice().sort(function (a, b) { return b.size - a.size; })[0];
     __vs.closeReader();
     return {
+      runAt: runAt, runCut: holder ? holder.cut.label : null,
+      runKids: holder ? holder.cut.kids.length : -1,
       notes: book.notes.length, top: top.length, years: years.length,
       fat: fat.length, opened: fat.filter(function (t) { return t.cut.kids.length; }).length,
       deadLabel: dead ? dead.cut.label : null, deadSize: dead ? dead.size : 0,
@@ -6880,8 +6888,10 @@ check("a numeric volume is indexed like a date book, not stopped at its years", 
    * is not a year has nothing under it to cut by. */
   return { ok: r.years >= 2 && r.opened === r.fat - (r.deadLabel === "0-9" ? 1 : 0) &&
                r.months >= 2 && r.monthsNamed && r.monthsInside && r.days >= 2 && r.daysNamed &&
-               r.deadSize < 20,
-           detail: `0-9 holds ${r.notes} notes behind ${r.top} cuts, ${r.years} of them years; ` +
+               r.deadSize < 20 && r.runAt >= 0 && r.runCut === "0-9" && r.runKids === 0,
+           detail: `202212331243 sits under "${r.runCut}" with ${r.runKids} under it, not in a ` +
+                   `year (found at ${r.runAt}); ` +
+                   `0-9 holds ${r.notes} notes behind ${r.top} cuts, ${r.years} of them years; ` +
                    `${r.opened} of ${r.fat} fat cuts open (was 0 of 15). ` +
                    `${r.year} (${r.yearSize} notes) opens into ${r.months} months ` +
                    `named Mmm (${r.monthsNamed}) and inside it (${r.monthsInside}); ` +

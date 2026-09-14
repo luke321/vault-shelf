@@ -136,6 +136,17 @@ longer digit run falls to the `0-9` bucket instead. A month is validated by prob
 through `isIsoDay`, for the reason `build-shelf.mjs` already carries in a comment: a real vault
 produced `2024-15-03`, which the exporter once shelved as a fifteenth month called "15 2024".
 
+**And the vault carries one, because a guard nothing can reach goes quiet rather than red.**
+`make-vault.mjs` plants `202212331243` in `00 - Inbox` as `DIGIT_RUN` and lists it with the
+sentinels, so the generator refuses to finish without it. It lands at index 649 of the volume,
+under a cut labelled `0-9` with nothing under it, between the 2022 and 2023 runs — which is what
+takes the volume from 15 top cuts to 16, and the vault from 4,938 notes to 4,939.
+
+Planting it re-cut the whole fixture: the digest went `178c03f6` → **`c1f3a5ca`**, every suite
+stamp on this machine now misses, and `scripts/layout-snapshots/vault.json` was rewritten by
+`update-layout-snapshots.mjs` (9 boxes moved, all of them month plaques, by up to 4px). That is
+the standing price of touching the generator, and the reason a sentinel has to earn its place.
+
 **Rejected: a plausible year range.** Bounding it to, say, 1900–2099 would also stop `1000 small
 decisions` drawing a cut labelled `1000` beside `2015`. It is a magic number standing in for a
 judgement the data cannot support, and a vault of history notes would pay for it. `1000` stays a
@@ -244,7 +255,7 @@ Measured 2026-09-14 on the vault shape, over the fourteen fattest books, at 1180
 | most cuts on show at once | 27 | 32 closed, and the fold is a press away |
 | `people/-unfiled`, 2,450 notes | 11 year tabs, **months and days dropped** | 11 years, each opening its months, **nothing dropped** |
 | cuts lit at the end of a book | up to **26 of 26** | **1** |
-| **Encyclopedia `0-9`, 2,063 notes** | 15 cuts, **0 opening**, `2026` a leaf of **587** | 15 cuts, **11 of 12 fat ones open**; `2026`→9 months, `Aug`→27 days; biggest dead end **5** |
+| **Encyclopedia `0-9`** | 2,063 notes, 15 cuts, **0 opening**, `2026` a leaf of **587** | 2,064 notes, 16 cuts, **11 of 12 fat ones open**; `2026` (596)→9 months, `Sep` (91)→13 days; biggest dead end **5** |
 
 ## The checks
 
@@ -267,7 +278,9 @@ Four new, 88 → **92**.
   which has nothing under it to cut by), that its fattest year opens into months named `Mmm` and
   standing inside it, and that the fattest of those opens into days named `dd`. It asserts the
   *fold*, not the presence of cuts: 15 cuts was already true and already useless. Red before the
-  fix at 0 of 15 open, biggest dead end 587.
+  fix at 0 of 15 open, biggest dead end 587. It also asserts that `202212331243` sits under a
+  `0-9` cut with nothing under it rather than inside a year, which is the half of the rule the
+  structure alone cannot show.
 
 Three others learned the new vocabulary: *the date index is layered* reads the fitted cut from
 `__vs.indexTabs()` rather than counting the DOM — counting the DOM would count whichever level the

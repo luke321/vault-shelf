@@ -17,8 +17,8 @@ and `prefixCuts` fell out at its own `depth > 3` cap. Measured over every volume
 | A | 78 | 14 | 3 | `Ad` x 11 |
 
 A year now hands its notes to `cutTree` with a `TITLE_DATE_LAYERS` twin of `DATE_LAYERS`, read off
-the title rather than the date property: **11 of 12 fat cuts open**, `2026` (587 notes) opens into
-**9 months** and `Aug` (89) into **27 days**, and the biggest dead end is `0-9` x**5**. The labels
+the title rather than the date property: **11 of 12 fat cuts open**, `2026` (596 notes) opens into
+**9 months** and `Sep` (91) into **13 days**, and the biggest dead end is `0-9` x**5**. The labels
 stay `Mar` and `04`, so the rail is still **60px** and the widest label is still `2020` at 32px -
 a raw `2026-03` key would have wanted the 71px that made a span name its start rather than its
 range.
@@ -29,6 +29,14 @@ to the `0-9` bucket rather than hanging twelve months off a title with no date i
 validated by probing its first day through `isIsoDay`, which is what stops `2024-15-03` becoming a
 fifteenth month called "15 2024". Not a plausible *range*, deliberately: `1000 small decisions`
 still files under `1000`.
+
+**The vault now carries one.** A guard nothing can reach goes quiet rather than red, so
+`make-vault.mjs` plants `202212331243` in `00 - Inbox` as `DIGIT_RUN` and lists it with the
+sentinels it refuses to finish without. It lands at index 649 of the volume under a `0-9` cut with
+nothing under it, between the 2022 and 2023 runs: the volume goes 15 cuts -> **16**, the vault
+4,938 notes -> **4,939**. Planting it re-cut the fixture - digest `178c03f6` -> **`c1f3a5ca`**,
+every suite stamp on this machine now misses, and `layout-snapshots/vault.json` was rewritten (9
+boxes moved, all month plaques, by up to 4px).
 
 **And the contents toggle grew a `⇄`** - Lukas: *"shouldn't we flip the Date A-Z button?"*. Not
 flipped: the cuts directly under that button are cut by that mode, so a face showing the mode it

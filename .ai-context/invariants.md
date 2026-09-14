@@ -2653,8 +2653,10 @@ for a deeper prefix returned the same key, so the layer separated nothing and th
 fell out at its own depth cap. Measured before: **15 top cuts, 0 of them opening, 587 notes
 behind `2026`** - the only volume in the library where the rail went nowhere, against A's 3 of
 14 and S's 12 of 16. A year now hands its notes to the layers a date book already uses, read
-off the **title** rather than the date property: **11 of 12 fat cuts open**, `2026` opens into
-9 months and `Aug` into 27 days, and the biggest dead end is `0-9` x5. The labels stay `Mar`
+off the **title** rather than the date property: **11 of 12 fat cuts open**, `2026` (596 notes)
+opens into 9 months and `Sep` (91) into 13 days, and the biggest dead end is `0-9` x5. The
+"before" column was measured on the fixture as it stood before the `DIGIT_RUN` sentinel below
+was planted, which is why it counts 2,063 notes behind 15 cuts against today's 2,064 behind 16. The labels stay `Mar`
 and `04`, which is what keeps the rail 60px - a raw `2026-03` key would want the same 71px
 that made a span label a range rather than its start.
 
@@ -2665,6 +2667,13 @@ validated by probing its first day through `isIsoDay` for the same reason the ex
 a real vault produced `2024-15-03`, once shelved as a fifteenth month called "15 2024". The
 test is deliberately **not a plausible range**, so `1000 small decisions` still files under
 `1000` beside `2015` - what a volume spine does with a number it cannot read.
+
+**The vault carries the digit run, and the generator refuses to finish without it.**
+`202212331243` - twelve digits opening with a plausible year - sits in `00 - Inbox`, and
+`make-vault.mjs` names it in `DIGIT_RUN` and lists it with the sentinels: without one in the
+vault, the `(?!\d)` that stops it is unreachable from any check and would go quiet rather than
+red. It lands at index 649 of the `0-9` volume, under a cut labelled **`0-9` with 0 under it**,
+between the 2022 and 2023 runs - which is what takes the volume from 15 top cuts to 16.
 
 **Fit is measured, not calculated**, off the last cut's own bottom and never `scrollHeight` -
 the rail's overflow is visible by design, and a box that does not scroll does not reliably
