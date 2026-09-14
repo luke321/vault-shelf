@@ -4469,3 +4469,74 @@ rather than guessed at.
 **Nothing in `src/` moved**, so no invariant moved and the suite was not re-run; the tree earns
 no stamp from this. Lint, `check-comments`, `check-pii`, `check-scope`, `check-network` and the
 generated code-map check are what gate it.
+
+## 2026-09-14 — The two plugins can tell a dead hold from a live one (`github#43` + `github#52`, `decisions/0012`)
+
+Two tickets, one property. `github#43` asked whether the repos can see each other's screen claims
+and warned that the sister's proposed `suite`→`screen-left` alias would deadlock our own
+`smoke.mjs`; `github#52` reported a dead sister `screen-left` record never being broken, stalling
+every worktree on the machine for twenty minutes. Both reduce to **cross-repo liveness**.
+
+**What the measurement changed about the plan.** Driving both repos' real `lock.mjs` files over one
+isolated root, two of `github#43`'s premises had already moved on:
+
+| read in the sister's checkout | consequence |
+|---|---|
+| `smoke.mjs:6483` takes `screen-left` **by name**, and greps clean for `"suite"` | `github#43`'s rows 3 and 4 are not holes — option 1 of that ticket landed on their side |
+| both `aliasesOf` are `record`↔screens; neither aliases `suite` | the row-7 deadlock is hypothetical, and a guard now keeps it that way |
+
+**The fix `github#52` prescribed would have broken a live sister hold.** Its comment says to trust
+a `pid` when `holder` is absent. Every vault-graph harness claims its display by shelling out to
+`lock.mjs acquire` as a subprocess, and that CLI writes `pid: process.pid` and exits immediately:
+
+| | measured |
+|---|---|
+| a **live** sister run's record | `{"owner":"smoke.mjs feature/x [1128644]", "pid":1128724}` — `meta.pid` **dead**, owner pid **alive** |
+| what *trust `meta.pid`* decides on it | BREAK — two harnesses on one display |
+| what the 60 s floor buys against it | nothing; their runs outlive it |
+
+So the rule reads the pid the holder named **as its own identity**, in either spelling in use
+(`[N]` from five sister harnesses, ` pid N` from `record-demo.ps1` and our own `ownerTag()`),
+requires **every** pid the record names to be gone, and applies a 60 s floor to a foreign record.
+
+**Before and after**, the same harness against both files. Two rows move:
+
+| holder | contender wants | before | after |
+|---|---|---|---|
+| VG `screen-left`, orphaned, aged 2 min | VS `screen-left` | BUSY — **1200 s** | `BREAKING dead ... pid 1128132/1128296 is gone` — **at once** |
+| `record` held by the **same owner** | VS `screen-left` | BUSY | ACQUIRED |
+| VG `screen-left`, **live** run aged 5 min | VS `screen-left` | BUSY | BUSY |
+| VG `screen-left`, orphaned, fresh (2 s) | VS `screen-left` | BUSY | BUSY — the floor |
+| VG hand hold naming no pid (`release 2.6.0`) | VS `screen-left` | BUSY | BUSY |
+| VS CLI hold, VS live in-process hold | VS `screen-left` | BUSY | BUSY |
+| VS `suite` ↔ VG `screen-left`, both directions | — | ACQUIRED | ACQUIRED |
+
+`status` over the exact record `github#52` reported: `holder unverified  stale in 1078s` →
+`holder pid 1057524/1129552 DEAD  stale in 1080s`.
+
+**The selftest grew 25 → 34 cases**, the floor of five runs 7.1 s → 9.5 s on a machine carrying six
+worktrees. (The 1.0 s recorded for the old file in `decisions/0012` was an idle machine and does not
+reproduce for it either today; the honest comparison is same-machine, same-minute.) Nine cases are
+this rule: a live sister run is not broken though its recorded pid is dead; one whose every named
+pid is gone is; both owner-string spellings are read; a foreign hold naming no pid keeps its window;
+one inside the 60 s floor is not stolen; a `holder: "cli"` record is never read for pids whatever
+its owner string says; a record *claiming* `holder: "process"` is still judged on every pid it
+names; and an alias exempts its own asker but nobody else.
+
+**The last of those is a trap the sister is one commit from walking into.** `github#52`'s comment
+asks vault-graph for `holder: "process"`. That field alone does not make their recorded pid mean
+anything — it would only move their records into the branch that trusts it, and we would break
+their live holds off the display. So `holder` no longer decides *whether* pids are read, only
+*which*: a `"cli"` hold is never read for pids, and everything else is judged on every pid it names,
+its own and its owner string's. For our records that is a no-op — `ownerTag()` writes the same pid
+the record does.
+
+**One-sided by construction.** The sister's `acquire` reads only `owner` and `at`, both of which we
+still write and beat, so nothing there needs changing and nothing here waits on them. The one
+asymmetry left standing: they never refresh `at`, so a hold of theirs older than its window is
+still broken on age — unchanged, and recorded rather than fixed from this side.
+
+**Nothing in `src/` moved**, so no shelf invariant moved and the suite was not re-run; the tree
+earns no stamp from this. `lock.mjs --selftest`, lint, `check-comments`, `check-pii`,
+`check-scope`, `check-network`, the determinism checks and the generated code-map check are what
+gate it.
