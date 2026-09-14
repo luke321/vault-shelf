@@ -66,12 +66,48 @@ function ageOf(meta) {
   return meta && meta.at ? Date.now() - meta.at : Infinity;
 }
 
-// github#25 -- only a hold naming a live process can be asked
+// github#52 -- a record caught mid-handoff is not stolen
+const PID_FLOOR_MS = 60 * 1000;
+
+/** @param {number} pid @returns {boolean} */
+function pidGone(pid) {
+  try { process.kill(pid, 0); return false; }
+  catch (e) { return e.code === "ESRCH"; }
+}
+
+// github#52 -- both spellings a holder names its own pid in
+/** @param {unknown} owner @returns {number[]} */
+function pidsNamedIn(owner) {
+  /** @type {number[]} */
+  const out = [];
+  if (typeof owner !== "string") return out;
+  for (const re of [/\[(\d{1,10})\]/g, /\bpid (\d{1,10})\b/g]) {
+    for (let m; (m = re.exec(owner)); ) if (+m[1] > 0) out.push(+m[1]);
+  }
+  return out;
+}
+
+// github#52 -- which pids this record's liveness may be read from
+/** @param {Record<string, any> | null} meta @returns {number[]} */
+function judgedPids(meta) {
+  if (!meta) return [];
+  // github#52 -- a "cli" hold is never read for pids
+  if (meta.holder !== undefined && meta.holder !== "process") return [];
+  const own = typeof meta.pid === "number" && meta.pid > 0 ? [meta.pid] : [];
+  // github#52 -- a foreign pid is a subprocess; the owner names the real one
+  const named = pidsNamedIn(meta.owner);
+  if (meta.holder === undefined && !named.length) return [];
+  return [...new Set(own.concat(named))];
+}
+
+// github#25, github#52 -- only a hold naming a live process can be asked
 /** @param {Record<string, any> | null} meta @returns {boolean} */
 function holderGone(meta) {
-  if (!meta || meta.holder !== "process" || !meta.pid) return false;
-  try { process.kill(meta.pid, 0); return false; }
-  catch (e) { return e.code === "ESRCH"; }
+  const pids = judgedPids(meta);
+  if (!pids.length) return false;
+  // github#52 -- a foreign record earns a floor; ours named itself at acquire
+  if (meta && meta.holder === undefined && ageOf(meta) < PID_FLOOR_MS) return false;
+  return pids.every(pidGone);
 }
 
 /** @param {string} n @returns {{ root: string, meta: Record<string, any> } | null} */
@@ -86,14 +122,14 @@ function legacyHold(n) {
   return null;
 }
 
-// github#37
-/** @param {string} n @returns {{ name: string, root: string, meta: Record<string, any> } | null} */
-function aliasHold(n) {
+// github#37, github#43 -- an alias never blocks its own asker
+/** @param {string} n @param {string} asker @returns {{ name: string, root: string, meta: Record<string, any> } | null} */
+function aliasHold(n, asker) {
   for (const a of aliasesOf(n)) {
     const legacy = legacyHold(a);
-    if (legacy) return { name: a, root: legacy.root, meta: legacy.meta };
+    if (legacy && legacy.meta.owner !== asker) return { name: a, root: legacy.root, meta: legacy.meta };
     const meta = readMeta(a);
-    if (meta && !holderGone(meta) && ageOf(meta) <= staleWindow(a)) {
+    if (meta && meta.owner !== asker && !holderGone(meta) && ageOf(meta) <= staleWindow(a)) {
       return { name: a, root: ROOT, meta: meta };
     }
   }
@@ -143,8 +179,8 @@ export async function acquire(name, opts) {
       continue;
     }
 
-    // github#37
-    const alias = aliasHold(name);
+    // github#37, github#43
+    const alias = aliasHold(name, owner);
     if (alias) {
       if (!announced) {
         say("WAITING for " + name + " -- the same screen is held as " + alias.name + " by " +
@@ -183,10 +219,10 @@ export async function acquire(name, opts) {
       return hold(name, owner, asCli, opts.onLost, say);
     }
 
-    // github#25
+    // github#25, github#52
     if (holderGone(meta)) {
       say("BREAKING dead " + name + " lock (owner " + ((meta && meta.owner) || "unknown") +
-          ", pid " + (meta && meta.pid) + " is gone)");
+          ", pid " + judgedPids(meta).join("/") + " is gone)");
       try { rmSync(dir, { recursive: true, force: true }); } catch { void 0; }
       continue;
     }
@@ -341,10 +377,10 @@ function status() {
   for (const h of held) {
     const n = h.replace(/\.lock$/, "");
     const meta = readMeta(n);
-    // github#25 -- what the recorded pid is worth, said plainly
-    const live = !meta ? "" : meta.holder === "process"
-      ? (holderGone(meta) ? "  holder pid " + meta.pid + " DEAD" : "  holder pid " + meta.pid + " alive")
-      : "  holder unverified";
+    // github#25, github#52 -- what the recorded pids are worth, said plainly
+    const pids = judgedPids(meta);
+    const live = !meta ? "" : !pids.length ? "  holder unverified"
+      : "  holder pid " + pids.join("/") + (pids.every(pidGone) ? " DEAD" : " alive");
     const since = meta && meta.since ? "  held=" + Math.round((Date.now() - meta.since) / 1000) + "s" : "";
     console.log(n + "  owner=" + ((meta && meta.owner) || "unknown") +
                 "  seen=" + Math.round(ageOf(meta) / 1000) + "s ago" + since + live +
@@ -418,6 +454,67 @@ async function selftest() {
   check("a hold whose named process is gone is broken at once, at any age",
         r.got && r.lines.some((l) => l.startsWith("BREAKING dead")), r.lines.join(" / "));
   if (r.hold) r.hold.release();
+  clear("screen-left");
+
+  // github#52 -- the sister's record, judged by the pid its owner names
+  console.log("a foreign record is read by the pid its owner names, not by its own");
+  const DEAD = 999999;
+  seed("screen-left", { owner: "smoke.mjs feature/x [" + process.pid + "]",
+                        at: ago(2 * MIN), pid: DEAD });
+  r = await ask("screen-left", "contender");
+  check("a live sister run is NOT broken, though the pid it recorded is a dead subprocess",
+        !r.got, r.lines.join(" / "));
+  clear("screen-left");
+  seed("screen-left", { owner: "smoke.mjs concept/x [" + DEAD + "]", at: ago(2 * MIN), pid: DEAD });
+  r = await ask("screen-left", "contender");
+  check("a sister run whose every named pid is gone is broken at once",
+        r.got && r.lines.some((l) => l.startsWith("BREAKING dead")), r.lines.join(" / "));
+  if (r.hold) r.hold.release();
+  clear("screen-left");
+  seed("screen-left", { owner: "record-demo pid " + DEAD, at: ago(2 * MIN), pid: DEAD });
+  r = await ask("screen-left", "contender");
+  check("the 'pid N' spelling is read too, not only '[N]'",
+        r.got && r.lines.some((l) => l.startsWith("BREAKING dead")), r.lines.join(" / "));
+  if (r.hold) r.hold.release();
+  clear("screen-left");
+  seed("screen-left", { owner: "release 2.6.0", at: ago(2 * MIN), pid: DEAD });
+  r = await ask("screen-left", "contender");
+  check("a foreign hold naming no pid of its own keeps its window",
+        !r.got, r.lines.join(" / "));
+  clear("screen-left");
+  seed("screen-left", { owner: "smoke.mjs feature/x [" + DEAD + "]", at: Date.now(), pid: DEAD });
+  r = await ask("screen-left", "contender");
+  check("a foreign record younger than the 60s floor is not stolen mid-handoff",
+        !r.got, r.lines.join(" / "));
+  clear("screen-left");
+  seed("screen-left", { owner: "a hand hold [" + DEAD + "]", at: ago(2 * MIN),
+                        since: ago(2 * MIN), holder: "cli" });
+  r = await ask("screen-left", "contender");
+  check("a CLI hold is never read for pids, whatever its owner string says",
+        !r.got, r.lines.join(" / "));
+  clear("screen-left");
+  // github#52 -- if the sister adds `holder` but keeps shelling out
+  seed("screen-left", { owner: "smoke.mjs feature/x [" + process.pid + "]", at: ago(2 * MIN),
+                        since: ago(2 * MIN), pid: DEAD, holder: "process" });
+  r = await ask("screen-left", "contender");
+  check("a record claiming holder:process is still judged on every pid it names",
+        !r.got, r.lines.join(" / "));
+  clear("screen-left");
+
+  // github#43 -- row 7: the nesting an alias without this would deadlock
+  console.log("an alias never blocks its own asker");
+  seed("record", { owner: "smoke.mjs", at: Date.now(), since: Date.now(),
+                   pid: process.pid, holder: "process" });
+  r = await ask("screen-left", "smoke.mjs");
+  check("a run already holding the aliased name takes the screen", r.got, r.lines.join(" / "));
+  if (r.hold) r.hold.release();
+  clear("record");
+  clear("screen-left");
+  seed("record", { owner: "somebody else", at: Date.now(), since: Date.now(),
+                   pid: process.pid, holder: "process" });
+  r = await ask("screen-left", "smoke.mjs");
+  check("anyone else holding it still blocks", !r.got, r.lines.join(" / "));
+  clear("record");
   clear("screen-left");
 
   console.log("status says how long a hold has left");

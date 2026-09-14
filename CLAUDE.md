@@ -94,6 +94,14 @@ of measuring it.** Build the page, drive it, read the numbers.
   makes no screen recording at all (`design/0007`: the recorder asks the browser for each frame
   over CDP and touches no desktop).
 
+  **`suite` and a display are separate names, and must stay separate.** `smoke.mjs` takes `suite`
+  and *then* `screen-left`, so aliasing the two together would hang every run against its own
+  hold — the sister repo is one nested acquire from the same fault. `aliasHold()` exempts its own
+  asker so the hazard cannot be reintroduced by accident, but **do not add a `suite`↔screen alias**
+  (`github#43`). A hold from the sister repo is judged by the pid its **owner string** names, never
+  by the `pid` it recorded — theirs belongs to a subprocess that exits at once, so trusting it
+  would break a live vault-graph run off the display (`github#52`, `invariants.md`).
+
   **`smoke.mjs` takes the `suite` lock itself now** (`github#8`), at startup, and releases it on
   exit and on a signal — so *every* run is covered, including the `--only` iteration loop, which
   is the one nobody ever wrapped. **Do not wrap a suite run in `lock.mjs`**: it would wait for a

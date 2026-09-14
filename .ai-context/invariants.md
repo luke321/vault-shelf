@@ -2268,7 +2268,7 @@ runs. **A live holder is not always a talking one**, so any window short enough 
 shortening is short enough to break a busy run.
 
 Liveness replaces the question the window stood in for rather than shrinking it. Held by
-`node scripts/lock.mjs --selftest`, **25 cases in 1.0 s** against a throwaway root
+`node scripts/lock.mjs --selftest`, **34 cases** against a throwaway root
 (`VAULT_LOCKS_HOME`), never the live mutex — the pre-push hook runs it:
 
 | a contender meets | what happens |
@@ -2279,6 +2279,82 @@ Liveness replaces the question the window stood in for rather than shrinking it.
 | a hold in the **sister's shape** (`owner` and `at` alone) at 6 min | waits — 30 minutes |
 | a **CLI** hold past its 30-minute window | `BREAKING stale suite lock (age 1860s)` — the backstop |
 | a hold whose named process is **gone**, at any age | `BREAKING dead ... pid 999999 is gone` |
+
+### A foreign hold is judged by the pid its owner names, never by the pid it recorded
+
+`github#43`, `github#52`, `decisions/0012` (2026-09-14). Two tickets, one property: the repos
+contend correctly **by name**, and could not tell a dead sister hold from a live one, so the
+machine queued behind a lock held by nothing for the full twenty minutes.
+
+**The fix that suggests itself is the one that must not be taken.** `holderGone` refused to read
+a pid unless the record said `holder: "process"`, and a sister record has no `holder` — so the
+obvious repair is *trust `pid` when `holder` is absent*. Measured against the sister's real
+records, that **breaks a live sister hold**: every vault-graph harness claims its display by
+shelling out to `lock.mjs acquire` as a subprocess, and that CLI writes `pid: process.pid` and
+exits at once. The recorded pid is dead a millisecond after the acquire, while the run holds the
+display for minutes:
+
+```
+record   {"owner":"smoke.mjs feature/x [1128644]","at":...,"pid":1128724}
+         meta.pid 1128724 alive=false  |  owner pid 1128644 alive=true
+```
+
+The holder's real pid is the one it put in its **own owner string**, and every sister harness that
+claims a display does: `smoke.mjs <branch> [pid]`, `probe-room.mjs <branch> [pid]`,
+`focus-check [pid]`, `spike-check [pid]`, `live-growth-check #120 [pid]`, and — the other spelling
+— `record-demo pid $PID`. Our own `ownerTag()` writes ` pid <n>`. So both spellings are read,
+**every** pid a record names must be gone, and a foreign record earns a 60 s floor so one caught
+mid-handoff is not stolen. A record naming no pid of its own keeps its window, which is what
+leaves `release.ps1`'s `--owner "release <version>"` and `CLAUDE.md`'s `--owner "#12 plaques"`
+alone. **pid reuse degrades to exactly the old behaviour** — a recycled pid reads alive, so the
+contender waits.
+
+Measured by driving **both repos' real `lock.mjs` files** over one isolated root
+(`VAULT_LOCKS_HOME`), the sister's copied verbatim with only its `ROOT`/`LEGACY_ROOTS`
+redirected. No real lock is taken:
+
+| holder | contender wants | before | after |
+|---|---|---|---|
+| VG `screen-left`, **live** run aged 5 min | VS `screen-left` | BUSY | BUSY |
+| VS `screen-left` | VG `screen-left` | BUSY | BUSY |
+| VS `suite` | VG `screen-left` | ACQUIRED | ACQUIRED |
+| VG `suite` | VS `screen-left` | ACQUIRED | ACQUIRED |
+| VS `suite`, **same owner** | VS `screen-left` | ACQUIRED | ACQUIRED |
+| VG `screen-left`, **orphaned**, fresh (2 s) | VS `screen-left` | BUSY | BUSY — the floor |
+| **VG `screen-left`, orphaned, aged 2 min** | **VS `screen-left`** | **BUSY — 20 min** | **`BREAKING dead ... pid 1128132/1128296 is gone`** |
+| VG hand hold naming no pid (`release 2.6.0`) | VS `screen-left` | BUSY | BUSY |
+| VS CLI hold (`holder: "cli"`) | VS `screen-left` | BUSY | BUSY |
+| VS live in-process hold | VS `screen-left` | BUSY | BUSY |
+| `record` held by the **same owner** | VS `screen-left` | BUSY | ACQUIRED |
+
+Two rows move, and they are the two tickets. `status` moves with them, over the exact record
+`github#52` reported:
+
+| | before | after |
+|---|---|---|
+| `lock.mjs status` on an orphaned sister hold | `holder unverified  stale in 1078s` | `holder pid 1057524/1129552 DEAD  stale in 1080s` |
+
+**Rows 3 and 4 are not holes.** `github#43` read them as the gap; by the time it was worked the
+sister's `smoke.mjs:6483` already took `screen-left` **by name** and took no `suite` lock at all,
+which is option 1 of that ticket. `suite` and a display being independent is now correct, and it
+is why **no `suite`↔screen alias may ever be added here**: `smoke.mjs` takes `suite` and *then*
+`takeLeftScreen()`, so an alias would hang every run against its own hold. The last row is the
+guard — `aliasHold()` exempts its own asker, the way the sister's already does, so the hazard
+cannot be reintroduced by adding a name to `aliasesOf`.
+
+One asymmetry stays, deliberately: the sister never refreshes `at`, so a hold of theirs older than
+its window is still broken on age. Unchanged by this, and one-sided by construction — their
+`acquire` reads only `owner` and `at`, both of which we still write and beat.
+
+**If the sister adds `holder: "process"` without also claiming in-process, this still holds.**
+`github#52`'s comment asks them for that field, and the field alone would not make their recorded
+pid mean anything — it would only move their record into the branch that trusts it. So a record
+claiming `holder: "process"` is judged on **every** pid it names too, its owner string included. For
+our own records that is a no-op: `ownerTag()` writes the same pid the record does.
+
+Nine of the selftest's 34 cases are this rule; the pre-push hook runs them. **25 → 34 cases, and
+the floor of five runs moved 7.1 s → 9.5 s** on a machine carrying six worktrees — the 1.0 s in the
+section above was measured on an idle machine and no longer reproduces for the old file either.
 
 ### A hold driven by hand is refreshed, not aged out
 
