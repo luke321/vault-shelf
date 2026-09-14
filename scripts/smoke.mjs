@@ -268,8 +268,28 @@ const POINTER_DRIVEN = [
   "any shelf arranged by hand",
   /* github#38 -- it overrides the viewport and reads every box in the rail. */
   "scrolls sideways",
+  /* github#32, design/0034 -- they drive the window to two heights, open forty books and read
+   * every cut's box. "tabs" above caught every check that did this while they were all named
+   * for tabs; these are named for cuts, so they say so here instead. */
+  "shrunk past reading",
+  "under the trail it came through",
+  "the deepest the page has reached",
 ];
 const isSerial = (c) => POINTER_DRIVEN.some((q) => c.name.toLowerCase().includes(q));
+
+/* github#32, design/0033 -- opening a book is a write: it bumps `wear` and `lastOpened`, and
+ * wear is paint on a spine, so a check that opens forty of them and walks away has moved what
+ * every check after it measures. Held before, put back after. */
+const holdWear = async (p) => {
+  await p.eval("window.__savedWear = JSON.stringify([__vs.settings().wear, __vs.settings().lastOpened]);");
+  return () => p.eval(`(function(){
+    var was = JSON.parse(window.__savedWear);
+    __vs.settings().wear = was[0];
+    __vs.settings().lastOpened = was[1];
+    delete window.__savedWear;
+    __vs.setFilters({});
+  })(); void 0`);
+};
 
 /* =========================================================== the invariants ==
  * Every check here prints the number it measured, and every one has a section in
@@ -6517,6 +6537,7 @@ check("clicking a spine opens a book on the note it names", async (p) => {
 
 check("the date index is layered: years over months over days, each only where it separates",
       async (p) => {
+  const putWearBack = await holdWear(p);
   const r = await p.j(`(function(){
     /* design/0034 -- read the fitted CUT, not the column. The rail draws one level at a time
      * now, so counting the DOM would count whichever level the book happened to open on. */
@@ -6573,6 +6594,7 @@ check("the date index is layered: years over months over days, each only where i
              daysOnly: daysOnly, small: small ? small.key : null, nested: nested,
              smallCuts: smallCuts ? smallCuts.length : -1 };
   })()`);
+  await putWearBack();
   const ok = (!r.tag || (r.top === r.tagYears && r.yearsShown && r.monthsLook)) &&
              (!r.month || r.daysOnly) && (!r.small || r.smallCuts === 0) && r.nested;
   return {
@@ -6589,6 +6611,8 @@ check("the date index is layered: years over months over days, each only where i
 /* github#32, design/0034 */
 check("no index cut is clipped, and none is shrunk past reading", async (p) => {
   const original = await p.j("({width:innerWidth,height:innerHeight})");
+  const putWearBack = await holdWear(p);
+
   const resize = async (width, height) => {
     await p.send('Emulation.setDeviceMetricsOverride',
                  { width, height, deviceScaleFactor: 1, mobile: false });
@@ -6653,13 +6677,28 @@ check("no index cut is clipped, and none is shrunk past reading", async (p) => {
     });
     return worst;
   })()`);
+  /* github#32 -- CLEAR the override, never re-set it to the size it had: setting it back
+   * leaves the emulation on with deviceScaleFactor pinned at 1, which every check after it
+   * that takes a clipped screenshot is then reading through. */
+  const restore = async () => {
+    await p.send('Emulation.clearDeviceMetricsOverride', {});
+    await p.eval("window.dispatchEvent(new Event('resize')); void 0");
+    let stable = 0;
+    for (let i = 0; i < 80; i++) {
+      const ready = await p.j(`innerWidth===${original.width} && innerHeight===${original.height} && !__vs.room().pending`);
+      stable = ready ? stable + 1 : 0;
+      if (stable >= 5) return;
+      await sleep(50);
+    }
+  };
   let tall, short;
   try {
     await resize(1180, 1000); tall = await read();
     await resize(1180, 480);  short = await read();
   } finally {
     await p.eval("__vs.closeReader();");
-    await resize(original.width, original.height);
+    await restore();
+    await putWearBack();
   }
   const clean = (r) => !r.clipped && !r.outside && !r.tiny && !r.wide;
   const say = (n, r) => `${n}: ${r.checked} books (${r.folds} folded), ${r.clipped} clipped, ` +
@@ -6671,6 +6710,7 @@ check("no index cut is clipped, and none is shrunk past reading", async (p) => {
 
 /* github#32, design/0034 */
 check("one cut is lit, and it is the deepest the page has reached", async (p) => {
+  const putWearBack = await holdWear(p);
   const r = await p.j(`(function(){
     var books = [];
     __vs.views().forEach(function (v) { v.books.forEach(function (b) { books.push(b); }); });
@@ -6699,6 +6739,7 @@ check("one cut is lit, and it is the deepest the page has reached", async (p) =>
     });
     return { worst: worst, over: over, checked: checked, wrong: wrong, litAtEnd: litAtEnd };
   })()`);
+  await putWearBack();
   return { ok: r.worst <= 1 && r.over === 0 && r.litAtEnd > 0,
            detail: `${r.checked} openings across 14 books: most lit at once ${r.worst}, ` +
                    `${r.over} wrong${r.wrong ? " (" + r.wrong + ")" : ""}, ` +
@@ -6707,6 +6748,7 @@ check("one cut is lit, and it is the deepest the page has reached", async (p) =>
 
 /* github#32, design/0034 */
 check("the rail lists one level under the trail it came through", async (p) => {
+  const putWearBack = await holdWear(p);
   const r = await p.j(`(function(){
     var books = [];
     __vs.views().forEach(function (v) { v.books.forEach(function (b) { books.push(b); }); });
@@ -6761,6 +6803,7 @@ check("the rail lists one level under the trail it came through", async (p) => {
     }
     return found;
   })()`);
+  await putWearBack();
   if (!r) return { ok: false, detail: "no book here has a cut with anything under it" };
   return { ok: r.level === r.kids && r.trail === 1 && r.trailIsBack && r.staircase &&
                r.wentThere && r.cameBack && r.kept,
