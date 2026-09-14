@@ -118,6 +118,13 @@ the comment had been read as a fact for a month. The head is centred now, with a
 on each label, and **no explicit height**: the tallest thing in the row decides, and `page.css`
 is what sizes all of them.
 
+*Amended under `github#32`, [0034](0034-the-thumb-index.md):* the head did carry a floor,
+`min-height: 32.25px` — the modern look's measured height, pinned so the looks would agree — and
+the quarter made every shelf 217.25px tall, so a track's position depended on how many shelves
+stood above it and a 7px clip edge could land on a fraction the browser snaps. The floor is
+**32px** now, and a text field's line box **20px** rather than 1.5 × 13, so the rail is 47 rather
+than 46.5. Whole pixels, one geometry, three faces.
+
 ### A plate's lettering is not a look's
 
 A plaque `align-self: stretch`es its run, and a run is only as wide as the widest of its books and

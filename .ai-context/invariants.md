@@ -2673,9 +2673,125 @@ has a 343px sheet, zero horizontal overflow, fourteen swatches and six binding s
 ## Compressing index and shelf actions - design/0032
 
 Right-edge tabs share the available height without scrolling. Search and A-Z/Date stay
-28px high with unchanged type sizes. At 1180x480 all 25 alphabetical tabs fit inside the
-56px strip, with zero scroll overflow; switching to Date keeps both fixed controls equal.
+28px high with unchanged type sizes. At 1180x480 every alphabetical cut fits inside the
+60px strip, with zero scroll overflow; switching to Date keeps both fixed controls equal.
 At narrow widths the horizontal index wraps below the pages.
+
+**The sharing has a floor, and the strip is 60px - design/0034.** A cut shares down to 20px
+and no further; below that the cut gathers instead of shrinking. Before that floor, 25 cuts
+in a 480px-high window came out **6.7px tall in 5.2px type**, and the worst book in the
+library reached **4.09px** - an index you cannot read rather than one you cannot see. Type
+is 11.5px at every size now. The short window's cuts are no longer required to be strictly
+shorter than the tall window's, because the floor may stop them being so.
+
+## The thumb index - design/0034
+
+**The cut is a tree and the rail lists one level of it**, under the cuts it came through.
+Pressing a cut goes to its note *and* opens what is under it; pressing a trail step comes
+back and moves nobody. The state is one number - how deep the rail is - and every cut shown
+is derived from where the page stands, so Next carries the trail with it.
+
+**Nothing is dropped to make it fit.** The old cap of about thirty tabs dropped the days and
+then the months: `people/-unfiled`, 2,450 notes, showed **11 year tabs with nothing under
+them**. It now shows 11 years, each opening its months. A level that overflows is halved into
+spans naming what they open (`Jan-Apr`), and the cuts it held become what those spans open; a
+range of ranges is still one range, so gathering twice reads `Jan-Aug`. Every level at that
+depth is gathered together, never one at a time.
+
+**A numeric volume is indexed like a date book.** The Encyclopedia's `0-9` volume is a date
+book wearing a letter's clothes, and `titlePrefix` used to pin its key at four digits: asking
+for a deeper prefix returned the same key, so the layer separated nothing and the recursion
+fell out at its own depth cap. Measured before: **15 top cuts, 0 of them opening, 587 notes
+behind `2026`** - the only volume in the library where the rail went nowhere, against A's 3 of
+14 and S's 12 of 16. A year now hands its notes to the layers a date book already uses, read
+off the **title** rather than the date property: **11 of 12 fat cuts open**, `2026` (596 notes)
+opens into 9 months and `Sep` (91) into 13 days, and the biggest dead end is `0-9` x5. The
+"before" column was measured on the fixture as it stood before the `DIGIT_RUN` sentinel below
+was planted, which is why it counts 2,063 notes behind 15 cuts against today's 2,064 behind 16. The labels stay `Mar`
+and `04`, which is what keeps the rail 60px - a raw `2026-03` key would want the same 71px
+that made a span label a range rather than its start.
+
+**Four digits are a year only if they stop at four.** `202212123123` opens with the same four
+characters as `2022-12-12`, so the year test carries `(?!\d)` and a longer digit run falls to
+the `0-9` bucket rather than hanging twelve months off a title with no date in it. A month is
+validated by probing its first day through `isIsoDay` for the same reason the exporter learned:
+a real vault produced `2024-15-03`, once shelved as a fifteenth month called "15 2024". The
+test is deliberately **not a plausible range**, so `1000 small decisions` still files under
+`1000` beside `2015` - what a volume spine does with a number it cannot read.
+
+**A digit run is named by the digits it opens with.** `202212331243` files after every `2022-`
+note and before every `2023-` one, so its cut says **`2022x`** - where it sits, and that it is
+not the year. `0-9` said neither, three times over, since the numerics are not adjacent. This
+made `2022x` at **39px** the widest label the rail draws, against `2020`'s 32px: inside the 48px
+of cut with 9px to spare, **0 cropped** at 1180x1000 and 1180x480, so the rail stays **60px**.
+
+**The vault carries the digit run, and the generator refuses to finish without it.**
+`202212331243` - twelve digits opening with a plausible year - sits in `00 - Inbox`, and
+`make-vault.mjs` names it in `DIGIT_RUN` and lists it with the sentinels: without one in the
+vault, the `(?!\d)` that stops it is unreachable from any check and would go quiet rather than
+red. It lands at index 649 of the `0-9` volume, under a cut labelled **`2022x` with 0 under it**,
+between the 2022 and 2023 runs - which is what takes the volume from 15 top cuts to 16.
+
+**Fit is measured, not calculated**, off the last cut's own bottom and never `scrollHeight` -
+the rail's overflow is visible by design, and a box that does not scroll does not reliably
+report a scrolling area. It is fitted to the **fattest level the book can show**, not the one
+open now, so a page turn cannot re-fit the index and give one book two shapes. The rail is
+re-fitted on every room measure, before the width is compared: the room ignores a resize that
+changed only the height, and the rail is fitted to the height it has.
+
+**Measured 2026-09-14 over the fourteen fattest books, closed and then folded all the way down,
+at 1180x1000 and 1180x480:** 0 clipped, 0 outside the spread, 0 over a fifth of it, **0 with the
+label cropped**, smallest type **11.5px** at both sizes, rail **60px = 5.5% of the spread**, most
+cuts on show 30. Exactly **1** cut lit over 42 openings (before: up to **26 of 26**, because
+`aria-current` was set on every cut at or before the page).
+
+**A span is named by where it starts**, and what it covers is on the cut rather than in it. A
+range label is what made the rail wide - `2024-2025` wants **71px** against `2020`'s 32px -
+and it was being cropped on the left in **30** places before any check could see a label at all.
+`scrollWidth` cannot see that crop in LTR, because the overflow is in the start direction; the
+text's own laid-out rect can. And the crop only shows on the **deepest** fold, since every notch
+of the staircase takes another 5px off the label beside it: one level open, 0 cropped; all of
+them, 6.
+
+**Every box above a track is a whole pixel** (`github#32`, design/0034, amending design/0021).
+The shelf head's floor was **32.25px** and a text field's line box 13 × 1.5 = 19.5, so the rail
+was **46.5** and every shelf **217.25**; with a Reading shelf above it the Encyclopedia's track
+sat at **652.25**, its 7px clip edge at 645.25, which Chrome snaps to 646 - and *a lifted spine
+is painted whole, in every look* read **6 of 7** in all three looks, for a pointer lift and a
+query lift alike. The head is **32px** and a field's line box **20px** now, the rail **47**;
+fresh, the track sits at **409** and paints **7 of 7**. The check prints the track's raw top,
+the scroll state and every box above it on failure, which is what found the head in one run.
+
+**A check's lane is its parity.** `smoke.mjs` deals steady checks round-robin by index, so one
+inserted check flips the lane of every check after it. That is how a defect older than this
+branch turned red on it: the same predecessors had never preceded that check before. Neither
+rounding the check nor restoring the order was taken - the pixel was really missing.
+
+**The ribbons check asks for six notes, not five.** It marks five and then turns to the last row
+expecting a page without a ribbon; on the re-cut vault the first five-note month (`2015-09`)
+has exactly five, so that row was marked and 0 stubs was correct. `2015-10`, 15 notes, now.
+
+**The face of the contents toggle names the rail, and a glyph says it is pressable.** The cuts
+directly under it are cut by that mode - letters under `A-Z`, years under `Date` - so a face
+showing the mode it would switch *to* would stand the word `Date` on top of a column of
+letters. A lone word cannot say both what a control is and what it does, so the word stays the
+state and `⇄` carries the act; the `aria-label` says both in full ("Contents: A-Z. Switch to
+Date"). The glyph is part of the label's own text, not a span: a span is an element *a look
+moves nothing on the page* measures, and leather and cyber drew it **12px high against modern's
+10px** and 1.7px lower. As text it adds no box, and the toggle stays **55x28 at 10px** - the
+same as before and the same as the glass tab above it.
+
+**A tab is a cut, not a plate**: `border-radius: 3px 0 0 3px` with `border-right: 0`, the gap
+between cuts gone and adjacent hairlines collapsed by `margin-top: -1px`, and the shadow
+falling down-and-left out of a cut rather than down-and-right off a plate. The geometry is
+`page.css`'s alone; leather and cyber keep only their type and the depth of their shadow, and
+both look checks stay at **0 off**.
+
+**The rail reserves its staircase rather than growing into it** - 48px of cut at the fore-edge
+plus 12px of trail gutter, one width whatever the fold, so the prose never reflows under the
+hand pressing the index. The index costs the right-hand page **76px of padding where it cost
+72px**. Trail steps step in 5px each, to a maximum of two notches, and keep a tighter gutter so
+they pay for their own notches out of their own room.
 
 Shelf metadata ends in dot-separated gear and eye buttons. Both are always visible, use
 equal 12px SVGs and inherit the note count's colour. The regression drives Edit and Hide,

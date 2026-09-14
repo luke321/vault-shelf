@@ -49,6 +49,175 @@ neighbour. It shares github#57's mechanism, which is gone; whether that was *its
 unproven, and its pixel logic, thresholds and assertions are deliberately untouched. Next place
 to look if it recurs: the compositor read in `paintedAbove()`, never a tolerance.
 
+## 2026-09-14 - A shelf stands on a whole pixel, and a check names its lane (github#32, design/0034)
+
+The merge to `develop` came back **137/139**, two checks red that pre-date the branch and pass on
+`develop` with `src/` and `scripts/` reverted in place. Neither was in the diff.
+
+**A lifted spine is painted whole, in every look: 6px of 7px, all three looks, both lift kinds.**
+`smoke.mjs` shards its steady checks round-robin by index, so one inserted check flipped the lane
+of every check after it, and this one met a predecessor that leaves a second shelf above the
+Encyclopedia. Its track then sat at **652.25**: the rail was **46.5** (`#vs-q`, 13px x 1.5 = 19.5)
+and every shelf **217.25** (`.vs-shelfhead { min-height: 32.25px }`, design/0021's pin to the
+modern look's measured height). The 7px clip edge at 645.25 is snapped by Chrome to 646 - a real
+missing pixel for any reader with a ribbon in a book, not a measurement artefact. Fixed in the
+geometry, not the check: head floor **32px**, field line box **20px**, rail **47**. Fresh: track
+top **409**, **7 of 7**, every look. The layout golden moved everywhere by a fraction and was
+rewritten. The check now prints the track's raw top, the scroll state and every box above it on
+failure, which is what found the head in a single run.
+
+**An open book shows the ribbons in it, three at most: 0 stubs on a page that was not free.**
+Purely the re-cut fixture: the check took the first Months book with five notes, marked five, and
+turned to the last row expecting no ribbon there - `2015-09` has exactly five. It asks for six
+now; `2015-10` holds 15.
+
+Split by running the suite on this branch with `develop`'s generator: ribbons green, spine still
+red - so one was the vault and one was the tree.
+
+## 2026-09-14 - The 0-9 volume opens, and the contents toggle says it is one (github#32, design/0034)
+
+Lukas, looking at the demo: *"when opening 0-9 encyclopedia there are no sub tags althought we
+have many notes starting with 2022 for example"*.
+
+**It was the only volume in the library where nothing opened.** `titlePrefix` pinned the 0-9 key
+at four digits at every depth, so a deeper ask returned the same key, the layer separated nothing,
+and `prefixCuts` fell out at its own `depth > 3` cap. Measured over every volume:
+
+| volume | notes | top cuts | cuts that open | biggest dead end |
+|---|---|---|---|---|
+| **0-9** | 2,063 | 15 | **0** | **`2026` x 587** |
+| S | 481 | 16 | 12 | `Sq` x 12 |
+| C | 209 | 8 | 7 | `Cy` x 1 |
+| A | 78 | 14 | 3 | `Ad` x 11 |
+
+A year now hands its notes to `cutTree` with a `TITLE_DATE_LAYERS` twin of `DATE_LAYERS`, read off
+the title rather than the date property: **11 of 12 fat cuts open**, `2026` (596 notes) opens into
+**9 months** and `Sep` (91) into **13 days**, and the biggest dead end is `0-9` x**5**. The labels
+stay `Mar` and `04`, so the rail is still **60px** - a raw `2026-03` key would have wanted the
+71px that made a span name its start rather than its range.
+
+**Four digits are a year only if they stop at four** - Lukas: *"we could have a note that is not a
+date like 202212123123, incorporate that"*. The test carries `(?!\d)`, so a longer digit run falls
+to the `0-9` bucket rather than hanging twelve months off a title with no date in it; a month is
+validated by probing its first day through `isIsoDay`, which is what stops `2024-15-03` becoming a
+fifteenth month called "15 2024". Not a plausible *range*, deliberately: `1000 small decisions`
+still files under `1000`.
+
+**The vault now carries one.** A guard nothing can reach goes quiet rather than red, so
+`make-vault.mjs` plants `202212331243` in `00 - Inbox` as `DIGIT_RUN` and lists it with the
+sentinels it refuses to finish without. It lands at index 649 of the volume under a `0-9` cut with
+nothing under it, between the 2022 and 2023 runs: the volume goes 15 cuts -> **16**, the vault
+4,938 notes -> **4,939**. Planting it re-cut the fixture - digest `178c03f6` -> **`c1f3a5ca`**,
+every suite stamp on this machine now misses, and `layout-snapshots/vault.json` was rewritten (9
+boxes moved, all month plaques, by up to 4px).
+
+**And its cut is named `2022x`, not `0-9`** - Lukas: *"hmm it shoulld be called 2022x instead of
+0-9"*. A tab is a position, and `0-9` says nothing about where in 2,064 notes you have landed - it
+says it three times over, since the numerics are not adjacent. `202212331243` files after every
+`2022-` note and before every `2023-` one, so the cut says so. It makes `2022x` at **39px** the
+widest label the rail draws, against `2020`'s 32px: 9px inside the 48px of cut, **0 cropped** at
+either window size, rail unchanged at **60px**. The record's "what the labels need is 32px" is
+amended - that held while every label was a year.
+
+**And the contents toggle grew a `⇄`** - Lukas: *"shouldn't we flip the Date A-Z button?"*. Not
+flipped: the cuts directly under that button are cut by that mode, so a face showing the mode it
+would switch *to* would stand `Date` on top of a column of letters. The word stays the state, the
+glyph carries the act, and the `aria-label` says both as it already did. The control's box is
+unchanged at **55x28 at 10px**, the glass tab's box exactly.
+
+The glyph started as a dimmed `<span>` and *a look moves nothing on the page* rejected it inside a
+minute: leather and cyber drew that span **12px high against modern's 10px**, 1.7px lower, because
+it inherited each look's face. It is part of the label's text now, so there is no box to move.
+
+One new check, 91 -> **92**. Known and left: the non-year numerics are not adjacent in title order,
+so the rail draws **three** cuts labelled `0-9` around the years. Correct by *a run is whatever is
+adjacent*, scruffy to read; suppressing a cut that holds one note of 2,063 is a rule about every
+volume rather than this one.
+
+## 2026-09-14 - The rail is 60px, and a span says where it starts (github#32, design/0034)
+
+Lukas, on the first cut of this: *"make the new design less width"*. It was 72px - 56px of cut
+plus 16px of reserved staircase - and nothing in the record said where either number came from.
+
+**What the labels actually need is 32px**, measured: `2020`, the widest thing the rail ever
+says. The rail is **60px** now (48px of cut plus a 12px staircase), the notch is 5px rather than
+8px, and a trail step keeps a tighter gutter than a cut that opens, so it pays for its own
+notches out of its own room. The right-hand page's padding goes 88px -> **76px**, which is 4px
+more than it cost before any of this work rather than 16px more.
+
+**A range label is what made it wide.** `2024-2025` wants **71px** against `2020`'s 32px, so
+a span is named by where it *starts* now - `A`, `D`, `G`, which is what a printed thumb
+index does - and the cut below it is its other end. What it covers moved onto the cut, where a
+pointer and a screen reader find it.
+
+**And it was already being cropped, in thirty places, at 72px.** The check measured boxes and
+never the label inside one, so nothing said so. Two things it had to learn:
+
+| | |
+|---|---|
+| not `scrollWidth` | a right-aligned cut with hidden overflow crops on the **left**, and `scrollWidth` does not report start-direction overflow in LTR: it answered **48px for both** `2015` and `2015-2016`. The text's own laid-out rect answers 32px and 71px |
+| not one fold | every notch takes another 5px off the label beside it, so the deepest trail is where labels have least room. Opening one level: **0** cropped. Opening all of them: **6** |
+
+The check opens each of the fourteen fattest books and then folds all the way down - 12 folds at
+1180x1000 and 32 at 1180x480, against 8 and 4 before - and asserts no label is wider than its
+room. `white-space: nowrap` went on the cut in the same pass: a label that wraps is cropped by
+the fixed height just as silently.
+
+| | first cut | now |
+|---|---|---|
+| rail width | 72px, 6.6% of the spread | **60px, 5.5%** |
+| what the index costs the prose column | 88px | **76px** |
+| staircase notch | 8px | 5px |
+| widest label | `2024-2025`, 71px | `2020`, 32px |
+| cut labels cropped | **30** at 1180x480, unmeasured | **0** |
+| folds measured | 8 and 4 | 12 and 32 |
+
+
+## 2026-09-14 - The index rail reads like a thumb index, and fits (github#32, design/0034)
+
+Measured on the vault shape over the fourteen fattest books, before and after, at two window
+heights. `--jobs 1`, one Chrome.
+
+| | before | after |
+|---|---|---|
+| cuts clipped, 1180x1000 | 0 | 0 |
+| cuts clipped, 1180x480 | 0 | 0 |
+| **smallest cut type, 1180x480** | **5.2px** on `tags/project/website-migration`; **4.09px** over the whole library | **11.5px** |
+| smallest cut box, 1180x480 | **6.7px** | 20px |
+| smallest cut type, 1180x1000 | 11.5px | 11.5px |
+| rail width | 56px, 5.2% of the spread | 72px, **6.6%** |
+| what the index costs the prose column | 72px of padding | 88px |
+| most cuts on show at once | 27 | 32 |
+| `people/-unfiled` (2,450 notes) | 11 year tabs, **months and days dropped by the ~30 cap** | 11 years, each opening its months; **nothing dropped** |
+| `tags/garden` (808 notes) | 26 tabs | 27 cuts, 22 of them opening further |
+| cuts lit at the end of a book | up to **26 of 26**, and more than one on every book measured | **1**, over 42 openings |
+| rail re-fits on a height-only resize | **no** - 25 cuts, `scroll: 289` overflowing at 1180x480 | yes, 7 cuts, `scroll: 0` |
+
+**The three answers that had already been tried.** `overflow: hidden` clipped the cuts in
+silence; `dateTabs`' cap of about thirty dropped the days and then the months; `design/0032`
+replaced the clip with compression that ran all the way down to 4.09px type. All three end in
+something the reader cannot use.
+
+**The negative test.** Restoring only `src/page.css` to `origin/develop` and leaving the new
+JavaScript in place turns *no index cut is clipped, and none is shrunk past reading* red with
+**305 cuts under 11px, smallest 4.09px** at 1180x480 - the floor is doing the work, not the
+gathering alone.
+
+**Two bugs that only measuring found.** `aria-current` was on every cut at or before the page,
+so a book read to its end lit the whole rail. And the room watcher deliberately ignores a
+resize that did not change the *width* - correct for the packing, wrong for a rail fitted to
+the height it has, so a window dragged shorter kept the index it had been fitted for and let
+the end of it hang off the bottom. Neither is visible to a check that counts tabs.
+
+**One dead end, costed.** Gathering only the single level that overflowed spent all sixteen
+passes on one book's days and never reached its years: `people/-unfiled` came out with 11 cuts
+overflowing the rail by 23px, with the trace `33x 33x 30x 30x 28x 27x 25x 25x 25x 25x 23x 23x
+22x 21x 20x 20x`. Gathering every level at that depth together converges in a handful of passes
+and is also the right answer to look at - one year's months gathered into spans while the next
+year's stand singly is two indexes in one book.
+
+Checks 88 -> **91**; `check-comments` baseline 1477 -> 1517.
+
 ## 2026-09-13 - Context-budget cleanup: history moved out of CLAUDE.md
 
 Phase 3 of Lukas's context-budget cleanup (via Alfred) pulled the following history clauses out

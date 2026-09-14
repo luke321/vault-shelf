@@ -569,6 +569,12 @@ const PROSE_ONLY = "Dagny Halvorsen";
  * People shelf that reads links to person notes -- and it must be ONE book, under the note's
  * name, not one for the alias and one for the full name. */
 const LINKED_ONLY = "Halvor Estrin";
+
+/* github#32, design/0034 -- A TITLE THAT STARTS LIKE A YEAR AND IS NOT ONE. Twelve digits, the
+ * first four of them a plausible year; the 0-9 volume's index must leave it in the numeric
+ * bucket rather than filing it under 2022 and looking for months that are not there. */
+const DIGIT_RUN = "202212331243";
+
 let linkedMentions = 0;
 let proseMentions = 0;
 
@@ -1242,6 +1248,15 @@ write("", "Wide table of everything", { type: "reference", tags: ["reference"], 
       "column is the supplier's own list, pasted in whole.\n\n" +
       wideRows.join("\n") + "\n");
 
+/* github#32, design/0034 -- A DIGIT RUN THAT IS NOT A DATE. `202212331243` opens with the same
+ * four characters as a 2022 daily note, and the 0-9 volume's index must not file it under 2022:
+ * there is no month behind it to cut by. Without one in the vault, the `(?!\d)` that stops it
+ * is unreachable from any check. */
+write("00 - Inbox", DIGIT_RUN, { type: "note", tags: ["reference"], date: dayAt(11) },
+      "# " + DIGIT_RUN + "\n\n" +
+      "The reference as it came off the label, typed in whole so it can be found again. It " +
+      "is not a date and nothing here should read it as one.\n");
+
 /* A NOTE LONG ENOUGH TO SCROLL. The reading spread is a page with a fixed measure, and the
  * only way to see whether a long note scrolls the right box -- rather than the spread, the
  * room, or nothing -- is to have one. It is also the one note that carries every construct
@@ -1347,6 +1362,10 @@ for (const [who, where] of [[PROSE_ONLY, "prose"], [LINKED_ONLY, "links"]]) {
 }
 if (!written.has("/Wide table of everything")) {
   problems.push("the wide-table note was not written, and a check opens it by name");
+}
+if (!written.has("00 - Inbox/" + DIGIT_RUN)) {
+  problems.push(`${DIGIT_RUN} was not written; nothing in the vault then starts like a year ` +
+                `without being one, and the 0-9 index has no digit run to leave alone`);
 }
 const tailPeople = [...dealt.entries()].filter(([, n]) => n <= 3).length;
 if (tailPeople < TAIL_PEOPLE.length - 1) {
