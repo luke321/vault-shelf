@@ -1179,11 +1179,24 @@ was sliced flat.
 | 6px | `--spine-lift-hover` | `:hover` / `:focus-visible` |
 | **7px** | `--spine-lift-max`, read by `--spine-lift-match` | a search match, **every one, while a query is live** |
 
-**The top rung IS the room**, by identity rather than by `max()`: `overflow-clip-margin` takes a
-bare `<length>` and rejects every math function, computing **`0px`** for `max(1px, 7px)`,
-`calc(max(1px, 7px))` and a `var()` holding either. Only an `@property` registration makes a
-`max()` compute down, and that registration is document-global where every rule in this sheet is
-scoped. `design/0021` has the table.
+**But a lift is not the only thing that leaves a spine.** A look paints outside a spine's own
+border box too, and the same clip was cutting that: cyber's neon on a match is `0 0 22px` and on
+a hover `0 0 18px`, and leather's match is a `0 0 0 1px` gilt ring. So **the room is the top
+rung plus the look's halo**, declared as two tokens and a sum:
+
+| token | modern | leather | cyber |
+|---|---|---|---|
+| `--spine-lift-max` — the top rung | 7px | 7px | 7px |
+| `--spine-halo` — what the look paints past a spine's box | 0px | 1px | **18px** |
+| `--spine-room` — the sum, read by `.vs-track` | **7px** | **8px** | **25px** |
+
+**The sum is written out, never computed**, because `overflow-clip-margin` takes a bare
+`<length>` and rejects every math function. Two different failures, and the second is the one
+that bites: a literal `calc(7px + 18px)` or `max(7px, 25px)` **never applies at all** and the
+previous value stands, while a `var()` holding a `calc()` is substituted and *then* rejected,
+computing **`0px`** — the clip straight back to biting, silently. Only an `@property`
+registration makes one compute down, and that registration is document-global where every rule in
+this sheet is scoped. `design/0021` has both tables.
 
 **A look that lifts further moves its rung on the room, not on the spine** — cyber sets
 `--spine-lift-worn-hover` on `.vault-shelf[data-look="cyber"]`, which is above the track, so the
@@ -1192,14 +1205,17 @@ spine's ancestor.
 
 `"a lifted spine is painted whole, in every look"` reads **painted pixels**, because this defect
 is invisible to geometry: `getBoundingClientRect` reported the lifted spine at `y=160` clipped or
-not. It lifts one spine **20px**, far past any rung, captures the rows above its track with the
-spine there and again with it hidden, and reads how far up it was allowed to paint:
+not. It lifts one spine **40px**, far past any rung and past any look's room, captures the rows above
+its track with the spine there and again with it hidden, and reads how far up it was allowed to
+paint:
 
-- the clip **grants** the room `page.css` declares — **7px of 7px** in all three looks;
-- the clip is **still a clip** — a 20px lift paints 7px, never 20;
+- the clip **grants** the room the sheet declares — **8px of 8px** in leather, **7px of 7px** in
+  modern, **25px of 25px** in cyber;
+- the clip is **still a clip** — a 40px lift paints the room, never 40;
 - `contain` still includes `paint` in all three looks;
 - and one real state end to end: a search match, lifted by the **query** rather than the pointer,
-  **lifted 7px and painted 7px** in leather, modern and cyber.
+  **lifted 7px and painted 8px** in leather (the gilt ring), **7px and 7px** in modern,
+  **7px and 25px** in cyber (the neon).
 
 Without the clip margin it reads `0px of 0px` and a match `lifted 7px, painted 0px`.
 
@@ -1208,11 +1224,34 @@ gilt head by a pixel moves those pixels by more than any threshold whether the h
 or not. And it samples the spine's **whole width**, never one column — a look's top hairline can
 sit within a unit or two of its ground, and leather's does.
 
-`"the room above a spine is the largest lift, in every look"` is the arithmetic the pixels cannot
-state, and the only thing that catches a **lesser** rung raised past the room: the room granted
-**is** the tallest rung (`7px` = `7px`, by `match`), containment is on, and the box still has
-`0px` of slack above a spine, in every look. Without the fix: `SHORT: leather by 7px, modern by
-7px, cyber by 7px`.
+`"the room above a spine is the largest lift plus the look's halo, in every look"` is the
+arithmetic the pixels cannot state, and the only thing that catches a **lesser** rung raised past
+the room: the room granted **is** the tallest rung plus the halo (leather `8 = 7 + 1`, modern
+`7 = 7 + 0`, cyber `25 = 7 + 18`, the rung `match` in each), `--spine-room` states that same
+sum, containment is on, and the box still has `0px` of slack above a spine, in every look.
+With the room back on the lift ladder alone: `SHORT: leather by 1px, cyber by 18px -- UNSTATED:
+leather declares --spine-room 8px and clips at 7px, cyber declares --spine-room 25px and clips at
+7px`.
+
+`"nothing a look paints outside a spine is cut off, in every look"` is the other half, and it is
+the one that found this: for **each of five states** in each look — at rest, worn at rest, hovered,
+worn and hovered, and a search match with a query live — it reads how far above its track the
+spine is painted under a margin wide enough to clip nothing, and asserts the room is at least
+that. `:hover` is **forced** (`CSS.forcePseudoState`), never pointed at, because the real-pointer
+form of this measurement flaked outright. Its widest state per look: leather **8px** (a search
+match), modern **7px** (hovered), cyber **25px** (a search match). With the room back on the lift
+ladder alone it names every one:
+
+| look | state | paints | room was | cut |
+|---|---|---|---|---|
+| leather | a search match | 8px | 7px | **1px** |
+| cyber | hovered | 18px | 7px | **11px** |
+| cyber | worn and hovered | 20px | 7px | **13px** |
+| cyber | a search match | 25px | 7px | **18px** |
+
+The band stays **in the page** — only the answer crosses the wire — because handing back a
+60-row band as pixels is ~16,000 numbers a capture, and the check takes thirty of them: 68s that
+way, 20s this way, for the same numbers.
 
 **Nothing moved, and that is the assertion.** A clip margin is not padding, so no spine, board,
 plaque, `min-height` or `background-position` moved, `the shelves are packed the way the golden

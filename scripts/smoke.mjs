@@ -8511,7 +8511,7 @@ check("a lifted spine is painted whole, in every look", async (p) => {
   })()`);
 
   const MOVED = 6;   /* github#51 -- dither is a unit; an arriving edge moves one by tens */
-  const REACH = 26;  /* github#51 -- read UP, so the answer is a height */
+  const REACH = 44;  /* github#51 -- read UP, so the answer is a height */
 
   /* github#51 -- how far above its track a spine is PAINTED. */
   const paintedAbove = async (g) => {
@@ -8531,7 +8531,7 @@ check("a lifted spine is painted whole, in every look", async (p) => {
 
   const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
   const was = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
-  const OVER = 20;   /* github#51 -- far past any rung, so the answer is the clip's */
+  const OVER = 40;   /* github#51 -- far past any room, so the answer is the clip's */
   const granted = [];
   const matched = [];
 
@@ -8590,7 +8590,7 @@ check("a lifted spine is painted whole, in every look", async (p) => {
 
   /* github#51 -- not less, which cuts a head; not more, which drifts. */
   const wrongRoom = granted.filter((x) => x.got !== x.declared);
-  const notClipping = granted.filter((x) => x.got >= OVER);   /* github#51 -- 20px of lift paints 7, never 20 */
+  const notClipping = granted.filter((x) => x.got >= OVER);   /* github#51 -- 40px of lift paints the room, never 40 */
   const loose = granted.filter((x) => (x.contain || "").indexOf("paint") < 0);
   const cutShort = matched.filter((x) => x.painted === null || x.lift === null ||
                                          x.painted < x.lift);
@@ -8627,8 +8627,8 @@ check("a lifted spine is painted whole, in every look", async (p) => {
   };
 });
 
-/* github#51, design/0021 -- the arithmetic, and a lesser rung. */
-check("the room above a spine is the largest lift, in every look", async (p) => {
+/* github#51, design/0021 -- the arithmetic: the tallest rung PLUS the look's halo. */
+check("the room above a spine is the largest lift plus the look's halo, in every look", async (p) => {
   const r = await p.eval(`(async function(){
     var root = document.getElementById("vs-app");
     var core = window.VaultShelfCore;
@@ -8659,15 +8659,19 @@ check("the room above a spine is the largest lift, in every look", async (p) => 
         return { name: n.replace("--spine-lift-", ""), px: px(cs.getPropertyValue(n)) };
       });
       var tallest = rungs.reduce(function (a, b) { return b.px > a.px ? b : a; });
+      var halo = px(cs.getPropertyValue("--spine-halo"));
       /* github#51 -- off the track, not the token: a look could set it. */
       var room = px(cs.overflowClipMargin);
+      /* github#51, design/0021 -- the sum CSS cannot take, written out. */
+      var declared = px(cs.getPropertyValue("--spine-room"));
       /* github#51 -- containment is still ON: a margin, not a dropped clip. */
       var contains = (cs.contain || "").indexOf("paint") >= 0;
       /* github#51 -- the slack that made the clip bite: still zero. */
       var above = +(track.getBoundingClientRect().top - spine.getBoundingClientRect().top).toFixed(1);
       // design/0033
       var bindingTrim = px(cs.getPropertyValue('--spine-h')) - spine.getBoundingClientRect().height;
-      out.push({ look: looks[i] || "modern", room: room, tallest: tallest.px,
+      out.push({ look: looks[i] || "modern", room: room, tallest: tallest.px, halo: halo,
+                 declared: declared, need: tallest.px + halo,
                  by: tallest.name, contains: contains, slackAbove: -above - bindingTrim, bindingTrim: bindingTrim,
                  rungs: rungs.map(function (x) { return x.name + " " + x.px; }).join("/") });
     }
@@ -8675,22 +8679,216 @@ check("the room above a spine is the largest lift, in every look", async (p) => 
     await new Promise(function (r) { setTimeout(r, 120); });
     return out;
   })()`);
-  const short = r.filter((x) => x.room < x.tallest);
+  const short = r.filter((x) => x.room < x.need);
   const loose = r.filter((x) => !x.contains);
-  /* github#51 -- IS the tallest rung, not merely at least it. */
-  const adrift = r.filter((x) => x.room !== x.tallest);
-  const ok = short.length === 0 && loose.length === 0 && adrift.length === 0 && r.length >= 3 &&
+  /* github#51 -- IS the tallest rung plus the halo, not merely at least it. */
+  const adrift = r.filter((x) => x.room !== x.need);
+  const unstated = r.filter((x) => x.declared !== x.room);
+  const ok = short.length === 0 && loose.length === 0 && adrift.length === 0 &&
+             unstated.length === 0 && r.length >= 3 &&
              r.every((x) => x.tallest > 0 && x.slackAbove === 0);
   return {
     ok,
     detail: r.map((x) => `${x.look}: room ${x.room}px for a tallest lift of ${x.tallest}px ` +
-                         `(${x.by}), containment ${x.contains ? "on" : "OFF"}, ` +
+                         `(${x.by}) plus a ${x.halo}px halo, containment ${x.contains ? "on" : "OFF"}, ` +
                          `${x.slackAbove}px of box above a spine`).join("; ") +
             ` -- rungs ${r[0].rungs}` +
-            (short.length ? ` -- SHORT: ${short.map((x) => `${x.look} by ${x.tallest - x.room}px`).join(", ")}` : "") +
+            (short.length ? ` -- SHORT: ${short.map((x) => `${x.look} by ${x.need - x.room}px`).join(", ")}` : "") +
             (adrift.length && !short.length
-              ? ` -- ADRIFT: ${adrift.map((x) => `${x.look} allows ${x.room}px for ${x.tallest}px`).join(", ")}` : "") +
+              ? ` -- ADRIFT: ${adrift.map((x) => `${x.look} allows ${x.room}px for ${x.need}px`).join(", ")}` : "") +
+            (unstated.length
+              ? ` -- UNSTATED: ${unstated.map((x) => `${x.look} declares --spine-room ${x.declared}px and clips at ${x.room}px`).join(", ")}` : "") +
             (loose.length ? ` -- CONTAINMENT DROPPED in ${loose.map((x) => x.look).join(", ")}` : "")
+  };
+});
+
+/* github#51, design/0021 -- A LIFT IS NOT THE ONLY THING THAT LEAVES A SPINE. */
+check("nothing a look paints outside a spine is cut off, in every look", async (p) => {
+  await p.send("DOM.enable");
+  await p.send("CSS.enable");
+  await p.j(`(function(){
+    var s = document.createElement("style");
+    s.id = "vs-probe-51b";
+    document.head.appendChild(s);
+    return 1;
+  })()`);
+
+  /* github#51 -- past a PAINT, or both captures come back identical. */
+  const sheet = (text) => p.eval(`(async function(){
+    document.getElementById("vs-probe-51b").textContent = ${JSON.stringify(text)};
+    await new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); });
+    return 1;
+  })()`);
+
+  const MOVED = 6;   /* github#51 -- dither is a unit; an arriving edge moves one by tens */
+  const REACH = 60;  /* github#51 -- past the widest room a look could ask for */
+  const SIDE = 24;   /* github#51 -- a glow spills sideways too, so read wider than the spine */
+  const WIDE = " #vs-app .vs-track { overflow-clip-margin: 90px !important; }";
+
+  /* github#51, design/0021 -- the band stays in the page; only the answer crosses. */
+  const grab = async (slot, x, y, w, rows) => {
+    const shot = await p.send("Page.captureScreenshot",
+      { format: "png", captureBeyondViewport: false,
+        clip: { x, y, width: w, height: rows, scale: 1 } });
+    return p.eval(`(async function(){
+      var img = new Image();
+      img.src = "data:image/png;base64," + ${JSON.stringify(shot.data)};
+      await img.decode();
+      var c = document.createElement("canvas");
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext("2d").drawImage(img, 0, 0);
+      window.__vs51b = window.__vs51b || {};
+      window.__vs51b[${JSON.stringify(slot)}] =
+        { d: c.getContext("2d").getImageData(0, 0, c.width, c.height).data, w: c.width, h: c.height };
+      return c.height;
+    })()`);
+  };
+
+  const reachOf = (a, b) => p.j(`(function(){
+    var A = window.__vs51b[${JSON.stringify(a)}], B = window.__vs51b[${JSON.stringify(b)}];
+    if (!A || !B || A.w !== B.w || A.h !== B.h) return -1;
+    for (var y = 0; y < A.h; y++) {
+      var most = 0;
+      for (var x = 0; x < A.w; x++) {
+        var i = (y * A.w + x) * 4;
+        most = Math.max(most, Math.abs(A.d[i] - B.d[i]),
+                        Math.abs(A.d[i + 1] - B.d[i + 1]), Math.abs(A.d[i + 2] - B.d[i + 2]));
+      }
+      if (most > ${MOVED}) return A.h - y;
+    }
+    return 0;
+  })()`);
+
+  /* github#51, design/0021 -- what the paint WANTS, under a margin that clips nothing. */
+  const wantedAbove = async (g) => {
+    const x = Math.max(0, Math.round(g.left) - SIDE);
+    const w = Math.max(2, Math.round(g.w) + SIDE * 2);
+    const y = Math.floor(g.trackTop) - REACH;
+    if (y < 0) return -1;
+    await sheet(WIDE);
+    await grab("wide", x, y, w, REACH);
+    await sheet(WIDE + " #vs-app [data-probe51b] { visibility: hidden !important; }");
+    await grab("bare", x, y, w, REACH);
+    await sheet("");
+    return reachOf("wide", "bare");
+  };
+
+  /* github#51 -- never the first shelf: other checks empty it. */
+  const mark = (sel) => p.j(`(function(){
+    [].slice.call(document.querySelectorAll("#vs-app [data-probe51b]"))
+      .forEach(function (el) { el.removeAttribute("data-probe51b"); });
+    var shelves = document.querySelectorAll("#vs-shelves .vs-shelf");
+    var sp = null;
+    for (var i = 1; i < shelves.length && !sp; i++) sp = shelves[i].querySelector(${JSON.stringify(sel)});
+    if (!sp) return null;
+    sp.setAttribute("data-probe51b", "1");
+    var track = sp.closest(".vs-track");
+    var r = sp.getBoundingClientRect(), t = track.getBoundingClientRect();
+    return { left: r.left, w: r.width, top: r.top, trackTop: t.top,
+             room: parseFloat(getComputedStyle(track).overflowClipMargin) || 0 };
+  })()`);
+
+  const nodeOf = async (sel) => {
+    const doc = await p.send("DOM.getDocument", { depth: 0 });
+    const r = await p.send("DOM.querySelector", { nodeId: doc.root.nodeId, selector: sel });
+    return r.nodeId || 0;
+  };
+
+  const FLUSH = '.vs-spine:not([data-wear="2"]):not([data-wear="3"])';
+  const WORN = '.vs-spine[data-wear="3"]';
+  const states = [
+    { id: "at rest", sel: FLUSH, hover: false, query: false },
+    { id: "worn at rest", sel: WORN, hover: false, query: false },
+    { id: "hovered", sel: FLUSH, hover: true, query: false },
+    { id: "worn and hovered", sel: WORN, hover: true, query: false },
+    { id: "a search match", sel: '.vs-spine[data-match="1"]', hover: false, query: true },
+  ];
+
+  const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
+  const was = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
+  const rows = [];
+
+  for (const look of looks) {
+    await p.j(`(__vs.setLook(${JSON.stringify(look)}), 1)`);
+    await sleep(160);
+    const name = look || "modern";
+
+    for (const st of states) {
+      await sheet("");
+      let needle = "";
+      if (st.query) {
+        needle = await p.j(`(function(){
+          var tags = {};
+          __vs.data().notes.forEach(function (n) {
+            n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+          });
+          var n = Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] ||
+                  __vs.data().notes[0].title.slice(0, 4);
+          __vs.setQuery(n);
+          return n;
+        })()`);
+        await sleep(280);
+      }
+      const g = await mark(st.sel);
+      let node = 0;
+      if (g && st.hover) {
+        node = await nodeOf("#vs-app [data-probe51b]");
+        if (node) await p.send("CSS.forcePseudoState", { nodeId: node, forcedPseudoClasses: ["hover"] });
+        await sleep(220);
+      }
+      if (!g) {
+        rows.push({ look: name, state: st.id, missing: true });
+      } else {
+        const wanted = await wantedAbove(g);
+        rows.push({ look: name, state: st.id, room: g.room, wanted,
+                    cut: Math.max(0, wanted - g.room), needle });
+      }
+      if (node) await p.send("CSS.forcePseudoState", { nodeId: node, forcedPseudoClasses: [] });
+      if (st.query) { await p.j(`(__vs.setQuery(""), 1)`); await sleep(220); }
+    }
+  }
+
+  await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
+  await sleep(160);
+  await p.j(`(function(){
+    [].slice.call(document.querySelectorAll("#vs-app [data-probe51b]"))
+      .forEach(function (el) { el.removeAttribute("data-probe51b"); });
+    var s = document.getElementById("vs-probe-51b");
+    if (s) s.remove();
+    delete window.__vs51b;
+    return 1;
+  })()`);
+
+  const missing = rows.filter((x) => x.missing);
+  const cut = rows.filter((x) => x.cut > 0);
+  const unread = rows.filter((x) => !x.missing && x.wanted < 0);
+  const ok = missing.length === 0 && cut.length === 0 && unread.length === 0 &&
+             rows.length === looks.length * states.length;
+  const worst = {};
+  for (const x of rows) {
+    if (x.missing) continue;
+    if (!worst[x.look] || x.wanted > worst[x.look].wanted) worst[x.look] = x;
+  }
+  return {
+    ok,
+    detail: `every lifted state is painted to the last pixel its look asks for -- ` +
+            looks.map((l) => {
+              const n = l || "modern";
+              const w = worst[n];
+              return w ? `${n} allows ${w.room}px and its widest (${w.state}) wants ${w.wanted}px`
+                       : `${n} measured nothing`;
+            }).join(", ") +
+            (cut.length
+              ? ` -- CUT: ` + cut.map((x) =>
+                  `${x.look} ${x.state} paints ${x.wanted}px above its track into a room of ` +
+                  `${x.room}px, so ${x.cut}px of it is sliced off`).join("; ")
+              : "") +
+            (missing.length
+              ? ` -- NO SUCH SPINE: ` + missing.map((x) => `${x.look} ${x.state}`).join(", ")
+              : "") +
+            (unread.length
+              ? ` -- A BAND THIS COULD NOT READ: ` + unread.map((x) => `${x.look} ${x.state}`).join(", ")
+              : "")
   };
 });
 

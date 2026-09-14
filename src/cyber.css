@@ -535,6 +535,12 @@
  * the spine: the room is the track's to allow, and the track is above the spine. */
 .vault-shelf[data-look="cyber"] {
   --spine-lift-worn-hover: var(--spine-lift-hover);
+  /* github#51, design/0021 -- AND THIS LOOK PAINTS WELL PAST THE SPINE. The neon on a match is
+   * `0 0 22px` and on a hover `0 0 18px`, so the glow reaches 18px above a spine's own box on
+   * top of the 7px lift: measured, a match wanted 25px above its track and was allowed 7.
+   * --spine-room is the sum, written out, because the property takes no math. */
+  --spine-halo: 18px;
+  --spine-room: 25px;
 }
 
 /* ---- the ribbon ----------------------------------------------------------
