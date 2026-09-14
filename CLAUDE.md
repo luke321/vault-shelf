@@ -130,6 +130,12 @@ of measuring it.** Build the page, drive it, read the numbers.
   node scripts/lock.mjs status
   ```
 
+  **The CLI's own wait flag is `--timeout-ms`, not the harnesses' `--lock-timeout-ms`.** The
+  parser matches a flag name exactly, so the longer spelling is read as nothing and the acquire
+  falls back to `DEFAULT_TIMEOUT` — 45 minutes — in silence, which looks exactly like the deadlock
+  this whole section exists to prevent. `--lock-timeout-ms` belongs to the six harnesses above:
+  they parse it themselves and then acquire in process.
+
   The lock lives in the OS temp dir under one root for **every sister project** —
   `obsidian-vault-locks` — so a Vault Graph suite and a Vault Shelf suite block each other. A
   machine has one Chrome and one screen no matter which repository the suite belongs to; and
