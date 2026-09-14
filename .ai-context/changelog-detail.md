@@ -30,9 +30,27 @@ computed: `overflow-clip-margin` drops a literal `calc()`/`max()` at parse time 
 **Numbers that had to not move, and did not.** Goldens unchanged (`6 shelves, 10 rows, 227
 spines, 52 plaques, 1125px room in all 3 looks`); `a look moves nothing on the page` = `0 moved,
 0 resized` over 4,358 elements in four states; `every control is the same size in every look` =
-`0 off by more than a pixel` over 39 controls; `scrolling the library stays smooth in every look`
-p50/p95/worst ms per frame `leather 16.7/16.8/48 - modern 16.7/16.8/30 - cyber 16.7/33.5/50`,
-p95 well inside the 34ms budget and containment untouched.
+`0 off by more than a pixel` over 39 controls. All three re-read after the merge of `develop`,
+against github#32's rewritten goldens rather than the ones this branch was cut from.
+
+**The scroll budget is the one number that could not be read by one run, and it is not this
+change's.** `scrolling the library stays smooth in every look` went over budget in leather on the
+merged tree — and on `develop`. Sixteen `--only` runs alternating `develop`'s `src/` with this
+branch's, so both arms met the same machine:
+
+| arm | leather p95 median | over the 34ms budget | cyber p95 |
+|---|---|---|---|
+| `develop` | 16.8ms | 4 of 8 | 16.8ms in 8 of 8 |
+| this branch | 16.8ms | 3 of 8 | 16.8ms in 8 of 8 |
+
+Same median, same failure rate, and **cyber — whose room this change widens furthest, 7px to
+25px — never moved off 16.8ms in any of the sixteen.** A clip margin that cost paint would bill
+cyber first and leather least, which is the opposite of what fails. The failing runs are the
+already-recorded variance: their scroll span reads **466px** against the ~1063-1102px of a
+settled run, the exact signature this file records under *2026-09-13, one place decides the
+browser* — "not a regression this introduced … the variance becoming visible". Containment is
+untouched and still reported on by both room checks. **The authoritative read is a full-suite
+run, which is the gated push to `develop`, not an `--only` on a loaded machine.**
 
 **Checks.** New: `nothing a look paints outside a spine is cut off, in every look` — five states
 per look, painted pixels under a wide reference margin, `:hover` forced rather than pointed at.
