@@ -39,6 +39,30 @@ export const PAYLOAD = {
 export const MARKERS = ["__vs_pwned_tag", "__vs_pwned_person", "__vs_pwned_prop",
                         "__vs_pwned_body", "__vs_pwned_title"];
 
+// github#75 -- the page draws its own icons; a stray svg did not
+export const CHROME_ICONS = "#vs-manageopen, .vs-shelfaction";
+
+// github#75 -- a bare total cannot tell an icon from an escape
+export const SVG_CENSUS = `(function () {
+  function where(node) {
+    var path = [], e = node;
+    while (e && e.nodeType === 1 && path.length < 4) {
+      var cls = e.getAttribute && e.getAttribute("class");
+      path.unshift(e.tagName.toLowerCase() + (e.id ? "#" + e.id : "") +
+                   (cls ? "." + String(cls).trim().split(/\\s+/).join(".") : ""));
+      e = e.parentElement;
+    }
+    return path.join(" > ");
+  }
+  var all = Array.prototype.slice.call(document.querySelectorAll("svg"));
+  var sel = ${JSON.stringify(CHROME_ICONS)};
+  return {
+    svgs: all.length,
+    chrome: document.querySelectorAll(sel).length,
+    strays: all.filter(function (s) { return !s.closest(sel); }).map(where)
+  };
+})()`;
+
 // github#5 -- Windows forbids < > : " | ? * in a filename
 const FS_HOSTILE_TITLE = process.platform === "win32" ? null : "</script><b>x</b>";
 
@@ -126,10 +150,13 @@ async function inABrowser(htmlPath, data, tags) {
     }
     const seen = await page.eval(`JSON.stringify((function(){
       var markers = ${JSON.stringify(MARKERS)}.filter(function (k) { return window[k] !== undefined; });
+      var icons = ${SVG_CENSUS};
       return {
         markers: markers,
         imgs: document.querySelectorAll("img").length,
-        svgs: document.querySelectorAll("svg").length,
+        svgs: icons.svgs,
+        chrome: icons.chrome,
+        strays: icons.strays,
         scripts: document.querySelectorAll("script").length,
         data: __vs.data()
       };
@@ -139,7 +166,29 @@ async function inABrowser(htmlPath, data, tags) {
       problems.push(`the page executed ${live.markers.length} payload(s): ${live.markers.join(", ")}`);
     }
     if (live.imgs) problems.push(`${live.imgs} <img> element(s) in the DOM -- the payload named one`);
-    if (live.svgs) problems.push(`${live.svgs} <svg> element(s) in the DOM -- the payload named one`);
+    // github#75 -- a stray svg is one no icon button owns
+    if (live.strays.length) {
+      problems.push(`${live.strays.length} <svg> element(s) outside the page's own icon buttons -- ` +
+                    `the payload named one: ${live.strays.join(" | ")}`);
+    }
+    // github#75 -- one icon each, so nothing hides inside a button either
+    if (live.svgs - live.strays.length !== live.chrome) {
+      problems.push(`${live.svgs - live.strays.length} icon <svg> inside ${live.chrome} ` +
+                    `"${CHROME_ICONS}" button(s) -- one each was expected`);
+    }
+    // github#75 -- plant a stray, so a clean read is a census that looked
+    const planted = await page.eval(`JSON.stringify((function () {
+      var probe = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      probe.id = "vs-escape-probe";
+      (document.getElementById("vs-library") || document.body).appendChild(probe);
+      var census = ${SVG_CENSUS};
+      probe.remove();
+      return census.strays;
+    })())`);
+    const caught = JSON.parse(planted);
+    if (caught.length !== 1 || !/vs-escape-probe/.test(caught[0])) {
+      problems.push(`the svg census missed a planted stray: ${JSON.stringify(caught)}`);
+    }
     if (live.scripts !== tags) {
       problems.push(`${live.scripts} <script> elements in the DOM, ${tags} in the file -- something closed one`);
     }
@@ -149,7 +198,8 @@ async function inABrowser(htmlPath, data, tags) {
     for (const e of page.errors) problems.push("console: " + String(e.text).split("\n")[0]);
     if (!problems.length) {
       console.log(`check-data-escape: in a browser -- 0 console errors, ${live.scripts} script elements ` +
-                  `(${tags} in the file), 0 img, 0 svg, 0 of ${MARKERS.length} markers ran, ` +
+                  `(${tags} in the file), 0 img, ${live.chrome} icon svg in ${live.chrome} icon ` +
+                  `buttons, 0 stray svg (a planted one caught), 0 of ${MARKERS.length} markers ran, ` +
                   `__vs.data() identical to the data block`);
     }
   } finally {

@@ -1,5 +1,56 @@
 # Changelog detail
 
+## 2026-09-15 - github#75: the escape gate counted the page's own icons
+
+`check-data-escape --browser` asserted **0** `<svg>` anywhere in the document as proof that no
+vault metadata had escaped as markup. The page draws icons of its own, so it read 13 and failed
+on every vault:
+
+```
+check-data-escape: FAIL
+  FAIL 13 <svg> element(s) in the DOM -- the payload named one
+```
+
+Where the 13 come from, neither of them vault data:
+
+| source | count |
+|---|---|
+| `#vs-manageopen`, written into `src/page.html:16` | 1 |
+| `shelfAction()`, `src/page.js:520` — 6 shelves x Edit/Hide | 12 |
+
+**Not a regression, and red for some time.** `#75` measured `1395e0a` (before `#32`) and
+`9be1fb6` (after) as byte-identical failures; reproduced again here on `c625251` before any
+edit. `--browser` is one of the three gates run by hand, so no push ever caught it. The static
+half was clean throughout — `0` raw `<`, `0` raw `>`, every payload back byte for byte — so the
+gate's real job was never in question.
+
+**The fix is a predicate, not a subtraction.** Subtracting a constant 13 is the same bug again
+the day a seventh shelf lands, and it fails with a number rather than naming what appeared. Every
+`<svg>` must now sit inside `#vs-manageopen` or `.vs-shelfaction`; a stray is reported with its
+ancestor path. Owned icons must come to one per icon button, so an `<svg>` hidden inside a chrome
+button fails too, and the absolute 13 is never asserted.
+
+**The census proves itself on every run.** It plants an `<svg>` in `#vs-library`, re-reads the
+same census, and requires exactly 1 stray naming `vs-escape-probe`. The old assertion had no way
+to fail for having stopped looking; this one does.
+
+| | before | after |
+|---|---|---|
+| `check-data-escape` (static) | ok, 2 notes, 1,173 chars, 0 raw `<`/`>` | = |
+| `check-data-escape --browser` | **FAIL, 13 svg** | **ok** |
+| script elements in the DOM | 4 (4 in the file) | = |
+| `<img>` | 0 | = |
+| icon `<svg>` / icon buttons | not distinguished | **13 / 13** |
+| stray `<svg>` | not distinguished | **0**, and a planted one caught |
+| markers executed | 0 of 5 | = |
+
+No shipped code moved: the change is `scripts/check-data-escape.mjs` and these two documents.
+`src/` is untouched, so every golden, count and geometry is unchanged by construction.
+
+**Left open.** Nothing runs `--browser` on a push, which is why this stayed red unseen. Wiring a
+browser gate into the hook is a policy change about what a push costs — flagged for the
+maintainer, not decided here.
+
 ## 2026-09-14 - github#51, second pass: the room is the lift PLUS what the look paints
 
 The first pass gave `.vs-track` `overflow-clip-margin: var(--spine-lift-max)` and every lift is
