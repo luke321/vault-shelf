@@ -2623,10 +2623,10 @@ has a 343px sheet, zero horizontal overflow, fourteen swatches and six binding s
 
 Right-edge tabs share the available height without scrolling. Search and A-Z/Date stay
 28px high with unchanged type sizes. At 1180x480 every alphabetical cut fits inside the
-72px strip, with zero scroll overflow; switching to Date keeps both fixed controls equal.
+60px strip, with zero scroll overflow; switching to Date keeps both fixed controls equal.
 At narrow widths the horizontal index wraps below the pages.
 
-**The sharing has a floor, and the strip is 72px - design/0034.** A cut shares down to 20px
+**The sharing has a floor, and the strip is 60px - design/0034.** A cut shares down to 20px
 and no further; below that the cut gathers instead of shrinking. Before that floor, 25 cuts
 in a 480px-high window came out **6.7px tall in 5.2px type**, and the worst book in the
 library reached **4.09px** - an index you cannot read rather than one you cannot see. Type
@@ -2654,11 +2654,19 @@ open now, so a page turn cannot re-fit the index and give one book two shapes. T
 re-fitted on every room measure, before the width is compared: the room ignores a resize that
 changed only the height, and the rail is fitted to the height it has.
 
-**Measured 2026-09-14 over the fourteen fattest books, at 1180x1000 and 1180x480:** 0 clipped,
-0 outside the spread, 0 over a fifth of it, smallest type **11.5px** at both sizes, rail
-**72px = 6.6% of the spread**, most cuts on show 32. Exactly **1** cut lit over 42 openings
-(before: up to **26 of 26**, because `aria-current` was set on every cut at or before the
-page).
+**Measured 2026-09-14 over the fourteen fattest books, closed and then folded all the way down,
+at 1180x1000 and 1180x480:** 0 clipped, 0 outside the spread, 0 over a fifth of it, **0 with the
+label cropped**, smallest type **11.5px** at both sizes, rail **60px = 5.5% of the spread**, most
+cuts on show 30. Exactly **1** cut lit over 42 openings (before: up to **26 of 26**, because
+`aria-current` was set on every cut at or before the page).
+
+**A span is named by where it starts**, and what it covers is on the cut rather than in it. A
+range label is what made the rail wide - `2024-2025` wants **71px** against `2020`'s 32px -
+and it was being cropped on the left in **30** places before any check could see a label at all.
+`scrollWidth` cannot see that crop in LTR, because the overflow is in the start direction; the
+text's own laid-out rect can. And the crop only shows on the **deepest** fold, since every notch
+of the staircase takes another 5px off the label beside it: one level open, 0 cropped; all of
+them, 6.
 
 **A tab is a cut, not a plate**: `border-radius: 3px 0 0 3px` with `border-right: 0`, the gap
 between cuts gone and adjacent hairlines collapsed by `margin-top: -1px`, and the shadow
@@ -2666,10 +2674,11 @@ falling down-and-left out of a cut rather than down-and-right off a plate. The g
 `page.css`'s alone; leather and cyber keep only their type and the depth of their shadow, and
 both look checks stay at **0 off**.
 
-**The rail reserves its staircase rather than growing into it** - 56px of cut at the fore-edge
-plus 16px of trail gutter, one width whatever the fold, so the prose never reflows under the
-hand pressing the index. The index costs the right-hand page **88px of padding where it cost
-72px**. Trail steps step in 8px each, to a maximum of two notches.
+**The rail reserves its staircase rather than growing into it** - 48px of cut at the fore-edge
+plus 12px of trail gutter, one width whatever the fold, so the prose never reflows under the
+hand pressing the index. The index costs the right-hand page **76px of padding where it cost
+72px**. Trail steps step in 5px each, to a maximum of two notches, and keep a tighter gutter so
+they pay for their own notches out of their own room.
 
 Shelf metadata ends in dot-separated gear and eye buttons. Both are always visible, use
 equal 12px SVGs and inherit the note count's colour. The regression drives Edit and Hide,

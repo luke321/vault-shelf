@@ -1155,8 +1155,8 @@
 .vault-shelf .vs-page.vs-right {
   background: var(--surface-2);
   padding-left: 32px;
-  /* design/0034 -- the rail's 72px and 16px of air */
-  padding-right: 88px;
+  /* design/0034 -- the rail's 60px and 16px of air */
+  padding-right: 76px;
 }
 .vault-shelf .vs-page.vs-right::after {
   left: 0;
@@ -1350,10 +1350,10 @@
  * always there and the tabs are cut from it; a lone find glass read as a tab that fell off. */
 .vault-shelf .vs-tabs {
   container-type: size;
-  /* design/0034 -- 56px of cut at the fore-edge plus 16px of reserved staircase. Reserved, not
+  /* design/0034 -- 48px of cut at the fore-edge plus 12px of reserved staircase. Reserved, not
    * grown: a rail that widened as the trail deepened would reflow the prose under the hand
    * that was pressing it. So the index costs the prose column one width, always. */
-  width: 72px;
+  width: 60px;
   position: absolute;
   top: 16px;
   right: 0;
@@ -1395,8 +1395,16 @@
 /* design/0034 -- THE STAIRCASE. Each step of the trail stands one notch further in from the
  * fore-edge than the one below it, so the list being read is always at the edge of the book
  * and the steps above say how you got there. The rail keeps one width whatever the fold. */
-.vault-shelf .vs-tabs { --vs-stepin: 8px; }
-.vault-shelf .vs-tabs .vs-trailstep { font-weight: 500; opacity: 0.82; }
+.vault-shelf .vs-tabs { --vs-stepin: 4px; }
+/* github#32 -- a trail step pays for its notches out of the room its own label has, so it
+ * keeps a tighter gutter: the mark it carries points back and is narrower than the one a cut
+ * that opens carries. Two notches at 5px against 3px of padding is a year that still fits. */
+.vault-shelf .vs-tabs .vs-trailstep {
+  font-weight: 500;
+  opacity: 0.82;
+  padding-left: 6px;
+  padding-right: 3px;
+}
 .vault-shelf .vs-tabs button[data-step="1"] { margin-right: var(--vs-stepin); }
 /* Two notches is a staircase; a third would only cost the label its room, so anything deeper
  * stands where the second stands. */
@@ -1429,7 +1437,7 @@
 .vault-shelf .vs-tabs .vs-indextab::before {
   content: "";
   position: absolute;
-  left: 3px;
+  left: 2px;
   top: 50%;
   transform: translateY(-50%);
   font-size: 11px;
@@ -1467,8 +1475,9 @@
   --vs-tab-step: clamp(20px, calc((100cqh - 67px) / var(--vs-tab-count)), 28px);
   flex: 0 0 var(--vs-tab-step);
   height: var(--vs-tab-step);
-  min-height: 0; padding: 0 5px 0 13px; line-height: 1;
-  font-size: 11.5px; overflow: hidden;
+  min-height: 0; padding: 0 4px 0 10px; line-height: 1;
+  /* github#32 -- a label that wraps is a label cropped by the fixed height, just as silently */
+  font-size: 11.5px; overflow: hidden; white-space: nowrap;
 }
 .vault-shelf .vs-appearance .vs-swatch { background: var(--swatch); }
 .vault-shelf .vs-appearance .vs-swatches { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }

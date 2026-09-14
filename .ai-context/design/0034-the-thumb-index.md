@@ -67,7 +67,7 @@ above as a trail and its siblings folded away to make the room.
 |---|---|
 | the **indicator** | a cut that opens further carries `›` in its own left margin, pointing out toward the fore-edge, which is the way it opens. A trail step carries `‹`, pointing back. An index that opens further on some of its cuts and not others has to say which, and the glyph doubles as the affordance for coming back |
 | the **trail** | pressing a cut replaces the level with the cuts under it and keeps the cut itself above. Its siblings go: they are the room the sublevel is drawn in |
-| the **staircase** | each trail step stands one notch (8px) further in from the fore-edge than the one below it, so the list being read is always at the edge of the book. Two notches is a staircase; anything deeper stands where the second stands, because a third would only cost the label its room |
+| the **staircase** | each trail step stands one notch (5px) further in from the fore-edge than the one below it, so the list being read is always at the edge of the book. Two notches is a staircase; anything deeper stands where the second stands, because a third would only cost the label its room |
 | **back** | pressing a trail step returns to its level. There is no other way out and no other state |
 
 **Depth, not a chosen cut.** The state is one number — how many levels down the rail is — and every
@@ -77,10 +77,15 @@ can be open over a book you are no longer reading. Pressing a cut still goes to 
 opening it, so **a tab is a position** is untouched; a trail step is the cut the page is already
 inside, so it has nowhere new to send anybody and does not try.
 
-**The rail reserves its staircase rather than growing into it.** 56px of cut at the fore-edge plus
-16px of trail gutter, one width whatever the fold. A rail that widened as the trail deepened would
+**The rail reserves its staircase rather than growing into it.** 48px of cut at the fore-edge plus
+12px of trail gutter, one width whatever the fold. A rail that widened as the trail deepened would
 reflow the prose under the hand that was pressing it. The index therefore costs the right-hand page
-**88px of padding where it cost 72px** — 16px, about two characters of prose, once and always.
+**76px of padding where it cost 72px** — 4px, once and always.
+
+**And it is as narrow as its widest label, measured.** The first cut of this record reserved 16px
+and ran 72px wide, and nothing in it said what the labels actually needed. They need **32px** —
+`2020`, the widest thing the rail ever says — so the rail is 60px, and a trail step keeps a
+tighter gutter than a cut that opens, paying for its own notches out of its own room.
 
 **Rejected: banks.** Three columns (`flex-wrap: wrap-reverse`, the bookcase law applied to the
 rail) and then two, made even and with a running head on each. Both were built, both passed every
@@ -105,9 +110,15 @@ give one book two different indexes.
 clipped index is the bug this record is about — and a box that does not scroll does not reliably
 report a scrolling area.
 
-**And nothing is thrown away to take the step.** A level that overflows is halved into spans naming
-what they open (`Jan–Apr`), and the cuts it held become what those spans open. A range of ranges is
-still one range, so gathering twice reads `Jan–Aug`, never `Jan–Apr–May–Aug`.
+**And nothing is thrown away to take the step.** A level that overflows is halved into spans, and
+the cuts it held become what those spans open. A range of ranges is still one range, so gathering
+twice spans the whole of what both held rather than nesting.
+
+**A span is named by where it STARTS**, which is what a printed thumb index does — `A`, `D`,
+`G` — and the cut below it is its other end. It read `Jan–Apr` at first, and a range label is
+what made the rail wide: `2024–2025` wants **71px** where `2024` wants 32px, and at 72px it was
+already being cropped on the left, silently, in thirty places. What a span covers is on the cut
+instead, where a pointer and a screen reader find it.
 
 **Every level at that depth, not only the one that overflowed.** Halving one level at a time spent
 sixteen passes on one book's days and never reached its years — but it is also the wrong answer to

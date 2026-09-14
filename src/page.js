@@ -3080,9 +3080,11 @@ function mountVaultShelf(root, data, options) {
     if (isTrail) b.setAttribute("data-back", "1");
     else if (cut.kids.length) b.setAttribute("data-opens", "1");
     if (isLit) b.setAttribute("aria-current", "true");
-    b.title = isTrail ? "Back to " + cut.label
-      : cut.kids.length ? cut.label + " — opens " + cut.kids.length + " more"
-        : cut.label;
+    /* design/0034 -- a span shows only where it starts, so what it covers is said here. */
+    var says = cut.span && cut.tail ? cut.label + " to " + cut.tail : cut.label;
+    b.title = isTrail ? "Back to " + says
+      : cut.kids.length ? says + " — opens " + cut.kids.length + " more"
+        : says;
     b.setAttribute("aria-label", b.title);
     return b;
   }
@@ -3205,7 +3207,10 @@ function mountVaultShelf(root, data, options) {
       var a = list[i];
       var b = list[i + 1];
       if (!b) { out.push(a); continue; }
-      out.push({ label: headOf(a) + "–" + tailOf(b), head: headOf(a), tail: tailOf(b),
+      /* design/0034 -- A SPAN IS NAMED BY WHERE IT STARTS, which is what a printed thumb index
+       * does and what keeps the rail one narrow width: the cut below it is its other end. The
+       * range it covers is on the cut, where a pointer or a screen reader finds it. */
+      out.push({ label: headOf(a), head: headOf(a), tail: tailOf(b),
                  span: true, at: a.at, kids: membersOf(a).concat(membersOf(b)) });
     }
     return out;

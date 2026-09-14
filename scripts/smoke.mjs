@@ -6633,8 +6633,9 @@ check("no index cut is clipped, and none is shrunk past reading", async (p) => {
     __vs.views().forEach(function (v) { v.books.forEach(function (b) { books.push(b); }); });
     books = books.filter(function (b) { return b.id.indexOf("favourites/") !== 0; });
     books.sort(function (a, b) { return b.notes.length - a.notes.length; });
-    var worst = { clipped: 0, outside: 0, tiny: 0, wide: 0, book: null, minFont: 99,
-                  rail: 0, pct: 0, rows: 0, checked: 0, folds: 0 };
+    var worst = { clipped: 0, outside: 0, tiny: 0, wide: 0, cropped: 0, book: null, cut: null,
+                  minFont: 99, rail: 0, pct: 0, rows: 0, checked: 0, folds: 0, needed: 0,
+                  widest: null };
     var gauge = function (b) {
       var nav = document.getElementById("vs-tabs");
       var spread = document.querySelector(".vs-spread");
@@ -6652,26 +6653,43 @@ check("no index cut is clipped, and none is shrunk past reading", async (p) => {
         var size = parseFloat(getComputedStyle(t).fontSize);
         if (size < 11) { worst.tiny++; worst.book = b.id; }
         worst.minFont = Math.min(worst.minFont, size);
+        /* github#32 -- the label has to fit the box, and NOT scrollWidth: a right-aligned cut
+         * with hidden overflow crops on the LEFT, which scrollWidth does not report in LTR --
+         * it read 48px for both 2015 and 2015-2016. The text's own laid-out rect does. */
+        var cs = getComputedStyle(t);
+        var room = t.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+        var span = document.createRange();
+        span.selectNodeContents(t);
+        var want = Math.ceil(span.getBoundingClientRect().width);
+        span.detach();
+        if (want > room + 0.5) {
+          worst.cropped++;
+          worst.cut = b.id + " [" + t.textContent + "] wants " + want + "px in " +
+                      Math.round(room) + "px";
+        }
+        if (want > worst.needed) { worst.needed = want; worst.widest = t.textContent; }
       });
     };
     books.slice(0, 14).forEach(function (b) {
       __vs.openBook(b.id, null);
       worst.checked++;
       gauge(b);
-      /* Open the fold that draws the most rows, by going to the note that opens it. */
-      var widest = null, at = 0;
-      var walk = function (cuts, depth) {
-        cuts.forEach(function (c) {
-          if (!c.kids.length) return;
-          if (!widest || c.kids.length + depth > widest) { widest = c.kids.length + depth; at = c.at; }
-          walk(c.kids, depth + 1);
+      /* github#32 -- DOWN TO THE BOTTOM, not one level. The deepest trail is where the labels
+       * have least room -- every notch takes another 6px off them -- so a check that opens one
+       * fold measures the easy case and calls the rail fitted. */
+      for (var down = 0; down < 3; down++) {
+        var opens = [].slice.call(document.querySelectorAll("#vs-tabs .vs-indextab"))
+          .filter(function (t) { return t.getAttribute("data-opens") === "1"; });
+        if (!opens.length) break;
+        var widest = opens[0], most = -1;
+        opens.forEach(function (t) {
+          var says = (t.getAttribute("aria-label") || "").match(/opens (\\d+) more/);
+          var n = says ? Number(says[1]) : 0;
+          if (n > most) { most = n; widest = t; }
         });
-      };
-      walk(__vs.indexTabs().cuts, 1);
-      if (widest) {
-        var cut = [].slice.call(document.querySelectorAll("#vs-tabs .vs-indextab"))
-          .filter(function (t) { return Number(t.getAttribute("data-at")) === at; })[0];
-        if (cut) { cut.click(); worst.folds++; gauge(b); }
+        widest.click();
+        worst.folds++;
+        gauge(b);
       }
       __vs.closeReader();
     });
@@ -6700,11 +6718,12 @@ check("no index cut is clipped, and none is shrunk past reading", async (p) => {
     await restore();
     await putWearBack();
   }
-  const clean = (r) => !r.clipped && !r.outside && !r.tiny && !r.wide;
+  const clean = (r) => !r.clipped && !r.outside && !r.tiny && !r.wide && !r.cropped;
   const say = (n, r) => `${n}: ${r.checked} books (${r.folds} folded), ${r.clipped} clipped, ` +
     `${r.outside} outside the spread, ${r.wide} over a fifth of it, ${r.tiny} under 11px ` +
-    `(smallest ${r.minFont}px), rail ${r.rail}px = ${r.pct}%, most cuts on show ${r.rows}` +
-    (r.book ? ` -- worst ${r.book}` : "");
+    `(smallest ${r.minFont}px), ${r.cropped} with the label cropped, rail ${r.rail}px = ` +
+    `${r.pct}%, most cuts on show ${r.rows}, widest label "${r.widest}" at ${r.needed}px` +
+    (r.book ? ` -- worst ${r.book}` : "") + (r.cut ? ` -- ${r.cut}` : "");
   return { ok: clean(tall) && clean(short), detail: say("1180x1000", tall) + "; " + say("1180x480", short) };
 });
 
@@ -6866,7 +6885,7 @@ check("index tabs compress without scrolling and shelf icons edit and hide", asy
     await resize(original.width,original.height);
   }
   return {ok:icons.count===2&&['matched','dots','edits','hides','keeps'].every(k=>icons[k])&&
-    [tall,short,date].every(r=>r.count>0&&r.fits&&r.scroll<=1&&r.width===72)&&short.height<=tall.height&&
+    [tall,short,date].every(r=>r.count>0&&r.fits&&r.scroll<=1&&r.width===60)&&short.height<=tall.height&&
     JSON.stringify(tall.controls)===JSON.stringify(short.controls)&&JSON.stringify(short.controls)===JSON.stringify(date.controls),
     detail:JSON.stringify({icons,tall,short,date,restored:await p.j("({width:innerWidth,height:innerHeight,pending:__vs.room().pending})"),original})};
 });

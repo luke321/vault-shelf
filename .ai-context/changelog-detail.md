@@ -1,5 +1,44 @@
 # Changelog detail
 
+## 2026-09-14 - The rail is 60px, and a span says where it starts (github#32, design/0034)
+
+Lukas, on the first cut of this: *"make the new design less width"*. It was 72px - 56px of cut
+plus 16px of reserved staircase - and nothing in the record said where either number came from.
+
+**What the labels actually need is 32px**, measured: `2020`, the widest thing the rail ever
+says. The rail is **60px** now (48px of cut plus a 12px staircase), the notch is 5px rather than
+8px, and a trail step keeps a tighter gutter than a cut that opens, so it pays for its own
+notches out of its own room. The right-hand page's padding goes 88px -> **76px**, which is 4px
+more than it cost before any of this work rather than 16px more.
+
+**A range label is what made it wide.** `2024-2025` wants **71px** against `2020`'s 32px, so
+a span is named by where it *starts* now - `A`, `D`, `G`, which is what a printed thumb
+index does - and the cut below it is its other end. What it covers moved onto the cut, where a
+pointer and a screen reader find it.
+
+**And it was already being cropped, in thirty places, at 72px.** The check measured boxes and
+never the label inside one, so nothing said so. Two things it had to learn:
+
+| | |
+|---|---|
+| not `scrollWidth` | a right-aligned cut with hidden overflow crops on the **left**, and `scrollWidth` does not report start-direction overflow in LTR: it answered **48px for both** `2015` and `2015-2016`. The text's own laid-out rect answers 32px and 71px |
+| not one fold | every notch takes another 5px off the label beside it, so the deepest trail is where labels have least room. Opening one level: **0** cropped. Opening all of them: **6** |
+
+The check opens each of the fourteen fattest books and then folds all the way down - 12 folds at
+1180x1000 and 32 at 1180x480, against 8 and 4 before - and asserts no label is wider than its
+room. `white-space: nowrap` went on the cut in the same pass: a label that wraps is cropped by
+the fixed height just as silently.
+
+| | first cut | now |
+|---|---|---|
+| rail width | 72px, 6.6% of the spread | **60px, 5.5%** |
+| what the index costs the prose column | 88px | **76px** |
+| staircase notch | 8px | 5px |
+| widest label | `2024-2025`, 71px | `2020`, 32px |
+| cut labels cropped | **30** at 1180x480, unmeasured | **0** |
+| folds measured | 8 and 4 | 12 and 32 |
+
+
 ## 2026-09-14 - The index rail reads like a thumb index, and fits (github#32, design/0034)
 
 Measured on the vault shape over the fourteen fattest books, before and after, at two window
