@@ -1,5 +1,53 @@
 # Changelog detail
 
+## 2026-09-14 - github#51, second pass: the room is the lift PLUS what the look paints
+
+The first pass gave `.vs-track` `overflow-clip-margin: var(--spine-lift-max)` and every lift is
+painted whole. It tied the room to the **lift ladder**, and a look paints outside a spine's own
+border box as well — so the same clip went on cutting a different thing.
+
+How far above its track a spine is painted, allowed against wanted (the same frame under a 90px
+margin that clips nothing), per look and state:
+
+| look | state | lift | allowed before | wants | cut | after |
+|---|---|---|---|---|---|---|
+| leather | at rest / worn at rest / hovered / worn + hovered | 0-6px | = | = | 0 | 0 |
+| leather | a search match | 7px | 7px | **8px** | **1px** | **0** |
+| modern | every state | 0-7px | = | = | 0 | 0 |
+| cyber | hovered | 6px | 7px | **18px** | **11px** | **0** |
+| cyber | worn + hovered | 6px | 7px | **20px** | **13px** | **0** |
+| cyber | a search match | 7px | 7px | **25px** | **18px** | **0** |
+
+cyber's neon is `0 0 22px` on a match and `0 0 18px` on a hover; leather's match is a
+`0 0 0 1px` gilt ring. So every matching book in cyber was sliced 18px short while a query was
+live.
+
+**The fix** is two tokens and a sum, `--spine-lift-max` + `--spine-halo` = `--spine-room`, read
+by the track: 7 + 0 = 7px modern, 7 + 1 = 8px leather, 7 + 18 = 25px cyber. Written out, not
+computed: `overflow-clip-margin` drops a literal `calc()`/`max()` at parse time and computes a
+`var()` holding one to **0px**, which is the clip back to biting with nothing looking wrong.
+
+**Numbers that had to not move, and did not.** Goldens unchanged (`6 shelves, 10 rows, 227
+spines, 52 plaques, 1125px room in all 3 looks`); `a look moves nothing on the page` = `0 moved,
+0 resized` over 4,358 elements in four states; `every control is the same size in every look` =
+`0 off by more than a pixel` over 39 controls; `scrolling the library stays smooth in every look`
+p50/p95/worst ms per frame `leather 16.7/16.8/48 - modern 16.7/16.8/30 - cyber 16.7/33.5/50`,
+p95 well inside the 34ms budget and containment untouched.
+
+**Checks.** New: `nothing a look paints outside a spine is cut off, in every look` — five states
+per look, painted pixels under a wide reference margin, `:hover` forced rather than pointed at.
+It cost 68s in its first working form (pixels back over CDP), 54s with the band diffed in the
+page, and **20s** once the second read was dropped in favour of the room the other check already
+proves. Renamed: `the room above a spine is the largest lift` → `…is the largest lift plus the
+look's halo`, which also now asserts `--spine-room` states the sum it clips at. Two constants
+moved in `a lifted spine is painted whole, in every look` (`OVER` 20 → 40, `REACH` 26 → 44) and
+nothing else in it, github#69 being live on that check.
+
+**Both fail without the fix**, naming the look and the shortfall: `CUT: leather a search match
+paints 8px above its track into a room of 7px, so 1px of it is sliced off; cyber hovered ... 11px
+... ; cyber worn and hovered ... 13px ... ; cyber a search match ... 18px` and `SHORT: leather by
+1px, cyber by 18px -- UNSTATED: leather declares --spine-room 8px and clips at 7px`.
+
 ## 2026-09-13 - Context-budget cleanup: history moved out of CLAUDE.md
 
 Phase 3 of Lukas's context-budget cleanup (via Alfred) pulled the following history clauses out

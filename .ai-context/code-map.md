@@ -266,18 +266,18 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 4766 | `offBook` |
 | 4800 | `typing` |
 
-## `scripts/smoke.mjs` — 9420 lines, 6 sections, 173 functions, 135 checks
+## `scripts/smoke.mjs` — 9618 lines, 6 sections, 173 functions, 136 checks
 
 ### Sections
 
 | lines | section |
 |---|---|
 | 158–273 | the checks |
-| 274–8620 | the invariants |
-| 8621–8769 | which vault, and why |
-| 8770–8829 | at rest, or |
-| 8830–9241 | one run |
-| 9242–9420 | main |
+| 274–8818 | the invariants |
+| 8819–8967 | which vault, and why |
+| 8968–9027 | at rest, or |
+| 9028–9439 | one run |
+| 9440–9618 | main |
 
 ### Functions
 
@@ -442,20 +442,20 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 7680 | · `press` |
 | 7689 | · `nameOf` |
 | 8288 | · `px` |
-| 8356 | · `faceOnto` |
-| 8370 | · `faceOf` |
-| 8385 | · `read` |
-| 8646 | `resolveVaults` |
-| 8756 | `buildFor` |
-| 8776 | `atRest` |
-| 8804 | `settlePage` |
-| 8836 | `press` |
-| 8848 | `runOne` |
-| 9042 | `tagged` |
-| 9048 | `capture` |
-| 9094 | · · `pick` |
-| 9200 | `killBrowser` |
-| 9244 | `main` |
+| 8554 | · `faceOnto` |
+| 8568 | · `faceOf` |
+| 8583 | · `read` |
+| 8844 | `resolveVaults` |
+| 8954 | `buildFor` |
+| 8974 | `atRest` |
+| 9002 | `settlePage` |
+| 9034 | `press` |
+| 9046 | `runOne` |
+| 9240 | `tagged` |
+| 9246 | `capture` |
+| 9292 | · · `pick` |
+| 9398 | `killBrowser` |
+| 9442 | `main` |
 
 ### Checks
 
@@ -591,8 +591,9 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 8040 | nothing on the page reaches the network |
 | 8050 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
 | 8110 | a lifted spine is painted whole, in every look |
-| 8282 | the room above a spine is the largest lift, in every look |
-| 8349 | a short cover is stood upright by one face, not the look's |
-| 8502 | a tag book's cover carries no hash, and every other place it is named keeps it |
-| 8552 | a spine lifts on hover and holds its size |
-| 8567 | the shelves are packed the way the golden snapshot says |
+| 8282 | the room above a spine is the largest lift plus the look's halo, in every look |
+| 8357 | nothing a look paints outside a spine is cut off, in every look |
+| 8547 | a short cover is stood upright by one face, not the look's |
+| 8700 | a tag book's cover carries no hash, and every other place it is named keeps it |
+| 8750 | a spine lifts on hover and holds its size |
+| 8765 | the shelves are packed the way the golden snapshot says |

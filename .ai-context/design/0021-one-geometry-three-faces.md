@@ -609,10 +609,11 @@ the room above a book is the *track's* to allow, and the track is the spine's an
 
 **`a lifted spine is painted whole, in every look`** reads painted pixels, because this defect is
 invisible to geometry — `getBoundingClientRect` reported the lifted spine at `y=160` whether it
-was clipped or not. It lifts a spine **20px**, far past any rung, and asks how far above its track
-it is actually painted. One over-lift answers two questions: the clip grants exactly the room
-`page.css` declares (7px of 7px, all three looks), and the clip is still biting (20px of lift
-paints 7, never 20). Then one real state end to end — a search match, the top rung, lifted by the
+was clipped or not. It lifts a spine **40px** (20px until the second amendment below raised the
+rooms past it), far past any rung and past any look's room, and asks how far above its track it
+is actually painted. One over-lift answers two questions: the clip grants exactly the room the
+sheet declares (8 / 7 / 25px of 8 / 7 / 25px), and the clip is still biting (40px of lift paints
+the room, never 40). Then one real state end to end — a search match, the top rung, lifted by the
 **query** rather than the pointer.
 
 Two earlier forms of that check were wrong, and both were wrong in ways that passed:
@@ -645,3 +646,114 @@ No lift value changed. No `padding-top`, `min-height` or `background-position` o
 hover peek is not inside the track and was never clipped. The goldens in
 `scripts/layout-snapshots/` are **unchanged**, which is the fix's central claim and the reason
 `the shelves are packed the way the golden snapshot says` was read after it rather than rewritten.
+
+
+## Second amendment, github#51 — a lift is not the only thing that leaves a spine
+
+The amendment above tied the track's room to the **lift ladder**, and that was the wrong
+quantity by exactly the amount a look paints outside a spine's own border box. The fix was real
+— every lift is painted whole now — and it left the same clip cutting a different thing.
+
+### What is still cut, measured
+
+Per look and per lifted state: how far above its track the spine is *allowed* to paint under the
+7px room, against how far it *wants* to, read from the same frame with a 90px margin that clips
+nothing.
+
+| look | state | lift | allowed | wants | cut |
+|---|---|---|---|---|---|
+| leather | at rest, worn at rest, hovered, worn + hovered | 0–6px | = | = | 0 |
+| leather | **a search match** | 7px | 7px | **8px** | **1px** |
+| modern | every state | 0–7px | = | = | 0 |
+| cyber | **hovered** | 6px | 7px | **18px** | **11px** |
+| cyber | **worn + hovered** | 6px | 7px | **20px** | **13px** |
+| cyber | **a search match** | 7px | 7px | **25px** | **18px** |
+
+The sources are in the sheets and were never geometry: cyber's match is
+`0 0 22px rgba(53,240,208,.5)` neon and its hover `0 0 18px` (`cyber.css`), leather's match a
+`0 0 0 1px #d0b68166` gilt ring (`leather.css`). modern paints inside its box and 7px was
+already right for it — which is why one number for all three looks would have been a guess that
+happened to hold in one of them.
+
+So **on every matching book while a query is live, cyber's glow was sliced 18px short.** That is
+the same law this record already quotes — *a filter narrows; the query marks*, and a book that
+draws forward does it with everything its look gives it.
+
+### The room is the top rung plus the look's halo
+
+```css
+/* page.css, on .vault-shelf */
+--spine-lift-max: 7px;   /* the tallest rung, unchanged */
+--spine-halo:     0px;   /* what this look paints outside a spine's own box */
+--spine-room:     7px;   /* the sum; .vs-track reads this */
+```
+
+`leather.css` sets `--spine-halo: 1px; --spine-room: 8px` and `cyber.css`
+`--spine-halo: 18px; --spine-room: 25px`, on `.vault-shelf[data-look=…]` — above the track, the
+same place cyber already moves `--spine-lift-worn-hover`, and for the same reason: the room above
+a book is the *track's* to allow, and the track is the spine's ancestor.
+
+### Why the sum is written out, and the re-measurement that says so
+
+The first amendment recorded that `overflow-clip-margin` rejects `max()`. Adding two numbers
+needed the wider question asked, and the answer is worse than "no `max()`":
+
+| declaration | computed |
+|---|---|
+| `7px` | 7px |
+| `calc(7px + 18px)` | **the declaration never applies** — the previous value stands |
+| `max(7px, 25px)` | **never applies** |
+| `var(--r)` where `--r: 25px` | 25px |
+| `var(--r)` where `--r: calc(var(--a) + var(--b))` | **0px** |
+| `calc(var(--a) + var(--b))` | **0px** |
+| `calc(var(--a) + 18px)` | **0px** |
+
+**The two failures are not the same failure.** A literal math function is dropped at parse time
+and whatever was there before survives — loud enough to catch. A `var()` holding one is
+substituted at computed-value time and *then* rejected, so the property falls to its initial
+`0px` and the clip goes straight back to biting **with nothing in the sheet looking wrong**. That
+is the trap, and it is why `--spine-room` is a bare length that a check adds up rather than CSS.
+
+### Two checks, and the new one is what found this
+
+**`nothing a look paints outside a spine is cut off, in every look`** walks five states in each
+look — at rest, worn at rest, hovered, worn and hovered, and a search match with a query live —
+and for each reads how far above its track the spine is painted under a margin wide enough to
+clip nothing, then asserts the declared room is at least that. It does **not** read what the
+spine is actually allowed: `a lifted spine is painted whole, in every look` already proves, per
+look, that the clip grants exactly the declared room and no more, so the two checks hold the law
+between them and this one costs two captures a state instead of three.
+
+Three things about it were decided by measurement rather than taste:
+
+- **`:hover` is forced** with `CSS.forcePseudoState`, never driven with the pointer. The
+  real-pointer form of this measurement is the one the first amendment records flaking
+  `0/0/94/96` then `104/104/101/176` on one build.
+- **The band stays in the page.** Handing a 60-row band back over CDP as pixels is ~16,000
+  numbers a capture and this check takes thirty of them: the first working form ran **68s**, the
+  same numbers in-page ran **54s**, and dropping the third capture ran **20s**.
+- **It reads wider than the spine** (24px each side), because a glow spills sideways as well as
+  up, and the widest row above a track need not be over the spine's own width.
+
+**`the room above a spine is the largest lift plus the look's halo, in every look`** is the
+arithmetic, renamed from *…is the largest lift…*: the room granted **is** the tallest rung plus
+the halo (leather `8 = 7 + 1`, modern `7 = 7 + 0`, cyber `25 = 7 + 18`), `--spine-room` states
+that same sum so a look cannot declare one number and clip at another, containment still includes
+`paint`, and the box still has `0px` of slack above a spine. With the room put back on the lift
+ladder alone it reports `SHORT: leather by 1px, cyber by 18px -- UNSTATED: leather declares
+--spine-room 8px and clips at 7px, cyber declares --spine-room 25px and clips at 7px`.
+
+### What this did not touch
+
+No lift changed, no glow changed, no geometry. The goldens in `scripts/layout-snapshots/` are
+unchanged again, `a look moves nothing on the page` reads `0 moved, 0 resized` over 4,358
+elements in four states, and `every control is the same size in every look` is `0 off by more
+than a pixel` — a clip margin still only ever *permits*. Two constants moved in
+`a lifted spine is painted whole, in every look` (`OVER` 20 → 40 and `REACH` 26 → 44, both sized
+against a 7px room) and nothing else in that check, because `github#69` and a parallel branch are
+changing its timing.
+
+**One thing a wider room really does change**, and it is the point rather than a cost: in cyber,
+a hovered or matching spine now glows up to 25px into the row above it instead of stopping at a
+hard line 7px up. At rest nothing changes in any look — every look wants ≤ 3px at rest and was
+already allowed 7.
