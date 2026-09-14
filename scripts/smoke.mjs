@@ -6518,13 +6518,13 @@ check("clicking a spine opens a book on the note it names", async (p) => {
 check("the date index is layered: years over months over days, each only where it separates",
       async (p) => {
   const r = await p.j(`(function(){
-    var tabsOf = function (id) {
+    /* design/0034 -- read the fitted CUT, not the column. The rail draws one level at a time
+     * now, so counting the DOM would count whichever level the book happened to open on. */
+    var cutOf = function (id) {
       __vs.openBook(id, null);
-      var t = [].slice.call(document.querySelectorAll("#vs-tabs button:not(.vs-findtab):not(.vs-indextoggle)")).map(function (b) {
-        return { label: b.textContent, level: Number(b.getAttribute("data-level") || 0) };
-      });
+      var t = __vs.indexTabs();
       __vs.closeReader();
-      return t;
+      return t.cuts;
     };
     var pick = function (shelfId, test) {
       var v = __vs.views().filter(function (v) { return v.shelf.id === shelfId; })[0];
@@ -6534,41 +6534,236 @@ check("the date index is layered: years over months over days, each only where i
       return new Set(b.notes.map(function (n) { return n.date ? n.date.slice(0, 4) : ""; })
         .filter(Boolean)).size;
     };
+    var kidsOf = function (cuts) {
+      return cuts.reduce(function (all, c) { return all.concat(c.kids); }, []);
+    };
+    var plain = function (cuts) { return cuts.filter(function (c) { return !c.span; }); };
     /* A person book spanning several years: years on the top layer, months under them. */
     var tag = pick("people", function (b) { return b.key !== "-unfiled" && years(b) > 1 && b.notes.length > 6; });
-    var tagTabs = tag ? tabsOf(tag.id) : [];
-    var top = tagTabs.filter(function (t) { return t.level === 0; });
-    var yearsShown = top.every(function (t) { return /^\\d{4}$/.test(t.label); });
-    var months = tagTabs.filter(function (t) { return t.level === 1; });
-    var monthsLook = months.every(function (t) { return /^[A-Z][a-z]{2}$/.test(t.label); });
-    /* A month book: one year, one month -- neither is drawn; days are, if there are more than three notes. */
+    var tagCuts = tag ? cutOf(tag.id) : [];
+    var top = plain(tagCuts);
+    var yearsShown = top.every(function (c) { return /^\\d{4}$/.test(c.label); });
+    var months = plain(kidsOf(tagCuts));
+    var monthsLook = months.every(function (c) { return /^[A-Z][a-z]{2}$/.test(c.label); });
+    /* A month book: one year, one month -- neither separates, so the top layer IS the days. */
     var month = pick("months", function (b) { return b.key !== "-undated" && b.notes.length > 3; });
-    var monthTabs = month ? tabsOf(month.id) : [];
-    var daysOnly = monthTabs.length > 0 && monthTabs.every(function (t) { return t.level === 0 && /^\\d{2}$/.test(t.label); });
+    var monthCuts = month ? cutOf(month.id) : [];
+    var daysOnly = monthCuts.length > 0 &&
+      plain(monthCuts).every(function (c) { return /^\\d{2}$/.test(c.label); });
     /* A book of three or fewer notes has no index at all. */
     var small = null;
     __vs.views().forEach(function (v) { v.books.forEach(function (b) {
       if (!small && b.notes.length >= 2 && b.notes.length <= 3 && v.shelf.classifier !== "initial" && v.shelf.classifier !== "tag" &&
           years(b) === 1) small = b;
     }); });
-    var smallTabs = small ? tabsOf(small.id) : null;
-    return { tag: tag ? tag.key : null, tagYears: tag ? years(tag) : 0, tagTabs: tagTabs.length,
+    var smallCuts = small ? cutOf(small.id) : null;
+    /* design/0034 -- and a cut opens where it says it does: every kid stands at or after its
+     * parent, and before the parent that follows it. */
+    var nested = true;
+    var walk = function (cuts, from, to) {
+      cuts.forEach(function (c, i) {
+        if (c.at < from || c.at > to) nested = false;
+        walk(c.kids, c.at, i + 1 < cuts.length ? cuts[i + 1].at : to);
+      });
+    };
+    walk(tagCuts, 0, tag ? tag.notes.length : 0);
+    return { tag: tag ? tag.key : null, tagYears: tag ? years(tag) : 0,
              top: top.length, yearsShown: yearsShown, months: months.length, monthsLook: monthsLook,
-             month: month ? month.key : null, monthTabs: monthTabs.map(function (t) { return t.label; }),
-             daysOnly: daysOnly, small: small ? small.key : null,
-             smallTabs: smallTabs ? smallTabs.length : -1 };
+             month: month ? month.key : null, monthCuts: plain(monthCuts).map(function (c) { return c.label; }),
+             daysOnly: daysOnly, small: small ? small.key : null, nested: nested,
+             smallCuts: smallCuts ? smallCuts.length : -1 };
   })()`);
   const ok = (!r.tag || (r.top === r.tagYears && r.yearsShown && r.monthsLook)) &&
-             (!r.month || r.daysOnly) && (!r.small || r.smallTabs === 0) && r.tagTabs <= 30;
+             (!r.month || r.daysOnly) && (!r.small || r.smallCuts === 0) && r.nested;
   return {
     ok,
-    detail: (r.tag ? `#${r.tag} spans ${r.tagYears} years and gets ${r.top} year tabs ` +
-                     `(${r.yearsShown}) with ${r.months} month tabs stepped in under them ` +
-                     `(${r.monthsLook}), ${r.tagTabs} in all; ` : "no multi-year tag book here; ") +
-            (r.month ? `${r.month} is one month, so only days: ${r.monthTabs.slice(0, 6).join(" ")}` +
-                       `${r.monthTabs.length > 6 ? " ..." : ""} (${r.daysOnly}); ` : "") +
-            (r.small ? `${r.small} holds three notes or fewer and has ${r.smallTabs} tabs` : "")
+    detail: (r.tag ? `#${r.tag} spans ${r.tagYears} years and gets ${r.top} year cuts ` +
+                     `(${r.yearsShown}) with ${r.months} month cuts under them ` +
+                     `(${r.monthsLook}), each inside its year (${r.nested}); ` : "no multi-year tag book here; ") +
+            (r.month ? `${r.month} is one month, so only days: ${r.monthCuts.slice(0, 6).join(" ")}` +
+                       `${r.monthCuts.length > 6 ? " ..." : ""} (${r.daysOnly}); ` : "") +
+            (r.small ? `${r.small} holds three notes or fewer and has ${r.smallCuts} cuts` : "")
   };
+});
+
+/* github#32, design/0034 */
+check("no index cut is clipped, and none is shrunk past reading", async (p) => {
+  const original = await p.j("({width:innerWidth,height:innerHeight})");
+  const resize = async (width, height) => {
+    await p.send('Emulation.setDeviceMetricsOverride',
+                 { width, height, deviceScaleFactor: 1, mobile: false });
+    await p.eval("window.dispatchEvent(new Event('resize')); void 0");
+    let stable = 0;
+    for (let i = 0; i < 80; i++) {
+      const ready = await p.j(`innerWidth===${width} && innerHeight===${height} && !__vs.room().pending`);
+      stable = ready ? stable + 1 : 0;
+      if (stable >= 5) return;
+      await sleep(50);
+    }
+    throw new Error("the index viewport did not settle at " + width + "x" + height);
+  };
+  /* design/0034 -- MEASURED CLOSED AND AT ITS WIDEST FOLD. A rail that fits shut and spills
+   * open has not been measured; the fold that draws the most rows is the one to read. */
+  const read = () => p.j(`(function(){
+    var books = [];
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) { books.push(b); }); });
+    books = books.filter(function (b) { return b.id.indexOf("favourites/") !== 0; });
+    books.sort(function (a, b) { return b.notes.length - a.notes.length; });
+    var worst = { clipped: 0, outside: 0, tiny: 0, wide: 0, book: null, minFont: 99,
+                  rail: 0, pct: 0, rows: 0, checked: 0, folds: 0 };
+    var gauge = function (b) {
+      var nav = document.getElementById("vs-tabs");
+      var spread = document.querySelector(".vs-spread");
+      var navBox = nav.getBoundingClientRect(), spreadBox = spread.getBoundingClientRect();
+      var cuts = [].slice.call(nav.querySelectorAll(".vs-indextab"));
+      if (navBox.right > spreadBox.right + 1 || navBox.left < spreadBox.left - 1) worst.outside++;
+      if (navBox.width > spreadBox.width / 5) { worst.wide++; }
+      worst.rail = Math.max(worst.rail, Math.round(navBox.width));
+      worst.pct = Math.max(worst.pct, Math.round(navBox.width / spreadBox.width * 1000) / 10);
+      worst.rows = Math.max(worst.rows, cuts.length);
+      cuts.forEach(function (t) {
+        var r = t.getBoundingClientRect();
+        if (r.bottom > navBox.bottom + 1 || r.top < navBox.top - 1 ||
+            r.right > navBox.right + 1) { worst.clipped++; worst.book = b.id; }
+        var size = parseFloat(getComputedStyle(t).fontSize);
+        if (size < 11) { worst.tiny++; worst.book = b.id; }
+        worst.minFont = Math.min(worst.minFont, size);
+      });
+    };
+    books.slice(0, 14).forEach(function (b) {
+      __vs.openBook(b.id, null);
+      worst.checked++;
+      gauge(b);
+      /* Open the fold that draws the most rows, by going to the note that opens it. */
+      var widest = null, at = 0;
+      var walk = function (cuts, depth) {
+        cuts.forEach(function (c) {
+          if (!c.kids.length) return;
+          if (!widest || c.kids.length + depth > widest) { widest = c.kids.length + depth; at = c.at; }
+          walk(c.kids, depth + 1);
+        });
+      };
+      walk(__vs.indexTabs().cuts, 1);
+      if (widest) {
+        var cut = [].slice.call(document.querySelectorAll("#vs-tabs .vs-indextab"))
+          .filter(function (t) { return Number(t.getAttribute("data-at")) === at; })[0];
+        if (cut) { cut.click(); worst.folds++; gauge(b); }
+      }
+      __vs.closeReader();
+    });
+    return worst;
+  })()`);
+  let tall, short;
+  try {
+    await resize(1180, 1000); tall = await read();
+    await resize(1180, 480);  short = await read();
+  } finally {
+    await p.eval("__vs.closeReader();");
+    await resize(original.width, original.height);
+  }
+  const clean = (r) => !r.clipped && !r.outside && !r.tiny && !r.wide;
+  const say = (n, r) => `${n}: ${r.checked} books (${r.folds} folded), ${r.clipped} clipped, ` +
+    `${r.outside} outside the spread, ${r.wide} over a fifth of it, ${r.tiny} under 11px ` +
+    `(smallest ${r.minFont}px), rail ${r.rail}px = ${r.pct}%, most cuts on show ${r.rows}` +
+    (r.book ? ` -- worst ${r.book}` : "");
+  return { ok: clean(tall) && clean(short), detail: say("1180x1000", tall) + "; " + say("1180x480", short) };
+});
+
+/* github#32, design/0034 */
+check("one cut is lit, and it is the deepest the page has reached", async (p) => {
+  const r = await p.j(`(function(){
+    var books = [];
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) { books.push(b); }); });
+    books = books.filter(function (b) { return b.id.indexOf("favourites/") !== 0 && b.notes.length > 8; });
+    books.sort(function (a, b) { return b.notes.length - a.notes.length; });
+    var worst = 0, over = 0, checked = 0, wrong = null, litAtEnd = 0;
+    books.slice(0, 14).forEach(function (b) {
+      [0, Math.floor(b.notes.length / 2), b.notes.length - 1].forEach(function (i) {
+        __vs.openBook(b.id, b.notes[i].id);
+        var lit = [].slice.call(document.querySelectorAll('#vs-tabs .vs-indextab[aria-current="true"]'));
+        checked++;
+        if (lit.length > worst) worst = lit.length;
+        if (lit.length > 1) { over++; wrong = b.id; }
+        if (i === b.notes.length - 1 && lit.length === 1) litAtEnd++;
+        /* The lit cut is at or before the page, and the next one is past it. */
+        if (lit.length === 1) {
+          var all = [].slice.call(document.querySelectorAll("#vs-tabs .vs-indextab"));
+          var k = all.indexOf(lit[0]);
+          var after = all[k + 1];
+          if (Number(lit[0].getAttribute("data-at")) > i ||
+              (after && !after.classList.contains("vs-trailstep") &&
+               Number(after.getAttribute("data-at")) <= i)) { over++; wrong = b.id + " @" + i; }
+        }
+      });
+      __vs.closeReader();
+    });
+    return { worst: worst, over: over, checked: checked, wrong: wrong, litAtEnd: litAtEnd };
+  })()`);
+  return { ok: r.worst <= 1 && r.over === 0 && r.litAtEnd > 0,
+           detail: `${r.checked} openings across 14 books: most lit at once ${r.worst}, ` +
+                   `${r.over} wrong${r.wrong ? " (" + r.wrong + ")" : ""}, ` +
+                   `${r.litAtEnd} of 14 lit exactly one at the last note` };
+});
+
+/* github#32, design/0034 */
+check("the rail lists one level under the trail it came through", async (p) => {
+  const r = await p.j(`(function(){
+    var books = [];
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) { books.push(b); }); });
+    books = books.filter(function (b) { return b.id.indexOf("favourites/") !== 0; });
+    books.sort(function (a, b) { return b.notes.length - a.notes.length; });
+    var rows = function () {
+      return [].slice.call(document.querySelectorAll("#vs-tabs .vs-indextab")).map(function (t) {
+        var r = t.getBoundingClientRect();
+        return { label: t.textContent, at: Number(t.getAttribute("data-at")),
+                 trail: t.classList.contains("vs-trailstep"),
+                 back: t.getAttribute("data-back") === "1",
+                 opens: t.getAttribute("data-opens") === "1", right: Math.round(r.right) };
+      });
+    };
+    var found = null;
+    for (var i = 0; i < books.length && !found; i++) {
+      __vs.openBook(books[i].id, null);
+      var cuts = __vs.indexTabs().cuts;
+      var best = null;
+      cuts.forEach(function (c) { if (!best || c.kids.length > best.kids.length) best = c; });
+      if (!best || best.kids.length < 2) { __vs.closeReader(); continue; }
+      var before = rows();
+      var button = [].slice.call(document.querySelectorAll("#vs-tabs .vs-indextab"))
+        .filter(function (t) { return Number(t.getAttribute("data-at")) === best.at; })[0];
+      if (!button) { __vs.closeReader(); continue; }
+      /* design/0034 -- pressing a cut GOES there as well as opening it: a tab is a position. */
+      button.click();
+      var open = rows();
+      var trail = open.filter(function (r) { return r.trail; });
+      var level = open.filter(function (r) { return !r.trail; });
+      var moved = __vs.reader().index;
+      /* And pressing the trail step is the way back. */
+      var step = [].slice.call(document.querySelectorAll("#vs-tabs .vs-trailstep"))[0];
+      step.click();
+      var back = rows();
+      found = {
+        book: books[i].id,
+        top: before.length, kids: best.kids.length, level: level.length,
+        trail: trail.length,
+        trailIsBack: trail.every(function (r) { return r.back && !r.opens; }),
+        /* The staircase: every trail step stands further in than the level it opened. */
+        staircase: trail.every(function (r) { return r.right < level[0].right; }),
+        wentThere: moved === best.at,
+        cameBack: back.length === before.length &&
+                  back.every(function (r, k) { return r.at === before[k].at; })
+      };
+      __vs.closeReader();
+    }
+    return found;
+  })()`);
+  if (!r) return { ok: false, detail: "no book here has a cut with anything under it" };
+  return { ok: r.level === r.kids && r.trail === 1 && r.trailIsBack && r.staircase &&
+               r.wentThere && r.cameBack,
+           detail: `${r.book}: ${r.top} cuts at the top; pressing the one with ${r.kids} under it ` +
+                   `shows ${r.level} of them (went to its note: ${r.wentThere}) under ${r.trail} ` +
+                   `trail step marked back (${r.trailIsBack}) and stepped in (${r.staircase}); ` +
+                   `pressing it comes back (${r.cameBack})` };
 });
 
 /* design/0032 */
@@ -6624,7 +6819,7 @@ check("index tabs compress without scrolling and shelf icons edit and hide", asy
     await resize(original.width,original.height);
   }
   return {ok:icons.count===2&&['matched','dots','edits','hides','keeps'].every(k=>icons[k])&&
-    [tall,short,date].every(r=>r.count>0&&r.fits&&r.scroll<=1&&r.width===56)&&short.height<tall.height&&
+    [tall,short,date].every(r=>r.count>0&&r.fits&&r.scroll<=1&&r.width===72)&&short.height<=tall.height&&
     JSON.stringify(tall.controls)===JSON.stringify(short.controls)&&JSON.stringify(short.controls)===JSON.stringify(date.controls),
     detail:JSON.stringify({icons,tall,short,date,restored:await p.j("({width:innerWidth,height:innerHeight,pending:__vs.room().pending})"),original})};
 });
@@ -6642,8 +6837,10 @@ check("the reader's index tabs stay countable on the biggest book", async (p) =>
     __vs.closeReader();
     return out;
   })()`);
-  return { ok: r.tabs > 0 && r.tabs <= 26,
-           detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} tabs (cap 26)` };
+  /* github#32, design/0034 -- what bounds the rail is what fits in it, and the deeper cuts
+   * are a press away rather than dropped. 26 was a number standing in for the measurement. */
+  return { ok: r.tabs > 0 && r.tabs <= 40,
+           detail: `${r.book} holds ${r.notes} notes behind ${r.tabs} cuts on show (ceiling 40)` };
 });
 
 /* design/0027 */

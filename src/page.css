@@ -1155,7 +1155,8 @@
 .vault-shelf .vs-page.vs-right {
   background: var(--surface-2);
   padding-left: 32px;
-  padding-right: 72px;
+  /* design/0034 -- the rail's 72px and 16px of air */
+  padding-right: 88px;
 }
 .vault-shelf .vs-page.vs-right::after {
   left: 0;
@@ -1349,7 +1350,10 @@
  * always there and the tabs are cut from it; a lone find glass read as a tab that fell off. */
 .vault-shelf .vs-tabs {
   container-type: size;
-  width: 56px;
+  /* design/0034 -- 56px of cut at the fore-edge plus 16px of reserved staircase. Reserved, not
+   * grown: a rail that widened as the trail deepened would reflow the prose under the hand
+   * that was pressing it. So the index costs the prose column one width, always. */
+  width: 72px;
   position: absolute;
   top: 16px;
   right: 0;
@@ -1387,20 +1391,53 @@
 }
 
 .vault-shelf .vs-tabs button[data-level="0"] { font-weight: 600; }
-.vault-shelf .vs-tabs button[data-level="1"] { margin-left: 8px; min-width: 36px; }
-.vault-shelf .vs-tabs button[data-level="2"] { margin-left: 16px; min-width: 30px; font-size: 10px; opacity: 0.85; }
 
-/* Protruding tabs, cut from the page rather than stuck on it. */
+/* design/0034 -- THE STAIRCASE. Each step of the trail stands one notch further in from the
+ * fore-edge than the one below it, so the list being read is always at the edge of the book
+ * and the steps above say how you got there. The rail keeps one width whatever the fold. */
+.vault-shelf .vs-tabs { --vs-stepin: 8px; }
+.vault-shelf .vs-tabs .vs-trailstep { font-weight: 500; opacity: 0.82; }
+.vault-shelf .vs-tabs button[data-step="1"] { margin-right: var(--vs-stepin); }
+/* Two notches is a staircase; a third would only cost the label its room, so anything deeper
+ * stands where the second stands. */
+.vault-shelf .vs-tabs button[data-step="2"] { margin-right: calc(var(--vs-stepin) * 2); }
+
+/* design/0034 -- A TAB IS A CUT, NOT A PLATE. The old rule rounded the OUTER corners and
+ * dropped the inner border, which is a button hanging off the fore-edge. A printed thumb index
+ * is the other way round: the leaf is cut, so the tab is square and flush where the page ends
+ * and the arc is on the inside, where the knife went in. */
 .vault-shelf .vs-tabs button {
   flex-shrink: 0;
-  border-radius: 0 3px 3px 0;
-  border-left: 0;
-  min-width: 42px;
+  border-radius: 3px 0 0 3px;
+  border-right: 0;
+  min-width: 0;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  /* github#9 */
-  box-shadow: 1px 1px 2px color-mix(in srgb, #000 14%, transparent);
+  position: relative;
+  /* github#9, design/0034 -- the shadow falls out of a cut, not off a plate */
+  box-shadow: -1px 1px 2px color-mix(in srgb, #000 14%, transparent);
 }
+
+/* design/0034 -- THE STACK. The gap goes and adjacent hairlines collapse into one rule, so the
+ * strip reads as one cut edge divided into leaves rather than a column of floating plates.
+ * This is the change that does most of the work: three pixels of air between the cuts is what
+ * made them read as buttons stuck to the side of the book. */
+.vault-shelf .vs-tabs .vs-indextab + .vs-indextab { margin-top: -1px; }
+
+/* design/0034 -- a cut that opens further says so, pointing out toward the fore-edge, which is
+ * the way it opens; a trail step points back, and the glyph is the way back. */
+.vault-shelf .vs-tabs .vs-indextab::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.55;
+}
+.vault-shelf .vs-tabs .vs-indextab[data-opens="1"]::before { content: "\203A"; }
+.vault-shelf .vs-tabs .vs-indextab[data-back="1"]::before { content: "\2039"; }
 
 .vault-shelf .vs-tabs button[aria-current="true"] {
   color: #fff;
@@ -1419,15 +1456,18 @@
 .vault-shelf .vs-tabs .vs-findtab,
 .vault-shelf .vs-tabs .vs-indextoggle { height: 28px; min-height: 28px; max-height: 28px; flex: 0 0 28px; }
 .vault-shelf .vs-tabs .vs-findtab { margin-bottom: 3px; }
+/* design/0032, design/0034 -- THE COMPRESSION HAS A FLOOR. Sharing the height between the cuts
+ * is right while they stay readable and a lie once they do not: 25 cuts in a 480px-high window
+ * came out 6.7px tall at 5.2px type, which is an index you cannot read rather than one you
+ * cannot see. It shares down to VS_TAB_MIN and no further, and below that the cut gathers
+ * instead -- which is what `fitTabs` measures against. */
 .vault-shelf .vs-tabs .vs-indextab {
-  --vs-tab-step: min(31px, calc((100cqh - 67px) / var(--vs-tab-count)));
-  --vs-tab-gap: min(3px, calc(var(--vs-tab-step) * 0.1));
-  flex: 0 0 max(0px, calc(var(--vs-tab-step) - var(--vs-tab-gap)));
-  height: max(0px, calc(var(--vs-tab-step) - var(--vs-tab-gap)));
-  min-height: 0; padding: 0 6px; margin-top: var(--vs-tab-gap); line-height: 1;
-  font-size: min(11.5px, max(0px, calc(var(--vs-tab-step) * 0.7))); overflow: hidden;
+  --vs-tab-step: clamp(20px, calc((100cqh - 67px) / var(--vs-tab-count)), 31px);
+  flex: 0 0 var(--vs-tab-step);
+  height: var(--vs-tab-step);
+  min-height: 0; padding: 0 5px 0 13px; line-height: 1;
+  font-size: 11.5px; overflow: hidden;
 }
-.vault-shelf .vs-tabs .vs-indextab[data-level="2"] { font-size: min(10px, max(0px, calc(var(--vs-tab-step) * 0.7))); }
 .vault-shelf .vs-appearance .vs-swatch { background: var(--swatch); }
 .vault-shelf .vs-appearance .vs-swatches { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
 .vault-shelf .vs-appearance .vs-swatch { width: 100%; }
@@ -1971,9 +2011,12 @@
   .vault-shelf .vs-tabs { container-type: normal; gap: 3px; width: 100%; flex-direction: row; position: static; padding: 0 18px 12px; flex-wrap: wrap;
                           height: auto; background: none; }
   /* github#14 -- the same side as upright, so a tab is one box. */
-  .vault-shelf .vs-tabs button { border-radius: 3px 3px 0 0; border-left: 0; }
-  .vault-shelf .vs-tabs .vs-indextab { flex: 0 0 auto; height: 28px; margin-top: 0; font-size: 11.5px; }
-  .vault-shelf .vs-tabs .vs-indextab[data-level="2"] { font-size: 10px; }
+  .vault-shelf .vs-tabs button { border-radius: 3px 3px 0 0; border-right: 1px solid var(--border); border-bottom: 0; }
+  /* design/0034 -- lying flat there is no fore-edge to step in from, so the trail does not. */
+  .vault-shelf .vs-tabs .vs-indextab { flex: 0 0 auto; height: 28px; font-size: 11.5px; }
+  .vault-shelf .vs-tabs .vs-indextab,
+  .vault-shelf .vs-tabs .vs-indextab + .vs-indextab { margin: 0; }
+  .vault-shelf .vs-tabs button[data-step] { margin-right: 0; }
   .vault-shelf button { min-height: 34px; }
 }
 

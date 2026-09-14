@@ -2622,9 +2622,54 @@ has a 343px sheet, zero horizontal overflow, fourteen swatches and six binding s
 ## Compressing index and shelf actions - design/0032
 
 Right-edge tabs share the available height without scrolling. Search and A-Z/Date stay
-28px high with unchanged type sizes. At 1180x480 all 25 alphabetical tabs fit inside the
-56px strip, with zero scroll overflow; switching to Date keeps both fixed controls equal.
+28px high with unchanged type sizes. At 1180x480 every alphabetical cut fits inside the
+72px strip, with zero scroll overflow; switching to Date keeps both fixed controls equal.
 At narrow widths the horizontal index wraps below the pages.
+
+**The sharing has a floor, and the strip is 72px - design/0034.** A cut shares down to 20px
+and no further; below that the cut gathers instead of shrinking. Before that floor, 25 cuts
+in a 480px-high window came out **6.7px tall in 5.2px type**, and the worst book in the
+library reached **4.09px** - an index you cannot read rather than one you cannot see. Type
+is 11.5px at every size now. The short window's cuts are no longer required to be strictly
+shorter than the tall window's, because the floor may stop them being so.
+
+## The thumb index - design/0034
+
+**The cut is a tree and the rail lists one level of it**, under the cuts it came through.
+Pressing a cut goes to its note *and* opens what is under it; pressing a trail step comes
+back and moves nobody. The state is one number - how deep the rail is - and every cut shown
+is derived from where the page stands, so Next carries the trail with it.
+
+**Nothing is dropped to make it fit.** The old cap of about thirty tabs dropped the days and
+then the months: `people/-unfiled`, 2,450 notes, showed **11 year tabs with nothing under
+them**. It now shows 11 years, each opening its months. A level that overflows is halved into
+spans naming what they open (`Jan-Apr`), and the cuts it held become what those spans open; a
+range of ranges is still one range, so gathering twice reads `Jan-Aug`. Every level at that
+depth is gathered together, never one at a time.
+
+**Fit is measured, not calculated**, off the last cut's own bottom and never `scrollHeight` -
+the rail's overflow is visible by design, and a box that does not scroll does not reliably
+report a scrolling area. It is fitted to the **fattest level the book can show**, not the one
+open now, so a page turn cannot re-fit the index and give one book two shapes. The rail is
+re-fitted on every room measure, before the width is compared: the room ignores a resize that
+changed only the height, and the rail is fitted to the height it has.
+
+**Measured 2026-09-14 over the fourteen fattest books, at 1180x1000 and 1180x480:** 0 clipped,
+0 outside the spread, 0 over a fifth of it, smallest type **11.5px** at both sizes, rail
+**72px = 6.6% of the spread**, most cuts on show 32. Exactly **1** cut lit over 42 openings
+(before: up to **26 of 26**, because `aria-current` was set on every cut at or before the
+page).
+
+**A tab is a cut, not a plate**: `border-radius: 3px 0 0 3px` with `border-right: 0`, the gap
+between cuts gone and adjacent hairlines collapsed by `margin-top: -1px`, and the shadow
+falling down-and-left out of a cut rather than down-and-right off a plate. The geometry is
+`page.css`'s alone; leather and cyber keep only their type and the depth of their shadow, and
+both look checks stay at **0 off**.
+
+**The rail reserves its staircase rather than growing into it** - 56px of cut at the fore-edge
+plus 16px of trail gutter, one width whatever the fold, so the prose never reflows under the
+hand pressing the index. The index costs the right-hand page **88px of padding where it cost
+72px**. Trail steps step in 8px each, to a maximum of two notches.
 
 Shelf metadata ends in dot-separated gear and eye buttons. Both are always visible, use
 equal 12px SVGs and inherit the note count's colour. The regression drives Edit and Hide,

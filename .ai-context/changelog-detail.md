@@ -1,5 +1,50 @@
 # Changelog detail
 
+## 2026-09-14 - The index rail reads like a thumb index, and fits (github#32, design/0034)
+
+Measured on the vault shape over the fourteen fattest books, before and after, at two window
+heights. `--jobs 1`, one Chrome.
+
+| | before | after |
+|---|---|---|
+| cuts clipped, 1180x1000 | 0 | 0 |
+| cuts clipped, 1180x480 | 0 | 0 |
+| **smallest cut type, 1180x480** | **5.2px** on `tags/project/website-migration`; **4.09px** over the whole library | **11.5px** |
+| smallest cut box, 1180x480 | **6.7px** | 20px |
+| smallest cut type, 1180x1000 | 11.5px | 11.5px |
+| rail width | 56px, 5.2% of the spread | 72px, **6.6%** |
+| what the index costs the prose column | 72px of padding | 88px |
+| most cuts on show at once | 27 | 32 |
+| `people/-unfiled` (2,450 notes) | 11 year tabs, **months and days dropped by the ~30 cap** | 11 years, each opening its months; **nothing dropped** |
+| `tags/garden` (808 notes) | 26 tabs | 27 cuts, 22 of them opening further |
+| cuts lit at the end of a book | up to **26 of 26**, and more than one on every book measured | **1**, over 42 openings |
+| rail re-fits on a height-only resize | **no** - 25 cuts, `scroll: 289` overflowing at 1180x480 | yes, 7 cuts, `scroll: 0` |
+
+**The three answers that had already been tried.** `overflow: hidden` clipped the cuts in
+silence; `dateTabs`' cap of about thirty dropped the days and then the months; `design/0032`
+replaced the clip with compression that ran all the way down to 4.09px type. All three end in
+something the reader cannot use.
+
+**The negative test.** Restoring only `src/page.css` to `origin/develop` and leaving the new
+JavaScript in place turns *no index cut is clipped, and none is shrunk past reading* red with
+**305 cuts under 11px, smallest 4.09px** at 1180x480 - the floor is doing the work, not the
+gathering alone.
+
+**Two bugs that only measuring found.** `aria-current` was on every cut at or before the page,
+so a book read to its end lit the whole rail. And the room watcher deliberately ignores a
+resize that did not change the *width* - correct for the packing, wrong for a rail fitted to
+the height it has, so a window dragged shorter kept the index it had been fitted for and let
+the end of it hang off the bottom. Neither is visible to a check that counts tabs.
+
+**One dead end, costed.** Gathering only the single level that overflowed spent all sixteen
+passes on one book's days and never reached its years: `people/-unfiled` came out with 11 cuts
+overflowing the rail by 23px, with the trace `33x 33x 30x 30x 28x 27x 25x 25x 25x 25x 23x 23x
+22x 21x 20x 20x`. Gathering every level at that depth together converges in a handful of passes
+and is also the right answer to look at - one year's months gathered into spans while the next
+year's stand singly is two indexes in one book.
+
+Checks 88 -> **91**; `check-comments` baseline 1477 -> 1546.
+
 ## 2026-09-13 - Context-budget cleanup: history moved out of CLAUDE.md
 
 Phase 3 of Lukas's context-budget cleanup (via Alfred) pulled the following history clauses out
