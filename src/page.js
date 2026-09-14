@@ -1716,7 +1716,7 @@ function mountVaultShelf(root, data, options) {
    * github#70, design/0035
    * @param {import("./core/index").IndexMode} mode @returns {string}
    */
-  function railFace(mode) { return mode === "number" ? "0–9" : indexLabel(mode); }
+  function railFace(mode) { return mode === "number" ? "0\u20139" : indexLabel(mode); }
 
   /** @param {HTMLElement} box @param {import("./core/index").IndexMode|undefined} mode
    * @param {import("./core/index").IndexMode} automatic @param {(mode: import("./core/index").IndexMode|null) => void} pick
@@ -1758,7 +1758,8 @@ function mountVaultShelf(root, data, options) {
     /* github#70, design/0035 */
     var numeric = !shelf && books.length > 0 &&
       books.every(function (book) { return core.numericBook(book.notes); });
-    indexChoices(menu, mode, core.indexMode(home), function (choice) {
+    var automatic = core.indexMode(home);
+    indexChoices(menu, mode, numeric && automatic === "az" ? "number" : automatic, function (choice) {
       if (shelf) {
         if (choice) shelf.indexMode = choice; else delete shelf.indexMode;
         delete shelf.bookIndexes;
@@ -2889,20 +2890,17 @@ function mountVaultShelf(root, data, options) {
 
   /**
    * github#70, design/0035
-   * @param {ShelfNote[]} notes @param {number} [base] @returns {Cut[]}
+   * @param {ShelfNote[]} notes @returns {Cut[]}
    */
-  function numberCuts(notes, base) {
-    var at = base || 0;
+  function numberCuts(notes) {
     var runs = runsOf(notes, function (n) { return core.leadingNumber(n.title); });
-    if (runs.length <= 1) {
-      /* design/0015 */
-      if (!runs.length || runs[0].size <= 3) return [];
-      return cutTree(runs[0].notes, at + runs[0].at, TITLE_DATE_LAYERS);
-    }
+    var under = function (/** @type {{ key: string, at: number, size: number, notes: ShelfNote[] }} */ r) {
+      return r.size <= 3 || !/^\d{4}$/.test(r.key) ? [] : cutTree(r.notes, r.at, TITLE_DATE_LAYERS);
+    };
+    /* design/0015 */
+    if (runs.length <= 1) return runs.length ? under(runs[0]) : [];
     return runs.map(function (r) {
-      return { label: numberLabel(r.key), at: at + r.at,
-               kids: r.size <= 3 || !/^\d{4}$/.test(r.key) ? []
-                   : cutTree(r.notes, at + r.at, TITLE_DATE_LAYERS) };
+      return { label: numberLabel(r.key), at: r.at, kids: under(r) };
     });
   }
 

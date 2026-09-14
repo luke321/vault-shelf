@@ -4441,4 +4441,11 @@ notes inside a book, not where books stand. `INDEX_MODES` is now the one list of
 `LOOKS` and `migrate` validates against it; no schema bump, since an older file never carries
 `number` and an older build already drops what it does not know.
 
+**And a picker asked the wrong thing.** A numeric book with nothing saved drew its two buttons
+with *neither* pressed: `indexPicker` handed `indexChoices` the **shelf's** answer as the
+fallback, and a shelf has no notes, so it answers `az`. It now passes `number` where the shelf
+says `az` and every book in the selection qualifies. The check reads the picker **before** the
+toggle saves anything — read after, it passes on the saved value and proves nothing — and goes
+red at `number,date` where it now reads `number!,date`.
+
 One new check, *a volume of numbers reads by number, and only such a volume is offered it*.

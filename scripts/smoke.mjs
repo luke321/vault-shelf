@@ -6928,6 +6928,18 @@ check("a volume of numbers reads by number, and only such a volume is offered it
         return was.length !== v.length ? was.length < v.length : was <= v;
       });
 
+      /* Read BEFORE the toggle saves a mode: a fresh library has none, so this is the
+       * automatic answer, and neither button was pressed until it learned number. */
+      var picker = function (id) {
+        document.querySelector('[data-book="' + id + '"]')
+          .dispatchEvent(new MouseEvent("contextmenu", {bubbles:true,clientX:300,clientY:300}));
+        var out = [].map.call(document.querySelectorAll("#vs-dye .vs-indexbuttons button"),
+          function (b) { return b.dataset.indexMode + (b.getAttribute("aria-pressed") === "true" ? "!" : ""); });
+        document.dispatchEvent(new KeyboardEvent("keydown", {key:"Escape",bubbles:true}));
+        return out.join(",");
+      };
+      var digitPicker = picker(digits.id);
+
       __vs.openBook(digits.id, null);
       var toggle = document.querySelector(".vs-indextoggle");
       var face = toggle.textContent;
@@ -6952,11 +6964,7 @@ check("a volume of numbers reads by number, and only such a volume is offered it
       var sameBox = Math.round(letterBox.width) === Math.round(box.width) &&
                     Math.round(letterBox.height) === Math.round(box.height);
       __vs.closeReader();
-      document.querySelector('[data-book="' + letters.id + '"]')
-        .dispatchEvent(new MouseEvent("contextmenu", {bubbles:true,clientX:300,clientY:300}));
-      var offered = [].map.call(document.querySelectorAll("#vs-dye .vs-indexbuttons button"),
-        function (b) { return b.dataset.indexMode; });
-      document.dispatchEvent(new KeyboardEvent("keydown", {key:"Escape",bubbles:true}));
+      var offered = picker(letters.id);
 
       var blob = JSON.parse(JSON.stringify(settings));
       var shelf = blob.shelves.filter(function (s) { return s.id === "encyclopedia"; })[0];
@@ -6969,7 +6977,8 @@ check("a volume of numbers reads by number, and only such a volume is offered it
                face: face, cropped: cropped, faceBox: faceBox, sameBox: sameBox,
                mode: mode, toDate: toDate, back: back,
                cuts: cuts.length, numbered: numbered, sample: cuts.slice(0, 8).join(" "),
-               letterKey: letters.key, letterMode: letterMode, offered: offered,
+               letterKey: letters.key, letterMode: letterMode,
+               offered: offered, digitPicker: digitPicker,
                numericDigits: core.numericBook(digits.notes),
                numericLetters: core.numericBook(letters.notes),
                keptNumber: kept["0-9"] === "number", droppedUnknown: !("A" in kept) };
@@ -6980,16 +6989,17 @@ check("a volume of numbers reads by number, and only such a volume is offered it
   /* design/0034 */
   const ok = r.rising && r.mode === "number" && r.toDate === "date" && r.back === "number" &&
              r.numbered && r.cropped <= 0 && r.sameBox && r.letterMode === "az" &&
-             r.offered.join(",") === "az,date" && r.numericDigits && !r.numericLetters &&
-             r.keptNumber && r.droppedUnknown;
+             r.offered === "az!,date" && r.digitPicker === "number!,date" &&
+             r.numericDigits && !r.numericLetters && r.keptNumber && r.droppedUnknown;
   return { ok, detail:
     `the 0-9 volume's ${r.notes} notes open ${r.opens} and end ${r.last}, never stepping ` +
     `back: ${r.rising}; its face reads "${r.face}" in ${r.faceBox} with ${r.cropped}px over ` +
     `the box and the lettered volume's box (${r.sameBox}), over ` +
     `${r.cuts} cuts (${r.sample}), every one a number: ${r.numbered}; the toggle runs ` +
-    `${r.mode} -> ${r.toDate} -> ${r.back}; volume ${r.letterKey} stays ${r.letterMode} and ` +
-    `is offered ${r.offered.join("/")}; migration keeps number (${r.keptNumber}) and drops ` +
-    `an unknown mode (${r.droppedUnknown})` };
+    `${r.mode} -> ${r.toDate} -> ${r.back} and its picker offers ${r.digitPicker} ` +
+    `(! is pressed); volume ${r.letterKey} stays ${r.letterMode} and is offered ` +
+    `${r.offered}; migration keeps number (${r.keptNumber}) and drops an unknown mode ` +
+    `(${r.droppedUnknown})` };
 });
 
 /* design/0032 */

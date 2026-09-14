@@ -2785,6 +2785,12 @@ fat ones open (was 11 of 12), with **no dead end** (was `0-9` x5) and **no** cut
 volume is offered it"` asserts all of it, plus the face fitting its box in both directions and
 migration keeping `number` while dropping an unknown mode.
 
+**A picker reads the automatic answer, not the shelf's.** A numeric book with nothing saved drew
+its two buttons with **neither** pressed, because the picker asked the shelf - which has no
+notes and so answers `az` - for what the book would fall back to. The check reads the picker
+**before** the toggle saves anything, and it goes red at `number,date` where it now reads
+`number!,date`.
+
 ## Age wear on a fresh library
 
 `lastOpened` is a separate ISO UTC/`never` map keyed by the same source address as `wear`.

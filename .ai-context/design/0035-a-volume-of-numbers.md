@@ -137,5 +137,9 @@ One new.
   lettered volume stays `az` and its picker offers `az,date` and never Number; and `migrate`
   keeps a saved `number` while dropping a mode it does not know.
 
-  Red on `develop` at the first assertion, and red mid-branch at the face: `Number ⇄` measured
-  6px over its box.
+  Red on `develop` at the first assertion, and red twice mid-branch: at the face, where
+  `Number ⇄` measured 6px over its box, and at the picker, where a numeric book with nothing
+  saved drew `number,date` with **neither pressed** — the picker asked the *shelf* what the book
+  would fall back to, and a shelf has no notes, so it answers `az`. The picker is therefore read
+  **before** the toggle saves a mode; read after, it passes on the saved value and proves
+  nothing.
