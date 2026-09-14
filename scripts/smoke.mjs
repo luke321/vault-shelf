@@ -5576,7 +5576,10 @@ check("shelf wear is recorded and drawn, and survives a rebuild", async (p) => {
 check("an open book shows the ribbons in it, three at most", async (p) => {
   const r = await p.j(`(function(){
     var months = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0];
-    var book = months.books.filter(function (b) { return b.notes.length >= 5; })[0];
+    /* SIX, NOT FIVE. Five get marked, and the turn below lands on the LAST row expecting a
+     * page with no ribbon -- on a book of exactly five that row is marked, and 0 stubs is the
+     * right answer to the wrong question. The vault shape's first five-note month was one. */
+    var book = months.books.filter(function (b) { return b.notes.length >= 6; })[0];
     __vs.openBook(book.id, null);
 
     var row = function () {
@@ -8490,8 +8493,21 @@ check("a lifted spine is painted whole, in every look", async (p) => {
     var track = sp.closest(".vs-track");
     var r = sp.getBoundingClientRect(), t = track.getBoundingClientRect();
     var cs = getComputedStyle(track);
+    var shelf = sp.closest(".vs-shelf");
+    var room = document.getElementById("vs-shelves");
+    /* The raw geometry travels with the answer: a track at a fractional top loses the band's
+     * bottom row to anti-aliasing and reads one pixel short, and nothing else says so. */
+    /* And every box that stands above the track, so a fractional top can be traced to the
+     * element that put it there. */
+    var above = [].slice.call(document.querySelectorAll("#vs-app > *, #vs-shelves > *, #vs-shelves .vs-shelf:first-child > *"))
+      .map(function (e) { var b = e.getBoundingClientRect();
+                          return { who: e.id || e.className || e.tagName, top: b.top, h: b.height }; })
+      .filter(function (b) { return b.h > 0 && b.top < t.top; });
     return { left: r.left, w: r.width, top: r.top, trackTop: t.top,
-             contain: cs.contain, declared: parseFloat(cs.overflowClipMargin) || 0 };
+             contain: cs.contain, declared: parseFloat(cs.overflowClipMargin) || 0,
+             shelf: shelf ? shelf.getAttribute("data-shelf") : null,
+             scrollY: window.scrollY, roomScroll: room ? room.scrollTop : null,
+             above: above };
   })()`);
 
   const MOVED = 6;   /* github#51 -- dither is a unit; an arriving edge moves one by tens */
@@ -8536,7 +8552,7 @@ check("a lifted spine is painted whole, in every look", async (p) => {
     const r = await paintedAbove(over);
     await sheet("");
     granted.push({ look: name, declared: over.declared, got: r.above, contain: over.contain,
-                   moves: r.moves });
+                   moves: r.moves, geo: over });
 
     /* github#51 -- 2. one real state, query-lifted: no hover to race. */
     const needle = await p.j(`(function(){
@@ -8586,6 +8602,7 @@ check("a lifted spine is painted whole, in every look", async (p) => {
     detail: `a spine lifted ${OVER}px paints this far above its track, against the room page.css ` +
             `declares -- ` +
             granted.map((x) => `${x.look} ${x.got}px of ${x.declared}px` +
+              (x.geo ? ` (track top ${x.geo.trackTop})` : "") +
               ((x.contain || "").indexOf("paint") < 0 ? " (CONTAINMENT OFF)" : "")).join(", ") +
             `; and a real search match, lifted by the query rather than the pointer, is painted ` +
             `to its own top edge -- ` +
@@ -8594,7 +8611,9 @@ check("a lifted spine is painted whole, in every look", async (p) => {
             (wrongRoom.length
               ? ` -- ROOM NOT GRANTED: ` + wrongRoom.map((x) =>
                   `${x.look} declares ${x.declared}px and paints ${x.got}px ` +
-                  `(rows moved by ${x.moves})`).join(", ")
+                  `(rows moved by ${x.moves}; shelf ${x.geo.shelf}, track top ${x.geo.trackTop}, ` +
+                  `spine top ${x.geo.top}, scrollY ${x.geo.scrollY}, room scrollTop ${x.geo.roomScroll}; ` +
+                  `above it: ${(x.geo.above || []).map((b) => `${b.who}@${b.top}+${b.h}`).join(" | ")})`).join(", ")
               : "") +
             (notClipping.length
               ? ` -- THE CLIP STOPPED CLIPPING in ${notClipping.map((x) => x.look).join(", ")}: ` +

@@ -286,6 +286,49 @@ Measured 2026-09-14 on the vault shape, over the fourteen fattest books, at 1180
 | cuts lit at the end of a book | up to **26 of 26** | **1** |
 | **Encyclopedia `0-9`** | 2,063 notes, 15 cuts, **0 opening**, `2026` a leaf of **587** | 2,064 notes, 16 cuts, **11 of 12 fat ones open**; `2026` (596)→9 months, `Sep` (91)→13 days; biggest dead end **5** |
 
+## What the lane parity exposed
+
+The merge to `develop` came back with two checks red that had never been red before, both of them
+older than this branch, both green on `develop` the moment `src/` and `scripts/` were reverted in
+place. Neither was in the diff. Both were in what the diff *moved*.
+
+**A check's lane is its parity.** `smoke.mjs` deals the steady checks into its two Chromes
+round-robin by index — `out[i % k]` — so inserting one check flips the lane of every check after
+it, and moving three into the serial lane flips it again. *A lifted spine is painted whole, in
+every look* had run in lane 1 for as long as it had existed; this branch put it in lane 2, after a
+predecessor that leaves a second shelf standing above the Encyclopedia. That was enough.
+
+**A shelf stood on a quarter-pixel, by design.** With the extra shelf above it the Encyclopedia's
+track sat at `y = 652.25`: the rail was **46.5px** tall (`#vs-q` at 13px × `line-height: 1.5` =
+19.5 of text) and every shelf **217.25** (`.vs-shelfhead { min-height: 32.25px }`, pinned in
+[0021](0021-one-geometry-three-faces.md) to the modern look's measured height so leather and cyber
+would move nothing). Fresh, the fractions happened to sum whole; one more shelf and they did not.
+The track's 7px `overflow-clip-margin` then put the clip edge at 645.25, **which Chrome snaps to
+646**, and a lifted spine painted six of its seven — in every look, for a pointer lift and a query
+lift alike. Not the check's arithmetic: the browser's. Any reader with a ribbon in a book has the
+Reading shelf, and so the fraction, and so the missing pixel.
+
+So the geometry is whole pixels now: the head's floor is **32px** (the tallest thing in it is 29
+in every look, so it is still a floor and moves nothing but the fraction), and a text field's line
+box is **20px** rather than 1.5 × 13, so the rail is **47**. Measured fresh: track top **409**,
+**7 of 7** painted, in all three looks. Every layout golden moved with it and was rewritten.
+
+**The check says where the track was.** It printed *6px of 7px* and nothing else; now it prints
+the track's raw `top`, the scroll state, and every box standing above the track — which is what
+found the shelf head in one run rather than a bisection of forty predecessors.
+
+**Rejected: rounding in the check.** Reading the band from a rounded edge would have gone green
+and left every reader's lifted spine a pixel short. The check was right.
+
+**Rejected: putting the lanes back.** The parity is an accident of source order; restoring it
+would have hidden the same defect behind the same luck.
+
+**And the other red was the fixture.** *An open book shows the ribbons in it, three at most* takes
+the first Months book with **five** notes, marks five, and then turns to the last row expecting a
+page with no ribbon. The re-cut vault's first such book — `2015-09` — has exactly five, so the last
+row was marked and *0 stubs* was the right answer to the wrong question. It asks for six now, and
+says why.
+
 ## The checks
 
 Four new, 88 → **92**.

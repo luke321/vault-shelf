@@ -2702,6 +2702,24 @@ text's own laid-out rect can. And the crop only shows on the **deepest** fold, s
 of the staircase takes another 5px off the label beside it: one level open, 0 cropped; all of
 them, 6.
 
+**Every box above a track is a whole pixel** (`github#32`, design/0034, amending design/0021).
+The shelf head's floor was **32.25px** and a text field's line box 13 × 1.5 = 19.5, so the rail
+was **46.5** and every shelf **217.25**; with a Reading shelf above it the Encyclopedia's track
+sat at **652.25**, its 7px clip edge at 645.25, which Chrome snaps to 646 - and *a lifted spine
+is painted whole, in every look* read **6 of 7** in all three looks, for a pointer lift and a
+query lift alike. The head is **32px** and a field's line box **20px** now, the rail **47**;
+fresh, the track sits at **409** and paints **7 of 7**. The check prints the track's raw top,
+the scroll state and every box above it on failure, which is what found the head in one run.
+
+**A check's lane is its parity.** `smoke.mjs` deals steady checks round-robin by index, so one
+inserted check flips the lane of every check after it. That is how a defect older than this
+branch turned red on it: the same predecessors had never preceded that check before. Neither
+rounding the check nor restoring the order was taken - the pixel was really missing.
+
+**The ribbons check asks for six notes, not five.** It marks five and then turns to the last row
+expecting a page without a ribbon; on the re-cut vault the first five-note month (`2015-09`)
+has exactly five, so that row was marked and 0 stubs was correct. `2015-10`, 15 notes, now.
+
 **The face of the contents toggle names the rail, and a glyph says it is pressable.** The cuts
 directly under it are cut by that mode - letters under `A-Z`, years under `Date` - so a face
 showing the mode it would switch *to* would stand the word `Date` on top of a column of

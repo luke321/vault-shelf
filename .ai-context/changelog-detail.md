@@ -1,5 +1,30 @@
 # Changelog detail
 
+## 2026-09-14 - A shelf stands on a whole pixel, and a check names its lane (github#32, design/0034)
+
+The merge to `develop` came back **137/139**, two checks red that pre-date the branch and pass on
+`develop` with `src/` and `scripts/` reverted in place. Neither was in the diff.
+
+**A lifted spine is painted whole, in every look: 6px of 7px, all three looks, both lift kinds.**
+`smoke.mjs` shards its steady checks round-robin by index, so one inserted check flipped the lane
+of every check after it, and this one met a predecessor that leaves a second shelf above the
+Encyclopedia. Its track then sat at **652.25**: the rail was **46.5** (`#vs-q`, 13px x 1.5 = 19.5)
+and every shelf **217.25** (`.vs-shelfhead { min-height: 32.25px }`, design/0021's pin to the
+modern look's measured height). The 7px clip edge at 645.25 is snapped by Chrome to 646 - a real
+missing pixel for any reader with a ribbon in a book, not a measurement artefact. Fixed in the
+geometry, not the check: head floor **32px**, field line box **20px**, rail **47**. Fresh: track
+top **409**, **7 of 7**, every look. The layout golden moved everywhere by a fraction and was
+rewritten. The check now prints the track's raw top, the scroll state and every box above it on
+failure, which is what found the head in a single run.
+
+**An open book shows the ribbons in it, three at most: 0 stubs on a page that was not free.**
+Purely the re-cut fixture: the check took the first Months book with five notes, marked five, and
+turned to the last row expecting no ribbon there - `2015-09` has exactly five. It asks for six
+now; `2015-10` holds 15.
+
+Split by running the suite on this branch with `develop`'s generator: ribbons green, spine still
+red - so one was the vault and one was the tree.
+
 ## 2026-09-14 - The 0-9 volume opens, and the contents toggle says it is one (github#32, design/0034)
 
 Lukas, looking at the demo: *"when opening 0-9 encyclopedia there are no sub tags althought we

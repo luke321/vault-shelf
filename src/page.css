@@ -251,7 +251,9 @@
   /* Explicit, so a look that raises the page's base size for its prose (leather, 17px) does
    * not raise the box: a search field is the same height in every look. */
   font-size: 13px;
-  line-height: 1.5;
+  /* github#32 -- 20px, not 1.5: 13 x 1.5 is 19.5, which made the field 29.5 and the rail
+   * 46.5, and every shelf below it stood on a half-pixel. */
+  line-height: 20px;
   color: var(--text-1);
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -365,7 +367,8 @@
 .vault-shelf select {
   font: inherit;
   font-size: 13px;
-  line-height: 1.5;
+  /* github#32 -- a whole-pixel line box; see #vs-q */
+  line-height: 20px;
   width: 100%;
   color: var(--text-1);
   background-color: var(--vs-field);
@@ -517,7 +520,12 @@
 /* github#14, design/0021 -- THE HEAD IS ITS BUTTONS' HEIGHT, in every look: it aligned on the
  * baseline, so a bigger face lowered the baseline and the head grew under it. */
 .vault-shelf .vs-shelfhead {
-  min-height: 32.25px;
+  /* github#32, design/0021 -- A WHOLE PIXEL. This floor was 32.25px, so every shelf stood
+   * 217.25px tall and each one below the first sat a quarter-pixel lower than the last; a
+   * track at 652.25 has its 7px clip edge at 645.25, which Chrome snaps to 646, and a lifted
+   * spine paints 6 of its 7. The tallest thing in the row is 29px in every look, so 32 is
+   * still a floor and moves nothing but the fraction. */
+  min-height: 32px;
   display: flex;
   align-items: center;
   gap: 10px;
