@@ -152,10 +152,18 @@ seeing `0-9` sitting between 2022 and 2023: *"hmm it shoulld be called 2022x ins
 is right, and the reason is the law this record already keeps — **a tab is a position**. `0-9` tells
 a reader nothing about where in a volume of 2,064 they have landed, and it tells them so three
 times over, since the numerics are not adjacent. `202212331243` files after every `2022-` note and
-before every `2023-` one, so its cut says `2022x`: where it sits, and that it is not the year.
+before every `2023-` one, so its cut says `2022·`: where it sits, and that it is not the year.
 
-It cost the rail's own headline number. `2022x` is **39px** against `2020`'s 32px and is now the
-widest label the rail draws — inside the 48px of cut with 9px to spare, **0 cropped** at 1180×1000
+**Amended by [0035](0035-a-volume-of-numbers.md): the mark is `·`, not `x`.** Lukas, on seeing it
+in the rail: *"never show more than for numbers, replace X with something else — or make it smaller
+and centered vertically so that it is clear it is a placeholder"*. `x` is a character of the same
+size as the digits beside it, so it reads as part of the number; a middle dot is small and sits at
+mid-height, which is what a placeholder looks like. It is also **narrower**: measured, `2022·` is
+**36px** where `2022x` was 39px, so the rail's headline number went the right way. `…` was tried
+first and refused at **43px in the 40px a cut leaves** — cropped.
+
+It cost the rail's own headline number. `2022x` was **39px** against `2020`'s 32px and was then the
+widest label the rail drew — inside the 48px of cut with 9px to spare, **0 cropped** at 1180×1000
 and at 1180×480, so the rail stays **60px**. The measured claim above is amended rather than the
 geometry: 32px was what the labels needed when every one of them was a year.
 

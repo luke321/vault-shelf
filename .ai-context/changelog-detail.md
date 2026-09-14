@@ -65,7 +65,8 @@ boxes moved, all month plaques, by up to 4px).
 **And its cut is named `2022x`, not `0-9`** - Lukas: *"hmm it shoulld be called 2022x instead of
 0-9"*. A tab is a position, and `0-9` says nothing about where in 2,064 notes you have landed - it
 says it three times over, since the numerics are not adjacent. `202212331243` files after every
-`2022-` note and before every `2023-` one, so the cut says so. It makes `2022x` at **39px** the
+`2022-` note and before every `2023-` one, so the cut says so. (**Amended 2026-09-15, `github#70`:
+the mark is `·` rather than `x` — smaller, mid-height, and 36px rather than 39.**) It makes `2022x` at **39px** the
 widest label the rail draws, against `2020`'s 32px: 9px inside the 48px of cut, **0 cropped** at
 either window size, rail unchanged at **60px**. The record's "what the labels need is 32px" is
 amended - that held while every label was a year.
@@ -4425,8 +4426,8 @@ Measured on the vault shape (`vault-c1f3a5ca`, 4,939 notes), the Encyclopedia's 
 | fat cuts that open | 11 of 12 | **11 of 11** |
 | biggest dead end | `0-9` ×5 | **none** |
 | `202212331243` | index 649, between 2022 and 2023 | **index 2063, last** |
-| its cut | `2022x`, 0 under it | `2022x`, 0 under it — unchanged |
-| widest rail label / rail width | `2022x` 39px / 60px | unchanged |
+| its cut | `2022x`, 0 under it | **`2022·`**, 0 under it |
+| widest rail label / rail width | `2022x` 39px / 60px | **`2022·` 36px** / 60px |
 | the toggle's face | `A–Z ⇄` in 55×28 | **`0–9 ⇄` in 55×28** |
 | Encyclopedia `oldest` vs `newest` | byte-identical | **byte-identical** |
 

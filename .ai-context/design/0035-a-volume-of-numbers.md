@@ -76,10 +76,20 @@ indexes.
 `Sep` and `Sep` into `04`, read off the title. `1000` yields no ISO month and falls out a leaf
 on its own, which is what a volume spine does with a number it cannot read.
 
-**A digit run is still named by the digits it opens with.** `202212331243` is `2022x`, which
-[0034](0034-the-thumb-index.md) settled and measured at 39px — still the widest label the rail
-draws, so the rail stays 60px. Under `number` the run now also sits where that label promises:
-last, after every year, rather than at index 649 between 2022 and 2023.
+**A digit run is still named by the digits it opens with, and the mark is a middle dot.**
+`202212331243` is `2022·`. [0034](0034-the-thumb-index.md) settled the label and wrote the mark as
+`x`; Lukas asked for something that reads as a placeholder rather than as a character of the
+number — *"make it smaller and centered vertically"* — and `·` is that glyph, at mid-height and a
+third the width. It is **plain text, not a span**: a span with its own `font-size` is an element
+*a look moves nothing on the page* measures, and that is the trap [0034](0034-the-thumb-index.md)
+records for the `⇄` glyph. Measured, `2022·` is **36px** where `2022x` was 39px, so the rail's
+widest label got narrower and the rail stays 60px.
+
+**Rejected: `…`.** The obvious truncation mark, and it does not fit: **43px in the 40px a cut
+leaves**, cropped, caught by *no index cut is clipped* on the first run.
+
+And under `number` the run now sits where its label promises: **last**, after every year, rather
+than at index 649 between 2022 and 2023.
 
 ## The rail says `0-9` and the picker says `Number`
 
@@ -121,8 +131,8 @@ Measured 2026-09-15 on the vault shape (`vault-c1f3a5ca`, 4,939 notes), the `0-9
 | fat cuts that open | 11 of 12 | **11 of 11** |
 | biggest dead end | `0-9` ×5 | **none** |
 | `202212331243` | index 649, between 2022 and 2023 | **index 2063, last** |
-| its cut | `2022x`, 0 under it | `2022x`, 0 under it — **unchanged** |
-| widest label / rail | `2022x` 39px / 60px | **unchanged** |
+| its cut | `2022x`, 0 under it | **`2022·`**, 0 under it |
+| widest label / rail | `2022x` 39px / 60px | **`2022·` 36px** / 60px |
 | the toggle's face | `A–Z ⇄` in 55×28 | **`0–9 ⇄` in 55×28** (`Number ⇄` wraps, 6px over) |
 | Encyclopedia `oldest` vs `newest` | byte-identical | **byte-identical** |
 

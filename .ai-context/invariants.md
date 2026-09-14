@@ -2669,7 +2669,7 @@ test is deliberately **not a plausible range**, so `1000 small decisions` still 
 `1000` beside `2015` - what a volume spine does with a number it cannot read.
 
 **A digit run is named by the digits it opens with.** `202212331243` files after every `2022-`
-note and before every `2023-` one, so its cut says **`2022x`** - where it sits, and that it is
+note and before every `2023-` one, so its cut says **`2022·`** - where it sits, and that it is
 not the year. `0-9` said neither, three times over, since the numerics are not adjacent. This
 made `2022x` at **39px** the widest label the rail draws, against `2020`'s 32px: inside the 48px
 of cut with 9px to spare, **0 cropped** at 1180x1000 and 1180x480, so the rail stays **60px**.
@@ -2768,7 +2768,12 @@ the rejected date-book version of this turned it red (design/0034).
 volume, inside the rail's ceiling of 32 closed, with `fitTabs` still owning what happens when a
 level will not fit. A `/^\d{4}$/` cut hands its notes to `TITLE_DATE_LAYERS` exactly as
 `prefixCuts` does, so a year still opens into `Mmm` and `dd`; anything else is a leaf. A run
-longer than four digits keeps design/0034's `2022x` label.
+longer than four digits keeps design/0034's label with a middle dot for the mark: `2022·`.
+**Four digits is the cap and the mark is not one of them.** `x` read as a character of the number;
+`·` is small and sits at mid-height, so it reads as a placeholder. It is plain text, never a span -
+a span with its own font-size is what *a look moves nothing on the page* measures. Measured,
+`2022·` is **36px** where `2022x` was 39px and `2022...` was **43px in the 40px a cut leaves**,
+which *no index cut is clipped* caught as 1 cropped.
 
 **The rail's face is `0-9`, the picker's word is `Number`.** Measured: `Number` plus the glyph
 runs **6px** past the toggle's 55x28 box and **wraps**, which passes every measurement of its

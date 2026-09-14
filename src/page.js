@@ -2907,7 +2907,7 @@ function mountVaultShelf(root, data, options) {
   /** design/0034
    * @param {string} digits @returns {string} */
   function numberLabel(digits) {
-    return digits.length <= 4 ? digits : digits.slice(0, 4) + "x";
+    return digits.length <= 4 ? digits : digits.slice(0, 4) + "\u00b7";
   }
 
   /**
@@ -2988,13 +2988,13 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0034 -- a digit run that opens like a year and keeps going: `2022x` for
+   * design/0034, github#70 -- a digit run that opens like a year and keeps going: `2022·` for
    * `202212331243`, so the cut files where the reader looks for it and still says it is not 2022
    * @param {string} title @returns {string} the label, or ""
    */
   function titleRun(title) {
     var m = /^(\d{4})\d/.exec(title.replace(/^[^\p{L}\p{N}]+/u, ""));
-    return m ? m[1] + "x" : "";
+    return m ? m[1] + "\u00b7" : "";
   }
 
   /**
