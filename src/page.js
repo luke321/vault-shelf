@@ -45,9 +45,7 @@
 /** @typedef {import("./core/index").Book} Book */
 /** @typedef {import("./core/index").ShelfView} ShelfView */
 /**
- * design/0034 -- one cut of the index: what it says, the note it opens, the cuts under it.
- * A span -- `Jan–Apr`, made when a level had to be gathered to fit -- keeps the ends it was
- * named from, so gathering it again reads `Jan–Aug` rather than `Jan–Apr–May–Aug`.
+ * design/0034 -- one cut of the index; a span keeps the ends it was named from
  * @typedef {{ label: string, at: number, kids: Cut[], span?: boolean, head?: string,
  *             tail?: string }} Cut
  */
@@ -241,8 +239,7 @@ function mountVaultShelf(root, data, options) {
   var bookIndex = {};
   /** The biggest book in the library, which every thickness is scaled against. */
   var thickest = 1;
-  /* design/0034 -- `tabs` is the fitted cut, `tabsKey` what it was fitted for, `depth` how far
-   * down the rail is standing. All three are the rail's whole state. */
+  /* design/0034 -- the fitted cut, what it was fitted for, and how deep the rail stands */
   /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, revealMatch?: boolean, land?: "top"|"bottom"|null, lit?: string, tabs?: Cut[], tabsKey?: string, depth?: number }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
@@ -754,10 +751,7 @@ function mountVaultShelf(root, data, options) {
     function measure() {
       pending = 0;
       roomLog.pending = 0;
-      /* design/0034 -- THE RAIL IS FITTED TO THE HEIGHT IT HAS, and the room deliberately
-       * ignores a resize that did not change the width. So a window dragged shorter kept the
-       * index it had been fitted for and let the end of it hang off the bottom -- the exact
-       * bug github#32 is about, one level up from the one it was filed for. */
+      /* github#32, design/0034 -- the room ignores a height-only resize; the rail cannot */
       if (reader) renderTabs();
       var w = shelfWidth();
       roomLog.measured++;
@@ -2858,11 +2852,7 @@ function mountVaultShelf(root, data, options) {
    */
   /** @param {Book} book @returns {{ label: string, at: number }[]} */
   /**
-   * design/0034 -- THE CUT IS A TREE, and the rail draws one level of it. What a book is cut
-   * by is unchanged (design/0015): a date-ordered book by years over months over days, an
-   * alphabetical one by the shallowest prefix that separates it. What changed is that the
-   * layers are nested rather than flattened into one column, so a dozen years no longer drag
-   * a hundred months down the page behind them.
+   * design/0034 -- the cut is a tree, and the rail draws one level of it
    * @param {Book} book @returns {Cut[]}
    */
   function indexCuts(book) {
@@ -2882,8 +2872,7 @@ function mountVaultShelf(root, data, options) {
    * It stops as soon as the tabs are worth having, because deeper is not better: Mar, Mat, Mea
    * over a book of forty is a wall of tabs that says less than Ma, Me, Mi.
    *
-   * design/0034 -- and what is deeper still is not thrown away, it is what `Ma` OPENS. The
-   * depth this picks is the top level; each level below it is the same cut one letter longer.
+   * design/0034 -- and what is deeper still is not thrown away, it is what `Ma` OPENS
    * @param {ShelfNote[]} notes @returns {Cut[]}
    */
   function letterCuts(notes) {
@@ -2896,7 +2885,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0034 -- one level of the letter cut, and the longer prefix under each of its cuts.
+   * design/0034 -- one level of the letter cut, and the longer prefix under each cut
    * @param {ShelfNote[]} notes @param {number} base @param {number} depth @returns {Cut[]}
    */
   function prefixCuts(notes, base, depth) {
@@ -2953,10 +2942,7 @@ function mountVaultShelf(root, data, options) {
    * The result is the same shape for a year book, a tag book and a person's book, which is
    * what an index is for: you learn to read it once.
    *
-   * design/0034 -- AND NOTHING IS DROPPED TO MAKE IT FIT any more. The old cap of about thirty
-   * threw the days away and then the months, which is why a book of 2,450 notes showed eleven
-   * year tabs and nothing under them. The layers are nested now, so the rail draws one of them
-   * at a time and the whole cut survives.
+   * design/0034 -- and nothing is dropped to make it fit: the cap of about thirty is gone
    * @param {ShelfNote[]} notes @returns {Cut[]}
    */
   function dateCuts(notes) {
@@ -2974,12 +2960,8 @@ function mountVaultShelf(root, data, options) {
   ];
 
   /**
-   * design/0034 -- one layer of cuts, with the layers below it hanging off each.
-   *
-   * Two rules from design/0015, unchanged and both still load-bearing: a layer that separates
-   * nothing is not drawn, and the layer below it takes its place -- so a book that is all 2026
-   * is cut straight into months; and a group of three notes or fewer is not cut further,
-   * because three notes on following days are three rows on the left, not an index.
+   * design/0015, design/0034 -- one layer of cuts, with the layers below it hanging off each;
+   * a layer that separates nothing is not drawn, and three notes or fewer are not cut at all
    * @param {ShelfNote[]} notes @param {number} base
    * @param {{ key: function(ShelfNote): string, label: function(string): string }[]} layers
    * @returns {Cut[]}
@@ -2988,8 +2970,7 @@ function mountVaultShelf(root, data, options) {
     if (!layers.length) return [];
     var runs = runsOf(notes, layers[0].key);
     if (runs.length <= 1) {
-      /* The size rule applies to a layer that stood aside too: three notes in one year are
-       * three rows on the left, whether or not the year itself was worth drawing. */
+      /* design/0015 -- the size rule applies to a layer that stood aside too */
       if (!runs.length || runs[0].size <= 3) return [];
       return cutTree(runs[0].notes, base + runs[0].at, layers.slice(1));
     }
@@ -3054,11 +3035,10 @@ function mountVaultShelf(root, data, options) {
     var view = railView();
     var rows = view.trail.length + view.level.length;
     box.style.setProperty("--vs-tab-count", String(Math.max(1, rows)));
-    /* design/0034 -- the trail steps in from the fore-edge; the level stays flush against it,
-     * so the rail is one width whatever the fold, and the prose column never moves. */
+    /* design/0034 -- the trail steps in; the level stays flush at the fore-edge */
     view.trail.forEach(function (cut, k) {
       var b = cutRow(cut, k, view.trail.length - k, true, false);
-      on(b, "click", function () { reader.depth = k; renderTabs(); });
+      on(b, "click", function () { reader.depth = k; renderTabs(); keepAt(cut.at); });
       box.appendChild(b);
     });
     /* design/0034 -- ONE THUMB: the deepest cut the page has reached, and one only. */
@@ -3068,14 +3048,24 @@ function mountVaultShelf(root, data, options) {
       on(b, "click", function () {
         if (cut.kids.length) reader.depth = view.trail.length + 1;
         goTo(cut.at);
+        keepAt(cut.at);
       });
       box.appendChild(b);
     });
   }
 
   /**
-   * design/0034 -- one leaf of the cut edge. `data-at` carries the position it opens, because
-   * a press rebuilds the rail under itself and a cut cannot be addressed by where it stands.
+   * design/0034 -- a press rebuilds the rail, so Enter on a year focused nothing after it
+   * @param {number} at
+   */
+  function keepAt(at) {
+    var again = node("tabs").querySelector('.vs-indextab[data-at="' + at + '"]');
+    if (again instanceof HTMLElement) again.focus({ preventScroll: true });
+  }
+
+  /**
+   * design/0034 -- one leaf of the cut edge; `data-at` is the position it opens, because a
+   * press rebuilds the rail and a cut cannot be addressed by where it stands
    * @param {Cut} cut @param {number} level @param {number} stepIn @param {boolean} isTrail
    * @param {boolean} isLit @returns {HTMLElement}
    */
@@ -3086,7 +3076,7 @@ function mountVaultShelf(root, data, options) {
     /* design/0015 -- which layer of the cut this is; design/0034 -- and how far in it stands. */
     b.setAttribute("data-level", String(level));
     if (stepIn) b.setAttribute("data-step", String(Math.min(stepIn, 2)));
-    /* An index that opens further on some of its cuts and not others has to say which. */
+    /* design/0034 -- an index that opens further on some cuts and not others says which */
     if (isTrail) b.setAttribute("data-back", "1");
     else if (cut.kids.length) b.setAttribute("data-opens", "1");
     if (isLit) b.setAttribute("aria-current", "true");
@@ -3098,10 +3088,8 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0034 -- WHAT THE RAIL IS SHOWING: the cuts the page came through, kept above as a
-   * trail, and the level under the deepest of them. The state is one number -- how deep the
-   * rail is -- and every cut shown is derived from where the page stands, so Next carries the
-   * trail with it and nothing is ever open over a book nobody is reading.
+   * design/0034 -- the cuts the page came through, and the level under the deepest of them.
+   * Derived from where the page stands, so Next carries the trail with it.
    * @returns {{ trail: Cut[], level: Cut[] }}
    */
   function railView() {
@@ -3126,14 +3114,9 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0034 -- FIT IS MEASURED, NOT CALCULATED. How tall a cut is, in whichever look, at
-   * whatever font the host has, in a window of whatever shape, is not a number this file owns.
-   * So it draws the index and, while the level that draws the most rows does not fit, gathers
-   * it one step and draws again.
-   *
-   * Fitted to the FATTEST level the book can show, never the one open now: which level the
-   * rail is at follows the page and the reader's own presses, so fitting to it would re-fit on
-   * every turn and give one book two different indexes.
+   * design/0034 -- FIT IS MEASURED, NOT CALCULATED: draw it, and while the level that draws
+   * the most rows does not fit, gather it one step and draw again. Fitted to the fattest
+   * level the book can show, or a page turn would re-fit it and give one book two shapes.
    * @param {HTMLElement} box @param {string} mode
    */
   function fitTabs(box, mode) {
@@ -3154,8 +3137,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0034 -- the level that draws the most rows, and the way down to it. Every other
-   * level is shorter by construction, so fitting this one fits the book.
+   * design/0034 -- the level that draws the most rows, and the way down to it
    * @param {Cut[]} cuts @param {number} trail @param {number[]} path
    * @returns {{ rows: number, trail: number, level: Cut[], path: number[] }}
    */
@@ -3170,10 +3152,8 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0034 -- draw a candidate level into the real rail and read the last cut's own
-   * bottom. Never `scrollHeight`: the rail's overflow is visible by design -- a clipped index
-   * is the bug this record is about -- and a box that does not scroll does not reliably report
-   * a scrolling area, so it answered that everything fitted while six cuts hung off the end.
+   * design/0034 -- the last cut's own bottom, never `scrollHeight`: the rail's overflow is
+   * visible by design, and a box that does not scroll does not report a scrolling area
    * @param {HTMLElement} box @param {{ rows: number, trail: number, level: Cut[] }} view
    * @returns {boolean}
    */
@@ -3193,15 +3173,9 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0034 -- one step shallower, and NOTHING IS THROWN AWAY to take it. The level that
-   * overflowed is halved into spans naming what they open (`Jan–Apr`), and the cuts it held
-   * become what those spans open. The old cap dropped the days and then the months, which is
-   * why a book of 2,450 notes showed eleven year tabs and nothing under them.
-   *
-   * EVERY LEVEL AT THAT DEPTH, not only the one that overflowed. Halving one at a time spent
-   * sixteen passes on one book's days and never reached its years -- but it is also the wrong
-   * answer to look at: one year's months gathered into spans while the next year's stand
-   * singly is two indexes in one book.
+   * design/0034 -- one step shallower, and nothing is thrown away to take it: the level is
+   * halved into spans naming what they open, and its cuts become what those spans open.
+   * EVERY level at that depth, or one year's months read differently from the next year's.
    * @param {Cut[]} cuts @param {number} depth @returns {Cut[]|null}
    */
   function gathered(cuts, depth) {
@@ -3221,8 +3195,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0034 -- A RANGE OF RANGES IS STILL ONE RANGE: gathering twice reads `A–D`, never
-   * `A–B–C–D`, so a span is flattened back to its members before being spanned again.
+   * design/0034 -- a range of ranges is still one range, so a span is flattened first
    * @param {Cut[]} list @returns {Cut[]}
    */
   function spanned(list) {
@@ -3239,7 +3212,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0034 -- the cut as a check reads it, with no note behind it.
+   * design/0034 -- the cut as a check reads it, with no note behind it
    * @typedef {{ label: string, at: number, span: boolean, kids: PlainCut[] }} PlainCut
    * @param {Cut[]} cuts @returns {PlainCut[]}
    */
@@ -4727,6 +4700,8 @@ function mountVaultShelf(root, data, options) {
       var again = findBook(reader.book.id, reader.noteId);
       if (again) {
         reader.book = again;
+        /* design/0034 -- a rebuild is a new book behind one address; the key cannot see it */
+        reader.tabsKey = "";
         /* github#5 -- THE PLACE IS A NOTE, NOT A ROW NUMBER. */
         var at = -1;
         if (reader.noteId) {
@@ -5076,9 +5051,8 @@ function mountVaultShelf(root, data, options) {
     },
     closeReader: closeReader,
     /**
-     * design/0034 -- THE FITTED CUT, so a check can reason about the fold without pressing into
-     * it: on a book of thousands of notes a press re-renders the contents, and that becomes the
-     * whole cost of the check rather than the thing being measured.
+     * design/0034 -- the fitted cut, so a check can reason about the fold without pressing
+     * into it: on a book of thousands of notes the press would be the whole cost
      */
     indexTabs: function () {
       if (!reader) return null;

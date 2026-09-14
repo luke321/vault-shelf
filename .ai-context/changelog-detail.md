@@ -43,7 +43,7 @@ overflowing the rail by 23px, with the trace `33x 33x 30x 30x 28x 27x 25x 25x 25
 and is also the right answer to look at - one year's months gathered into spans while the next
 year's stand singly is two indexes in one book.
 
-Checks 88 -> **91**; `check-comments` baseline 1477 -> 1546.
+Checks 88 -> **91**; `check-comments` baseline 1477 -> 1508.
 
 ## 2026-09-13 - Context-budget cleanup: history moved out of CLAUDE.md
 

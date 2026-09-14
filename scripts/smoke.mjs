@@ -6734,6 +6734,10 @@ check("the rail lists one level under the trail it came through", async (p) => {
       if (!button) { __vs.closeReader(); continue; }
       /* design/0034 -- pressing a cut GOES there as well as opening it: a tab is a position. */
       button.click();
+      /* design/0034 -- the press rebuilds the rail, so the cut has to be handed its focus
+       * back: without it Enter on a year opened the fold and focused nothing. */
+      var kept = document.activeElement &&
+        Number(document.activeElement.getAttribute("data-at")) === best.at;
       var open = rows();
       var trail = open.filter(function (r) { return r.trail; });
       var level = open.filter(function (r) { return !r.trail; });
@@ -6749,7 +6753,7 @@ check("the rail lists one level under the trail it came through", async (p) => {
         trailIsBack: trail.every(function (r) { return r.back && !r.opens; }),
         /* The staircase: every trail step stands further in than the level it opened. */
         staircase: trail.every(function (r) { return r.right < level[0].right; }),
-        wentThere: moved === best.at,
+        wentThere: moved === best.at, kept: kept,
         cameBack: back.length === before.length &&
                   back.every(function (r, k) { return r.at === before[k].at; })
       };
@@ -6759,10 +6763,10 @@ check("the rail lists one level under the trail it came through", async (p) => {
   })()`);
   if (!r) return { ok: false, detail: "no book here has a cut with anything under it" };
   return { ok: r.level === r.kids && r.trail === 1 && r.trailIsBack && r.staircase &&
-               r.wentThere && r.cameBack,
+               r.wentThere && r.cameBack && r.kept,
            detail: `${r.book}: ${r.top} cuts at the top; pressing the one with ${r.kids} under it ` +
                    `shows ${r.level} of them (went to its note: ${r.wentThere}) under ${r.trail} ` +
-                   `trail step marked back (${r.trailIsBack}) and stepped in (${r.staircase}); ` +
+                   `trail step marked back (${r.trailIsBack}) and stepped in (${r.staircase}), keeping the focus (${r.kept}); ` +
                    `pressing it comes back (${r.cameBack})` };
 });
 
