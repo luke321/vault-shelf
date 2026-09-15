@@ -33,7 +33,7 @@ Five things are worth knowing before you touch anything, all expanded in `CLAUDE
   acquire/release makes the hook block on you and the push hang.
 
   **Nor do you have to remember it for any harness that opens a window** — `refresh-check`,
-  `teardown-check`, `check-data-escape --browser` and `update-layout-snapshots` each claim
+  `teardown-check`, `check-data-escape --browser`, `check-css-support` and `update-layout-snapshots` each claim
   `screen-left` themselves and give up by name if somebody else has the display. This repo
   makes **no screen recording** (`design/0007`), so there is nothing left to wrap by hand;
   driving a window yourself is the one case:

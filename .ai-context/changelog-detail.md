@@ -4834,3 +4834,43 @@ still broken on age — unchanged, and recorded rather than fixed from this side
 earns no stamp from this. `lock.mjs --selftest`, lint, `check-comments`, `check-pii`,
 `check-scope`, `check-network`, the determinism checks and the generated code-map check are what
 gate it.
+## 2026-09-15 — The CSS lint's five warnings, measured instead of argued (`github#61`, `design/0036`)
+
+The editor's CSS lint flagged five things against **Obsidian 1.6.5**. `manifest.json` declares
+`minAppVersion: 1.7.2`, so the target sits *below* the floor; and there is no `.vscode/settings.json`,
+browserslist or CSS-lint config in the tree, so the target is editor-local and invisible to anyone
+else running this repo.
+
+`scripts/check-css-support.mjs` is new: it installs the built plugin into a throwaway copy of the
+shared vault fixture, launches a real Obsidian over CDP, and asks the engine. It names the
+engine from the user agent rather than being told -- **Chromium 150.0.7871.212 / Electron
+43.3.0 / Obsidian 1.13.7**, 19/19:
+
+| Flagged | Measured |
+|---|---|
+| `clip-path: polygon()` | supported; notch excluded from hit-testing, body still paints |
+| `clip-path: inset()` | supported |
+| `column-gap: 10px` on flex | computed `10px`; the gap between two items measures `10px` |
+| `text-decoration-thickness: 1px` | computed `1px` |
+| `text-underline-offset: 2px` | computed `2px` |
+| `text-decoration: underline dotted` | computed `dotted` |
+| `ui-monospace` | does not resolve — shipped stack, stack without the keyword, and bare `monospace` all measure `527.81px`; `serif` measures `426.61px`, so the fallback is a real monospace face |
+| `[hidden]` vs a class selector | `.vs-railsearch` computes `flex`; with `hidden` it computes `none` |
+
+Both looks are asserted before each shot. A rebuild resets `data-look`, so the first attempt
+shot the shelf twice in the same look and the two PNGs came out byte-identical while every
+assertion passed -- only a checksum caught it. The harness now re-applies the look and asserts
+which one is painted; "default" is `page.css` alone, the attribute being absent.
+
+Live product shapes carry the clip in the real page: `.vs-mark` and `.vs-ribbon` both compute
+`polygon(0px 0px, 100% 0px, 100% 100%, 50% 74%, 0px 100%)`, six ribbons on the shelf with the
+reader closed. A close-up of `.vs-mark` shows the V-notch drawn.
+
+**No CSS changed.** Four warnings are compat-data noise against an engine nothing here runs; the
+fifth (`ui-monospace`) does not resolve on Chromium and is carried by the fallback chain that was
+always there. The `!important` at `src/page.css:194` stays — the check now asserts both halves of
+that cascade, so the guard has a measurement rather than only a comment.
+
+**Nothing in `src/` moved**, so no shelf invariant moved and the suite was not re-run; the tree
+earns no stamp from this. Lint, `check-comments`, `check-pii`, `check-scope`, `check-network`, the
+determinism checks and the generated code-map check are what gate it, plus the new harness.
