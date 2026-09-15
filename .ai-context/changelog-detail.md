@@ -1,5 +1,61 @@
 # Changelog detail
 
+## 2026-09-15 — A smoothness budget counts frames (`github#77`, `decisions/0017`)
+
+`scrolling the library stays smooth in every look` was **red four runs in five** on a clean
+`develop` at `a2de7fa`, and `a wheel on the spread stays smooth in every look` held the same
+34ms line for the same reason. A frame interval is a whole count of vsyncs, so the intervals
+cluster and a percentile of them lands inside a cluster — 5,185 frames of 5,387 at 16.9–26.0ms,
+119 at 26.5–**37.1**, 42 at 51.6–54.2, and **nothing between 26.0 and 26.5**. The 34ms budget
+sat in the middle of the two-vsync cluster, so one dropped frame read 34.2 and passed or 34.7
+and failed.
+
+**The number is now a count of missed vsyncs** — `round(elapsed / vsync) - painted`, no
+per-frame threshold anywhere in it and no percentile index for a sample size to walk down its
+own tail. The sweep runs at a **fixed 800px/s** instead of covering the whole span in a fixed
+time, so the paint per frame no longer depends on what the preceding checks left on the page
+(231 spines over 1494px under `--only`, 227 over 1102px in a full suite).
+
+| | before, p95 ms | now, missed of ~80 |
+|---|---|---|
+| leather | 18.4 – **53.6** | **0 – 1** |
+| modern | 18.3 – 18.7 | **0 – 1** |
+| cyber | 18.4 – **52.7** | **0 – 3** |
+| the same room with `design/0014` off it | — | **58 – 66** |
+| **runs green, consecutive** | **1 of 5** | **12 of 12** |
+
+The budget of **14** sits in the empty gap between 3 and 59, where the old one sat inside a
+cluster with observations on both sides of it.
+
+**The probe had to be the real regression.** `github#77`'s own A/B slowed the page with filters
+over every spine and concluded the measurement was insensitive; four candidates, driven against
+the same room, say the probe was the insensitive half:
+
+| slowdown | missed |
+|---|---|
+| a filter over every spine (blur, drop-shadow, saturate, contrast on 231) | 2 |
+| a 2px blur over the whole library | 3 |
+| a 40px/20px shadow spread on every spine | 2 |
+| a 12ms busy-wait inside every frame callback | 1 |
+| `backdrop-filter: blur(8px)` on every spine | 14 |
+| **`design/0014` off: containment and the compositor layer** | **61** |
+| nothing at all, for comparison | 2 |
+
+A scroll composites tiles that are already rasterised, so per-spine paint does not enter a frame
+until containment is what changes. The library check now runs that last row **in the same run**
+and fails if it does not clear the budget: `github#77` asked for the number to be shown to move,
+and it is an assertion rather than a note.
+
+**The vsync is calibrated, and two ways of doing it do not work.** A plain animation-frame loop
+on a still page returned **two frames in 400ms** and a period of 396–413ms, three runs in five —
+a page with nothing changing on it is not painted. Calibrating against a 40px/s creep was worse,
+446–536ms **six runs of six**, because a scroll too slow to change an integer offset invalidates
+nothing. A whole pixel per frame, after a throwaway pass has frames flowing, reads **17.4–17.8ms
+every run**. Reading the period off the measured sweep instead is circular, and the probe caught
+it: containment off painted **15 frames of 80** and scored **2 missed**.
+
+Cost: the library check **8.9s** against 7.8s, the wheel check 8.0s. Both were already serial.
+
 ## 2026-09-15 — A look's paint room is measured against itself (`github#78`, `design/0021`)
 
 `nothing a look paints outside a spine is cut off, in every look` failed intermittently on

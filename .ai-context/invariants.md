@@ -901,12 +901,19 @@ never engaging at all; that `PageDown`, `space` and `PageUp` leave it there too 
 stands unamended); and that the right arrow still turns it **at once**, with no resistance to push
 through. `github#40`, `design/0028`.
 
-`"a wheel on the spread stays smooth in every look"` holds the **same p95 budget of 34ms** as
+`"a wheel on the spread stays smooth in every look"` holds the **same budget** as
 `"scrolling the library stays smooth in every look"`, and measures it where the push **cannot**
 turn — the last note, pushing down — because a page turn inside the sampled frames is a different
-cost. Measured: p95 **18.9 / 18.2 / 18.3ms** for leather / modern / cyber, against the library
-scroll's own 18.5ms, and one whole turn timed separately at **2–3ms** in every look. `github#40`,
-`design/0026`.
+cost. One whole turn is timed separately at **3–4ms** in every look. `github#40`, `design/0026`.
+
+Since `github#77` that budget is **14 missed vsyncs**, not a 34ms 95th percentile — `decisions/0017`
+says why a percentile of frame intervals cannot be measured at 34ms, and the section below carries
+the whole of it. Measured here: **0–1 missed** of the **68** a 1.2s push offers, in every look, with
+p95 **18.1–18.5ms**. **This one has no probe and its budget is therefore unproven**: nothing on a
+reader page has been measured as a known-expensive change, so unlike the library scroll this check
+does not demonstrate that its number can still see cost. The budget is held wide rather than
+tightened for exactly that reason — it will catch a real stutter and is not claimed to catch a
+marginal one.
 
 **This feature adds nothing to either look check, because it draws nothing.** The push is a
 `translateY` on `.vs-leaf` and a transform does not affect layout, so the same-size check stays at
@@ -1879,18 +1886,39 @@ measured 14.1, 15.1 and 19.9 ms across three runs of code that never changed.
 
 ## Scrolling stays smooth
 
-`"scrolling the library stays smooth in every look"` scripts a 1.4-second scroll through the
-whole room in each look and records the interval between animation frames; the **95th
-percentile** is asserted under **34ms** — two frames at 60Hz, since one dropped frame in
-twenty is where a scroll starts to read as jerky. The median hides a stutter and the worst
-frame is the one-off paint of a shelf entering view, so neither is the number.
+`"scrolling the library stays smooth in every look"` scripts a 1.4-second scroll of the room in
+each look at a **fixed 800px/s**, turned round at either end, and keeps every frame's timestamp.
+What is asserted is **how many vsyncs the page failed to paint**, under **14** of the ~80 a sweep
+offers. `github#77`, `decisions/0017`.
 
-Measured before, p50/p95/worst in ms: modern **16.7/16.8/17**, leather **50/117/150**,
+**It asserted a 95th percentile of the intervals under 34ms until `github#77`, and that number was
+not measurable.** A frame interval is a whole count of vsyncs, so the intervals arrive in clusters —
+5,185 frames of 5,387 at 16.9–26.0ms, 119 at 26.5–37.1, 42 at 51.6–54.2, and **nothing at all
+between 26.0 and 26.5**. The 34ms line fell inside the two-vsync cluster, so one dropped frame read
+34.2 and passed or 34.7 and failed: **four reds in five** through the real runner on a clean tree.
+Two aggravators went with it — the percentile index came from the sample size, so a slower run
+(n 80 → 62) walked the index down its own tail exactly when the jank arrived; and covering the whole
+span in a fixed time made the velocity depend on what the preceding checks left behind, 231 spines
+over 1494px under `--only` against 227 over 1102px in a full suite.
+
+Measured now, missed vsyncs over six runs: leather **0–1**, modern **0–1**, cyber **0–3**, with the
+period **calibrated at 17.4–17.8ms** rather than assumed to be 16.7. A period outside 6–26ms fails
+the check on its own and says so separately: it is a fact about the machine, not about the room.
+
+**The same run takes `design/0014` back off the room and fails if that does not go over the
+budget** — containment off, the compositor layer gone. Measured **59–66 missed**, so the budget of
+14 sits in the empty gap between 3 and 59. `decisions/0017` records the three cheaper slowdowns
+that were tried first and cost nothing at all (a filter over every spine, a blur over the whole
+library, a 20px shadow spread on 231 spines): a scroll composites tiles that are already rasterised,
+so per-spine paint does not enter a frame until containment is what changes, which is most of why
+`github#77`'s own A/B looked insensitive.
+
+Measured before `design/0014`, p50/p95/worst in ms: modern **16.7/16.8/17**, leather **50/117/150**,
 cyber **83/400/400** — the looks paint a spine as several layers of gradient and texture,
 and every visible one was rasterised again per scroll step. After `content-visibility` on a
 shelf, `contain: layout paint` on a row and a compositor layer under the library: leather
-**17.6/18.7/105**, cyber **17.6/18.5/35**, modern unchanged. The worst frame is now the
-first paint of a shelf as it enters, which is once per shelf rather than once per step.
+**17.6/18.7/105**, cyber **17.6/18.5/35**, modern unchanged. Those percentiles are still printed in
+the detail line, and are still the right shape to read; they are simply no longer what is asserted.
 
 ## The room
 
