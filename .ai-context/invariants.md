@@ -1971,8 +1971,28 @@ string is still byte for byte what the note said.
 Measured on the hostile vault: **1,173 characters** of `VAULT_DATA`, **0** raw `<`, **0** raw
 `>`, **0** raw U+2028/U+2029, **4** script tags in the file, and every payload back byte for
 byte. `--browser` drives the built page too: **0 console errors**, **4** script elements in the
-DOM (the same four), **0** `<img>`, **0** `<svg>`, **0 of 5** markers executed, and
-`__vs.data()` identical to the block the exporter wrote.
+DOM (the same four), **0** `<img>`, **13** icon `<svg>` in **13** icon buttons and **0 stray**
+`<svg>`, **0 of 5** markers executed, and `__vs.data()` identical to the block the exporter
+wrote.
+
+**A stray `<svg>` is one the page does not own, and the count alone could never say which**
+(`github#75`). The browser half asserted `0` `<svg>` in the whole document, and the page draws
+icons of its own — one in the Manage button in `src/page.html`, and two per shelf from
+`shelfAction()` — so it read **13** and failed on any vault, with no escape behind it. It had
+been red on `develop` for as long as those icons had existed: `--browser` is one of the three
+gates run by hand, so no push ever told anyone.
+
+The assertion is structural now rather than a subtracted constant, which would be the same bug
+again on the seventh shelf. Every `<svg>` must sit inside `#vs-manageopen` or `.vs-shelfaction`;
+anything else is named with its ancestor path, not counted. The owned icons must also come to
+**one per icon button**, so an `<svg>` smuggled inside a chrome button is caught too, and the
+absolute 13 is never asserted — the relationship holds under any vault and any number of
+shelves.
+
+**And the census proves itself on every run.** After the clean read it plants an `<svg>` where
+rendered vault data lives (`#vs-library`), takes the same census again, and requires exactly
+**1** stray naming `vs-escape-probe` before removing it. A gate that only ever passes has
+stopped being one, and the counted-everything version could not fail this way.
 
 The static half also refuses a bare `JSON.stringify(data)` in `src/build-shelf.mjs`, so the
 escaping cannot be quietly walked back.
