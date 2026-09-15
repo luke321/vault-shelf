@@ -417,8 +417,8 @@ check("notes sharing a date list A-Z in both reading directions", async (p) => {
   const r = await p.j(`(function(){
     var core = window.VaultShelfCore;
     var shelf = core.defaultShelves().find(function (s) { return s.id === 'months'; });
-    var note = function (id, title, date) {
-      return { id: id, path: id + '.md', title: title, folder: '', date: date,
+    var note = function (id, title, date, folder) {
+      return { id: id, path: id + '.md', title: title, folder: folder || '', date: date,
                people: [], tags: [], props: {}, excerpt: '', body: '' };
     };
     var titles = function (list, order) {
@@ -433,6 +433,18 @@ check("notes sharing a date list A-Z in both reading directions", async (p) => {
      * two indexes would disagree about a pair the reader can see. */
     var lower = note('c', 'apple', '2024-03-05');
     var upper = note('d', 'Zebra', '2024-03-05');
+
+    /* decisions/0017 -- UNDATED IS NOT PART OF THIS. A null date sorts as '', so it leads
+     * oldest-first and trails newest-first, and github#80 was not allowed to move it. Only a
+     * folder shelf can hold both in one book; a date shelf sends undated to its own. */
+    var mixed = [note('u', 'Undated note', null, 'Notes'),
+                 note('x', 'Xi', '2024-03-05', 'Notes'),
+                 note('m', 'Mu', '2021-01-01', 'Notes')];
+    var byFolder = Object.assign({}, shelf, { id: 'f', classifier: 'folder' });
+    var folderRead = function (order) {
+      return core.buildShelf(byFolder, mixed, order).books[0].notes
+        .map(function (n) { return n.title; }).join(',');
+    };
 
     /* And it has to hold over the real vault, on every same-date run in every book. */
     var all = __vs.data().notes;
@@ -466,17 +478,21 @@ check("notes sharing a date list A-Z in both reading directions", async (p) => {
       newest: titles([a, b], 'newest') === 'Alpha,Beta',
       newestReversedOnDisk: titles([b, a], 'newest') === 'Alpha,Beta',
       caseInsensitive: titles([upper, lower], 'oldest') === 'apple,Zebra',
+      undatedLeadsOldest: folderRead('oldest') === 'Undated note,Mu,Xi',
+      undatedTrailsNewest: folderRead('newest') === 'Xi,Mu,Undated note',
+      undated: folderRead('oldest') + ' | ' + folderRead('newest'),
       got: titles([b, a], 'oldest'),
       dated: dated, groups: groups, affected: affected, scrambled: scrambled
     };
   })()`);
   const ok = r.oldest && r.oldestReversedOnDisk && r.newest && r.newestReversedOnDisk &&
-             r.caseInsensitive && r.scrambled === 0;
+             r.caseInsensitive && r.undatedLeadsOldest && r.undatedTrailsNewest &&
+             r.scrambled === 0;
   return {
     ok,
     detail: `${r.affected} of ${r.dated} dated notes share their date with another ` +
             `(${r.groups} groups); ${r.scrambled} of those sit in a run that is not A-Z. ` +
-            `A reversed-on-disk pair read oldest-first gave ${r.got}`
+            `A reversed-on-disk pair read oldest-first gave ${r.got}; undated ${r.undated}`
   };
 });
 

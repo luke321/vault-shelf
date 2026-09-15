@@ -4911,8 +4911,10 @@ reachable by the sign at all.
 
 **Nothing else moved.** `the shelves are packed the way the golden snapshot says` is unchanged —
 the packing is per book, not per note — and all 31 checks touching contents, ordering, indexes,
-plaques and made books stayed green. Undated placement is deliberately untouched: `null` still
-sorts as `""`, so Undated leads under oldest-first exactly as before.
+plaques and made books stayed green. Undated placement is untouched, and checked both ways rather than
+argued: the same folder-shelf book reads `Undated note,Mu,Xi` oldest-first and
+`Xi,Mu,Undated note` newest-first on the **pre-fix** comparator and on the fixed one — identical,
+while the A-Z assertions fail on the first and pass on the second.
 
 `check-comments` dropped to **1534** (from 1536): the two-line prose comment explaining the flip
 became one pointer, with the argument moved into `decisions/0017` per `decisions/0007`. The

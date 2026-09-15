@@ -159,8 +159,13 @@ their date with another, across **802 groups** — and the count out of order mu
 **3,327** before `github#80`, because `readingOrder` negated the whole of `byDateThenTitle`
 rather than just its date key.
 
-Undated is out of this: `null` sorts as `""`, so it leads under oldest-first and trails under
-newest-first, unchanged by `github#80` and not decided by it.
+Undated is out of this, and that is **measured rather than asserted**. Only a folder shelf can
+hold a dated and an undated note in one book — a date shelf sends undated to its own — so the
+check builds one and reads it both ways: `Undated note,Mu,Xi` oldest-first and
+`Xi,Mu,Undated note` newest-first. Run against the **pre-`github#80`** comparator those two
+strings come back **identical** while the A-Z assertions fail, which is what makes "untouched" a
+number. `null` sorts as `""`; where undated *belongs* is a question `decisions/0017` does not
+answer.
 
 ## A note with no date of its own
 
