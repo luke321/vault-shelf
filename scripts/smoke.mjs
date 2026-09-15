@@ -1053,18 +1053,8 @@ check("reader tabs keep their width and the search rail stays above matching rib
 /* design/0031 */
 check("Manage colour rules fit and pick shelves offer no colour variation", async (p) => {
   const original = await p.j("({width:innerWidth,height:innerHeight,look:document.getElementById('vs-app').dataset.look||''})");
-  const resize = async (width, height) => {
-    await p.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
-    await p.eval("window.dispatchEvent(new Event('resize')); void 0");
-    let stable=0;
-    for (let i=0;i<60;i++) {
-      const ready=await p.j(`innerWidth===${width} && innerHeight===${height} && !__vs.room().pending`);
-      stable=ready?stable+1:0;
-      if(stable>=5) return;
-      await sleep(50);
-    }
-    throw new Error('Manage viewport did not reach '+width+'x'+height);
-  };
+  /* github#57 -- one waiter, in the harness */
+  const resize = (width, height) => viewport(p, width, height);
   const results=[];
   try {
     for (const width of [original.width,390,320]) {
@@ -3871,23 +3861,21 @@ check("a plate dyes its whole run from either copy, and the colours survive a re
     return best || longest;
   })()`;
 
+  const wasView = await p.j("({width:innerWidth,height:innerHeight})");
   let run = null, width = 0;
   for (const w of [1280, 1000, 860, 820]) {
-    await p.send("Emulation.setDeviceMetricsOverride",
-                 { width: w, height: 1000, deviceScaleFactor: 1, mobile: false });
-    /* github#29 -- CDP resizes without telling the page */
-    await p.j(`window.dispatchEvent(new Event("resize"))`);
-    await sleep(200);
+    /* github#29, github#57 -- counted only once the repack has happened */
+    await viewport(p, w, 1000);
     run = await p.j(find);
     width = w;
     if (run && run.plates > 1) break;
   }
   if (!run) {
-    await p.send("Emulation.clearDeviceMetricsOverride");
+    await unviewport(p, wasView);
     return { ok: false, detail: "no run of two books under a plaque in this library" };
   }
   if (run.plates < 2) {
-    await p.send("Emulation.clearDeviceMetricsOverride");
+    await unviewport(p, wasView);
     return { ok: false,
              detail: `the longest run (${run.shelf} "${run.label}", ${run.size} books) still ` +
                      `fits one row at ${width}px, so no second plate could be right-clicked` };
@@ -3995,9 +3983,7 @@ check("a plate dyes its whole run from either copy, and the colours survive a re
     return out;
   })()`);
 
-  await p.send("Emulation.clearDeviceMetricsOverride");
-  await p.j(`window.dispatchEvent(new Event("resize"))`);
-  await sleep(250);
+  await unviewport(p, wasView);
 
   const want = ["clean", "split", "menu", "noLines", "shut", "wholeRun", "allSeven",
                 "outsideClean", "otherRowDyed", "afterRebuild", "undone", "undoneRoom",
@@ -6205,19 +6191,9 @@ check("the search reads titles, covers and declared metadata, and never the body
  * resizing a window, so the number is the same on a laptop and on the WQHD screen this was
  * reported from. */
 check("a narrower window grows rows, and a wide one centres the shelf", async (p) => {
+  const was = await p.j("({width:innerWidth,height:innerHeight})");
   const at = async (width) => {
-    await p.send("Emulation.setDeviceMetricsOverride",
-                 { width, height: 1000, deviceScaleFactor: 1, mobile: false });
-    /* CDP RESIZES THE VIEWPORT WITHOUT TELLING THE PAGE. `setDeviceMetricsOverride` changes
-     * the metrics and, headless, does not always deliver the resize event a real window
-     * manager would -- so the event is dispatched here. It is the same event the browser
-     * sends, so what is being tested is still the handler and not the emulation.
-     *
-     * `p.j` is `JSON.stringify(expr)`: an EXPRESSION, and a promise stringifies to `{}`
-     * without ever being awaited. Waiting for the repack is therefore a sleep rather than an
-     * await, and 150ms is nine of the frame the handler coalesces into. */
-    await p.j(`window.dispatchEvent(new Event("resize"))`);
-    await sleep(150);
+    await viewport(p, width, 1000);
     return p.j(`(function(){
       var app = document.getElementById("vs-app");
       var host = app.getBoundingClientRect();
@@ -6241,8 +6217,7 @@ check("a narrower window grows rows, and a wide one centres the shelf", async (p
   const wide = await at(2560);
   const narrow = await at(760);
   const back = await at(2560);
-  await p.send("Emulation.clearDeviceMetricsOverride");
-  await sleep(250);
+  await unviewport(p, was);
 
   /* Below the measure the row is the window; at or above it the row stops at the measure and
    * the gutters match. 24px of tolerance is a scrollbar, not slack. */
@@ -6271,12 +6246,10 @@ check("a narrower window grows rows, and a wide one centres the shelf", async (p
 /* github#38, design/0009 -- the rail is fixed controls, and no grower
  * github#38 -- computed overflow-x, not just the boxes it has today */
 check("the rail is fixed controls, and nothing in it scrolls sideways", async (p) => {
+  const was = await p.j("({width:innerWidth,height:innerHeight})");
+  /* design/0009, github#57 -- CDP resizes without telling the page; viewport() waits */
   const at = async (width) => {
-    await p.send("Emulation.setDeviceMetricsOverride",
-                 { width, height: 1000, deviceScaleFactor: 1, mobile: false });
-    /* design/0009 -- CDP resizes the viewport without telling the page. */
-    await p.j(`window.dispatchEvent(new Event("resize"))`);
-    await sleep(150);
+    await viewport(p, width, 1000);
     return p.j(`(function(){
       var rail = document.getElementById("vs-rail");
       var inner = rail.querySelector(".vs-inner");
@@ -6318,8 +6291,7 @@ check("the rail is fixed controls, and nothing in it scrolls sideways", async (p
 
   const wide = await at(1180);
   const narrow = await at(860);
-  await p.send("Emulation.clearDeviceMetricsOverride");
-  await sleep(250);
+  await unviewport(p, was);
 
   /* design/0031 */
   const ok = !wide.scrollers.length && !narrow.scrollers.length &&
@@ -6395,10 +6367,40 @@ check("scrolling the library stays smooth in every look", async (p) => {
   };
 });
 
+/* github#57, github#69, decisions/0016 -- the runner's own guarantee, checked both ways */
+check("a draining room measure is waited out, and nothing else is", async (p) => {
+  /* 1. decisions/0013 -- the rule is still armed: atRest() asked, nothing left behind */
+  await p.eval(`document.getElementById("vs-manageopen").click(); void 0`);
+  const withSheet = await atRest(p);
+  await p.eval(`(function(){
+    var b = document.getElementById("vs-mclose");
+    if (b && b.offsetParent !== null) b.click();
+  })(); void 0`);
+  const shut = await atRest(p);
+
+  /* 2. github#57 -- returns with the timer deliberately pending; passing IS the guarantee */
+  const pending = await p.j(`(function(){
+    window.dispatchEvent(new Event("resize"));
+    return __vs.room().pending;
+  })()`);
+
+  /* decisions/0013 -- named, never "the page is silent": that blames a neighbour */
+  const says = (out) => out.some((w) => w.indexOf("manage") >= 0);
+  const named = says(withSheet) && !says(shut);
+  return {
+    ok: named && pending === 1,
+    detail: `an open sheet is still named by the busy-page rule (${named}: ` +
+            `${withSheet.join("; ") || "nothing"}), and gone once shut ` +
+            `(${shut.join("; ") || "nothing"}); returning with settleRoom's timer pending ` +
+            `(${pending}) is waited out by the runner rather than blamed on the check -- ` +
+            `this check going red with LEFT THE PAGE BUSY is that guarantee breaking`
+  };
+});
+
+/* github#57 -- the numbers were never wrong; both ends wait on real signals now */
 check("the room has a width, however wide the window is", async (p) => {
-  await p.send("Emulation.setDeviceMetricsOverride",
-               { width: 2560, height: 1400, deviceScaleFactor: 1, mobile: false });
-  await sleep(250);
+  const was = await p.j("({width:innerWidth,height:innerHeight})");
+  await viewport(p, 2560, 1400);
   const r = await p.j(`(function(){
     var app = document.getElementById("vs-app");
     var measure = parseInt(getComputedStyle(app).getPropertyValue("--measure"), 10);
@@ -6435,8 +6437,7 @@ check("the room has a width, however wide the window is", async (p) => {
              shelves: shelves, rail: rail, track: track, spread: spread,
              overflow: overflow, tracks: tracks.length, most: most, mostRows: rows[most] || 0 };
   })()`);
-  await p.send("Emulation.clearDeviceMetricsOverride");
-  await sleep(250);
+  await unviewport(p, was);
 
   const fits = (b) => b && b.w <= r.measure + 2;
   /* A SCROLLBAR IS NOT AN OFF-CENTRE LAYOUT. The library scrolls, so its right gutter is
@@ -6616,19 +6617,8 @@ check("no index cut is clipped, and none is shrunk past reading", async (p) => {
   const original = await p.j("({width:innerWidth,height:innerHeight})");
   const putWearBack = await holdWear(p);
 
-  const resize = async (width, height) => {
-    await p.send('Emulation.setDeviceMetricsOverride',
-                 { width, height, deviceScaleFactor: 1, mobile: false });
-    await p.eval("window.dispatchEvent(new Event('resize')); void 0");
-    let stable = 0;
-    for (let i = 0; i < 80; i++) {
-      const ready = await p.j(`innerWidth===${width} && innerHeight===${height} && !__vs.room().pending`);
-      stable = ready ? stable + 1 : 0;
-      if (stable >= 5) return;
-      await sleep(50);
-    }
-    throw new Error("the index viewport did not settle at " + width + "x" + height);
-  };
+  /* github#57 -- one waiter, in the harness */
+  const resize = (width, height) => viewport(p, width, height);
   /* design/0034 -- MEASURED CLOSED AND AT ITS WIDEST FOLD. A rail that fits shut and spills
    * open has not been measured; the fold that draws the most rows is the one to read. */
   const read = () => p.j(`(function(){
@@ -6698,20 +6688,8 @@ check("no index cut is clipped, and none is shrunk past reading", async (p) => {
     });
     return worst;
   })()`);
-  /* github#32 -- CLEAR the override, never re-set it to the size it had: setting it back
-   * leaves the emulation on with deviceScaleFactor pinned at 1, which every check after it
-   * that takes a clipped screenshot is then reading through. */
-  const restore = async () => {
-    await p.send('Emulation.clearDeviceMetricsOverride', {});
-    await p.eval("window.dispatchEvent(new Event('resize')); void 0");
-    let stable = 0;
-    for (let i = 0; i < 80; i++) {
-      const ready = await p.j(`innerWidth===${original.width} && innerHeight===${original.height} && !__vs.room().pending`);
-      stable = ready ? stable + 1 : 0;
-      if (stable >= 5) return;
-      await sleep(50);
-    }
-  };
+  /* github#32, github#57 -- clear it, never re-set it to the size it had */
+  const restore = () => unviewport(p, original);
   let tall, short;
   try {
     await resize(1180, 1000); tall = await read();
@@ -6905,18 +6883,8 @@ check("a numeric volume is indexed like a date book, not stopped at its years", 
 /* design/0032 */
 check("index tabs compress without scrolling and shelf icons edit and hide", async (p) => {
   const original = await p.j("({width:innerWidth,height:innerHeight})");
-  const resize = async (width, height) => {
-    await p.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
-    await p.eval("window.dispatchEvent(new Event('resize')); void 0");
-    let stable=0;
-    for (let i=0;i<60;i++) {
-      const ready=await p.j(`innerWidth===${width} && innerHeight===${height} && !__vs.room().pending`);
-      stable=ready?stable+1:0;
-      if(stable>=5) return;
-      await sleep(50);
-    }
-    throw new Error('Index viewport did not settle at '+width+'x'+height);
-  };
+  /* github#57 -- one waiter, in the harness */
+  const resize = (width, height) => viewport(p, width, height);
   const read = () => p.j(`(function(){
     var nav=document.getElementById('vs-tabs'), bounds=nav.getBoundingClientRect();
     var tabs=Array.from(nav.querySelectorAll('.vs-indextab'));
@@ -9129,10 +9097,9 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
     __vs.setFilters({});
     return n;
   })()`);
-  await p.send("Emulation.setDeviceMetricsOverride",
-               { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
-  await p.j(`window.dispatchEvent(new Event("resize"))`);
-  await sleep(400);
+  /* github#57 -- a golden read mid-repack fails a tree where nothing is wrong */
+  const wasView = await p.j("({width:innerWidth,height:innerHeight})");
+  await viewport(p, VIEWPORT.width, VIEWPORT.height);
   /* github#14, design/0021 -- in every look against one golden; it holds a book's width. */
   const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
   const was = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
@@ -9147,9 +9114,7 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
     for (const bad of diffLayout(golden, seen)) problems.push(`${look || "modern"}: ${bad}`);
   }
   await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
-  await p.send("Emulation.clearDeviceMetricsOverride");
-  await p.j(`window.dispatchEvent(new Event("resize"))`);
-  await sleep(250);
+  await unviewport(p, wasView);
   const rows = now.shelves.reduce((n, s) => n + s.rows, 0);
   const spines = now.shelves.reduce((n, s) => n + s.books, 0);
   const plaques = now.shelves.reduce((n, s) => n + s.plaques.length, 0);
@@ -9316,6 +9281,52 @@ async function buildFor(v) {
 
 /* ----------------------------------------------------------- at rest, or -- */
 
+/* decisions/0016 -- the budget, and quiet counted in reads rather than milliseconds */
+const SETTLE_MS = 3000;
+const SETTLE_QUIET = 5;
+const SETTLE_GAP = 20;
+
+/**
+ * github#57, github#69, decisions/0016 -- the one thing atRest() names that self-drains
+ * @param {{eval:(e:string)=>Promise<unknown>}} page
+ * @param {{width:number,height:number}} [want] the viewport the page must also have reached
+ * @returns {Promise<boolean>} whether it reached rest inside the budget
+ */
+function settled(page, want) {
+  const at = want
+    ? `innerWidth === ${Number(want.width)} && innerHeight === ${Number(want.height)} && `
+    : "";
+  return page.eval(`(async function(){
+    var quiet = 0, until = Date.now() + ${SETTLE_MS};
+    for (;;) {
+      quiet = (${at}!(window.__vs && __vs.room().pending)) ? quiet + 1 : 0;
+      if (quiet >= ${SETTLE_QUIET}) return true;
+      if (Date.now() > until) return false;
+      await new Promise(function (r) { setTimeout(r, ${SETTLE_GAP}); });
+    }
+  })()`);
+}
+
+/* github#57, decisions/0016 -- a viewport that has TAKEN, not one that was asked for */
+async function viewport(p, width, height) {
+  await p.send("Emulation.setDeviceMetricsOverride",
+               { width, height, deviceScaleFactor: 1, mobile: false });
+  await p.eval(`window.dispatchEvent(new Event("resize")); void 0`);
+  if (!(await settled(p, { width, height }))) {
+    throw new Error(`the viewport did not settle at ${width}x${height} in ${SETTLE_MS}ms`);
+  }
+}
+
+/**
+ * github#32, github#57 -- CLEAR it, never re-set it to the size it had
+ * @returns {Promise<boolean>} whether the page came back to `was` and settled there
+ */
+async function unviewport(p, was) {
+  await p.send("Emulation.clearDeviceMetricsOverride");
+  await p.eval(`window.dispatchEvent(new Event("resize")); void 0`);
+  return settled(p, was);
+}
+
 /**
  * github#39, decisions/0013 -- what the page is still doing.
  * @returns {Promise<string[]>} what is in flight, empty when the page is at rest
@@ -9370,8 +9381,8 @@ async function settlePage(page) {
         .forEach(function (a) { el.removeAttribute(a); });
     });
   })(); void 0`).catch(() => {});
-  /* github#39 -- past settleRoom's 60ms timer */
-  await sleep(90);
+  /* github#39, github#57 -- waited out, never slept past; decisions/0016 */
+  await settled(page).catch(() => {});
 }
 
 /* --------------------------------------------------------------- one run -- */
@@ -9518,6 +9529,11 @@ async function runOne(vault, work) {
       await sleep(200);
     }
 
+    /* github#57 -- the load's own resizes, drained before the first check reads */
+    await settled(page).catch(() => {});
+    /* github#57 -- the window every check must hand back; decisions/0016 */
+    let base = await page.j("({width:innerWidth,height:innerHeight})").catch(() => null);
+
     let failed = 0;
     const timings = [];
     for (const c of mine) {
@@ -9543,11 +9559,32 @@ async function runOne(vault, work) {
       const t0 = Date.now();
       try { r = await c.fn(page, ctx); }
       catch (e) { r = { ok: false, detail: "threw: " + e.message }; }
+      /* github#57, decisions/0016 -- past the coalescing timer before judging */
+      const drained = await settled(page).catch(() => true);
+      /* github#57, decisions/0016 -- a check that threw mid-resize leaves the override on */
+      let leaked = false;
+      if (base) {
+        leaked = await page.j(`innerWidth !== ${base.width} || innerHeight !== ${base.height}`)
+          .catch(() => false);
+        if (leaked) {
+          await page.send("Emulation.clearDeviceMetricsOverride").catch(() => {});
+          await settled(page, base).catch(() => {});
+          /* github#57, decisions/0016 -- the window itself moved, not a check */
+          const now = await page.j("({width:innerWidth,height:innerHeight})").catch(() => null);
+          if (now && (now.width !== base.width || now.height !== base.height)) {
+            base = now;
+            leaked = false;
+          }
+        }
+      }
       /* github#39, decisions/0013 -- blame the check that left it, not its neighbour */
       const busy = await atRest(page);
-      if (busy.length) {
-        r = { ok: false, detail: (r.detail || "") + ` -- LEFT THE PAGE BUSY: ${busy.join("; ")}` };
-        await settlePage(page);
+      if (busy.length || leaked) {
+        r = { ok: r.ok && !busy.length, detail: (r.detail || "") +
+              (leaked ? ` -- LEFT THE VIEWPORT OVERRIDDEN (${base.width}x${base.height} restored)` : "") +
+              (busy.length ? ` -- LEFT THE PAGE BUSY: ${busy.join("; ")}` +
+                             (drained ? "" : ` (still there after ${SETTLE_MS}ms)`) : "") };
+        if (busy.length) await settlePage(page);
       }
       const ms = Date.now() - t0;
       timings.push({ name: c.name, ms });

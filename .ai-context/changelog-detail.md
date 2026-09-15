@@ -131,6 +131,65 @@ nothing else in it, github#69 being live on that check.
 paints 8px above its track into a room of 7px, so 1px of it is sliced off; cyber hovered ... 11px
 ... ; cyber worn and hovered ... 13px ... ; cyber a search match ... 18px` and `SHORT: leather by
 1px, cyber by 18px -- UNSTATED: leather declares --spine-room 8px and clips at 7px`.
+## 2026-09-14 - The runner drains the room before it blames a check
+
+`github#57` and `github#69`, one fix, in the runner. `decisions/0016`.
+
+**Before, on this branch's base, `--jobs 1` with all 24 cores under synthetic load.**
+
+| | idle | under load |
+|---|---|---|
+| `"the room has a width, however wide the window is"` | 14/14 ok | **2 FAIL in 14** |
+
+Both failures read `-- LEFT THE PAGE BUSY: a pending room measure (settleRoom's 60ms timer)`
+with **every measured value correct and identical to the passing runs**: shelves 1180 (683/698),
+rail 1180, row 1180, spread 1084 (738/738), 10 rows in all, months taking 4, worst overflow 0px.
+The check waited `sleep(250)` — 250 ms of *Node* wall clock — for a 60 ms *page* timer, and a
+starved Node process expires that sleep before Chrome has dispatched the resize.
+
+**After.**
+
+| | idle | under load |
+|---|---|---|
+| `"the room has a width, however wide the window is"` | ok | **0 FAIL in 12** |
+
+**What changed.** `settled(page)` waits for `__vs.room().pending` to read zero across **five
+consecutive reads 20 ms apart**, polled *inside the page* on the page's own `setTimeout`, one CDP
+round trip, budget `SETTLE_MS = 3000`. The runner calls it after each check **before** `atRest()`
+judges, inside `settlePage()` in place of `await sleep(90)`, and once before the first check of a
+run. `viewport()` / `unviewport()` wrap it for checks; **all seven checks that drove
+`Emulation.setDeviceMetricsOverride` by hand now go through them**, and the three private copies
+of the stability loop are gone.
+
+**The busy-page rule is aimed, not dropped.** `settleRoom`'s timer is the only item `atRest()`
+names that drains on its own; a sheet, a drag, an edge scroll, an overscroll band and a room
+measure that will *not* drain in 3 s all still fail the check that left them — the last of those
+now saying `(still there after 3000ms)`.
+
+**One check added:** `"a draining room measure is waited out, and nothing else is"`, which
+returns with the timer deliberately just scheduled and asks `atRest()` directly whether an open
+sheet is still named. Verified both ways — it passes on this tree, and with the drain removed it
+fails with the exact words `github#57` was filed over.
+
+**Gated on the merge result, not on the stale base.** `develop` moved eleven commits mid-ticket
+(to `9be1fb6`, 139 checks, fixture digest `c1f3a5ca`), so it was merged in first. Two consecutive
+full runs then passed **140/140** at **103 s and 108 s wall**, stamping tree `ec48616` under
+github#55's two-green law — the same law that caught this defect in the first place. Neither of
+the two checks known flaky on `develop` (github#76, github#77) bit in either run, and
+`LEFT THE VIEWPORT OVERRIDDEN` never fired.
+
+**Cost is one `settled()` call per check** — a floor of five reads 20 ms apart in one CDP round
+trip. **No before-figure is claimed:** the base moved and the suite grew from 135 checks to 139,
+so a wall comparison would be measuring the merge rather than the drain. Several converted checks
+plainly got *faster* — `sleep(400)` and `sleep(250)` sized for the worst case now return as soon
+as the page agrees.
+
+**github#69 is not claimed as measured.** `"a lifted spine is painted whole, in every look"` did
+not reproduce here in **29 runs** at `--jobs 1` under full load, alone and immediately after its
+neighbour. It shares github#57's mechanism, which is gone; whether that was *its* mechanism is
+unproven, and its pixel logic, thresholds and assertions are deliberately untouched. Next place
+to look if it recurs: the compositor read in `paintedAbove()`, never a tolerance.
+
 ## 2026-09-14 - A shelf stands on a whole pixel, and a check names its lane (github#32, design/0034)
 
 The merge to `develop` came back **137/139**, two checks red that pre-date the branch and pass on

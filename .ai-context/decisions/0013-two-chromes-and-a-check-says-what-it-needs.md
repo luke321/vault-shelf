@@ -76,6 +76,13 @@ air, a reader or sheet left open. The check that left it is the one that fails �
 innocent one that trips over it next — and the runner then settles the page so the next check
 starts clean.
 
+> **Narrowed by `decisions/0016` (2026-09-14, `github#57`/`github#69`).** The coalescing timer
+> is the one item in this list that drains on its own, and two checks were failed for returning
+> inside it with every number they measured correct. The runner now waits it out before judging;
+> a timer that will not drain inside 3 s, and every other item above, still fails the check that
+> left it. The rule is aimed, not dropped — and `"a draining room measure is waited out, and
+> nothing else is"` is the check that keeps it that way.
+
 ## Consequences
 
 The suite keeps every check it had. 267 runs become 146; 15 browsers become 7.
