@@ -291,9 +291,7 @@ const holdWear = async (p) => {
   })(); void 0`);
 };
 
-/* github#77, decisions/0017 -- THE TWO SMOOTHNESS CHECKS SHARE THIS, page side. Both move a
- * scroller under a script and time the frames; a second copy of the arithmetic would be a
- * second chance to get the period wrong, which is the whole of what github#77 was about. */
+/* github#77, decisions/0017 -- both smoothness checks share this, page side */
 const FRAME_HELPERS = `(function(){
   window.__fr = {
     /* A FIXED VELOCITY, turned round at either end, so the pixels crossed per frame never
@@ -341,15 +339,7 @@ const FRAME_HELPERS = `(function(){
   };
 })(); void 0`;
 
-/* github#77, decisions/0017 -- and node side. THE NUMBER BOTH CHECKS ASSERT IS `missed`: how
- * many vsyncs the page failed to paint. A percentile of the intervals cannot be that number,
- * because an interval is a whole count of vsyncs and a percentile of a quantised thing lands
- * inside a cluster -- the 34ms budget both checks held until github#77 sat inside the
- * two-vsync one, so one dropped frame read 34.2 and passed or 34.7 and failed. This has no
- * per-frame threshold in it at all: the frames that should have arrived, less the ones that
- * did. It is also blind to how many samples there are, which the percentile was not -- a
- * slower run takes fewer frames in the same window, so the old index moved down the tail
- * exactly when the jank arrived. */
+/* github#77, decisions/0017 -- and node side: missed vsyncs, never a percentile */
 const frameGaps = (ts) => {
   const iv = [];
   for (let i = 1; i < ts.length; i++) iv.push(ts[i] - ts[i - 1]);
@@ -365,9 +355,7 @@ const frameStats = (s, vsync) => {
            p50: frameAt(up, 0.5), p95: frameAt(up, 0.95), worst: up[up.length - 1],
            span: s.span };
 };
-/* A period nothing on this machine could paint says the calibration itself did not run, and
- * every count taken against it is arithmetic on a number that is not a frame. Reported apart
- * from the budget because it is a fact about the machine, not about what was measured. */
+/* github#77, decisions/0017 -- a period no machine could paint means calibration failed */
 const frameSteady = (vsync) => vsync > 6 && vsync < 26;
 
 /* =========================================================== the invariants ==
@@ -6388,29 +6376,7 @@ check("the rail is fixed controls, and nothing in it scrolls sideways", async (p
   };
 });
 
-/* github#77, decisions/0017 -- THE NUMBER ASSERTED HERE IS A COUNT, NOT A PERCENTILE.
- * An interval between animation frames can only be a whole number of vsyncs, so a percentile
- * of intervals always lands inside a cluster; the 34ms budget this held until github#77 sat
- * inside the two-vsync one, and the same dropped frame read 34.2 and passed or 34.7 and
- * failed. What is counted now is how many vsyncs the page failed to paint while the room was
- * scrolled -- 0, 1, 2 are its values, and the budget sits between them, not inside one. */
-/* github#77, decisions/0017 -- THE NUMBER ASSERTED HERE IS A COUNT, NOT A PERCENTILE.
- * An interval between animation frames can only be a whole number of vsyncs, so a percentile
- * of intervals always lands inside a cluster; the 34ms budget this held until github#77 sat
- * inside the two-vsync one, and the same dropped frame read 34.2 and passed or 34.7 and
- * failed. What is counted now is how many vsyncs the page failed to paint while the room was
- * scrolled -- 0, 1, 2 are its values, and the budget sits between them, not inside one. */
-/* github#77, decisions/0017 -- THE NUMBER ASSERTED HERE IS A COUNT, NOT A PERCENTILE.
- * An interval between animation frames can only be a whole number of vsyncs, so a percentile
- * of intervals always lands inside a cluster, and the 34ms budget this held until github#77
- * sat inside the two-vsync one: the same dropped frame read 34.2 and passed or 34.7 and
- * failed, which was four reds in five on a clean `develop`. What is counted now is how many
- * vsyncs the page failed to paint while the room was scrolled. Its values are 0, 1, 2, and
- * the budget sits between them rather than inside one. */
-/* github#77, decisions/0017 -- THE NUMBER ASSERTED HERE IS A COUNT, NOT A PERCENTILE, and
- * `frameStats` above says why. Measured on a clean `develop`, the 34ms budget this held until
- * github#77 was red four runs in five; the count is 0 to 3 of the 80 vsyncs a sweep offers,
- * against 59 to 66 for the same room with design/0014 taken off it. */
+/* github#77, decisions/0017 -- a count of missed vsyncs, never a percentile */
 check("scrolling the library stays smooth in every look", async (p) => {
   /* MEASURED, NOT ASSUMED. The library is every spine of every shelf, and each look paints a
    * spine with its own layers of gradient and texture; what that costs is only knowable by
@@ -6482,14 +6448,10 @@ check("scrolling the library stays smooth in every look", async (p) => {
   for (const n of names) look[n] = frameStats(r.looks[n], VSYNC);
   const slowed = frameStats(r.slowed, VSYNC);
 
-  /* github#77, decisions/0017 -- the budget, in missed vsyncs of the 80 a 1.4s sweep offers.
-   * It sits in the gap between what the shipped room misses and what the same room misses
-   * without design/0014, and invariants.md carries both distributions. */
+  /* github#77, decisions/0017 -- missed vsyncs of the ~80 a 1.4s sweep offers */
   const BUDGET = 14;
   const over = names.filter((n) => look[n].missed > BUDGET);
-  /* The budget is only a gate for as long as something can push past it. A probe that no
-   * longer fails means the measurement has stopped seeing cost, and that is this check's
-   * failure to report rather than a pass to collect. */
+  /* github#77, decisions/0017 -- a budget nothing can fail has stopped seeing cost */
   const blind = slowed.missed <= BUDGET;
 
   return {
@@ -7899,10 +7861,7 @@ check("a wheel on the spread stays smooth in every look", async (p) => {
   await p.eval(FRAME_HELPERS);
   /* github#40, design/0028 -- the library scroll's budget, same method */
   /* github#40, design/0028 -- two costs, so measured where the push cannot turn */
-  /* github#77, decisions/0017 -- and the same count as the library scroll now asserts, for the
-   * same reason: this held the identical 34ms line, and a line inside the two-vsync cluster is
-   * a coin toss wherever it is drawn. This one was never caught red, which says the reader is
-   * cheaper to push than the room is to scroll, not that the line was sound. */
+  /* github#77, decisions/0017 -- the same count, and it held the same 34ms line */
   const r = await p.eval(`(async function(){
     var looks = window.VaultShelfCore.LOOKS.map(function (l) { return l.value; });
     var was = document.getElementById("vs-app").getAttribute("data-look") || "";
@@ -7950,11 +7909,7 @@ check("a wheel on the spread stays smooth in every look", async (p) => {
   const names = Object.keys(r.looks);
   const push = {};
   for (const n of names) push[n] = frameStats(r.looks[n], VSYNC);
-  /* github#77, decisions/0017 -- missed vsyncs of the 68 a 1.2s push offers. Wider than the
-   * library's 14 because a push is measured while the reader is also being driven, and because
-   * nothing here proves the number can still see cost: there is no probe on this surface, so
-   * the budget is held where a real stutter would clear it rather than where a marginal one
-   * would. invariants.md says so too, so it is not quietly assumed. */
+  /* github#77, decisions/0017 -- missed vsyncs of the ~68 a 1.2s push offers */
   const BUDGET = 14;
   const over = names.filter((n) => push[n].missed > BUDGET);
   const turnedAnyway = names.filter((n) => r.looks[n].turned);
