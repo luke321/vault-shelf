@@ -135,3 +135,5 @@ are the regression suite.
 - [0034 - The thumb index](design/0034-the-thumb-index.md): a cut is a tree and the rail lists one level of it, under the trail it came through; fit is measured, not calculated.
 
 - [0035 - A volume of numbers](design/0035-a-volume-of-numbers.md): a third contents mode that reads digits as numbers, offered in the A-Z slot where every note opens with one.
+
+- [0036 - The CSS floor is measured](design/0036-the-css-floor-is-measured.md): a linter's browser-support table is not evidence; a real Obsidian is, and four of five warnings were noise.

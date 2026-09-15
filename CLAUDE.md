@@ -117,9 +117,10 @@ of measuring it.** Build the page, drive it, read the numbers.
   is correctly gated on its own.
 
   **And the screen is claimed by whatever parks a window on it** (`github#37`), which is every
-  one of `smoke.mjs`, `refresh-check.mjs`, `teardown-check.mjs`, `check-data-escape --browser`
-  and `update-layout-snapshots.mjs`. Four of the five took no lock at all until now, and the
-  fifth's `suite` lock was never about the display. The claim comes from the same call that
+  one of `smoke.mjs`, `refresh-check.mjs`, `teardown-check.mjs`, `check-data-escape --browser`,
+  `check-css-support.mjs` and `update-layout-snapshots.mjs`. Four of the original five took no
+  lock at all until `github#37`, and `smoke.mjs`'s `suite` lock was never about the display;
+  `check-css-support.mjs` claimed one from its first commit. The claim comes from the same call that
   gives a harness its window position, so it cannot be forgotten; `--lock-timeout-ms` says how
   long a blocked run waits before naming the holder and giving up. **There is nothing left to
   wrap by hand.** Driving a window yourself is the one case:
@@ -198,10 +199,12 @@ of measuring it.** Build the page, drive it, read the numbers.
   `check-pii`, `check-scope`, `check-network`, `check-comments`, `check-data-escape`,
   `refresh-check --wiring-only` and the two determinism checks gate every push and have no
   skip flag.
-- **Three gates drive a browser**, run by hand rather than by the hook: `check-data-escape
+- **Four gates drive a browser**, run by hand rather than by the hook: `check-data-escape
   --browser` (a vault whose metadata is markup), `teardown-check` (twenty mount/unmount cycles,
-  nothing left behind) and `refresh-check` (the library and an open book follow a changed
-  vault). Each claims `screen-left` itself (`github#37`) — the documentation called them
+  nothing left behind), `refresh-check` (the library and an open book follow a changed
+  vault) and `check-css-support` (a real Obsidian is asked whether it supports the CSS the
+  sheets rely on -- `github#61`, `design/0036`; it launches Obsidian, which is why it stays
+  out of the hook). Each claims `screen-left` itself (`github#37`) — the documentation called them
   lock jobs for months while they took no lock at all. The packing is a golden per fixture in
   `scripts/layout-snapshots/`, diffed by the suite and rewritten, deliberately, by
   `node scripts/update-layout-snapshots.mjs`.
