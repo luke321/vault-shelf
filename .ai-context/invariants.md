@@ -392,6 +392,12 @@ index rather than on sort stability, and compacts to `0..n-1`. `buildShelves` on
 on `position` (`shelves.ts:372`), so compaction moves nothing; it keeps a gap left by a deleted
 shelf from growing, and it is what makes the function **idempotent**.
 
+**What `migrate` returns still has its array in `position` order**, so nothing downstream that
+reads the two as agreeing has changed: the old code held that by destroying `position`, the new
+one holds it by honouring it. Compaction is what keeps it true — three sites give a new shelf
+`position: settings.shelves.length` (`page.js:3843`, `:4018`, `:5280`), which is only a free
+number while the sequence has no gaps.
+
 Idempotence is not decoration here. The page migrates once, at mount (`page.js:202`); the
 plugin migrates on **save** (`main.js:532`) *and* again on load (`main.js:445`). A fix that
 honoured `position` without being idempotent would pass on the exporter and still lose the

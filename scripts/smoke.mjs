@@ -1329,9 +1329,7 @@ check("a filter changes membership without moving a shelf", async (p) => {
                        `${JSON.stringify(after.order) === JSON.stringify(r.order)}` };
 });
 
-/* github#79 -- every reorder writes `position` and never moves the array, so the reload is
- * the only place the arrangement can be lost. The page migrates once at mount; the plugin
- * migrates on save AND again on load, which is the whole of "on both hosts" here. */
+/* github#79 -- the reload is the only place a reorder can be lost */
 
 check("a reordered shelf survives a reload, on both hosts", async (p) => {
   const r = await p.j(`(function(){
@@ -1354,8 +1352,9 @@ check("a reordered shelf survives a reload, on both hosts", async (p) => {
     document.getElementById("vs-manageopen").click();
     var last = before[before.length - 1];
     var up = document.querySelector('[aria-label="Move ' + shelfOf(live.shelves, last).name + ' up"]');
+    /* Never throw before the restore below: the checks in a shard share one page. */
     out.hasButton = !!up;
-    up.click();
+    if (up) up.click();
     out.moved = ids(live);
     /* The array never moved -- which is exactly why the reload could throw the move away. */
     out.arrayOrder = live.shelves.map(function (s) { return s.id; });
