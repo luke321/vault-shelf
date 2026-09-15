@@ -265,6 +265,19 @@ function storyboard(P) {
     await go(`__vs.openBook(${JSON.stringify(state.book)},null); void 0`);
     state.index=await j(`__vs.reader().index`);
   };
+  /* github#70, design/0035 */
+  const inDigits = async (state) => {
+    state.shelf='encyclopedia';
+    state.book=await j(`(function(){
+      var v=__vs.views().filter(function(v){return v.shelf.id==='encyclopedia';})[0];
+      var b=v&&v.books.filter(function(b){return b.key==='0-9';})[0];
+      return b?b.id:null;
+    })()`);
+    if (!state.book) throw new Error('contentsorder: this vault has no 0-9 volume');
+    await settleOn('encyclopedia'); await pointer(neutral);
+    await go(`__vs.openBook(${JSON.stringify(state.book)},null); void 0`);
+    state.index=await j(`__vs.reader().index`);
+  };
   const bookTarget = (state) => spineOf(state.book,state.shelf);
   const madeTarget = (state) => `[data-shelf="${state.fav}"] .vs-spine[data-book$="-made-my-journal"]`;
   const madeSetup = async (state) => {
@@ -615,10 +628,12 @@ function storyboard(P) {
         {at:23,target:'#vs-dye .vs-swatch:nth-child(4)'},
         {at:25,target:neutral}
       ] }),
-    scene({ name: "contentsorder", seconds: 13, title: 'Read by <b>title or date</b>.', sub: 'The contents and right-hand index change together.', setup:inBook(),steps:[
-        {at:3,target:'#vs-tabs .vs-indextoggle',run:async()=>{await prove(`document.querySelector('#vs-tabs .vs-indextoggle').getAttribute('data-index-mode')==='az'`,'contentsorder: A-Z not applied');}},
-        {at:6,target:'#vs-tabs .vs-indextab:nth-of-type(5)'},
-        {at:9,target:'#vs-tabs .vs-indextoggle',run:async()=>{await prove(`document.querySelector('#vs-tabs .vs-indextoggle').getAttribute('data-index-mode')==='date'`,'contentsorder: Date not restored');}}
+    /* github#70, design/0035 */
+    scene({ name: "contentsorder", seconds: 13, title: 'Read by <b>title, date or number</b>.', sub: 'A volume of numbers opens in Number. Contents and index change together.', setup:inDigits,steps:[
+        {at:1.5,target:'#vs-tabs .vs-indextoggle',action:'hover',run:async()=>{await prove(`document.querySelector('#vs-tabs .vs-indextoggle').getAttribute('data-index-mode')==='number'`,'contentsorder: a volume of numbers did not open in Number');}},
+        {at:4,target:'#vs-tabs .vs-indextoggle',run:async()=>{await prove(`document.querySelector('#vs-tabs .vs-indextoggle').getAttribute('data-index-mode')==='date'`,'contentsorder: Date not applied');}},
+        {at:7,target:'#vs-tabs .vs-indextab:nth-of-type(5)'},
+        {at:10,target:'#vs-tabs .vs-indextoggle',run:async()=>{await prove(`document.querySelector('#vs-tabs .vs-indextoggle').getAttribute('data-index-mode')==='number'`,'contentsorder: Number not restored');}}
       ] }),
     scene({ name: "autocomplete", seconds: 12, title: 'Find a book by <b>the name on its cover</b>.', sub: 'Suggestions use the real words already on your shelves.', setup:searchSetup,
       frame:async(sec,state)=>{if(sec>=3 && sec<5.5)await typeInto('vs-q',state.word,sec,3,5.3);},steps:[

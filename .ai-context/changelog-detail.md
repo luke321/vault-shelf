@@ -4449,4 +4449,25 @@ says `az` and every book in the selection qualifies. The check reads the picker 
 toggle saves anything — read after, it passes on the saved value and proves nothing — and goes
 red at `number,date` where it now reads `number!,date`.
 
+**The film was re-shot, both halves.** `contentsorder` is a 13-second act and its clip already
+shipped; both filmed a lettered book and said *"title or date"*. The act now opens
+`encyclopedia/0-9` through a new `inDigits` setup and runs Number → Date → a tab → Number, each
+beat proved on `data-index-mode`. The middle frame carries the law no still can: the same note,
+`0 to 1`, stays selected across the switch and moves from **1 of 2,064** to **1349 of 2,064**.
+
+| | before | after |
+|---|---|---|
+| `docs/features/contentsorder.webp` | 833 KB, 1000×1000, a lettered book | **551 KB, 1000×1000, the `0-9` volume** |
+| its caption | *Read by title or date* | **Read by title, date or number** |
+| its sub | *The contents and right-hand index change together* | **A volume of numbers opens in Number. Contents and index change together** |
+| the feature headings | *Choose A–Z or Date* | **Choose A–Z, Date or Number** |
+| `assets/demo.webp` | 3,501 KB, 68s | **3,578 KB, 68s** — same choreography, later date |
+| storyboard acts | 24 | **24, unchanged** |
+
+**Two traps on the way.** `--hero-acts` is not `--act`: the first run filmed the whole
+storyboard and died 720 frames into `hero`, because `--hero-acts` only says which acts the webp
+is *cut from*. And the first clip came back **1000×626** — the hero encoder is `scale=1000:-2`
+with no crop, so the shape is the capture's, and every shipped clip was shot at
+`--width 1000 --height 1000`.
+
 One new check, *a volume of numbers reads by number, and only such a volume is offered it*.

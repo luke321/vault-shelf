@@ -119,6 +119,37 @@ naming a mode this one cannot cut by degrades to the automatic mode rather than 
 is what the old two-value comparison did by hand. **No schema bump**: an older file never
 carries `number`, and an older build already drops what it does not know.
 
+## The film
+
+Lukas, on the approved review: extend the act that exists rather than split contents order across
+two pages. `contentsorder` was already the 13-second act and `docs/features/contentsorder.webp`
+already the clip; both filmed a lettered book and said *"title or date"*, so the shipped clip
+under-showed the control the moment this landed.
+
+**The act films the one volume the third mode is about.** A new `inDigits` setup opens
+`encyclopedia/0-9` instead of the thickest book on Years, and the beats are Number → Date → a
+tab → Number, each with a `prove` on `data-index-mode`. The middle frame is the one worth the
+13 seconds: the same note, `0 to 1`, stays selected across the switch and moves from **1 of
+2,064** to **1349 of 2,064** — *the reader's switch keeps the note*, which no still can show.
+
+**The title names three, the sub says why two are on screen.** A caption reading *"title, date or
+number"* over a clip that never shows A–Z is a small lie; the sub carries the reason — *"A volume
+of numbers opens in Number"* — and the feature page's prose still covers all three. The headings
+are `Choose A–Z, Date or Number` now, in `docs/features.md` and the page itself.
+
+**Square, because every other feature clip is.** The first take came back **1000×626**: the hero
+encoder is `scale=1000:-2` with no crop, so the shape is the *capture's*, and the shipped clips
+were all shot at `--width 1000 --height 1000`. Re-shot square, 551 KB at 8fps.
+
+**And `--hero-acts` is not `--act`.** The first run filmed the whole storyboard and failed 720
+frames into `hero`, because `--hero-acts` only says which acts the webp is *cut from*.
+`--act contentsorder` is what limits the shoot.
+
+**The hero was re-shot too** (`assets/demo.webp`, 68s, 1000×1000, 3,578 KB), on Lukas's call.
+Nothing in its frame moved — this ticket changes the order of notes inside one book, and no layout
+golden moved — so it is a re-record of the same choreography with a later commit date, which is
+the only thing `release.ps1` can compare.
+
 ## What moved
 
 Measured 2026-09-15 on the vault shape (`vault-c1f3a5ca`, 4,939 notes), the `0-9` volume.
