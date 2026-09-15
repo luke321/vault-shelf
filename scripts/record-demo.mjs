@@ -740,12 +740,17 @@ try {
     say("look: " + LOOK);
   }
 
-  /* github#23, design/0007 -- the demo build seeds picks; this takes them off. */
+  /* github#23, design/0007 -- the demo build seeds picks; this takes them off.
+   * github#71, design/0020 -- off is delete for a made book; skip it, not unpick it. */
   if (EMPTY_PICKS) {
     const left = await j(`(function(){
       var shelf = __vs.picks()[0];
       if (!shelf) return null;
-      shelf.picks.forEach(function (id) { __vs.unpick(id, shelf.id); });
+      var made = __vs.made(shelf.id);
+      shelf.picks.forEach(function (id) {
+        if (made[id]) return;
+        __vs.unpick(id, shelf.id);
+      });
       return __vs.picks()[0].picks.length;
     })()`);
     if (left === null) throw new Error("--empty-picks: this library has no pick shelf");
