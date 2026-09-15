@@ -1,5 +1,62 @@
 # Changelog detail
 
+## 2026-09-15 — A look's paint room is measured against itself (`github#78`, `design/0021`)
+
+`nothing a look paints outside a spine is cut off, in every look` failed intermittently on
+`develop` — about **one full-suite run in two** — reporting cyber wanting **26px** against a 25px
+room, then **24px**, then exactly **25px** three times when run alone, all on an unchanged tree.
+The room was not short. The **measurement** was.
+
+It read what the paint *wanted* — whole device rows above `Math.floor(trackTop)` under a margin
+that clips nothing — and inferred a slice from `wanted > room`, a CSS length off the real,
+**fractional** `trackTop`. Two numbers, two frames, one subtraction. Peak 8-bit difference across
+the last rows before a look's paint edge, at quarter-pixel resolution:
+
+| look | approaching | at the edge | past it | reach |
+|---|---|---|---|---|
+| leather | `1 1 2` | **`67 66 67 66`** | `146 145 146` | hard, exact |
+| modern | `0 0 1` | **`113 153 199 211`** | `212 212 212` | hard, exact |
+| cyber | `6 6 6` | **`7 7 7 7`** | `8 8 8 8` | a 22px blur, **1 unit per 0.75px** |
+
+Cyber's edge is decided by a single quantisation step against `MOVED = 6`, so one unit of
+rendering noise moves it a whole pixel. `github#51` then set the room to 25 — the middle of its
+own noise — and left leather and modern on the same zero margin, stable only because their paint
+has a hard edge.
+
+**Now the clip is compared against itself**: the band as shipped, against the same band with that
+spine's own track opened (`.vs-track:has([data-probe51b])`). What they disagree about **is** what
+the clip took. Both captures share the anchor, the lane, the scroll offset and the fractional
+track, so all of it cancels.
+
+Measured over eight scroll offsets, five states, three looks:
+
+| | room | old `wanted` | new `cut` |
+|---|---|---|---|
+| leather | 8px | `8` every time | **0** |
+| modern | 7px | `7` every time | **0** |
+| cyber | 25px | **`24` or `25`** | **0** |
+
+Four consecutive runs of the check now print a **byte-identical** detail line, at 10.8–11.3s.
+The negative control still bites — cyber's room forced short:
+
+| cyber's room | states sliced, of 5 |
+|---|---|
+| 26px, 29px, 32px | **0** — the room was never short; `--spine-halo` stays 18px |
+| 20px | **3** — hovered, worn and hovered, a search match |
+| 12px | **3** — `a search match paints 25px into a room of 12px, so 13px of it is sliced off` |
+
+**The unstable reach is no longer printed.** "wants 26px" read as a defect and was not one; the
+detail names the room and the states it held, and what the room should *be* stays with the
+sibling check, which asserts `room === tallest rung + halo` exactly and takes no screenshots.
+
+**And the check waits for the room instead of sleeping at it** (`decisions/0016`): `setLook`,
+`setQuery` and `clearQuery` wait on `settled()` where they guessed at 160ms and 280ms, and a
+state whose room never settles now fails by name (`STILL MOVING WHEN MEASURED`) rather than
+being measured half-built.
+
+**Nothing in `src/` changed** — no look, no room, no constant, no golden. This is the suite
+learning to measure what it always claimed to.
+
 ## 2026-09-15 — A volume of numbers reads by number (`github#70`, `design/0035`)
 
 A third `core.IndexMode`. `number` orders a book by the leading digit run of each title —

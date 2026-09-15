@@ -8957,9 +8957,12 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
                 : `${n} allows ${h.room}px and slices nothing off any of its ${h.states} states`;
             }).join(", ") +
             (cut.length
-              ? ` -- CUT: ` + cut.map((x) =>
-                  `${x.look} ${x.state} paints ${x.cut}px above its track into a room of ` +
-                  `${x.room}px, so ${x.cut - x.room}px of it is sliced off`).join("; ")
+              ? ` -- CUT: ` + cut.map((x) => x.cut > x.room
+                  ? `${x.look} ${x.state} paints ${x.cut}px above its track into a room of ` +
+                    `${x.room}px, so ${x.cut - x.room}px of it is sliced off`
+                  /* github#78 -- opening the clip may not change what was inside it */
+                  : `${x.look} ${x.state} changed ${x.cut}px above its track, INSIDE its own ` +
+                    `${x.room}px room, which the clip cannot have done`).join("; ")
               : "") +
             (missing.length
               ? ` -- NO SUCH SPINE: ` + missing.map((x) => `${x.look} ${x.state}`).join(", ")

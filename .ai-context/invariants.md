@@ -1235,19 +1235,56 @@ leather declares --spine-room 8px and clips at 7px, cyber declares --spine-room 
 
 `"nothing a look paints outside a spine is cut off, in every look"` is the other half, and it is
 the one that found this: for **each of five states** in each look — at rest, worn at rest, hovered,
-worn and hovered, and a search match with a query live — it reads how far above its track the
-spine is painted under a margin wide enough to clip nothing, and asserts the room is at least
-that. `:hover` is **forced** (`CSS.forcePseudoState`), never pointed at, because the real-pointer
-form of this measurement flaked outright. Its widest state per look: leather **8px** (a search
-match), modern **7px** (hovered), cyber **25px** (a search match). With the room back on the lift
-ladder alone it names every one:
+worn and hovered, and a search match with a query live — it asks whether the room slices anything.
+`:hover` is **forced** (`CSS.forcePseudoState`), never pointed at, because the real-pointer form of
+this measurement flaked outright.
 
-| look | state | paints | room was | cut |
-|---|---|---|---|---|
-| leather | a search match | 8px | 7px | **1px** |
-| cyber | hovered | 18px | 7px | **11px** |
-| cyber | worn and hovered | 20px | 7px | **13px** |
-| cyber | a search match | 25px | 7px | **18px** |
+**It compares the clip against itself** (`github#78`). It shoots the band as **shipped**, shoots it
+again with that spine's **own** track opened to a margin that clips nothing
+(`.vs-track:has([data-probe51b])`), and what the two disagree about **is** what the clip took. Both
+captures share the anchor, the lane, the scroll offset, the fractional track top and the exact
+intensity of every falloff, so all of it cancels and nothing is subtracted across frames. Only that
+spine's track is opened: opening every track lets the one above spill its own paint down into the
+band, which would read as this one's cut.
+
+**It used to infer the cut instead, and that inference was ill-conditioned.** It read what the paint
+*wanted* — whole device rows above `Math.floor(trackTop)` under a margin that clips nothing — and
+compared it against `--spine-room`, a CSS length off the real, **fractional** `trackTop`. Two
+numbers, two frames, one subtraction, and it holds only where the paint has a **hard edge**. Peak
+8-bit difference across the last rows before the edge, measured at quarter-pixel resolution:
+
+| look | approaching the edge | at it | past it |
+|---|---|---|---|
+| leather | `1 1 2` | **`67 66 67 66`** | `146 145 146` |
+| modern | `0 0 1` | **`113 153 199 211`** | `212 212 212` |
+| cyber | `6 6 6` | **`7 7 7 7`** | `8 8 8 8` |
+
+Leather's gilt ring and modern's border step by tens, so the row the `MOVED = 6` threshold picks is
+never in doubt. Cyber's is a 22px neon blur falling about **one 8-bit unit per 0.75px**, so a single
+quantisation step moves the answer a whole pixel: the reach came back **24, 25 or 26 for an
+unchanged tree**, `github#51` set the room to 25 — the middle of that noise — and `develop` could
+fail its own pre-push hook about one run in two. A pixel of slack would only have moved the coin
+flip to 26.
+
+**The room was never short.** Measured over eight scroll offsets and all five states, the clip takes
+**nothing** at the shipped rooms, and it goes on taking nothing with cyber's room forced to 26, 29
+or 32px — so cyber's `--spine-halo` stays the hover neon's **18px**, and the sibling check above
+keeps asserting `room === tallest rung + halo` exactly. What was wrong was the measurement.
+
+The reach is **no longer printed**. "cyber allows 25px and its widest (a search match) wants 26px"
+read as a defect and was not one; the detail names the room and the states it held instead, and what
+the room should *be* belongs to the sibling check. Forced short, it still names every one:
+
+| cyber's room | states sliced, of 5 | what it says |
+|---|---|---|
+| 25px (shipped) | **0** | slices nothing off any of its 5 states |
+| 20px | 3 | hovered, worn and hovered, a search match |
+| 12px | 3 | `a search match paints 25px into a room of 12px, so 13px of it is sliced off` |
+
+**And it waits for the room rather than sleeping at it** (`decisions/0016`). Every `setLook`,
+`setQuery` and `clearQuery` in the check waits on `settled()` where it used to guess at 160ms and
+280ms, and a state whose room never came to rest is collected and **fails the check by name**
+(`STILL MOVING WHEN MEASURED`) rather than being measured half-built and reported as a number.
 
 The band stays **in the page** — only the answer crosses the wire — because handing back a
 60-row band as pixels is ~16,000 numbers a capture, and the check takes thirty of them: 68s that
