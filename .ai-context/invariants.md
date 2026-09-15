@@ -1968,6 +1968,39 @@ entries with an `http` scheme after the page has loaded and been driven, and ass
 static half is `scripts/check-network.mjs`, which is unskippable in the pre-push hook.
 `decisions/0006`.
 
+## The page is scoped, and the gate that says so is proved on every run
+
+`scripts/check-scope.mjs` reads the three shipped stylesheets with **one character walker**, and
+it is the only CSS parser in that file (`github#81`, `decisions/0017`). Comments are blanked to
+same-length whitespace, quoted regions are skipped, and a block's prelude is everything since the
+last `}`, `;` or `{` — never the single line the brace sits on, which is what the line walker it
+replaced read. Selector lists split on commas outside parentheses, brackets and quotes, and the
+line reported is the offending **member's** own.
+
+On this tree the gate reads **513 css rules and 582 selector members** across `page.css`,
+`leather.css` and `cyber.css`. The rule count is unchanged by the rewrite; the member count is
+**62 higher** than the line walker ever saw — page.css 19, leather.css 29, cyber.css 14 — every
+one of them scoped, so the gate had been passing for the right answer by luck. `124 prefixed
+classes` is also unchanged: the class scan's own hole (it skipped the first rule inside every
+`@media`) gained no new class name, because every class inside an `@media` is used outside one too.
+
+At-rules are classified, not pattern-matched. `media`, `supports`, `container`, `layer`, `scope`,
+`starting-style` and `document` hold style rules and are entered at any depth; `font-face`,
+`keyframes`, `page`, `property`, `counter-style`, the two `font-*-values` rules, `viewport`,
+`import`, `charset` and `namespace` cannot and are skipped. **Anything else is a problem**, and so
+is a nested rule — a construct the parser cannot judge is refused, never skipped.
+
+`.vault-shelf` alone, or followed by ` `, `:`, `[`, `.` or `>`, is scoped. A `+` or `~` **after
+the root compound** is not: `.vault-shelf + p` and `.vault-shelf:hover ~ p` style a sibling of the
+page. `.vault-shelf .vs-a + .vs-b` is still fine — the combinator that matters is the first one
+after the root.
+
+**Twenty-eight negative controls run on every invocation, not behind a flag**, each asserting the
+rules read, the selector members read, and the exact set of problems raised; the clean line names
+the count. A control that stops biting fails the gate. `node scripts/check-scope.mjs --selftest`
+prints them case by case. The reasoning, and why this is not a `--selftest` the hook calls the way
+`lock.mjs` is, is `decisions/0017`.
+
 ## A spine holds its size
 
 `"a spine lifts on hover and holds its size"` measures a spine's box at rest and focused and
