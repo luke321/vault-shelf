@@ -34,6 +34,9 @@ changing what a shelf contains or how a book is addressed.
 | `0012-lock-the-screen-not-the-job` | Why a lock is named after the display it takes over rather than the activity, what the claim-and-return shape buys over handing back a name, and how a hold proves it is still alive |
 | `0013-two-chromes-and-a-check-says-what-it-needs` | Why the suite caps at two browsers where the sister repo went to one, why a check declares the shapes it needs, and why a check that leaves the page moving fails |
 | `0014-one-vault-for-the-checks-and-the-film` | Four generated vaults become one: what the one vault had to absorb to replace three, what was given up, why the film stopped being shot in a mirror, and what `0013`'s per-shape narrowing means once there is one shape |
+| `0015-the-suite-owns-its-own-focus` | Why the suite takes the window's focus itself and drives real keys rather than dispatching the events |
+| `0016-the-runner-drains-the-room-before-it-blames-a-check` | Why a check that returns with the page still moving is the runner's finding, and what it names |
+| `0017-a-smoothness-budget-counts-frames` | Why a percentile of frame intervals cannot be measured at 34ms, what a missed-vsync count replaces it with, why the vsync has to be calibrated rather than read off the run being judged, and why the only slowdown that costs a frame is the regression the check exists to catch |
 
 ### DDRs — `design/`
 
