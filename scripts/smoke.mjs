@@ -8791,7 +8791,8 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
   const MOVED = 6;   /* github#51 -- dither is a unit; an arriving edge moves one by tens */
   const REACH = 60;  /* github#51 -- past the widest room a look could ask for */
   const SIDE = 24;   /* github#51 -- a glow spills sideways too, so read wider than the spine */
-  const WIDE = " #vs-app .vs-track { overflow-clip-margin: 90px !important; }";
+  /* github#78 -- this spine's own track, not every track */
+  const OPEN = " #vs-app .vs-track:has([data-probe51b]) { overflow-clip-margin: 90px !important; }";
 
   /* github#51, design/0021 -- the band stays in the page; only the answer crosses. */
   const grab = async (slot, x, y, w, rows) => {
@@ -8827,18 +8828,18 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
     return 0;
   })()`);
 
-  /* github#51, design/0021 -- what the paint WANTS, under a margin that clips nothing. */
-  const wantedAbove = async (g) => {
+  /* github#78, design/0021 -- what the clip takes, not what paint wants */
+  const slicedAbove = async (g) => {
     const x = Math.max(0, Math.round(g.left) - SIDE);
     const w = Math.max(2, Math.round(g.w) + SIDE * 2);
     const y = Math.floor(g.trackTop) - REACH;
     if (y < 0) return -1;
-    await sheet(WIDE);
-    await grab("wide", x, y, w, REACH);
-    await sheet(WIDE + " #vs-app [data-probe51b] { visibility: hidden !important; }");
-    await grab("bare", x, y, w, REACH);
     await sheet("");
-    return reachOf("wide", "bare");
+    await grab("shipped", x, y, w, REACH);
+    await sheet(OPEN);
+    await grab("open", x, y, w, REACH);
+    await sheet("");
+    return reachOf("shipped", "open");
   };
 
   /* github#51 -- never the first shelf: other checks empty it. */
@@ -8907,9 +8908,10 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
       if (!g) {
         rows.push({ look: name, state: st.id, missing: true });
       } else {
-        const wanted = await wantedAbove(g);
-        rows.push({ look: name, state: st.id, room: g.room, wanted,
-                    cut: Math.max(0, wanted - g.room), needle });
+        /* github#78 -- the clip's own doing, not a reach minus a room. */
+        const sliced = await slicedAbove(g);
+        rows.push({ look: name, state: st.id, room: g.room, sliced,
+                    cut: Math.max(0, sliced), needle });
       }
       if (node) await p.send("CSS.forcePseudoState", { nodeId: node, forcedPseudoClasses: [] });
       if (st.query) { await p.j(`(__vs.setQuery(""), 1)`); await sleep(220); }
@@ -8929,27 +8931,32 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
 
   const missing = rows.filter((x) => x.missing);
   const cut = rows.filter((x) => x.cut > 0);
-  const unread = rows.filter((x) => !x.missing && x.wanted < 0);
+  const unread = rows.filter((x) => !x.missing && x.sliced < 0);
   const ok = missing.length === 0 && cut.length === 0 && unread.length === 0 &&
              rows.length === looks.length * states.length;
-  const worst = {};
+  /* github#78 -- the room and the states held; the reach is gone */
+  const held = new Map();
   for (const x of rows) {
     if (x.missing) continue;
-    if (!worst[x.look] || x.wanted > worst[x.look].wanted) worst[x.look] = x;
+    const at = held.get(x.look) || { states: 0, sliced: 0, room: x.room };
+    held.set(x.look, { states: at.states + 1, sliced: at.sliced + (x.cut > 0 ? 1 : 0), room: x.room });
   }
   return {
     ok,
-    detail: `every lifted state is painted to the last pixel its look asks for -- ` +
+    detail: `a look's room is compared against itself: the band as shipped against the same band ` +
+            `with that track's clip opened, so what they disagree about IS what the clip took -- ` +
             looks.map((l) => {
               const n = l || "modern";
-              const w = worst[n];
-              return w ? `${n} allows ${w.room}px and its widest (${w.state}) wants ${w.wanted}px`
-                       : `${n} measured nothing`;
+              const h = held.get(n);
+              if (!h) return `${n} measured nothing`;
+              return h.sliced
+                ? `${n} allows ${h.room}px and slices ${h.sliced} of its ${h.states} states`
+                : `${n} allows ${h.room}px and slices nothing off any of its ${h.states} states`;
             }).join(", ") +
             (cut.length
               ? ` -- CUT: ` + cut.map((x) =>
-                  `${x.look} ${x.state} paints ${x.wanted}px above its track into a room of ` +
-                  `${x.room}px, so ${x.cut}px of it is sliced off`).join("; ")
+                  `${x.look} ${x.state} paints ${x.cut}px above its track into a room of ` +
+                  `${x.room}px, so ${x.cut - x.room}px of it is sliced off`).join("; ")
               : "") +
             (missing.length
               ? ` -- NO SUCH SPINE: ` + missing.map((x) => `${x.look} ${x.state}`).join(", ")
