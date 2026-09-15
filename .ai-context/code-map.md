@@ -290,18 +290,18 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 5059 | `offBook` |
 | 5093 | `typing` |
 
-## `scripts/smoke.mjs` — 10104 lines, 6 sections, 184 functions, 142 checks
+## `scripts/smoke.mjs` — 10113 lines, 6 sections, 184 functions, 142 checks
 
 ### Sections
 
 | lines | section |
 |---|---|
 | 158–293 | the checks |
-| 294–9232 | the invariants |
-| 9233–9381 | which vault, and why |
-| 9382–9487 | at rest, or |
-| 9488–9925 | one run |
-| 9926–10104 | main |
+| 294–9241 | the invariants |
+| 9242–9390 | which vault, and why |
+| 9391–9496 | at rest, or |
+| 9497–9934 | one run |
+| 9935–10113 | main |
 
 ### Functions
 
@@ -477,20 +477,20 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 8971 | · `faceOnto` |
 | 8985 | · `faceOf` |
 | 9000 | · `read` |
-| 9258 | `resolveVaults` |
-| 9368 | `buildFor` |
-| 9395 | `settled` |
-| 9411 | `viewport` |
-| 9424 | `unviewport` |
-| 9434 | `atRest` |
-| 9462 | `settlePage` |
-| 9494 | `press` |
-| 9506 | `runOne` |
-| 9726 | `tagged` |
-| 9732 | `capture` |
-| 9778 | · · `pick` |
-| 9884 | `killBrowser` |
-| 9928 | `main` |
+| 9267 | `resolveVaults` |
+| 9377 | `buildFor` |
+| 9404 | `settled` |
+| 9420 | `viewport` |
+| 9433 | `unviewport` |
+| 9443 | `atRest` |
+| 9471 | `settlePage` |
+| 9503 | `press` |
+| 9515 | `runOne` |
+| 9735 | `tagged` |
+| 9741 | `capture` |
+| 9787 | · · `pick` |
+| 9893 | `killBrowser` |
+| 9937 | `main` |
 
 ### Checks
 
@@ -637,4 +637,4 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 8964 | a short cover is stood upright by one face, not the look's |
 | 9117 | a tag book's cover carries no hash, and every other place it is named keeps it |
 | 9167 | a spine lifts on hover and holds its size |
-| 9182 | the shelves are packed the way the golden snapshot says |
+| 9191 | the shelves are packed the way the golden snapshot says |

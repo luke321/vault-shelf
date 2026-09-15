@@ -1935,10 +1935,25 @@ static half is `scripts/check-network.mjs`, which is unskippable in the pre-push
 
 `"a spine lifts on hover and holds its size"` measures a spine's box at rest and focused and
 asserts both dimensions are unchanged — the lift is a `transform`, so a hovered spine cannot
-reflow its neighbours. Measured: **57×132 either way**. The width is
+reflow its neighbours. The width is
 whatever that book's note count earns it (`design/0011`); what is invariant is that it does
 not change when the spine is touched. Also in the serial lane, for the same reason as the
 plaque check.
+
+**The pair of numbers is not pinned, and saying so is the point.** It reads the *first* spine in
+the document at whatever viewport and look its predecessor left, so the box it prints moves with
+the run shape: **57×128** in `--only "spine"` and **44×132** in the full suite, both measured on
+`vault-c1f3a5ca` (this section recorded 57×132 until `github#76`, which is neither). What is
+asserted is only that the two readings match each other.
+
+**A rest box of `0×0` fails saying so** (`github#76`) — it always failed, since `0 === 57` is
+false; what changed is that it no longer fails by naming a lift. An element read before its first packing
+has landed returns an all-zero rect, and `before.top - after.top` then reports minus the spine's
+own top — **−168px** on this shape, where the spine really sits 168px down — which reads as a
+spine that moved a long way rather than one that was never measured. That is the exact line
+`github#76` was filed over. `github#57` is what stops it happening, by draining the room before
+the first check of a run; this branch of the check is what goes red, in those words, if that ever
+stops holding. Verified both ways: green on this tree, and red with the rest rect forced to zero.
 
 ## Hidden means hidden
 

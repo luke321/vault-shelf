@@ -1,5 +1,51 @@
 # Changelog detail
 
+## 2026-09-15 — A `0×0` rest box says so instead of reporting a lift (`github#76`)
+
+**No product code changed, and the flake it was filed over did not reproduce.** `github#76`
+reported `"a spine lifts on hover and holds its size"` failing 1 run in 3 under `--only "spine"`
+with `0x0 at rest, 57x128 focused, lifted -168px`. This is the attempt to disprove it, and it
+disproves it.
+
+Measured on `develop` @ `7d73e7e`, which already carries `github#57`/`#69`:
+
+| | runs | result |
+|---|---|---|
+| `--only "spine"`, idle (maintainer, on the issue) | 10 | 10 ok, `57x128` every time |
+| `--only "spine"`, **all 24 cores under synthetic load** | 14 | **14 ok**, `57x128` every time |
+
+The load is `github#57`'s own method — the one that took that check from 14/14 idle to **2 FAIL
+in 14** before its fix. It produces nothing here: **24 consecutive greens** on this tree, not one
+`0x0`.
+
+**And the `-168px` is arithmetic, not a movement.** Driving the page directly, the first spine's
+real top is **168px**, so an all-zero rest rect — which reports `top 0` — makes
+`before.top - after.top` exactly **−168px**. The reported failure is one event, not two: the rest
+read found no box, and the lift was computed from nothing.
+
+| the page, driven directly | first shelf | rest box | lift printed |
+|---|---|---|---|
+| library at the top | `favourites`, rendered | 57×128 | 0px |
+| scrolled 400px | `favourites`, rendered | 57×128 | **−400px** |
+| scrolled 900px | `favourites`, rendered | 57×128 | **−900px** |
+| scrolled to the foot (1494px) | `favourites`, rendered | 57×128 | **−1494px** |
+| rest rect forced to zero | `favourites`, rendered | **0×0** | **−168px** |
+
+Only the last line reproduces the report. A scrolled library prints −400/−900/−1494 and the shelf
+is **never** skipped by `content-visibility` at any offset, so the second candidate mechanism is
+out too; `github#57` draining the room before the first check of a run is what accounts for it.
+
+**What changed is a diagnostic, not a verdict.** A `0×0` rest box already failed — `0 === 57` is
+false — it just failed by printing `lifted -168px`, which is what sent the original reporter
+looking for a spine that had moved. It now fails saying *the spine had no box at rest — read
+before its first packing landed, not a spine that moved*, and names the `−168px` the old line
+would have called a lift. **No run that passed before fails now, and none that failed now passes.**
+Verified both ways — green on this tree, red in exactly those words with the rest rect forced to
+zero.
+
+**Still not asserted, and left alone deliberately:** the lift itself. −400px passes today, because
+the check asserts only that the two readings match. Raised on the issue rather than changed here.
+
 ## 2026-09-15 — A volume of numbers reads by number (`github#70`, `design/0035`)
 
 A third `core.IndexMode`. `number` orders a book by the leading digit run of each title —

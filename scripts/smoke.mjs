@@ -9172,8 +9172,17 @@ check("a spine lifts on hover and holds its size", async (p) => {
     var after = spine.getBoundingClientRect();
     return { w: Math.round(before.width), h: Math.round(before.height),
              w2: Math.round(after.width), h2: Math.round(after.height),
-             lift: Math.round(before.top - after.top) };
+             lift: Math.round(before.top - after.top), top: Math.round(after.top) };
   })()`);
+  // github#76 -- a rest box that is not there is not a lift
+  // github#57 -- the runner drains the room before the first check
+  if (!r.w || !r.h) {
+    return { ok: false,
+             detail: `the spine had no box at rest -- read before its first packing landed, ` +
+                     `not a spine that moved. It measured ${r.w2}x${r.h2} once focused, at ` +
+                     `${r.top}px from the top, and an all-zero rest rect reports top 0, so the ` +
+                     `old line would have called this a lift of ${-r.top}px` };
+  }
   return { ok: r.w === r.w2 && r.h === r.h2,
            detail: `${r.w}x${r.h} at rest, ${r.w2}x${r.h2} focused, lifted ${r.lift}px` };
 });
