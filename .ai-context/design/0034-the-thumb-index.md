@@ -152,10 +152,18 @@ seeing `0-9` sitting between 2022 and 2023: *"hmm it shoulld be called 2022x ins
 is right, and the reason is the law this record already keeps — **a tab is a position**. `0-9` tells
 a reader nothing about where in a volume of 2,064 they have landed, and it tells them so three
 times over, since the numerics are not adjacent. `202212331243` files after every `2022-` note and
-before every `2023-` one, so its cut says `2022x`: where it sits, and that it is not the year.
+before every `2023-` one, so its cut says `2022·`: where it sits, and that it is not the year.
 
-It cost the rail's own headline number. `2022x` is **39px** against `2020`'s 32px and is now the
-widest label the rail draws — inside the 48px of cut with 9px to spare, **0 cropped** at 1180×1000
+**Amended by [0035](0035-a-volume-of-numbers.md): the mark is `·`, not `x`.** Lukas, on seeing it
+in the rail: *"never show more than for numbers, replace X with something else — or make it smaller
+and centered vertically so that it is clear it is a placeholder"*. `x` is a character of the same
+size as the digits beside it, so it reads as part of the number; a middle dot is small and sits at
+mid-height, which is what a placeholder looks like. It is also **narrower**: measured, `2022·` is
+**36px** where `2022x` was 39px, so the rail's headline number went the right way. `…` was tried
+first and refused at **43px in the 40px a cut leaves** — cropped.
+
+It cost the rail's own headline number. `2022x` was **39px** against `2020`'s 32px and was then the
+widest label the rail drew — inside the 48px of cut with 9px to spare, **0 cropped** at 1180×1000
 and at 1180×480, so the rail stays **60px**. The measured claim above is amended rather than the
 geometry: 32px was what the labels needed when every one of them was a year.
 
@@ -170,7 +178,9 @@ instead of between 2022 and 2023.
 It was pulled because of what it does to the shelf *around* it. `readingOrder`'s date comparator is
 multiplied by the top bar's oldest/newest, so the `0-9` volume began flipping with a control its
 25 siblings ignore — and *date contents default to oldest and saved newest settings remain
-readable* turned red on exactly that: it asserts `buildShelf(encyclopedia, 'oldest')` is
+readable* turned red on exactly that ([0035](0035-a-volume-of-numbers.md) is the answer that
+does not: a `number` mode ignores the reading order the way `az` does): it asserts
+`buildShelf(encyclopedia, 'oldest')` is
 byte-identical to `'newest'`, which is the law that **an alphabetical shelf has nothing to say
 about oldest and newest** (design/0015). One volume of twenty-six answering a switch the rest do
 not is two shelves wearing one name. The reader who wants that volume by date still has the toggle,
@@ -185,6 +195,10 @@ cut, which is what a volume spine does with a number it cannot read.
 then `12 weeks of running`, then the years, then `24 hours…` — and a run is whatever is adjacent,
 so the rail draws **three** cuts labelled `0-9` around them. Correct by the rule, scruffy to read.
 Suppressing a cut that holds one note of 2,063 is a rule about every volume, not this one.
+
+**Since fixed at the root** by [0035](0035-a-volume-of-numbers.md), which is where it belonged:
+the three `0-9` cuts were the index telling the truth about contents in the wrong order. Read by
+number, the numerics are adjacent, and each gets a cut of its own.
 
 ## One word cannot be both a state and an act
 

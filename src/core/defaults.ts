@@ -1,4 +1,4 @@
-import type { MadeBook, Note, Shelf, SourceKind } from "./types";
+import type { IndexMode, MadeBook, Note, Shelf, SourceKind } from "./types";
 import { buildShelf, isMadeKey, seedPicks } from "./shelves";
 import { bookSpinesOf, isSpineStyle } from "./bindings";
 import type { SpineStyle } from "./bindings";
@@ -200,6 +200,18 @@ export function isOffered(value: unknown): value is Look {
   return LOOKS.some((l) => l.value === value && !l.shelved);
 }
 
+/** design/0030, github#70, design/0035 */
+export const INDEX_MODES: { value: IndexMode; name: string }[] = [
+  { value: "az", name: "A–Z" },
+  { value: "date", name: "Date" },
+  /* design/0035 */
+  { value: "number", name: "Number" },
+];
+
+export function isIndexMode(value: unknown): value is IndexMode {
+  return INDEX_MODES.some((m) => m.value === value);
+}
+
 /** design/0015 -- the order the notes inside a date-ordered book are read in. */
 export type NoteOrder = "oldest" | "newest";
 
@@ -289,10 +301,10 @@ export function migrate(raw: unknown): Persisted {
 /** design/0029 */
 function boundBy(shelf: Shelf): Shelf {
   const out = { ...shelf };
-  if (out.indexMode !== "az" && out.indexMode !== "date") delete out.indexMode;
+  if (!isIndexMode(out.indexMode)) delete out.indexMode;
   if (out.bookIndexes) {
     out.bookIndexes = Object.fromEntries(Object.entries(out.bookIndexes)
-      .filter(([, mode]) => mode === "az" || mode === "date"));
+      .filter(([, mode]) => isIndexMode(mode)));
   }
   if (!isSpineStyle(out.spineStyle)) delete out.spineStyle;
   if (!["one", "book", "year", "decade"].includes(out.spineSeries || "")) delete out.spineSeries;

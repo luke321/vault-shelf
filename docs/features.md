@@ -183,11 +183,11 @@ Edge tabs follow the book's contents: letters for A–Z, periods for Date. Long 
 
 [Clip recipe](https://github.com/luke321/vault-shelf/blob/1.0.0/docs/features/index.md) · `design/0015`
 
-### Choose A–Z or Date
+### Choose A–Z, Date or Number
 
-![Choose A–Z or Date](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/contentsorder.webp)
+![Choose A–Z, Date or Number](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/contentsorder.webp)
 
-Set a contents default for a shelf, a plaque's run or one book. The reader's A–Z/Date switch changes both contents and tabs while keeping the selected note and its scroll position. Fresh Encyclopedia and Tags books start in A–Z; other books start with dates, oldest first.
+Set a contents default for a shelf, a plaque's run or one book. The reader's switch changes both contents and tabs while keeping the selected note and its scroll position. Fresh Encyclopedia and Tags books start in A–Z; other books start with dates, oldest first. A book whose notes all start with a digit is offered Number in place of A–Z, and starts there: 3 and 7 read before 12, 24 and 1000 rather than after 2026.
 
 [Clip recipe](https://github.com/luke321/vault-shelf/blob/1.0.0/docs/features/contentsorder.md) · `design/0030`
 

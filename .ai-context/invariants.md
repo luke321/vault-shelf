@@ -2864,7 +2864,7 @@ test is deliberately **not a plausible range**, so `1000 small decisions` still 
 `1000` beside `2015` - what a volume spine does with a number it cannot read.
 
 **A digit run is named by the digits it opens with.** `202212331243` files after every `2022-`
-note and before every `2023-` one, so its cut says **`2022x`** - where it sits, and that it is
+note and before every `2023-` one, so its cut says **`2022·`** - where it sits, and that it is
 not the year. `0-9` said neither, three times over, since the numerics are not adjacent. This
 made `2022x` at **39px** the widest label the rail draws, against `2020`'s 32px: inside the 48px
 of cut with 9px to spare, **0 cropped** at 1180x1000 and 1180x480, so the rail stays **60px**.
@@ -2942,6 +2942,54 @@ equal 12px SVGs and inherit the note count's colour. The regression drives Edit 
 verifies their shelf targets, and checks that hiding leaves the definition intact.
 The top-right Manage control uses a gear with an accessible name and tooltip. Book creation
 uses the plus spine; shelf headers no longer contain a separate New book button.
+
+## A volume of numbers - design/0035
+
+`core.IndexMode` is `az | date | number`. **`number` orders by the leading digit run of a
+title** - `firstLetter`'s trim, then the digits - comparing by length with leading zeros
+stripped and then by characters, so `202212331243` is exact and no float is involved. A tie
+falls to the title comparator and a note with no leading digit sorts last, which keeps the
+comparator total.
+
+**It stands in the A-Z slot, never beside it.** A book is offered two modes; where every one of
+its notes opens with a digit the pair is Number and Date. `number` replaces the **automatic**
+`az` only - never `date`, so a Months book of daily notes is untouched, and never a saved mode.
+`indexMode(shelf, key, notes)` takes the notes as an optional third argument, so a shelf picker,
+which has no one book, is unchanged. **Like `az` it ignores the reading order**, which is why
+*date contents default to oldest and saved newest settings remain readable* stays green where
+the rejected date-book version of this turned it red (design/0034).
+
+**The cuts are one per distinct leading number**, not ranges: 20 over the vault shape's `0-9`
+volume, inside the rail's ceiling of 32 closed, with `fitTabs` still owning what happens when a
+level will not fit. A `/^\d{4}$/` cut hands its notes to `TITLE_DATE_LAYERS` exactly as
+`prefixCuts` does, so a year still opens into `Mmm` and `dd`; anything else is a leaf. A run
+longer than four digits keeps design/0034's label with a middle dot for the mark: `2022·`.
+**Four digits is the cap and the mark is not one of them.** `x` read as a character of the number;
+`·` is small and sits at mid-height, so it reads as a placeholder. It is plain text, never a span -
+a span with its own font-size is what *a look moves nothing on the page* measures. Measured,
+`2022·` is **36px** where `2022x` was 39px and `2022...` was **43px in the 40px a cut leaves**,
+which *no index cut is clipped* caught as 1 cropped.
+
+**The rail's face is `0-9`, the picker's word is `Number`.** Measured: `Number` plus the glyph
+runs **6px** past the toggle's 55x28 box and **wraps**, which passes every measurement of its
+width - found by looking, not by the check. `0-9` fits with a pixel to spare in the same box the
+lettered volume draws. The `aria-label` and the manage-sheet buttons keep the word.
+
+`INDEX_MODES` is the one list of modes, beside `LOOKS`, and `migrate` validates `indexMode` and
+every `bookIndexes` entry against it. No schema bump.
+
+Measured on the vault shape: the `0-9` volume's 2,064 notes open **0 3 7 12 24 42 99 1000** and
+end `202212331243` (index **2063**, was 649), behind **20** cuts (was 16) of which **11 of 11**
+fat ones open (was 11 of 12), with **no dead end** (was `0-9` x5) and **no** cut labelled `0-9`
+(was three, scattered around the years). `"a volume of numbers reads by number, and only such a
+volume is offered it"` asserts all of it, plus the face fitting its box in both directions and
+migration keeping `number` while dropping an unknown mode.
+
+**A picker reads the automatic answer, not the shelf's.** A numeric book with nothing saved drew
+its two buttons with **neither** pressed, because the picker asked the shelf - which has no
+notes and so answers `az` - for what the book would fall back to. The check reads the picker
+**before** the toggle saves anything, and it goes red at `number,date` where it now reads
+`number!,date`.
 
 ## Age wear on a fresh library
 

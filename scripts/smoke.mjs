@@ -6869,7 +6869,7 @@ check("a numeric volume is indexed like a date book, not stopped at its years", 
    * is not a year has nothing under it to cut by. */
   return { ok: r.years >= 2 && r.opened === r.fat - (r.deadLabel === "0-9" ? 1 : 0) &&
                r.months >= 2 && r.monthsNamed && r.monthsInside && r.days >= 2 && r.daysNamed &&
-               r.deadSize < 20 && r.runAt >= 0 && r.runCut === "2022x" && r.runKids === 0,
+               r.deadSize < 20 && r.runAt >= 0 && r.runCut === "2022\u00b7" && r.runKids === 0,
            detail: `202212331243 sits under "${r.runCut}" with ${r.runKids} under it, not in a ` +
                    `year (found at ${r.runAt}); ` +
                    `0-9 holds ${r.notes} notes behind ${r.top} cuts, ${r.years} of them years; ` +
@@ -6878,6 +6878,106 @@ check("a numeric volume is indexed like a date book, not stopped at its years", 
                    `named Mmm (${r.monthsNamed}) and inside it (${r.monthsInside}); ` +
                    `${r.month} (${r.monthSize}) opens into ${r.days} days named dd (${r.daysNamed}); ` +
                    `biggest dead end ${r.deadLabel} x${r.deadSize} (was 2026 x587)` };
+});
+
+/* github#70, design/0035 */
+check("a volume of numbers reads by number, and only such a volume is offered it", async (p) => {
+  const putWearBack = await holdWear(p);
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore, settings = __vs.settings();
+    var saved = JSON.parse(JSON.stringify(settings));
+    var numberOf = function (title) {
+      var run = core.leadingNumber(title);
+      return run ? run.replace(/^0+(?=\\d)/, "") : null;
+    };
+    try {
+      var enc = __vs.views().filter(function (v) { return v.shelf.id === "encyclopedia"; })[0];
+      var digits = enc.books.filter(function (b) { return b.key === "0-9"; })[0];
+      var letters = enc.books.filter(function (b) { return b.key !== "0-9" && b.key !== "#"; })
+        .sort(function (a, b) { return b.notes.length - a.notes.length; })[0];
+      if (!digits || !letters) return null;
+
+      /* 0, 3, 7, 12, 24, 1000, 2015, ... -- longer is bigger, and same length compares. */
+      var numbers = digits.notes.map(function (n) { return numberOf(n.title); });
+      var rising = numbers.every(function (v, i) {
+        if (v === null) return false;
+        if (i === 0) return true;
+        var was = numbers[i - 1];
+        return was.length !== v.length ? was.length < v.length : was <= v;
+      });
+
+      /* Read BEFORE the toggle saves a mode: a fresh library has none, so this is the
+       * automatic answer, and neither button was pressed until it learned number. */
+      var picker = function (id) {
+        document.querySelector('[data-book="' + id + '"]')
+          .dispatchEvent(new MouseEvent("contextmenu", {bubbles:true,clientX:300,clientY:300}));
+        var out = [].map.call(document.querySelectorAll("#vs-dye .vs-indexbuttons button"),
+          function (b) { return b.dataset.indexMode + (b.getAttribute("aria-pressed") === "true" ? "!" : ""); });
+        document.dispatchEvent(new KeyboardEvent("keydown", {key:"Escape",bubbles:true}));
+        return out.join(",");
+      };
+      var digitPicker = picker(digits.id);
+
+      __vs.openBook(digits.id, null);
+      var toggle = document.querySelector(".vs-indextoggle");
+      var face = toggle.textContent;
+      var box = toggle.getBoundingClientRect();
+      /* Not only cropped: a face too long WRAPS, which fits every width it is measured by. */
+      var cropped = Math.max(toggle.scrollWidth - Math.ceil(box.width),
+                             toggle.scrollHeight - Math.ceil(box.height));
+      var faceBox = Math.round(box.width) + "x" + Math.round(box.height);
+      var mode = toggle.getAttribute("data-index-mode");
+      var cuts = __vs.indexTabs().cuts.map(function (c) { return c.label; });
+      var numbered = cuts.every(function (label) { return /^\\d{1,4}\\u00b7?$/.test(label); });
+      toggle.click();
+      var toDate = document.querySelector(".vs-indextoggle").getAttribute("data-index-mode");
+      document.querySelector(".vs-indextoggle").click();
+      var back = document.querySelector(".vs-indextoggle").getAttribute("data-index-mode");
+      __vs.closeReader();
+
+      __vs.openBook(letters.id, null);
+      var letterToggle = document.querySelector(".vs-indextoggle");
+      var letterMode = letterToggle.getAttribute("data-index-mode");
+      var letterBox = letterToggle.getBoundingClientRect();
+      var sameBox = Math.round(letterBox.width) === Math.round(box.width) &&
+                    Math.round(letterBox.height) === Math.round(box.height);
+      __vs.closeReader();
+      var offered = picker(letters.id);
+
+      var blob = JSON.parse(JSON.stringify(settings));
+      var shelf = blob.shelves.filter(function (s) { return s.id === "encyclopedia"; })[0];
+      shelf.bookIndexes = { "0-9": "number", "A": "spiral" };
+      var kept = core.migrate(blob).shelves
+        .filter(function (s) { return s.id === "encyclopedia"; })[0].bookIndexes;
+
+      return { notes: digits.notes.length, rising: rising,
+               opens: numbers.slice(0, 6).join(" "), last: numbers[numbers.length - 1],
+               face: face, cropped: cropped, faceBox: faceBox, sameBox: sameBox,
+               mode: mode, toDate: toDate, back: back,
+               cuts: cuts.length, numbered: numbered, sample: cuts.slice(0, 8).join(" "),
+               letterKey: letters.key, letterMode: letterMode,
+               offered: offered, digitPicker: digitPicker,
+               numericDigits: core.numericBook(digits.notes),
+               numericLetters: core.numericBook(letters.notes),
+               keptNumber: kept["0-9"] === "number", droppedUnknown: !("A" in kept) };
+    } finally { __vs.closeReader(); Object.assign(settings, saved); __vs.setFilters({}); }
+  })()`);
+  await putWearBack();
+  if (!r) return { ok: false, detail: "this vault has no 0-9 volume to read" };
+  /* design/0034 */
+  const ok = r.rising && r.mode === "number" && r.toDate === "date" && r.back === "number" &&
+             r.numbered && r.cropped <= 0 && r.sameBox && r.letterMode === "az" &&
+             r.offered === "az!,date" && r.digitPicker === "number!,date" &&
+             r.numericDigits && !r.numericLetters && r.keptNumber && r.droppedUnknown;
+  return { ok, detail:
+    `the 0-9 volume's ${r.notes} notes open ${r.opens} and end ${r.last}, never stepping ` +
+    `back: ${r.rising}; its face reads "${r.face}" in ${r.faceBox} with ${r.cropped}px over ` +
+    `the box and the lettered volume's box (${r.sameBox}), over ` +
+    `${r.cuts} cuts (${r.sample}), every one a number: ${r.numbered}; the toggle runs ` +
+    `${r.mode} -> ${r.toDate} -> ${r.back} and its picker offers ${r.digitPicker} ` +
+    `(! is pressed); volume ${r.letterKey} stays ${r.letterMode} and is offered ` +
+    `${r.offered}; migration keeps number (${r.keptNumber}) and drops an unknown mode ` +
+    `(${r.droppedUnknown})` };
 });
 
 /* design/0032 */

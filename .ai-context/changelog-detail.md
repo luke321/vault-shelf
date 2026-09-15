@@ -1,5 +1,71 @@
 # Changelog detail
 
+## 2026-09-15 — A volume of numbers reads by number (`github#70`, `design/0035`)
+
+A third `core.IndexMode`. `number` orders a book by the leading digit run of each title —
+`firstLetter`'s trim, then the digits, compared by length with leading zeros stripped and then
+by characters, so `202212331243` is exact and no float is involved. It is offered **in the A–Z
+slot**, never beside it, and only for a non-empty book whose every note opens with a digit; it
+replaces the **automatic** `az` only, never `date` and never a saved mode. Like `az` it ignores
+the top bar's oldest/newest, which is the coupling that killed the date-book version of this in
+`design/0034`.
+
+Measured on the vault shape (`vault-c1f3a5ca`, 4,939 notes), the Encyclopedia's `0-9` volume:
+
+| | before | after |
+|---|---|---|
+| the contents open | `0 to 1`, `1000 small decisions`, `12 weeks of running`, 2015-… | **`0 to 1`, `3 notes on attention`, `7 day sourdough`, `12 weeks of running`, `24 hours…`, `42 and after`, `99 problems…`, `1000 small decisions`**, 2015-… |
+| top cuts | 16 | **20** |
+| cuts labelled `0-9` | **3**, scattered around the years | **0** |
+| fat cuts that open | 11 of 12 | **11 of 11** |
+| biggest dead end | `0-9` ×5 | **none** |
+| `202212331243` | index 649, between 2022 and 2023 | **index 2063, last** |
+| its cut | `2022x`, 0 under it | **`2022·`**, 0 under it |
+| widest rail label / rail width | `2022x` 39px / 60px | **`2022·` 36px** / 60px |
+| the toggle's face | `A–Z ⇄` in 55×28 | **`0–9 ⇄` in 55×28** |
+| Encyclopedia `oldest` vs `newest` | byte-identical | **byte-identical** |
+
+**The face was found by looking.** `Number ⇄` measures −1px against the toggle's width and so
+passes every width assertion — because it **wraps** onto a second line, running **6px** past the
+55×28 box. The screenshot showed it; the check now measures the height too, and the rail says
+`0–9` (the same shape and width as `A–Z`) while the `aria-label` and the manage-sheet buttons
+keep the word `Number`.
+
+**Nothing in the packing moved**, so no layout golden was rewritten: this changes the order of
+notes inside a book, not where books stand. `INDEX_MODES` is now the one list of modes beside
+`LOOKS` and `migrate` validates against it; no schema bump, since an older file never carries
+`number` and an older build already drops what it does not know.
+
+**And a picker asked the wrong thing.** A numeric book with nothing saved drew its two buttons
+with *neither* pressed: `indexPicker` handed `indexChoices` the **shelf's** answer as the
+fallback, and a shelf has no notes, so it answers `az`. It now passes `number` where the shelf
+says `az` and every book in the selection qualifies. The check reads the picker **before** the
+toggle saves anything — read after, it passes on the saved value and proves nothing — and goes
+red at `number,date` where it now reads `number!,date`.
+
+**The film was re-shot, both halves.** `contentsorder` is a 13-second act and its clip already
+shipped; both filmed a lettered book and said *"title or date"*. The act now opens
+`encyclopedia/0-9` through a new `inDigits` setup and runs Number → Date → a tab → Number, each
+beat proved on `data-index-mode`. The middle frame carries the law no still can: the same note,
+`0 to 1`, stays selected across the switch and moves from **1 of 2,064** to **1349 of 2,064**.
+
+| | before | after |
+|---|---|---|
+| `docs/features/contentsorder.webp` | 833 KB, 1000×1000, a lettered book | **551 KB, 1000×1000, the `0-9` volume** |
+| its caption | *Read by title or date* | **Read by title, date or number** |
+| its sub | *The contents and right-hand index change together* | **A volume of numbers opens in Number. Contents and index change together** |
+| the feature headings | *Choose A–Z or Date* | **Choose A–Z, Date or Number** |
+| `assets/demo.webp` | 3,501 KB, 68s | **3,578 KB, 68s** — same choreography, later date |
+| storyboard acts | 24 | **24, unchanged** |
+
+**Two traps on the way.** `--hero-acts` is not `--act`: the first run filmed the whole
+storyboard and died 720 frames into `hero`, because `--hero-acts` only says which acts the webp
+is *cut from*. And the first clip came back **1000×626** — the hero encoder is `scale=1000:-2`
+with no crop, so the shape is the capture's, and every shipped clip was shot at
+`--width 1000 --height 1000`.
+
+One new check, *a volume of numbers reads by number, and only such a volume is offered it*.
+
 ## 2026-09-15 - github#75: the escape gate counted the page's own icons
 
 `check-data-escape --browser` asserted **0** `<svg>` anywhere in the document as proof that no
@@ -255,7 +321,8 @@ boxes moved, all month plaques, by up to 4px).
 **And its cut is named `2022x`, not `0-9`** - Lukas: *"hmm it shoulld be called 2022x instead of
 0-9"*. A tab is a position, and `0-9` says nothing about where in 2,064 notes you have landed - it
 says it three times over, since the numerics are not adjacent. `202212331243` files after every
-`2022-` note and before every `2023-` one, so the cut says so. It makes `2022x` at **39px** the
+`2022-` note and before every `2023-` one, so the cut says so. (**Amended 2026-09-15, `github#70`:
+the mark is `·` rather than `x` — smaller, mid-height, and 36px rather than 39.**) It makes `2022x` at **39px** the
 widest label the rail draws, against `2020`'s 32px: 9px inside the 48px of cut, **0 cropped** at
 either window size, rail unchanged at **60px**. The record's "what the labels need is 32px" is
 amended - that held while every label was a year.
