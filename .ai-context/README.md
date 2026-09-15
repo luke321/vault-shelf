@@ -34,6 +34,9 @@ changing what a shelf contains or how a book is addressed.
 | `0012-lock-the-screen-not-the-job` | Why a lock is named after the display it takes over rather than the activity, what the claim-and-return shape buys over handing back a name, and how a hold proves it is still alive |
 | `0013-two-chromes-and-a-check-says-what-it-needs` | Why the suite caps at two browsers where the sister repo went to one, why a check declares the shapes it needs, and why a check that leaves the page moving fails |
 | `0014-one-vault-for-the-checks-and-the-film` | Four generated vaults become one: what the one vault had to absorb to replace three, what was given up, why the film stopped being shot in a mirror, and what `0013`'s per-shape narrowing means once there is one shape |
+| `0015-the-suite-owns-its-own-focus` | Why the suite takes the foreground itself and drives real keys rather than synthesising them |
+| `0016-the-runner-drains-the-room-before-it-blames-a-check` | Why a failing check is asked whether the page was still moving before it is believed |
+| `0017-the-tie-break-within-a-date` | What decides the order of notes sharing a date, why the reading order does not reach it, and the three tie-breaks rejected |
 
 ### DDRs — `design/`
 

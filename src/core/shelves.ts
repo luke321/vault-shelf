@@ -424,9 +424,7 @@ export function unpick(picks: string[] | undefined, live: Set<string>, sourceId:
 function readingOrder(shelf: Shelf, order: NoteOrder, key?: string, notes?: Note[]): (a: Note, b: Note) => number {
   const mode = indexMode(shelf, key, notes);
   if (mode === "number") return byNumberThenTitle;
-  return mode === "az"
-    ? byTitleThenDate
-    : (a, b) => (order === "newest" ? 1 : -1) * byDateThenTitle(a, b);
+  return mode === "az" ? byTitleThenDate : byDateThenTitle(order);
 }
 
 function autoDirection(shelf: Shelf, order: NoteOrder): "alphabetical" | "chronological" {
@@ -496,10 +494,16 @@ export function indexMode(shelf: Shelf, key?: string, notes?: Note[]): import(".
   return automatic === "az" && notes && numericBook(notes) ? "number" : automatic;
 }
 
-function byTitleThenDate(a: Note, b: Note): number {
+/* github#80 -- one A-Z, so the two indexes cannot disagree. */
+function byTitle(a: Note, b: Note): number {
   const at = a.title.toLowerCase();
   const bt = b.title.toLowerCase();
-  if (at !== bt) return at < bt ? -1 : 1;
+  return at === bt ? 0 : at < bt ? -1 : 1;
+}
+
+function byTitleThenDate(a: Note, b: Note): number {
+  const byName = byTitle(a, b);
+  if (byName !== 0) return byName;
   const ad = a.date === null ? "" : a.date;
   const bd = b.date === null ? "" : b.date;
   return ad === bd ? 0 : ad < bd ? 1 : -1;
@@ -514,13 +518,15 @@ function byNumberThenTitle(a: Note, b: Note): number {
   return an === bn ? byTitleThenDate(a, b) : an < bn ? -1 : 1;
 }
 
-/** Newest first. `buildShelf` flips it for the oldest-first reading order, which is the
- * default: a notebook that opens on its last page reads as if it were written backwards. */
-function byDateThenTitle(a: Note, b: Note): number {
-  const ad = a.date === null ? "" : a.date;
-  const bd = b.date === null ? "" : b.date;
-  if (ad !== bd) return ad < bd ? 1 : -1;
-  return a.title < b.title ? -1 : a.title > b.title ? 1 : 0;
+/* github#80, decisions/0017 -- the direction is the date's, not the tie-break's. */
+function byDateThenTitle(order: NoteOrder): (a: Note, b: Note) => number {
+  const dir = order === "newest" ? -1 : 1;
+  return (a, b) => {
+    const ad = a.date === null ? "" : a.date;
+    const bd = b.date === null ? "" : b.date;
+    if (ad !== bd) return ad < bd ? -dir : dir;
+    return byTitle(a, b);
+  };
 }
 
 function bandsOf(notes: Note[]): Book["bands"] {
