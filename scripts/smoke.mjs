@@ -8876,10 +8876,13 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
   const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
   const was = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
   const rows = [];
+  /* github#78, decisions/0016 -- a guessed sleep is how a state gets measured half-built */
+  const restless = [];
+  const rest = async (who) => { if (!(await settled(p))) restless.push(who); };
 
   for (const look of looks) {
     await p.j(`(__vs.setLook(${JSON.stringify(look)}), 1)`);
-    await sleep(160);
+    await rest(`${look || "modern"} setLook`);
     const name = look || "modern";
 
     for (const st of states) {
@@ -8896,7 +8899,7 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
           __vs.setQuery(n);
           return n;
         })()`);
-        await sleep(280);
+        await rest(`${name} ${st.id} setQuery`);
       }
       const g = await mark(st.sel);
       let node = 0;
@@ -8914,7 +8917,7 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
                     cut: Math.max(0, sliced), needle });
       }
       if (node) await p.send("CSS.forcePseudoState", { nodeId: node, forcedPseudoClasses: [] });
-      if (st.query) { await p.j(`(__vs.setQuery(""), 1)`); await sleep(220); }
+      if (st.query) { await p.j(`(__vs.setQuery(""), 1)`); await rest(`${name} ${st.id} clearQuery`); }
     }
   }
 
@@ -8933,7 +8936,7 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
   const cut = rows.filter((x) => x.cut > 0);
   const unread = rows.filter((x) => !x.missing && x.sliced < 0);
   const ok = missing.length === 0 && cut.length === 0 && unread.length === 0 &&
-             rows.length === looks.length * states.length;
+             restless.length === 0 && rows.length === looks.length * states.length;
   /* github#78 -- the room and the states held; the reach is gone */
   const held = new Map();
   for (const x of rows) {
@@ -8963,6 +8966,9 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
               : "") +
             (unread.length
               ? ` -- A BAND THIS COULD NOT READ: ` + unread.map((x) => `${x.look} ${x.state}`).join(", ")
+              : "") +
+            (restless.length
+              ? ` -- STILL MOVING WHEN MEASURED: ` + restless.join(", ")
               : "")
   };
 });
