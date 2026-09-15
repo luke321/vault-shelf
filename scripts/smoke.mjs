@@ -1329,6 +1329,100 @@ check("a filter changes membership without moving a shelf", async (p) => {
                        `${JSON.stringify(after.order) === JSON.stringify(r.order)}` };
 });
 
+/* github#79 -- every reorder writes `position` and never moves the array, so the reload is
+ * the only place the arrangement can be lost. The page migrates once at mount; the plugin
+ * migrates on save AND again on load, which is the whole of "on both hosts" here. */
+
+check("a reordered shelf survives a reload, on both hosts", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var clone = function (x) { return JSON.parse(JSON.stringify(x)); };
+    var reload = function (s) { return core.migrate(clone(s)); };
+    var ids = function (s) {
+      return s.shelves.slice().sort(function (a, b) { return a.position - b.position; })
+        .map(function (x) { return x.id; });
+    };
+    var shelfOf = function (list, id) {
+      return list.filter(function (s) { return s.id === id; })[0];
+    };
+    var live = __vs.settings();
+    var was = live.shelves.map(function (s) { return { id: s.id, position: s.position }; });
+    var before = ids(live);
+    var out = { before: before };
+
+    /* THE CONTROL, NOT THE DATA: Manage's arrow on the last shelf in the room. */
+    document.getElementById("vs-manageopen").click();
+    var last = before[before.length - 1];
+    var up = document.querySelector('[aria-label="Move ' + shelfOf(live.shelves, last).name + ' up"]');
+    out.hasButton = !!up;
+    up.click();
+    out.moved = ids(live);
+    /* The array never moved -- which is exactly why the reload could throw the move away. */
+    out.arrayOrder = live.shelves.map(function (s) { return s.id; });
+    out.once = ids(reload(live));
+    out.twice = ids(reload(reload(live)));
+    document.getElementById("vs-manage").hidden = true;
+
+    /* The drag, through the same door the drop uses. */
+    __vs.moveShelf(before[0], before[2], "after");
+    out.dragged = ids(live);
+    out.draggedReload = ids(reload(live));
+
+    /* Put the room back before anything else in the shard sees it. */
+    was.forEach(function (w) { shelfOf(live.shelves, w.id).position = w.position; });
+    __vs.setFilters({});
+    out.restored = ids(live);
+
+    /* New-shelf-at-top leaves the draft LAST in the array and first by position. */
+    var made = function (id, name, position) {
+      return { id: id, name: name, source: { kind: "all" }, classifier: "year",
+               direction: "chronological", hidden: false, position: position, plaques: false };
+    };
+    out.atTop = ids(core.migrate({ schema: 10,
+      shelves: [made("a", "A", 1), made("b", "B", 2), made("draft", "Draft", 0)] }));
+
+    /* A pre-10 file keeps its own arrangement AND still gains Favourites at 0. */
+    var nine = { schema: 9,
+      shelves: [made("years", "Years", 2), made("people", "People", 0), made("tags", "Tags", 1)] };
+    out.nine = ids(core.migrate(nine));
+    out.ten = ids(core.migrate({ schema: 10, shelves: nine.shelves }));
+
+    /* A hand-edited file: no position goes to the end, a tie falls back to array order. */
+    var odd = core.migrate({ schema: 10, shelves: [
+      made("a", "A", 1),
+      { id: "b", name: "B", source: { kind: "all" }, classifier: "year" },
+      made("c", "C", 1) ] });
+    out.odd = ids(odd);
+    out.compacted = odd.shelves.slice()
+      .sort(function (x, y) { return x.position - y.position; })
+      .map(function (s) { return s.position; }).join(",");
+    return out;
+  })()`);
+  const swapped = r.moved.length === r.before.length &&
+                  r.moved[r.moved.length - 1] === r.before[r.before.length - 2] &&
+                  r.moved[r.moved.length - 2] === r.before[r.before.length - 1];
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const ok = r.hasButton && swapped && same(r.arrayOrder, r.before) &&
+             same(r.once, r.moved) && same(r.twice, r.moved) &&
+             same(r.draggedReload, r.dragged) && !same(r.dragged, r.moved) &&
+             same(r.restored, r.before) &&
+             same(r.atTop, ["draft", "a", "b"]) &&
+             same(r.nine, ["favourites", "people", "tags", "years"]) &&
+             same(r.ten, ["people", "tags", "years"]) &&
+             same(r.odd, ["a", "c", "b"]) && r.compacted === "0,1,2";
+  return {
+    ok,
+    detail: `Manage's arrow: ${r.before.join(" -> ")} became ${r.moved.join(" -> ")} while the ` +
+            `array stayed ${r.arrayOrder.join(" -> ")}; the move survived one migrate ` +
+            `(${same(r.once, r.moved)}, the page) and two (${same(r.twice, r.moved)}, the ` +
+            `plugin saving then loading); a drag gave ${r.dragged.join(" -> ")} and reloaded to ` +
+            `${r.draggedReload.join(" -> ")}; restored to ${r.restored.join(" -> ")}; ` +
+            `new-shelf-at-top comes up ${r.atTop.join(" -> ")}; schema 9 gives ` +
+            `${r.nine.join(" -> ")} and schema 10 ${r.ten.join(" -> ")}; a hand-edited file ` +
+            `gives ${r.odd.join(" -> ")} at positions ${r.compacted}`
+  };
+});
+
 /* design/0018 -- the six that hold the manual shelf up. Every one of them puts the shelf back
  * the way it found it, because the checks in a shard share one page. */
 
