@@ -36,7 +36,7 @@ changing what a shelf contains or how a book is addressed.
 | `0014-one-vault-for-the-checks-and-the-film` | Four generated vaults become one: what the one vault had to absorb to replace three, what was given up, why the film stopped being shot in a mirror, and what `0013`'s per-shape narrowing means once there is one shape |
 | `0015-the-suite-owns-its-own-focus` | Why the suite takes the foreground itself and drives real keys rather than synthesising them |
 | `0016-the-runner-drains-the-room-before-it-blames-a-check` | Why a failing check is asked whether the page was still moving before it is believed |
-| `0017-the-tie-break-within-a-date` | What decides the order of notes sharing a date, why the reading order does not reach it, and the three tie-breaks rejected |
+| `0018-the-tie-break-within-a-date` | What decides the order of notes sharing a date, why the reading order does not reach it, and the three tie-breaks rejected |
 
 ### DDRs — `design/`
 

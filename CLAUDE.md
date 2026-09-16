@@ -53,7 +53,7 @@ of measuring it.** Build the page, drive it, read the numbers.
   unlisted one to the end (`design/0018`).
   **Notes sharing a date read A-Z, in both directions** — the reading order names the date axis
   and reaches nothing else, and it is the same case-insensitive A-Z the index itself uses
-  (`decisions/0017`).
+  (`decisions/0018`).
 - **A favourite is a reference, never a copy.** Position 0 can be a `pick` shelf — a **kind** of
   shelf, not a single one — holding **addresses** of other shelves' books, live. Taking one off
   is bound to `drop` not `dragend` (Escape cancels); a dead pick drops on save; the reader never

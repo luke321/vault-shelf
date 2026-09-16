@@ -4875,7 +4875,7 @@ that cascade, so the guard has a measurement rather than only a comment.
 earns no stamp from this. Lint, `check-comments`, `check-pii`, `check-scope`, `check-network`, the
 determinism checks and the generated code-map check are what gate it, plus the new harness.
 
-## 2026-09-15 — The tie-break within a date, decided and then asserted (`github#80`, `decisions/0017`)
+## 2026-09-15 — The tie-break within a date, decided and then asserted (`github#80`, `decisions/0018`)
 
 Oldest-first listed notes sharing a date in **reverse alphabetical** order. One character did it:
 `readingOrder` negated the whole of `byDateThenTitle` — a comparator written newest-first, date
@@ -4897,7 +4897,7 @@ in both orders on disk, came out `Beta,Alpha` either way.
 
 **The decision came first.** Nothing in the repo had ever said what should happen between equal
 dates, which is why no check failed — the suite asserted that a book *opens on* its oldest note and
-that order survives a rebuild, and both were true throughout. `decisions/0017` settles it: A-Z
+that order survives a rebuild, and both were true throughout. `decisions/0018` settles it: A-Z
 within a date, in **both** directions, because the oldest/newest control names the date axis and
 governs only that axis. It records the three rejected alternatives — mirroring the whole order,
 path order, and a time-of-day fallback (which `decisions/0003` already rules out, since a date
@@ -4917,5 +4917,13 @@ argued: the same folder-shelf book reads `Undated note,Mu,Xi` oldest-first and
 while the A-Z assertions fail on the first and pass on the second.
 
 `check-comments` dropped to **1534** (from 1536): the two-line prose comment explaining the flip
-became one pointer, with the argument moved into `decisions/0017` per `decisions/0007`. The
+became one pointer, with the argument moved into `decisions/0018` per `decisions/0007`. The
 baseline moved in the same commit, as that check instructs.
+
+**Renumbered 0017 → 0018 on 2026-09-16**, after `github#77` merged into `develop` as
+`decisions/0017-a-smoothness-budget-counts-frames.md` while this branch was open. Two records
+under one number whose **filenames differ** is the dangerous shape: git merges both without a
+conflict, so nothing would have caught it. `github#81` hit the same wall and took `0019`,
+leaving `0018` for the lower issue number. The commit that introduced the record still names
+`0017` in its message, deliberately — that sha was already reported and rewriting it would
+break the reference.

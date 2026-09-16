@@ -518,7 +518,7 @@ function byNumberThenTitle(a: Note, b: Note): number {
   return an === bn ? byTitleThenDate(a, b) : an < bn ? -1 : 1;
 }
 
-/* github#80, decisions/0017 -- the direction is the date's, not the tie-break's. */
+/* github#80, decisions/0018 -- the direction is the date's, not the tie-break's. */
 function byDateThenTitle(order: NoteOrder): (a: Note, b: Note) => number {
   const dir = order === "newest" ? -1 : 1;
   return (a, b) => {

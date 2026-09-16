@@ -412,7 +412,7 @@ check("date contents default to oldest and saved newest settings remain readable
   return {ok:Object.values(r).every(Boolean),detail:JSON.stringify(r)};
 });
 
-/* github#80, decisions/0017 */
+/* github#80, decisions/0018 */
 check("notes sharing a date list A-Z in both reading directions", async (p) => {
   const r = await p.j(`(function(){
     var core = window.VaultShelfCore;
@@ -434,7 +434,7 @@ check("notes sharing a date list A-Z in both reading directions", async (p) => {
     var lower = note('c', 'apple', '2024-03-05');
     var upper = note('d', 'Zebra', '2024-03-05');
 
-    /* decisions/0017 -- UNDATED IS NOT PART OF THIS. A null date sorts as '', so it leads
+    /* decisions/0018 -- UNDATED IS NOT PART OF THIS. A null date sorts as '', so it leads
      * oldest-first and trails newest-first, and github#80 was not allowed to move it. Only a
      * folder shelf can hold both in one book; a date shelf sends undated to its own. */
     var mixed = [note('u', 'Undated note', null, 'Notes'),

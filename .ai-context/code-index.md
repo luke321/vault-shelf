@@ -5,7 +5,7 @@ markers already in the source: which code cites an issue, an ADR or a DDR; which
 enforces each invariant; who calls each `__vs` entry point. Stale when
 `node scripts/code-map.mjs --check` fails.
 
-## Issues — 60 cited (50 in code, 59 in `.ai-context/`)
+## Issues — 61 cited (50 in code, 60 in `.ai-context/`)
 
 | issue | code sites | prose sites |
 |---|---|---|
@@ -65,9 +65,10 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | #71 | scripts/record-demo.mjs:759 | — |
 | #75 | scripts/check-data-escape.mjs:42, scripts/check-data-escape.mjs:45, scripts/check-data-escape.mjs:170, scripts/check-data-escape.mjs:175, scripts/check-data-escape.mjs:180 | .ai-context/changelog-detail.md:171, .ai-context/invariants.md:2054 |
 | #76 | scripts/smoke.mjs:9277 | .ai-context/changelog-detail.md:59, .ai-context/changelog-detail.md:61, .ai-context/changelog-detail.md:346, .ai-context/invariants.md:2006, .ai-context/invariants.md:2009, .ai-context/invariants.md:2014, .ai-context/decisions/0016-the-runner-drains-the-room-before-it-blames-a-check.md:114 |
-| #77 | — | .ai-context/changelog-detail.md:346, .ai-context/decisions/0016-the-runner-drains-the-room-before-it-blames-a-check.md:114 |
+| #77 | — | .ai-context/changelog-detail.md:346, .ai-context/changelog-detail.md:4923, .ai-context/decisions/0016-the-runner-drains-the-room-before-it-blames-a-check.md:114 |
 | #78 | scripts/smoke.mjs:8878, scripts/smoke.mjs:8915, scripts/smoke.mjs:8963, scripts/smoke.mjs:8998, scripts/smoke.mjs:9024, scripts/smoke.mjs:9047 | .ai-context/changelog-detail.md:3, .ai-context/invariants.md:1265 |
 | #80 | src/core/shelves.ts:497, src/core/shelves.ts:521, scripts/smoke.mjs:415, scripts/smoke.mjs:438 | .ai-context/changelog-detail.md:4878, .ai-context/invariants.md:159, .ai-context/invariants.md:165 |
+| #81 | — | .ai-context/changelog-detail.md:4926 |
 | #83 | — | .ai-context/changelog-detail.md:1722, .ai-context/design/0023-the-update-note.md:3 |
 
 ## Decision and design records cited in code — 52
@@ -89,7 +90,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | `decisions/0013` | scripts/smoke.mjs:161, scripts/smoke.mjs:177, scripts/smoke.mjs:3703, scripts/smoke.mjs:6456, scripts/smoke.mjs:6471, scripts/smoke.mjs:9540, scripts/smoke.mjs:9789, scripts/smoke.mjs:10049, scripts/smoke.mjs:10055, scripts/smoke.mjs:10070 |
 | `decisions/0014` | scripts/check-css-support.mjs:44, scripts/check-generator-determinism.mjs:2, scripts/check-generator-determinism.mjs:4, scripts/make-vault.mjs:7, scripts/make-vault.mjs:45, scripts/make-vault.mjs:182, scripts/make-vault.mjs:299, scripts/make-vault.mjs:949, scripts/make-vault.mjs:974, scripts/make-vault.mjs:978, scripts/make-vault.mjs:1335, scripts/record-demo.mjs:74, scripts/smoke.mjs:161, scripts/smoke.mjs:9344, scripts/suite-stamp.mjs:270, scripts/update-layout-snapshots.mjs:29, scripts/update-note-check.mjs:46 |
 | `decisions/0016` | scripts/smoke.mjs:6454, scripts/smoke.mjs:8963, scripts/smoke.mjs:9493, scripts/smoke.mjs:9499, scripts/smoke.mjs:9519, scripts/smoke.mjs:9593, scripts/smoke.mjs:9743, scripts/smoke.mjs:9771, scripts/smoke.mjs:9773, scripts/smoke.mjs:9781 |
-| `decisions/0017` | src/core/shelves.ts:521, scripts/smoke.mjs:415, scripts/smoke.mjs:437 |
+| `decisions/0018` | src/core/shelves.ts:521, scripts/smoke.mjs:415, scripts/smoke.mjs:437 |
 | `design/0001` | src/core/dates.ts:2, src/core/types.ts:2 |
 | `design/0002` | src/core/defaults.ts:7, src/core/defaults.ts:51, src/core/shelves.ts:57, src/core/shelves.ts:72, src/core/shelves.ts:206, src/core/shelves.ts:245, src/core/types.ts:42, src/page.js:323, src/page.js:883, src/page.js:3827, src/page.js:3969, scripts/smoke.mjs:8284, scripts/smoke.mjs:9216 |
 | `design/0003` | src/core/defaults.ts:323, src/core/defaults.ts:338, src/core/shelves.ts:212, src/core/types.ts:95, src/core/types.ts:129, src/cyber.css:338, src/cyber.css:381, src/page.css:575, src/page.js:83, src/page.js:784, scripts/smoke.mjs:596, scripts/smoke.mjs:1029 |

@@ -1,4 +1,4 @@
-# 0017 — Notes sharing a date read A-Z, and the reading order does not reach the tie-break
+# 0018 — Notes sharing a date read A-Z, and the reading order does not reach the tie-break
 
 **Date** 2026-09-15 · **Status** accepted · **Issue** [#80](https://github.com/luke321/vault-shelf/issues/80)
 
