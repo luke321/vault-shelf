@@ -70,7 +70,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | #79 | src/core/defaults.ts:436, scripts/smoke.mjs:1483 | .ai-context/changelog-detail.md:3, .ai-context/changelog-detail.md:69, .ai-context/invariants.md:403 |
 | #80 | src/core/shelves.ts:497, src/core/shelves.ts:521, scripts/smoke.mjs:482, scripts/smoke.mjs:505 | .ai-context/changelog-detail.md:3, .ai-context/changelog-detail.md:5056, .ai-context/invariants.md:159, .ai-context/invariants.md:165 |
 | #81 | scripts/check-scope.mjs:21, scripts/check-scope.mjs:75, scripts/check-scope.mjs:98, scripts/check-scope.mjs:171, scripts/check-scope.mjs:304, scripts/check-scope.mjs:343 | .ai-context/changelog-detail.md:3, .ai-context/changelog-detail.md:11, .ai-context/changelog-detail.md:119, .ai-context/changelog-detail.md:5104, .ai-context/invariants.md:2069 |
-| #82 | — | .ai-context/changelog-detail.md:3, .ai-context/verification-1.1.0.md:82 |
+| #82 | — | .ai-context/changelog-detail.md:3, .ai-context/verification-1.1.0.md:82, .ai-context/verification-1.1.0.md:110 |
 | #83 | — | .ai-context/changelog-detail.md:1900, .ai-context/verification-1.1.0.md:40, .ai-context/design/0023-the-update-note.md:3 |
 | #85 | scripts/record-demo.mjs:566 | .ai-context/verification-1.1.0.md:42, .ai-context/verification-1.1.0.md:83 |
 
