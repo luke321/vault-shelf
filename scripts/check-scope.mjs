@@ -18,7 +18,7 @@ const problems = [];
  * does -- the guarantee is about what the plugin loads, not about a filename. */
 const STYLESHEETS = ["page.css", "leather.css", "cyber.css"];
 
-/* github#81, decisions/0017 -- at-rules that hold style rules, and at-rules that cannot */
+/* github#81, decisions/0019 -- at-rules that hold style rules, and at-rules that cannot */
 const AT_HOLDS_RULES = new Set(
   ["media", "supports", "container", "layer", "scope", "starting-style", "document"]);
 const AT_HOLDS_NO_RULES = new Set(
@@ -95,7 +95,7 @@ function tidy(s) {
   return one.length > 80 ? one.slice(0, 79) + "…" : one;
 }
 
-/* github#81, decisions/0017 -- the prelude is everything since the last brace or semicolon */
+/* github#81, decisions/0019 -- the prelude is everything since the last brace or semicolon */
 /** @param {string} name @param {string} text
  *  @returns {{ rules: number, problems: string[], selectors: { text: string, line: number }[] }} */
 function scanSheet(name, text) {
@@ -168,7 +168,7 @@ function scanSheet(name, text) {
   return { rules, problems: said, selectors: found };
 }
 
-/* github#81, decisions/0017 -- the shapes that slipped, proved caught on every run */
+/* github#81, decisions/0019 -- the shapes that slipped, proved caught on every run */
 const CONTROLS = [
   { name: "a multi-line selector list is read past its last member",
     css: "p,\nblockquote,\ninput,\n.vault-shelf .vs-spine {\n  margin: 0;\n}\n",

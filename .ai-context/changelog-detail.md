@@ -1,6 +1,6 @@
 # Changelog detail
 
-## 2026-09-15 — The scope gate reads a selector, not a line (`github#81`, `decisions/0017`)
+## 2026-09-15 — The scope gate reads a selector, not a line (`github#81`, `decisions/0019`)
 
 `check-scope`'s CSS half walked one line at a time and took the selector to be the text on the
 line carrying the `{`. Planted into a throwaway copy of the tree, one shape per run, against
@@ -50,7 +50,7 @@ outside it. `scoped()` now walks the root compound and refuses a `+` or `~` that
 asserting rules read, members read and the exact set of problems raised. Measured at **0.21 ms** for all 28,
 against **4.5 ms** to scan the three sheets and **102 ms** for the whole check. `--selftest` prints them case by case:
 `check-scope selftest: 28/28 controls caught`. Not a flag the hook calls, for the reason in
-`decisions/0017`: this defect survived because nobody had run the equivalent by hand.
+`decisions/0019`: this defect survived because nobody had run the equivalent by hand.
 
 Clean line now, on `513 css rules`:
 
@@ -60,7 +60,7 @@ check-scope: clean (513 css rules, 582 css selectors, 76 ids, 124 prefixed class
 ```
 
 `check-comments` stays at **1536** and `check-scope.mjs`'s own share at **24**: the new code
-carries pointers, and its reasoning went to `decisions/0017` rather than into the file.
+carries pointers, and its reasoning went to `decisions/0019` rather than into the file.
 
 ## 2026-09-15 — A look's paint room is measured against itself (`github#78`, `design/0021`)
 

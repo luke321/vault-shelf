@@ -1971,7 +1971,7 @@ static half is `scripts/check-network.mjs`, which is unskippable in the pre-push
 ## The page is scoped, and the gate that says so is proved on every run
 
 `scripts/check-scope.mjs` reads the three shipped stylesheets with **one character walker**, and
-it is the only CSS parser in that file (`github#81`, `decisions/0017`). Comments are blanked to
+it is the only CSS parser in that file (`github#81`, `decisions/0019`). Comments are blanked to
 same-length whitespace, quoted regions are skipped, and a block's prelude is everything since the
 last `}`, `;` or `{` — never the single line the brace sits on, which is what the line walker it
 replaced read. Selector lists split on commas outside parentheses, brackets and quotes, and the
@@ -1999,7 +1999,7 @@ after the root.
 rules read, the selector members read, and the exact set of problems raised; the clean line names
 the count. A control that stops biting fails the gate. `node scripts/check-scope.mjs --selftest`
 prints them case by case. The reasoning, and why this is not a `--selftest` the hook calls the way
-`lock.mjs` is, is `decisions/0017`.
+`lock.mjs` is, is `decisions/0019`.
 
 ## A spine holds its size
 

@@ -1,4 +1,4 @@
-# 0017 — A gate carries its own negative controls
+# 0019 — A gate carries its own negative controls
 
 **Date** 2026-09-15 · **Status** accepted · **Issue** [#81](https://github.com/luke321/vault-shelf/issues/81)
 

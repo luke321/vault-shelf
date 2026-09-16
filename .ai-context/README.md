@@ -34,9 +34,7 @@ changing what a shelf contains or how a book is addressed.
 | `0012-lock-the-screen-not-the-job` | Why a lock is named after the display it takes over rather than the activity, what the claim-and-return shape buys over handing back a name, and how a hold proves it is still alive |
 | `0013-two-chromes-and-a-check-says-what-it-needs` | Why the suite caps at two browsers where the sister repo went to one, why a check declares the shapes it needs, and why a check that leaves the page moving fails |
 | `0014-one-vault-for-the-checks-and-the-film` | Four generated vaults become one: what the one vault had to absorb to replace three, what was given up, why the film stopped being shot in a mirror, and what `0013`'s per-shape narrowing means once there is one shape |
-| `0015-the-suite-owns-its-own-focus` | Why the suite takes the focus of the window it drives, and sends real keys rather than synthetic events |
-| `0016-the-runner-drains-the-room-before-it-blames-a-check` | Why a pending room measure is the runner's to wait out, not the check's to be failed for |
-| `0017-a-gate-carries-its-own-negative-controls` | Why the scope gate parses CSS rather than lines, why a construct it cannot judge is refused rather than skipped, and why its planted shapes run on every invocation instead of behind a flag |
+| `0019-a-gate-carries-its-own-negative-controls` | Why the scope gate parses CSS rather than lines, why a construct it cannot judge is refused rather than skipped, and why its planted shapes run on every invocation instead of behind a flag |
 
 ### DDRs — `design/`
 
