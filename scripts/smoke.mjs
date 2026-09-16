@@ -314,6 +314,40 @@ const FRAME_HELPERS = `(function(){
         requestAnimationFrame(step);
       });
     },
+    /* github#20 -- AND ONE WAY DOWN, for the library, because a sweep that turns round measures
+     * the wrong thing there. sweep() crosses 1120px in its 1.4s, and a room with a Weeks shelf
+     * in it is 4,427px: it never leaves the first viewport and a bit, and every pixel after the
+     * first leg is ground it has already rasterised. Measured on the same room in the same
+     * minute, leather: turned round 0 missed of 84, one way down 56 of 332, and a REAL WHEEL
+     * dispatched over CDP 42 of 369. The wheel and the descent agree; the turn is the outlier,
+     * which is what says the driver was never the problem and the route was.
+     *
+     * IT STOPS AT THE FLOOR, and the clock is only the backstop. Rows materialise as they are
+     * reached and the room's height firms up underneath the reader, so the floor recedes while
+     * it is being approached and a descent bounded only by a span read once at the start can
+     * wait forever -- measured at over 10s on a room whose height moved 541px while it was
+     * being crossed. Running ON past the floor is the worse failure of the two and the reason
+     * this does not simply burn the clock: a scroller already at its end stops changing, an
+     * unchanging scroller invalidates nothing, and decisions/0017 measured a page nothing is
+     * asking to move at TWO frames in 400ms. Those are missing frames by arithmetic and stutter
+     * by no other measure, and they would be charged to whichever look happened to arrive
+     * first. So the walk ends where the room does, and what is timed is what actually ran. */
+    descend: function (el, ms, pxPerSec) {
+      return new Promise(function (done) {
+        el.scrollTop = 0;
+        var span0 = Math.max(1, el.scrollHeight - el.clientHeight);
+        var ts = [], start = performance.now();
+        function step(now) {
+          ts.push(now);
+          var span = Math.max(1, el.scrollHeight - el.clientHeight);
+          var want = (now - start) / 1000 * pxPerSec;
+          el.scrollTop = Math.min(span, want);
+          if (now - start < ms && want < span) requestAnimationFrame(step);
+          else { el.scrollTop = 0; done({ ts: ts, span: Math.round(span0), reached: Math.round(span) }); }
+        }
+        requestAnimationFrame(step);
+      });
+    },
     /* THIS MACHINE'S VSYNC, which is the one number neither check may read off the measurement
      * it is judging: a run that drops three frames in four has no single-vsync interval left
      * to find, so the period reads long, the frames expected read few, and the worst run
@@ -6562,85 +6596,149 @@ check("scrolling the library stays smooth in every look", async (p) => {
    * and a median of the intervals between the ones that did cannot see them at all. */
   await p.eval(FRAME_HELPERS);
   /* p.eval, not p.j: this one is a promise, and eval awaits it while j would stringify it. */
-  const r = await p.eval(`(async function(){
-    var lib = document.getElementById("vs-library");
-    var looks = window.VaultShelfCore.LOOKS.map(function (l) { return l.value; });
-    var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  /* github#20 -- ONE CALL PER LEG, because cdp.mjs gives any single Runtime.evaluate ten
+   * seconds to reply and this walk is about twenty. The old check fitted inside one call only
+   * because each of its legs was 1.4s; three 2s descents, a probe and two settles do not, and
+   * the first version of this change failed with "got no reply in 10s" rather than with a
+   * number. Nothing here is timed across a call boundary -- every sample is taken whole inside
+   * the page -- so the split costs the measurement nothing. */
+  const run = (body) => p.eval(
+    `(async function(){ var lib = document.getElementById("vs-library");` +
+    ` var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };` +
+    body + ` })()`);
 
-    /* the throwaway pass is what gets frames flowing at all, and __fr.calibrate says why it
-     * has to come first */
+  /* github#20 -- AND A ROOM WITH SOMETHING OFF SCREEN IN IT. The six default shelves are
+   * 1,494px on this window, which is a viewport and a half: no shelf is ever far enough away
+   * for content-visibility to defer anything, so the first paint this check exists to catch
+   * cannot happen in that room at all, and every look scored a flat 0 there while a reader
+   * with a taller library was missing a frame in six. A Weeks shelf over the fixture's eleven
+   * years is ~574 books and takes the room past 4,000px, which is the room a reader who adds
+   * one actually scrolls. Put back at the end, the way every other check that moves the
+   * settings does. */
+  const room = await run(`
+    var settings = __vs.settings();
+    window.__smoothHad = settings.shelves.map(function (s) { return s.id; });
+    settings.shelves.push({ id: "-smoothweeks", name: "Weeks", source: { kind: "all" },
+      classifier: "week", direction: "chronological", hidden: false,
+      position: settings.shelves.length, plaques: true, spineSeries: "year" });
+    __vs.setFilters({});
+    await wait(500);
+    return Math.round(lib.scrollHeight - lib.clientHeight);
+  `);
+
+  /* the throwaway pass is what gets frames flowing at all, and __fr.calibrate says why it
+   * has to come first */
+  const idle = await run(`
     __vs.setLook("");
     await wait(120);
     await __fr.sweep(lib, 240, 800);
-    var idle = await __fr.calibrate(lib, 500);
+    return await __fr.calibrate(lib, 500);
+  `);
 
-    var out = {};
-    for (var i = 0; i < looks.length; i++) {
-      __vs.setLook(looks[i]);
+  /* github#20 -- 2000px/s, one way. Faster than 800 and harsher: on the shipped room leather
+   * missed 68 of the 175 frames a flick offers against 54 of 375 at 800px/s, and a descent
+   * costs 2.2s a look instead of 5.5. A flick is also how a reader reaches a shelf they have
+   * not seen, which is the motion whose first paint is the subject.
+   * THE LEG IS THE ROOM, not a constant: descend() stops at the floor, and a leg sized to a
+   * room this is not would either stop short of the shelves that cost the most or sit at the
+   * bottom painting nothing, which decisions/0017 measured at two frames in 400ms. */
+  const DOWN = 2000;
+  const LEGMS = Math.round(room / DOWN * 1000) + 400;
+  const looks = JSON.parse(await p.eval(
+    `JSON.stringify(window.VaultShelfCore.LOOKS.map(function (l) { return l.value; }))`));
+  const out = {};
+  for (const one of looks) {
+    out[one || "modern"] = await run(`
+      __vs.setLook(${JSON.stringify(one)});
       await wait(120);
       /* one discarded pass, so the look's stylesheet has painted before anything is timed */
       await __fr.sweep(lib, 240, 800);
-      out[looks[i] || "modern"] = await __fr.sweep(lib, 1400, 800);
-    }
+      lib.scrollTop = 0;
+      await wait(250);
+      return await __fr.descend(lib, ${LEGMS}, ${DOWN});
+    `);
+  }
 
-    /* github#77 -- AND THE SAME ROOM WITH design/0014 TAKEN BACK OFF IT. A budget nothing can
-     * push past is decorative, which is what github#77 suspected this one of being, so the run
-     * that asserts the budget also proves the number can still see THE REGRESSION IT EXISTS TO
-     * CATCH rather than some cost invented for the occasion. Containment off and the compositor
-     * layer gone is the state design/0014 measured at leather 117ms and cyber 400ms at the 95th
-     * percentile. Three cheaper slowdowns were tried first and not one of them cost a frame --
-     * a filter over every spine, a blur over the whole library, a 20px shadow spread on 231
-     * spines -- because a scroll composites tiles that are already rasterised, and per-spine
-     * paint does not enter a frame until containment is what changes. That is worth knowing on
-     * its own: it is why github#77's own A/B looked insensitive.
-     * design/0017 -- on leather, the one look the selector offers. */
+  /* github#77 -- AND THE SAME ROOM WITH design/0014 TAKEN BACK OFF IT. A budget nothing can
+   * push past is decorative, which is what github#77 suspected this one of being, so the run
+   * that asserts the budget also proves the number can still see THE REGRESSION IT EXISTS TO
+   * CATCH rather than some cost invented for the occasion. Three cheaper slowdowns were tried
+   * first and not one of them cost a frame -- a filter over every spine, a blur over the whole
+   * library, a 20px shadow spread on 231 spines -- because a scroll composites tiles that are
+   * already rasterised, and per-spine paint does not enter a frame until containment is what
+   * changes. That is worth knowing on its own: it is why github#77's own A/B looked insensitive.
+   * github#20 -- and the probe takes off WHAT design/0014 IS NOW: the row is the unit, so the
+   * regression is the row's containment going away. Putting the shelf's back on is part of it,
+   * because a shelf that is a unit again defers its own rows' assessment until it materialises,
+   * which measured worse than either arrangement alone -- 65 missed against 54 and 8.
+   * design/0017 -- on leather, the one look the selector offers. */
+  const slowed = await run(`
     __vs.setLook("leather");
     await wait(120);
     var probe = document.createElement("style");
     probe.id = "vs-smoothprobe";
     probe.textContent =
-      ".vault-shelf .vs-shelf{content-visibility:visible!important;contain-intrinsic-size:auto!important}" +
-      ".vault-shelf .vs-track{contain:none!important}" +
+      ".vault-shelf .vs-shelf{content-visibility:auto!important;contain-intrinsic-size:auto 240px!important}" +
+      ".vault-shelf .vs-track{contain:none!important;content-visibility:visible!important;" +
+        "contain-intrinsic-size:auto!important}" +
       ".vault-shelf .vs-shelfrail{contain:none!important}" +
       ".vault-shelf #vs-shelves{will-change:auto!important}";
     document.head.appendChild(probe);
-    var slowed;
     try {
       await wait(200);
       await __fr.sweep(lib, 240, 800);
-      slowed = await __fr.sweep(lib, 1400, 800);
+      lib.scrollTop = 0;
+      await wait(250);
+      return await __fr.descend(lib, ${LEGMS}, ${DOWN});
     } finally {
       probe.parentNode.removeChild(probe);
     }
-    __vs.setLook(looks[0]);
-    await wait(120);
+  `);
 
-    return { looks: out, slowed: slowed, idle: idle,
-             spines: document.querySelectorAll("#vs-shelves .vs-spine").length };
-  })()`);
+  /* github#20 -- and the room goes back to the one every other check is entitled to find */
+  const spines = await run(`
+    __vs.setLook(window.VaultShelfCore.LOOKS[0].value);
+    await wait(120);
+    var n = document.querySelectorAll("#vs-shelves .vs-spine").length;
+    var settings = __vs.settings();
+    settings.shelves = settings.shelves.filter(function (s) {
+      return window.__smoothHad.indexOf(s.id) >= 0;
+    });
+    delete window.__smoothHad;
+    __vs.setFilters({});
+    await wait(250);
+    lib.scrollTop = 0;
+    return n;
+  `);
+
+  const r = { looks: out, idle: idle, room: room, spines: spines };
 
   const VSYNC = framePeriod(r.idle);
   const names = Object.keys(r.looks);
   const look = {};
   for (const n of names) look[n] = frameStats(r.looks[n], VSYNC);
-  const slowed = frameStats(r.slowed, VSYNC);
+  const probed = frameStats(slowed, VSYNC);
 
-  /* github#77, decisions/0017 -- missed vsyncs of the ~80 a 1.4s sweep offers */
-  const BUDGET = 14;
+  /* github#20, decisions/0017 -- missed vsyncs of the ~190 a 4s descent at 2000px/s offers.
+   * Shipped measures 1-8 in every look and the probe 60-100, so the budget sits in the empty
+   * gap between them exactly as the old one did; what changed is that the gap is now measured
+   * on the route a reader takes rather than on one that never leaves the first viewport. */
+  const BUDGET = 22;
   const over = names.filter((n) => look[n].missed > BUDGET);
   /* github#77, decisions/0017 -- a budget nothing can fail has stopped seeing cost */
-  const blind = slowed.missed <= BUDGET;
+  const blind = probed.missed <= BUDGET;
 
   return {
     ok: over.length === 0 && !blind && frameSteady(VSYNC),
-    detail: `${r.spines} spines swept at 800px/s through ${look[names[0]].span}px; missed ` +
-            `vsyncs of the ${look[names[0]].painted + look[names[0]].missed} on offer, and ` +
+    detail: `${r.spines} spines, ${r.room}px of room with a Weeks shelf in it, taken ONE WAY ` +
+            `DOWN at 2000px/s; missed vsyncs of the ` +
+            `${look[names[0]].painted + look[names[0]].missed} on offer, and ` +
             `p50/p95/worst frame in ms -- ` + names.map((n) =>
               `${n} ${look[n].missed} (${look[n].p50.toFixed(1)}/${look[n].p95.toFixed(1)}/` +
               `${look[n].worst.toFixed(0)})`).join(", ") +
             ` (budget: ${BUDGET} missed${over.length ? "; over in " + over.join(", ") : ""})` +
-            `; the same room with design/0014 off it missed ${slowed.missed} of ` +
-            `${slowed.painted + slowed.missed}` +
+            `; the same room with design/0014 off it missed ${probed.missed} of ` +
+            `${probed.painted + probed.missed}` +
             (blind ? `, inside the budget -- the number has stopped seeing cost` : "") +
             `; vsync calibrated at ${VSYNC.toFixed(1)}ms` +
             (frameSteady(VSYNC) ? "" : ", which is no frame this machine can paint")

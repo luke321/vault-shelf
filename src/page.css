@@ -502,17 +502,34 @@
  * library: the modern look at a flat 16.7ms a frame, leather at 117ms at the 95th percentile,
  * cyber at 400ms -- a look paints a spine as several layers of gradient and texture, and
  * without containment every one of them, on every shelf, is rasterised again on every scroll
- * step. `content-visibility` skips the shelves that are not in view, `contain` keeps a row's
- * paint from invalidating its neighbours, and the intrinsic size is a row of books plus its
- * head and plaques so the scrollbar does not jump as shelves come into view. */
+ * step. `content-visibility` skips what is not in view, `contain` keeps a row's paint from
+ * invalidating its neighbours, and the intrinsic size holds the scrollbar still while the
+ * skipped parts of the room are still a guess.
+ *
+ * github#20, design/0014 -- AND THE UNIT IS A ROW, NOT A SHELF. A shelf is as many rows as it
+ * takes, and on eleven years of weeks that is 25 rows and 2,664px of spines, so a shelf
+ * materialising paints all of it inside ONE frame. Going one way down that room, leather
+ * missed 54 vsyncs of the 375 on offer with a worst frame of 167ms; on a flick, 68 of 175 and
+ * 200ms. With the row as the unit: 8 and 3, worst frame 50ms.
+ *
+ * KEEPING BOTH IS WORSE THAN EITHER -- 65 missed, against 54 shipped and 8 for the row alone.
+ * A skipped shelf cannot have its own rows assessed for visibility, so when it materialises
+ * every row is evaluated, laid out and painted at once and its height jumps from the intrinsic
+ * guess to the truth, which moves everything below it. The shelf has to stop being a unit for
+ * the row to become one. */
 .vault-shelf .vs-shelf {
   margin-bottom: 26px;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 240px;
 }
-/* github#51, design/0021 -- AND SAY WHERE THE CLIP EDGE IS. Not padding, so no golden moves. */
+/* github#51, design/0021 -- AND SAY WHERE THE CLIP EDGE IS. Not padding, so no golden moves.
+ * github#20 -- THE INTRINSIC SIZE IS THE ROW'S OWN MIN-HEIGHT, spelled the same way it is
+ * spelled below, because a second number for the same height is a number that drifts: a flat
+ * 214px put the cold scroll height 541px past the truth and 192px put it 32px past. This
+ * expression is exact for a plain row and 6px short for one carrying a plaque, and `auto`
+ * replaces it with the measured height the first time a row renders. */
 .vault-shelf .vs-track {
   contain: layout paint;
+  content-visibility: auto;
+  contain-intrinsic-size: auto calc(var(--spine-h) + var(--board) + 24px);
   overflow-clip-margin: var(--spine-room);
 }
 .vault-shelf .vs-shelfrail { contain: layout; }
