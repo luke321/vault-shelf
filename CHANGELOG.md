@@ -58,6 +58,8 @@ If Vault Shelf is useful to you:
 - The runner drains the room before blaming a check, and a check that returns with the page still moving now fails naming what it left in flight. A spine-lift check that measured a 0×0 rest box now says the spine had no box rather than claiming it did not lift.
 - The screen lock is judged across sister repositories by the pid its owner string names, so a live run next door is no longer broken off the display, and a dead hold no longer queues the machine behind it.
 - The comment baseline ratcheted to 1532 — the number the merged tree actually has, which was two under every number any branch measured on its own base.
+- The published demo at `docs/demo/` was a release behind: it had not been rebuilt since the 1.0.0 tag, so the live site showed a library with none of this work in it. Rebuilt from the release tree, and all 24 feature clips and the hero were re-shot against it rather than only the ones whose own beats moved.
+- The `wear` recording act asserted a literal 54 note entries against the 2015 book. The declared vault is eleven years ending today, so its oldest year is a partial one that shrinks as the window slides — it reached 53 and the act stopped being able to shoot at all. The assertion now asks the book for its own note count.
 
 ## 1.0.1 — "Source picker" — 2026-09-13
 
