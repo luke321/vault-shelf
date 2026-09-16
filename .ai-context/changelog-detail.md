@@ -55,6 +55,56 @@ every run**. Reading the period off the measured sweep instead is circular, and 
 it: containment off painted **15 frames of 80** and scored **2 missed**.
 
 Cost: the library check **8.9s** against 7.8s, the wheel check 8.0s. Both were already serial.
+## 2026-09-15 — A shelf reorder is a stored position, not an array move (`github#79`)
+
+Reordering shelves did not survive a reload, on either host. `withFavourites` renumbered every
+shelf by its **array index** on load:
+
+```ts
+const placed = shelves.map((s, i) => ({ ...s, position: i }));
+```
+
+The mechanism, traced end to end rather than inferred from that line. All three reorder paths
+write `position` onto the shelf objects and leave `settings.shelves` in the order it was
+already in:
+
+| path | site | what moves |
+|---|---|---|
+| Manage ↑/↓ | `page.js:4704` `reorder()` | sorts a copy, splices the copy, writes `position` back |
+| drag a shelf | `page.js:1124` `moveShelf()` | same shape |
+| new shelf at top | `page.js:4055` | `push(draft)` — draft is **last** in the array, `position` 0 |
+
+`persist()` then clones the settings as they stand (array order old, positions new), and the
+load path replaced the half that carried the change. `buildShelves` sorts on `position`
+(`shelves.ts:372`), so the arrangement simply vanished — no error, no moved address, no changed
+count, and therefore nothing in the suite to notice.
+
+**The plugin loses it sooner than reported.** Both hosts route through `core.migrate`, but the
+page migrates once at mount (`page.js:202`) while the plugin migrates on **save**
+(`main.js:532`) and again on load (`main.js:445`). On the plugin the reorder was discarded at
+save time, before any reload, and idempotence became a requirement of the fix rather than a
+nicety.
+
+`sequenced()` now orders by stored `position` before `withFavourites` decides anything, and the
+`design/0019` insert keeps its own renumber — the bug was renumbering *unconditionally*, before
+knowing whether an insert was happening.
+
+Measured by the new check `a reordered shelf survives a reload, on both hosts`, before → after:
+
+| shape | before | after |
+|---|---|---|
+| Manage ↑ on the last shelf, one migrate (page) | reverted | **held** |
+| the same, two migrates (plugin save + load) | reverted | **held** |
+| a dragged shelf, reloaded | `favourites -> encyclopedia -> years -> months -> people -> tags` | **`encyclopedia -> years -> favourites -> months -> tags -> people`** |
+| new-shelf-at-top (`draft` array-last, position 0) | `a -> b -> draft` | **`draft -> a -> b`** |
+| schema 9, positions disagreeing with array order | `favourites -> years -> people -> tags` | **`favourites -> people -> tags -> years`** |
+| schema 10, same shelves | `years -> people -> tags` | **`people -> tags -> years`** |
+| hand-edited: one duplicate position, one missing | `a -> b -> c` | **`a -> c -> b`**, positions `0,1,2` |
+
+The `design/0019` migration check is untouched and still green: Favourites still arrives at
+position 0 with `direction: "manual"`, an id that steps aside for a shelf that took the name,
+and every other shelf in the relative order it already had — now the order the **file** said,
+rather than the order the array happened to be in.
 
 ## 2026-09-15 — A look's paint room is measured against itself (`github#78`, `design/0021`)
 

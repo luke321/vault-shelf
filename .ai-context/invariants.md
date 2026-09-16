@@ -375,6 +375,50 @@ and clearing returns to exactly the starting count. Measured: 4,938 -> **1,204**
 A filter that reorders shelves would break the one thing the product promises about
 orientation: a shelf lives at a stable address in the room.
 
+## A reorder of the shelves themselves survives the reload
+
+`github#79`. **A shelf's `position` is the only record a reorder leaves.** All three reorder
+paths — Manage's ↑/↓ (`page.js:4704`), a dragged shelf (`page.js:1124`) and new-shelf-at-top
+(`page.js:4055`) — sort a **copy** of `settings.shelves`, then write `position` back onto the
+shelf objects. The array they sit in never moves, and `persist()` saves it as it stands. So
+anything on the load path that derives `position` from the array index discards the whole
+arrangement, silently, with every address and count untouched — which is why the suite went on
+passing through it.
+
+`withFavourites` did exactly that: `shelves.map((s, i) => ({ ...s, position: i }))`. It now
+calls `sequenced()`, which orders by the **stored** `position`, sends a shelf that has none to
+the end (`design/0018`'s rule for a key the arrangement never listed), breaks a tie on array
+index rather than on sort stability, and compacts to `0..n-1`. `buildShelves` only ever sorts
+on `position` (`shelves.ts:372`), so compaction moves nothing; it keeps a gap left by a deleted
+shelf from growing, and it is what makes the function **idempotent**.
+
+**What `migrate` returns still has its array in `position` order**, so nothing downstream that
+reads the two as agreeing has changed: the old code held that by destroying `position`, the new
+one holds it by honouring it. Compaction is what keeps it true — three sites give a new shelf
+`position: settings.shelves.length` (`page.js:3843`, `:4018`, `:5280`), which is only a free
+number while the sequence has no gaps.
+
+Idempotence is not decoration here. The page migrates once, at mount (`page.js:202`); the
+plugin migrates on **save** (`main.js:532`) *and* again on load (`main.js:445`). A fix that
+honoured `position` without being idempotent would pass on the exporter and still lose the
+arrangement on the plugin — that difference is the whole of "on both hosts".
+
+`"a reordered shelf survives a reload, on both hosts"` clicks Manage's arrow by its
+`aria-label`, asserts the last two shelves swapped **while the array order stayed put**, then
+reloads through `core.migrate(clone(settings))` once (the page) and twice (the plugin) and
+asserts the move held both times. It repeats the round trip for a drag through
+`__vs.moveShelf`, restores the room, and then reads four shapes straight out of `migrate`:
+new-shelf-at-top (`draft` last in the array, `position` 0) comes up **`draft -> a -> b`**; a
+schema-9 file whose positions disagree with its array order comes up
+**`favourites -> people -> tags -> years`**, so the `design/0019` insert still lands at 0 over
+an arrangement that was honoured underneath it; the same shelves at schema 10 give
+**`people -> tags -> years`**; and a hand-edited file with a duplicate position and a missing
+one gives **`a -> c -> b` at positions 0,1,2**.
+
+Without the fix the same check reports the move surviving neither pass, the drag reloading back
+to `favourites -> encyclopedia -> years -> months -> people -> tags`, new-shelf-at-top coming up
+**`a -> b -> draft`**, and schema 9 giving `favourites -> years -> people -> tags`.
+
 ## A shelf arranged by hand moves nothing but the sequence
 
 `design/0018`. Six checks, one per thing the feature is not allowed to break. Every one of them
