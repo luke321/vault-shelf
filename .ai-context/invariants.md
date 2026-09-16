@@ -144,6 +144,29 @@ alphabetical Encyclopedia contents in either case. The old order button is absen
 
 The A-Z/Date controls now select the contents index independently of shelf arrangement.
 
+## Notes sharing a date read A-Z, in both directions
+
+`"notes sharing a date list A-Z in both reading directions"` asserts the tie-break the reading
+order is **not** allowed to reach (`decisions/0018`). Two notes on one date are fed in **both
+orders on disk** — a comparator that never fires still looks right when its input happens to
+arrive sorted — under both `oldest` and `newest`, and all four come out `Alpha,Beta`. A third
+pair, `Zebra` and `apple`, pins the comparison as the **same case-insensitive** one the A-Z
+index uses, so the two indexes cannot disagree about a pair the reader can see.
+
+The same check then censuses the real vault: every same-date run in every book of the Months
+shelf, counting the notes sitting in a run that is not A-Z. **3,327 of 4,408 dated notes** share
+their date with another, across **802 groups** — and the count out of order must be **0**. It was
+**3,327** before `github#80`, because `readingOrder` negated the whole of `byDateThenTitle`
+rather than just its date key.
+
+Undated is out of this, and that is **measured rather than asserted**. Only a folder shelf can
+hold a dated and an undated note in one book — a date shelf sends undated to its own — so the
+check builds one and reads it both ways: `Undated note,Mu,Xi` oldest-first and
+`Xi,Mu,Undated note` newest-first. Run against the **pre-`github#80`** comparator those two
+strings come back **identical** while the A-Z assertions fail, which is what makes "untouched" a
+number. `null` sorts as `""`; where undated *belongs* is a question `decisions/0018` does not
+answer.
+
 ## A note with no date of its own
 
 `"a note with no date of its own takes the earliest stamp the file has"` drives `core.stampOf`

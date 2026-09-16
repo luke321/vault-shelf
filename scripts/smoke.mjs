@@ -479,6 +479,90 @@ check("date contents default to oldest and saved newest settings remain readable
   return {ok:Object.values(r).every(Boolean),detail:JSON.stringify(r)};
 });
 
+/* github#80, decisions/0018 */
+check("notes sharing a date list A-Z in both reading directions", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var shelf = core.defaultShelves().find(function (s) { return s.id === 'months'; });
+    var note = function (id, title, date, folder) {
+      return { id: id, path: id + '.md', title: title, folder: folder || '', date: date,
+               people: [], tags: [], props: {}, excerpt: '', body: '' };
+    };
+    var titles = function (list, order) {
+      var book = core.buildShelf(shelf, list, order).books.filter(function (b) {
+        return b.key !== '-undated';
+      })[0];
+      return book.notes.map(function (n) { return n.title; }).join(',');
+    };
+    var a = note('a', 'Alpha', '2024-03-05');
+    var b = note('b', 'Beta', '2024-03-05');
+    /* Case counts: the A-Z index lowercases, so a raw < would put Zebra before apple and the
+     * two indexes would disagree about a pair the reader can see. */
+    var lower = note('c', 'apple', '2024-03-05');
+    var upper = note('d', 'Zebra', '2024-03-05');
+
+    /* decisions/0018 -- UNDATED IS NOT PART OF THIS. A null date sorts as '', so it leads
+     * oldest-first and trails newest-first, and github#80 was not allowed to move it. Only a
+     * folder shelf can hold both in one book; a date shelf sends undated to its own. */
+    var mixed = [note('u', 'Undated note', null, 'Notes'),
+                 note('x', 'Xi', '2024-03-05', 'Notes'),
+                 note('m', 'Mu', '2021-01-01', 'Notes')];
+    var byFolder = Object.assign({}, shelf, { id: 'f', classifier: 'folder' });
+    var folderRead = function (order) {
+      return core.buildShelf(byFolder, mixed, order).books[0].notes
+        .map(function (n) { return n.title; }).join(',');
+    };
+
+    /* And it has to hold over the real vault, on every same-date run in every book. */
+    var all = __vs.data().notes;
+    var dated = all.filter(function (n) { return n.date !== null; }).length;
+    var groups = 0, affected = 0, scrambled = 0;
+    core.buildShelf(shelf, all, 'oldest').books.forEach(function (bk) {
+      if (bk.key === '-undated') return;
+      var run = [];
+      var flush = function () {
+        if (run.length > 1) {
+          groups++; affected += run.length;
+          for (var i = 1; i < run.length; i++) {
+            if (run[i - 1].title.toLowerCase() > run[i].title.toLowerCase()) {
+              scrambled += run.length; break;
+            }
+          }
+        }
+        run = [];
+      };
+      bk.notes.forEach(function (n, i) {
+        if (i && n.date !== bk.notes[i - 1].date) flush();
+        run.push(n);
+      });
+      flush();
+    });
+    return {
+      /* BOTH ORDERS ON DISK -- a comparator that never fires still looks right when the
+       * input happens to arrive sorted. */
+      oldest: titles([a, b], 'oldest') === 'Alpha,Beta',
+      oldestReversedOnDisk: titles([b, a], 'oldest') === 'Alpha,Beta',
+      newest: titles([a, b], 'newest') === 'Alpha,Beta',
+      newestReversedOnDisk: titles([b, a], 'newest') === 'Alpha,Beta',
+      caseInsensitive: titles([upper, lower], 'oldest') === 'apple,Zebra',
+      undatedLeadsOldest: folderRead('oldest') === 'Undated note,Mu,Xi',
+      undatedTrailsNewest: folderRead('newest') === 'Xi,Mu,Undated note',
+      undated: folderRead('oldest') + ' | ' + folderRead('newest'),
+      got: titles([b, a], 'oldest'),
+      dated: dated, groups: groups, affected: affected, scrambled: scrambled
+    };
+  })()`);
+  const ok = r.oldest && r.oldestReversedOnDisk && r.newest && r.newestReversedOnDisk &&
+             r.caseInsensitive && r.undatedLeadsOldest && r.undatedTrailsNewest &&
+             r.scrambled === 0;
+  return {
+    ok,
+    detail: `${r.affected} of ${r.dated} dated notes share their date with another ` +
+            `(${r.groups} groups); ${r.scrambled} of those sit in a run that is not A-Z. ` +
+            `A reversed-on-disk pair read oldest-first gave ${r.got}; undated ${r.undated}`
+  };
+});
+
 check("a note with no date of its own takes the earliest stamp the file has", async (p) => {
   const r = await p.j(`(function(){
     var core = window.VaultShelfCore;

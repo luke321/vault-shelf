@@ -37,6 +37,7 @@ changing what a shelf contains or how a book is addressed.
 | `0015-the-suite-owns-its-own-focus` | Why the suite takes the window's focus itself and drives real keys rather than dispatching the events |
 | `0016-the-runner-drains-the-room-before-it-blames-a-check` | Why a check that returns with the page still moving is the runner's finding, and what it names |
 | `0017-a-smoothness-budget-counts-frames` | Why a percentile of frame intervals cannot be measured at 34ms, what a missed-vsync count replaces it with, why the vsync has to be calibrated rather than read off the run being judged, and why the only slowdown that costs a frame is the regression the check exists to catch |
+| `0018-the-tie-break-within-a-date` | What decides the order of notes sharing a date, why the reading order does not reach it, and the three tie-breaks rejected |
 
 ### DDRs — `design/`
 

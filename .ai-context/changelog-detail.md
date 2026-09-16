@@ -4980,3 +4980,56 @@ that cascade, so the guard has a measurement rather than only a comment.
 **Nothing in `src/` moved**, so no shelf invariant moved and the suite was not re-run; the tree
 earns no stamp from this. Lint, `check-comments`, `check-pii`, `check-scope`, `check-network`, the
 determinism checks and the generated code-map check are what gate it, plus the new harness.
+
+## 2026-09-15 — The tie-break within a date, decided and then asserted (`github#80`, `decisions/0018`)
+
+Oldest-first listed notes sharing a date in **reverse alphabetical** order. One character did it:
+`readingOrder` negated the whole of `byDateThenTitle` — a comparator written newest-first, date
+descending then title **ascending** — so the `-1` for the oldest-first default flipped the date
+axis (wanted) and the title tie-break (not wanted).
+
+**Measured over the one vault, before and after**, by the new check itself:
+
+| | before | after |
+|---|---|---|
+| dated notes | 4,408 | 4,408 |
+| in a same-date group of 2+ | 3,327 (75.5%) | 3,327 |
+| same-date groups | 802 | 802 |
+| **notes in a run that is not A-Z** | **3,327** | **0** |
+| a reversed-on-disk pair, read oldest-first | `Beta,Alpha` | `Alpha,Beta` |
+
+The last row is the one that says it was the comparator and not the input: the same two notes, fed
+in both orders on disk, came out `Beta,Alpha` either way.
+
+**The decision came first.** Nothing in the repo had ever said what should happen between equal
+dates, which is why no check failed — the suite asserted that a book *opens on* its oldest note and
+that order survives a rebuild, and both were true throughout. `decisions/0018` settles it: A-Z
+within a date, in **both** directions, because the oldest/newest control names the date axis and
+governs only that axis. It records the three rejected alternatives — mirroring the whole order,
+path order, and a time-of-day fallback (which `decisions/0003` already rules out, since a date
+taken from a property or a title carries no time).
+
+**Two further changes fell out of it.** The tie-break now uses the **same case-insensitive**
+comparison the A-Z index uses — it compared titles raw before, so `Zebra` sorted ahead of `apple`
+and the Date index could hold a sub-order the A-Z index would disagree with. And the direction is
+applied to the date key rather than to the comparator's result, so the tie-break is no longer
+reachable by the sign at all.
+
+**Nothing else moved.** `the shelves are packed the way the golden snapshot says` is unchanged —
+the packing is per book, not per note — and all 31 checks touching contents, ordering, indexes,
+plaques and made books stayed green. Undated placement is untouched, and checked both ways rather than
+argued: the same folder-shelf book reads `Undated note,Mu,Xi` oldest-first and
+`Xi,Mu,Undated note` newest-first on the **pre-fix** comparator and on the fixed one — identical,
+while the A-Z assertions fail on the first and pass on the second.
+
+`check-comments` dropped to **1534** (from 1536): the two-line prose comment explaining the flip
+became one pointer, with the argument moved into `decisions/0018` per `decisions/0007`. The
+baseline moved in the same commit, as that check instructs.
+
+**Renumbered 0017 → 0018 on 2026-09-16**, after `github#77` merged into `develop` as
+`decisions/0017-a-smoothness-budget-counts-frames.md` while this branch was open. Two records
+under one number whose **filenames differ** is the dangerous shape: git merges both without a
+conflict, so nothing would have caught it. `github#81` hit the same wall and took `0019`,
+leaving `0018` for the lower issue number. The commit that introduced the record still names
+`0017` in its message, deliberately — that sha was already reported and rewriting it would
+break the reference.

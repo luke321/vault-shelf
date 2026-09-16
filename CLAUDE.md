@@ -51,6 +51,9 @@ of measuring it.** Build the page, drive it, read the numbers.
   (`design/0031`); a shelf can also run **manual** — a dragged sequence held as classifier
   **keys** in `Shelf.order`, surviving a rebuild, dropping a lost key on save, sending an
   unlisted one to the end (`design/0018`).
+  **Notes sharing a date read A-Z, in both directions** — the reading order names the date axis
+  and reaches nothing else, and it is the same case-insensitive A-Z the index itself uses
+  (`decisions/0018`).
 - **A favourite is a reference, never a copy.** Position 0 can be a `pick` shelf — a **kind** of
   shelf, not a single one — holding **addresses** of other shelves' books, live. Taking one off
   is bound to `drop` not `dragend` (Escape cancels); a dead pick drops on save; the reader never
@@ -221,7 +224,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP): **90 checks over the one vault shape** (`decisions/0014`), two lanes, three browsers |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP): **143 checks over the one vault shape** (`decisions/0014`), two lanes, three browsers |
 | `scripts/release.ps1` | the local half of a release: the guards, the gates, the tag, the tag push. `-SelfTest` drives every refusal in a throwaway clone; `.ai-context/releasing.md` is the authority on the flow |
 | `scripts/suite-stamp.mjs` | which trees have passed the suite (`decisions/0010`), read by the pre-push hook and `release.ps1`. `--selftest` proves the hit and miss cases |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
