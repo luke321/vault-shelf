@@ -7,16 +7,25 @@ the commit recorded in the dry-run row below. **Reference tag** `1.0.1`. The ran
 
 **Nothing below is claimed from memory.** Every row names what was run and what it printed. Steps
 10 to 14 of `releasing.md` — the pushes, the pull request, the tag and the post-tag rows — had not
-been run when this file was written, and the rows for them are marked as such rather than omitted.
+been run when this file was first written, and are recorded below as they happened.
 
-## A finding that predates this release
+## A finding I got wrong, and the correction
 
-**`main` never received 1.0.1.** The tag `1.0.1` points at `f350316`, which is on `develop` and is
-**not** an ancestor of `main`; `main`'s tip `22c1483` is its last merge from `develop`, dated
-2026-09-13 09:31, while the tag was cut at 12:10 the same day. `main`'s `manifest.json` still reads
-`1.0.0`. The *content* is not at risk — `develop` contains it and 1.1.0 carries it — but step 12
-will take `main` from 1.0.0 straight to 1.1.0, and `main`'s history will never have shown 1.0.1.
-Recorded here rather than fixed: *once the tag exists nothing changes*.
+**Withdrawn: "`main` never received 1.0.1".** It did. `origin/main` is `a8d939b`, a merge of
+`hotfix/1.0.1` through PR #65, its `manifest.json` reads `1.0.1`, and
+`git merge-base --is-ancestor 1.0.1 origin/main` returns true.
+
+The error was mine and it was a method error, not a judgement call: I measured against the **local**
+`main` ref, which was stale at `22c1483` with a 1.0.0 manifest, and never against `origin/main`.
+`git fetch` updates remote-tracking refs and leaves a local branch exactly where it was, so a local
+`main` that has not been checked out for days says nothing about what the remote holds. Every
+number in the rest of this file came from a commit or a command output; that one came from a ref I
+assumed was current.
+
+Recorded rather than deleted, because the claim reached `verification-1.1.0.md`, PR #86's body and
+a published preview before it was caught, and a withdrawn finding that leaves no trace is how the
+same mistake gets made twice. **The rule it earns: compare against `origin/<branch>` for anything
+about what the remote holds, or fetch and re-read the local ref first.**
 
 ## What was run
 
@@ -66,15 +75,13 @@ against a complete, freshly re-shot set it reported **`clips 0/25 present`** and
 missing, while finding 24 of 25 pages. The looking above was therefore done directly. The skill
 wants teaching this repo's layout before the next release leans on it.
 
-## Not yet run
+## Steps 10 to 14, as they happened
 
-| Step | State |
+| Step | Result |
 |---|---|
-| 10 — push `release/1.1.0`, read the workflow's dry-run summary | not run; a push is a separate ask |
-| 11 — merge `release/1.1.0` → `develop` | not run |
-| 12 — pull request `develop` → `main` | not run; see the 1.0.1 finding above |
-| 13 — `release.ps1 1.1.0` on `main`, the tag pushed alone | not run |
-| 14 — the workflow publishes; post-tag rows | not run; this file owes an assets-and-attestation row like `verification-1.0.0.md`'s |
-
-`verification-1.0.1.md` was never written at all. That gap is noted in `github#84` and is not
-repaired here — 1.0.1 shipped without one and the tag cannot be revisited.
+| 10 — push `release/1.1.0` | Pushed. The branch `release.yml` dry run **failed first**, and correctly: `PII_NAMES` was not set on a PUBLIC repo, so `github#82`'s new gate refused rather than letting `check-pii` degrade to patterns-only and exit 0. Its first real run caught the thing it was built for. The secret was set from the untracked `.pii-names` (**6 names**, comma-separated) and the run re-run. |
+| 10 — second failure, mine | `The generated code map and index are current` failed. Adding the `// github#85` pointer to `record-demo.mjs` shifted line numbers and earned `#85` a row in `code-index.md`, and I had not regenerated after that edit. **`release.ps1 -DryRun` does not run `code-map --check`** — only the pre-push hook and CI do — so the branch dry run could not have caught it. Regenerated in `54d3dd2`. |
+| 10 — green | Run `35085660609`: 21 steps ok, 2 correctly skipped (the ancestry guard, since the branch is not `main`; and release creation, since it is a dry run). |
+| 11 — merge into `develop` | `3ec2a54`, `--no-ff`. Pre-push gate ran the full suite on the merge result: **144/144 in 118s**. |
+| 11 — the stamp did not carry | The branch dry run measured tree `e6bbda6`; regenerating the code index changed the tree to `a9d1329`, so that 1/2 green no longer applied and the count restarted. `a9d1329` is now 1/2 green. A stamp keys on the tree, which is the point — a doc commit is still a different tree. |
+| 12 — pull request to `main` | [#86](https://github.com/luke321/vault-shelf/pull/86). Checks: `main accepts develop or hotfix` pass, `close the issues this push fixes` pass. |
