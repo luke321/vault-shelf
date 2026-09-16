@@ -2,7 +2,7 @@
 
 Edge tabs follow the book's contents: letters for A–Z, periods for Date. Long indexes compress to fit; narrow windows place the tabs below the pages. The magnifying-glass tab and Ctrl/Cmd+F bring you to search within the book.
 
-![Jump through the index](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/index.webp)
+![Jump through the index](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/index.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.0.0 - 2026-09-13` |
+| Last re-recorded | `1.1.0 - 2026-09-16` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 12 seconds |
 | WebP | 70 frames; 725,308 bytes |

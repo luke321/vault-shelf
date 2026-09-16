@@ -112,7 +112,8 @@ export interface Shelf {
 
 /** github#21, github#33 -- design/0005 */
 export type ColorRule = "folder" | "year" | "decade" | "one";
-export type IndexMode = "az" | "date";
+/** github#70, design/0035 */
+export type IndexMode = "az" | "date" | "number";
 
 export interface Book {
   /** decisions/0002 */

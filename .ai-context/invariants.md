@@ -144,6 +144,29 @@ alphabetical Encyclopedia contents in either case. The old order button is absen
 
 The A-Z/Date controls now select the contents index independently of shelf arrangement.
 
+## Notes sharing a date read A-Z, in both directions
+
+`"notes sharing a date list A-Z in both reading directions"` asserts the tie-break the reading
+order is **not** allowed to reach (`decisions/0018`). Two notes on one date are fed in **both
+orders on disk** — a comparator that never fires still looks right when its input happens to
+arrive sorted — under both `oldest` and `newest`, and all four come out `Alpha,Beta`. A third
+pair, `Zebra` and `apple`, pins the comparison as the **same case-insensitive** one the A-Z
+index uses, so the two indexes cannot disagree about a pair the reader can see.
+
+The same check then censuses the real vault: every same-date run in every book of the Months
+shelf, counting the notes sitting in a run that is not A-Z. **3,327 of 4,408 dated notes** share
+their date with another, across **802 groups** — and the count out of order must be **0**. It was
+**3,327** before `github#80`, because `readingOrder` negated the whole of `byDateThenTitle`
+rather than just its date key.
+
+Undated is out of this, and that is **measured rather than asserted**. Only a folder shelf can
+hold a dated and an undated note in one book — a date shelf sends undated to its own — so the
+check builds one and reads it both ways: `Undated note,Mu,Xi` oldest-first and
+`Xi,Mu,Undated note` newest-first. Run against the **pre-`github#80`** comparator those two
+strings come back **identical** while the A-Z assertions fail, which is what makes "untouched" a
+number. `null` sorts as `""`; where undated *belongs* is a question `decisions/0018` does not
+answer.
+
 ## A note with no date of its own
 
 `"a note with no date of its own takes the earliest stamp the file has"` drives `core.stampOf`
@@ -191,6 +214,12 @@ holds **2,063 of 4,938** notes, because its daily, meeting and 1-on-1 notes are 
 ISO date.
 
 ## Plaques are date-only and asked for
+
+**A run is whatever is adjacent.** A shelf arranged by hand can carry the same label twice in
+one row — a plate says what is under it, never what it wishes were under it. This is the
+sentence CLAUDE.md's compressed law paraphrases; kept verbatim here because it is preventing a
+specific wrong implementation (merging two non-adjacent same-labelled runs into one plaque)
+rather than padding.
 
 `"year plaques only appear on date classifiers, and only when asked for"` compares, per shelf,
 whether it *wants* plaques (`shelf.plaques`) against whether any of its books *has* one. The
@@ -368,6 +397,50 @@ and clearing returns to exactly the starting count. Measured: 4,938 -> **1,204**
 
 A filter that reorders shelves would break the one thing the product promises about
 orientation: a shelf lives at a stable address in the room.
+
+## A reorder of the shelves themselves survives the reload
+
+`github#79`. **A shelf's `position` is the only record a reorder leaves.** All three reorder
+paths — Manage's ↑/↓ (`page.js:4704`), a dragged shelf (`page.js:1124`) and new-shelf-at-top
+(`page.js:4055`) — sort a **copy** of `settings.shelves`, then write `position` back onto the
+shelf objects. The array they sit in never moves, and `persist()` saves it as it stands. So
+anything on the load path that derives `position` from the array index discards the whole
+arrangement, silently, with every address and count untouched — which is why the suite went on
+passing through it.
+
+`withFavourites` did exactly that: `shelves.map((s, i) => ({ ...s, position: i }))`. It now
+calls `sequenced()`, which orders by the **stored** `position`, sends a shelf that has none to
+the end (`design/0018`'s rule for a key the arrangement never listed), breaks a tie on array
+index rather than on sort stability, and compacts to `0..n-1`. `buildShelves` only ever sorts
+on `position` (`shelves.ts:372`), so compaction moves nothing; it keeps a gap left by a deleted
+shelf from growing, and it is what makes the function **idempotent**.
+
+**What `migrate` returns still has its array in `position` order**, so nothing downstream that
+reads the two as agreeing has changed: the old code held that by destroying `position`, the new
+one holds it by honouring it. Compaction is what keeps it true — three sites give a new shelf
+`position: settings.shelves.length` (`page.js:3843`, `:4018`, `:5280`), which is only a free
+number while the sequence has no gaps.
+
+Idempotence is not decoration here. The page migrates once, at mount (`page.js:202`); the
+plugin migrates on **save** (`main.js:532`) *and* again on load (`main.js:445`). A fix that
+honoured `position` without being idempotent would pass on the exporter and still lose the
+arrangement on the plugin — that difference is the whole of "on both hosts".
+
+`"a reordered shelf survives a reload, on both hosts"` clicks Manage's arrow by its
+`aria-label`, asserts the last two shelves swapped **while the array order stayed put**, then
+reloads through `core.migrate(clone(settings))` once (the page) and twice (the plugin) and
+asserts the move held both times. It repeats the round trip for a drag through
+`__vs.moveShelf`, restores the room, and then reads four shapes straight out of `migrate`:
+new-shelf-at-top (`draft` last in the array, `position` 0) comes up **`draft -> a -> b`**; a
+schema-9 file whose positions disagree with its array order comes up
+**`favourites -> people -> tags -> years`**, so the `design/0019` insert still lands at 0 over
+an arrangement that was honoured underneath it; the same shelves at schema 10 give
+**`people -> tags -> years`**; and a hand-edited file with a duplicate position and a missing
+one gives **`a -> c -> b` at positions 0,1,2**.
+
+Without the fix the same check reports the move surviving neither pass, the drag reloading back
+to `favourites -> encyclopedia -> years -> months -> people -> tags`, new-shelf-at-top coming up
+**`a -> b -> draft`**, and schema 9 giving `favourites -> years -> people -> tags`.
 
 ## A shelf arranged by hand moves nothing but the sequence
 
@@ -895,12 +968,19 @@ never engaging at all; that `PageDown`, `space` and `PageUp` leave it there too 
 stands unamended); and that the right arrow still turns it **at once**, with no resistance to push
 through. `github#40`, `design/0028`.
 
-`"a wheel on the spread stays smooth in every look"` holds the **same p95 budget of 34ms** as
+`"a wheel on the spread stays smooth in every look"` holds the **same budget** as
 `"scrolling the library stays smooth in every look"`, and measures it where the push **cannot**
 turn — the last note, pushing down — because a page turn inside the sampled frames is a different
-cost. Measured: p95 **18.9 / 18.2 / 18.3ms** for leather / modern / cyber, against the library
-scroll's own 18.5ms, and one whole turn timed separately at **2–3ms** in every look. `github#40`,
-`design/0026`.
+cost. One whole turn is timed separately at **3–4ms** in every look. `github#40`, `design/0026`.
+
+Since `github#77` that budget is **14 missed vsyncs**, not a 34ms 95th percentile — `decisions/0017`
+says why a percentile of frame intervals cannot be measured at 34ms, and the section below carries
+the whole of it. Measured here: **0–1 missed** of the **68** a 1.2s push offers, in every look, with
+p95 **18.1–18.5ms**. **This one has no probe and its budget is therefore unproven**: nothing on a
+reader page has been measured as a known-expensive change, so unlike the library scroll this check
+does not demonstrate that its number can still see cost. The budget is held wide rather than
+tightened for exactly that reason — it will catch a real stutter and is not claimed to catch a
+marginal one.
 
 **This feature adds nothing to either look check, because it draws nothing.** The push is a
 `translateY` on `.vs-leaf` and a transform does not affect layout, so the same-size check stays at
@@ -1173,11 +1253,24 @@ was sliced flat.
 | 6px | `--spine-lift-hover` | `:hover` / `:focus-visible` |
 | **7px** | `--spine-lift-max`, read by `--spine-lift-match` | a search match, **every one, while a query is live** |
 
-**The top rung IS the room**, by identity rather than by `max()`: `overflow-clip-margin` takes a
-bare `<length>` and rejects every math function, computing **`0px`** for `max(1px, 7px)`,
-`calc(max(1px, 7px))` and a `var()` holding either. Only an `@property` registration makes a
-`max()` compute down, and that registration is document-global where every rule in this sheet is
-scoped. `design/0021` has the table.
+**But a lift is not the only thing that leaves a spine.** A look paints outside a spine's own
+border box too, and the same clip was cutting that: cyber's neon on a match is `0 0 22px` and on
+a hover `0 0 18px`, and leather's match is a `0 0 0 1px` gilt ring. So **the room is the top
+rung plus the look's halo**, declared as two tokens and a sum:
+
+| token | modern | leather | cyber |
+|---|---|---|---|
+| `--spine-lift-max` — the top rung | 7px | 7px | 7px |
+| `--spine-halo` — what the look paints past a spine's box | 0px | 1px | **18px** |
+| `--spine-room` — the sum, read by `.vs-track` | **7px** | **8px** | **25px** |
+
+**The sum is written out, never computed**, because `overflow-clip-margin` takes a bare
+`<length>` and rejects every math function. Two different failures, and the second is the one
+that bites: a literal `calc(7px + 18px)` or `max(7px, 25px)` **never applies at all** and the
+previous value stands, while a `var()` holding a `calc()` is substituted and *then* rejected,
+computing **`0px`** — the clip straight back to biting, silently. Only an `@property`
+registration makes one compute down, and that registration is document-global where every rule in
+this sheet is scoped. `design/0021` has both tables.
 
 **A look that lifts further moves its rung on the room, not on the spine** — cyber sets
 `--spine-lift-worn-hover` on `.vault-shelf[data-look="cyber"]`, which is above the track, so the
@@ -1186,14 +1279,17 @@ spine's ancestor.
 
 `"a lifted spine is painted whole, in every look"` reads **painted pixels**, because this defect
 is invisible to geometry: `getBoundingClientRect` reported the lifted spine at `y=160` clipped or
-not. It lifts one spine **20px**, far past any rung, captures the rows above its track with the
-spine there and again with it hidden, and reads how far up it was allowed to paint:
+not. It lifts one spine **40px**, far past any rung and past any look's room, captures the rows above
+its track with the spine there and again with it hidden, and reads how far up it was allowed to
+paint:
 
-- the clip **grants** the room `page.css` declares — **7px of 7px** in all three looks;
-- the clip is **still a clip** — a 20px lift paints 7px, never 20;
+- the clip **grants** the room the sheet declares — **8px of 8px** in leather, **7px of 7px** in
+  modern, **25px of 25px** in cyber;
+- the clip is **still a clip** — a 40px lift paints the room, never 40;
 - `contain` still includes `paint` in all three looks;
 - and one real state end to end: a search match, lifted by the **query** rather than the pointer,
-  **lifted 7px and painted 7px** in leather, modern and cyber.
+  **lifted 7px and painted 8px** in leather (the gilt ring), **7px and 7px** in modern,
+  **7px and 25px** in cyber (the neon).
 
 Without the clip margin it reads `0px of 0px` and a match `lifted 7px, painted 0px`.
 
@@ -1202,11 +1298,71 @@ gilt head by a pixel moves those pixels by more than any threshold whether the h
 or not. And it samples the spine's **whole width**, never one column — a look's top hairline can
 sit within a unit or two of its ground, and leather's does.
 
-`"the room above a spine is the largest lift, in every look"` is the arithmetic the pixels cannot
-state, and the only thing that catches a **lesser** rung raised past the room: the room granted
-**is** the tallest rung (`7px` = `7px`, by `match`), containment is on, and the box still has
-`0px` of slack above a spine, in every look. Without the fix: `SHORT: leather by 7px, modern by
-7px, cyber by 7px`.
+`"the room above a spine is the largest lift plus the look's halo, in every look"` is the
+arithmetic the pixels cannot state, and the only thing that catches a **lesser** rung raised past
+the room: the room granted **is** the tallest rung plus the halo (leather `8 = 7 + 1`, modern
+`7 = 7 + 0`, cyber `25 = 7 + 18`, the rung `match` in each), `--spine-room` states that same
+sum, containment is on, and the box still has `0px` of slack above a spine, in every look.
+With the room back on the lift ladder alone: `SHORT: leather by 1px, cyber by 18px -- UNSTATED:
+leather declares --spine-room 8px and clips at 7px, cyber declares --spine-room 25px and clips at
+7px`.
+
+`"nothing a look paints outside a spine is cut off, in every look"` is the other half, and it is
+the one that found this: for **each of five states** in each look — at rest, worn at rest, hovered,
+worn and hovered, and a search match with a query live — it asks whether the room slices anything.
+`:hover` is **forced** (`CSS.forcePseudoState`), never pointed at, because the real-pointer form of
+this measurement flaked outright.
+
+**It compares the clip against itself** (`github#78`). It shoots the band as **shipped**, shoots it
+again with that spine's **own** track opened to a margin that clips nothing
+(`.vs-track:has([data-probe51b])`), and what the two disagree about **is** what the clip took. Both
+captures share the anchor, the lane, the scroll offset, the fractional track top and the exact
+intensity of every falloff, so all of it cancels and nothing is subtracted across frames. Only that
+spine's track is opened: opening every track lets the one above spill its own paint down into the
+band, which would read as this one's cut.
+
+**It used to infer the cut instead, and that inference was ill-conditioned.** It read what the paint
+*wanted* — whole device rows above `Math.floor(trackTop)` under a margin that clips nothing — and
+compared it against `--spine-room`, a CSS length off the real, **fractional** `trackTop`. Two
+numbers, two frames, one subtraction, and it holds only where the paint has a **hard edge**. Peak
+8-bit difference across the last rows before the edge, measured at quarter-pixel resolution:
+
+| look | approaching the edge | at it | past it |
+|---|---|---|---|
+| leather | `1 1 2` | **`67 66 67 66`** | `146 145 146` |
+| modern | `0 0 1` | **`113 153 199 211`** | `212 212 212` |
+| cyber | `6 6 6` | **`7 7 7 7`** | `8 8 8 8` |
+
+Leather's gilt ring and modern's border step by tens, so the row the `MOVED = 6` threshold picks is
+never in doubt. Cyber's is a 22px neon blur falling about **one 8-bit unit per 0.75px**, so a single
+quantisation step moves the answer a whole pixel: the reach came back **24, 25 or 26 for an
+unchanged tree**, `github#51` set the room to 25 — the middle of that noise — and `develop` could
+fail its own pre-push hook about one run in two. A pixel of slack would only have moved the coin
+flip to 26.
+
+**The room was never short.** Measured over eight scroll offsets and all five states, the clip takes
+**nothing** at the shipped rooms, and it goes on taking nothing with cyber's room forced to 26, 29
+or 32px — so cyber's `--spine-halo` stays the hover neon's **18px**, and the sibling check above
+keeps asserting `room === tallest rung + halo` exactly. What was wrong was the measurement.
+
+The reach is **no longer printed**. "cyber allows 25px and its widest (a search match) wants 26px"
+read as a defect and was not one; the detail names the room and the states it held instead, and what
+the room should *be* belongs to the sibling check. Forced short, it still names every one:
+
+| cyber's room | states sliced, of 5 | what it says |
+|---|---|---|
+| 25px (shipped) | **0** | slices nothing off any of its 5 states |
+| 20px | 3 | hovered, worn and hovered, a search match |
+| 12px | 3 | `a search match paints 25px into a room of 12px, so 13px of it is sliced off` |
+
+**And it waits for the room rather than sleeping at it** (`decisions/0016`). Every `setLook`,
+`setQuery` and `clearQuery` in the check waits on `settled()` where it used to guess at 160ms and
+280ms, and a state whose room never came to rest is collected and **fails the check by name**
+(`STILL MOVING WHEN MEASURED`) rather than being measured half-built and reported as a number.
+
+The band stays **in the page** — only the answer crosses the wire — because handing back a
+60-row band as pixels is ~16,000 numbers a capture, and the check takes thirty of them: 68s that
+way, 20s this way, for the same numbers.
 
 **Nothing moved, and that is the assertion.** A clip margin is not padding, so no spine, board,
 plaque, `min-height` or `background-position` moved, `the shelves are packed the way the golden
@@ -1797,18 +1953,39 @@ measured 14.1, 15.1 and 19.9 ms across three runs of code that never changed.
 
 ## Scrolling stays smooth
 
-`"scrolling the library stays smooth in every look"` scripts a 1.4-second scroll through the
-whole room in each look and records the interval between animation frames; the **95th
-percentile** is asserted under **34ms** — two frames at 60Hz, since one dropped frame in
-twenty is where a scroll starts to read as jerky. The median hides a stutter and the worst
-frame is the one-off paint of a shelf entering view, so neither is the number.
+`"scrolling the library stays smooth in every look"` scripts a 1.4-second scroll of the room in
+each look at a **fixed 800px/s**, turned round at either end, and keeps every frame's timestamp.
+What is asserted is **how many vsyncs the page failed to paint**, under **14** of the ~80 a sweep
+offers. `github#77`, `decisions/0017`.
 
-Measured before, p50/p95/worst in ms: modern **16.7/16.8/17**, leather **50/117/150**,
+**It asserted a 95th percentile of the intervals under 34ms until `github#77`, and that number was
+not measurable.** A frame interval is a whole count of vsyncs, so the intervals arrive in clusters —
+5,185 frames of 5,387 at 16.9–26.0ms, 119 at 26.5–37.1, 42 at 51.6–54.2, and **nothing at all
+between 26.0 and 26.5**. The 34ms line fell inside the two-vsync cluster, so one dropped frame read
+34.2 and passed or 34.7 and failed: **four reds in five** through the real runner on a clean tree.
+Two aggravators went with it — the percentile index came from the sample size, so a slower run
+(n 80 → 62) walked the index down its own tail exactly when the jank arrived; and covering the whole
+span in a fixed time made the velocity depend on what the preceding checks left behind, 231 spines
+over 1494px under `--only` against 227 over 1102px in a full suite.
+
+Measured now, missed vsyncs over six runs: leather **0–1**, modern **0–1**, cyber **0–3**, with the
+period **calibrated at 17.4–17.8ms** rather than assumed to be 16.7. A period outside 6–26ms fails
+the check on its own and says so separately: it is a fact about the machine, not about the room.
+
+**The same run takes `design/0014` back off the room and fails if that does not go over the
+budget** — containment off, the compositor layer gone. Measured **59–66 missed**, so the budget of
+14 sits in the empty gap between 3 and 59. `decisions/0017` records the three cheaper slowdowns
+that were tried first and cost nothing at all (a filter over every spine, a blur over the whole
+library, a 20px shadow spread on 231 spines): a scroll composites tiles that are already rasterised,
+so per-spine paint does not enter a frame until containment is what changes, which is most of why
+`github#77`'s own A/B looked insensitive.
+
+Measured before `design/0014`, p50/p95/worst in ms: modern **16.7/16.8/17**, leather **50/117/150**,
 cyber **83/400/400** — the looks paint a spine as several layers of gradient and texture,
 and every visible one was rasterised again per scroll step. After `content-visibility` on a
 shelf, `contain: layout paint` on a row and a compositor layer under the library: leather
-**17.6/18.7/105**, cyber **17.6/18.5/35**, modern unchanged. The worst frame is now the
-first paint of a shelf as it enters, which is once per shelf rather than once per step.
+**17.6/18.7/105**, cyber **17.6/18.5/35**, modern unchanged. Those percentiles are still printed in
+the detail line, and are still the right shape to read; they are simply no longer what is asserted.
 
 ## The room
 
@@ -1886,14 +2063,62 @@ entries with an `http` scheme after the page has loaded and been driven, and ass
 static half is `scripts/check-network.mjs`, which is unskippable in the pre-push hook.
 `decisions/0006`.
 
+## The page is scoped, and the gate that says so is proved on every run
+
+`scripts/check-scope.mjs` reads the three shipped stylesheets with **one character walker**, and
+it is the only CSS parser in that file (`github#81`, `decisions/0019`). Comments are blanked to
+same-length whitespace, quoted regions are skipped, and a block's prelude is everything since the
+last `}`, `;` or `{` — never the single line the brace sits on, which is what the line walker it
+replaced read. Selector lists split on commas outside parentheses, brackets and quotes, and the
+line reported is the offending **member's** own.
+
+On this tree the gate reads **513 css rules and 582 selector members** across `page.css`,
+`leather.css` and `cyber.css`. The rule count is unchanged by the rewrite; the member count is
+**62 higher** than the line walker ever saw — page.css 19, leather.css 29, cyber.css 14 — every
+one of them scoped, so the gate had been passing for the right answer by luck. `124 prefixed
+classes` is also unchanged: the class scan's own hole (it skipped the first rule inside every
+`@media`) gained no new class name, because every class inside an `@media` is used outside one too.
+
+At-rules are classified, not pattern-matched. `media`, `supports`, `container`, `layer`, `scope`,
+`starting-style` and `document` hold style rules and are entered at any depth; `font-face`,
+`keyframes`, `page`, `property`, `counter-style`, the two `font-*-values` rules, `viewport`,
+`import`, `charset` and `namespace` cannot and are skipped. **Anything else is a problem**, and so
+is a nested rule — a construct the parser cannot judge is refused, never skipped.
+
+`.vault-shelf` alone, or followed by ` `, `:`, `[`, `.` or `>`, is scoped. A `+` or `~` **after
+the root compound** is not: `.vault-shelf + p` and `.vault-shelf:hover ~ p` style a sibling of the
+page. `.vault-shelf .vs-a + .vs-b` is still fine — the combinator that matters is the first one
+after the root.
+
+**Twenty-eight negative controls run on every invocation, not behind a flag**, each asserting the
+rules read, the selector members read, and the exact set of problems raised; the clean line names
+the count. A control that stops biting fails the gate. `node scripts/check-scope.mjs --selftest`
+prints them case by case. The reasoning, and why this is not a `--selftest` the hook calls the way
+`lock.mjs` is, is `decisions/0019`.
+
 ## A spine holds its size
 
 `"a spine lifts on hover and holds its size"` measures a spine's box at rest and focused and
 asserts both dimensions are unchanged — the lift is a `transform`, so a hovered spine cannot
-reflow its neighbours. Measured: **57×132 either way**. The width is
+reflow its neighbours. The width is
 whatever that book's note count earns it (`design/0011`); what is invariant is that it does
 not change when the spine is touched. Also in the serial lane, for the same reason as the
 plaque check.
+
+**The pair of numbers is not pinned, and saying so is the point.** It reads the *first* spine in
+the document at whatever viewport and look its predecessor left, so the box it prints moves with
+the run shape: **57×128** in `--only "spine"` and **44×132** in the full suite, both measured on
+`vault-c1f3a5ca` (this section recorded 57×132 until `github#76`, which is neither). What is
+asserted is only that the two readings match each other.
+
+**A rest box of `0×0` fails saying so** (`github#76`) — it always failed, since `0 === 57` is
+false; what changed is that it no longer fails by naming a lift. An element read before its first packing
+has landed returns an all-zero rect, and `before.top - after.top` then reports minus the spine's
+own top — **−168px** on this shape, where the spine really sits 168px down — which reads as a
+spine that moved a long way rather than one that was never measured. That is the exact line
+`github#76` was filed over. `github#57` is what stops it happening, by draining the room before
+the first check of a run; this branch of the check is what goes red, in those words, if that ever
+stops holding. Verified both ways: green on this tree, and red with the rest rect forced to zero.
 
 ## Hidden means hidden
 
@@ -1926,8 +2151,28 @@ string is still byte for byte what the note said.
 Measured on the hostile vault: **1,173 characters** of `VAULT_DATA`, **0** raw `<`, **0** raw
 `>`, **0** raw U+2028/U+2029, **4** script tags in the file, and every payload back byte for
 byte. `--browser` drives the built page too: **0 console errors**, **4** script elements in the
-DOM (the same four), **0** `<img>`, **0** `<svg>`, **0 of 5** markers executed, and
-`__vs.data()` identical to the block the exporter wrote.
+DOM (the same four), **0** `<img>`, **13** icon `<svg>` in **13** icon buttons and **0 stray**
+`<svg>`, **0 of 5** markers executed, and `__vs.data()` identical to the block the exporter
+wrote.
+
+**A stray `<svg>` is one the page does not own, and the count alone could never say which**
+(`github#75`). The browser half asserted `0` `<svg>` in the whole document, and the page draws
+icons of its own — one in the Manage button in `src/page.html`, and two per shelf from
+`shelfAction()` — so it read **13** and failed on any vault, with no escape behind it. It had
+been red on `develop` for as long as those icons had existed: `--browser` is one of the three
+gates run by hand, so no push ever told anyone.
+
+The assertion is structural now rather than a subtracted constant, which would be the same bug
+again on the seventh shelf. Every `<svg>` must sit inside `#vs-manageopen` or `.vs-shelfaction`;
+anything else is named with its ancestor path, not counted. The owned icons must also come to
+**one per icon button**, so an `<svg>` smuggled inside a chrome button is caught too, and the
+absolute 13 is never asserted — the relationship holds under any vault and any number of
+shelves.
+
+**And the census proves itself on every run.** After the clean read it plants an `<svg>` where
+rendered vault data lives (`#vs-library`), takes the same census again, and requires exactly
+**1** stray naming `vs-escape-probe` before removing it. A gate that only ever passes has
+stopped being one, and the counted-everything version could not fail this way.
 
 The static half also refuses a bare `JSON.stringify(data)` in `src/build-shelf.mjs`, so the
 escaping cannot be quietly walked back.
@@ -2262,7 +2507,7 @@ runs. **A live holder is not always a talking one**, so any window short enough 
 shortening is short enough to break a busy run.
 
 Liveness replaces the question the window stood in for rather than shrinking it. Held by
-`node scripts/lock.mjs --selftest`, **25 cases in 1.0 s** against a throwaway root
+`node scripts/lock.mjs --selftest`, **34 cases** against a throwaway root
 (`VAULT_LOCKS_HOME`), never the live mutex — the pre-push hook runs it:
 
 | a contender meets | what happens |
@@ -2273,6 +2518,82 @@ Liveness replaces the question the window stood in for rather than shrinking it.
 | a hold in the **sister's shape** (`owner` and `at` alone) at 6 min | waits — 30 minutes |
 | a **CLI** hold past its 30-minute window | `BREAKING stale suite lock (age 1860s)` — the backstop |
 | a hold whose named process is **gone**, at any age | `BREAKING dead ... pid 999999 is gone` |
+
+### A foreign hold is judged by the pid its owner names, never by the pid it recorded
+
+`github#43`, `github#52`, `decisions/0012` (2026-09-14). Two tickets, one property: the repos
+contend correctly **by name**, and could not tell a dead sister hold from a live one, so the
+machine queued behind a lock held by nothing for the full twenty minutes.
+
+**The fix that suggests itself is the one that must not be taken.** `holderGone` refused to read
+a pid unless the record said `holder: "process"`, and a sister record has no `holder` — so the
+obvious repair is *trust `pid` when `holder` is absent*. Measured against the sister's real
+records, that **breaks a live sister hold**: every vault-graph harness claims its display by
+shelling out to `lock.mjs acquire` as a subprocess, and that CLI writes `pid: process.pid` and
+exits at once. The recorded pid is dead a millisecond after the acquire, while the run holds the
+display for minutes:
+
+```
+record   {"owner":"smoke.mjs feature/x [1128644]","at":...,"pid":1128724}
+         meta.pid 1128724 alive=false  |  owner pid 1128644 alive=true
+```
+
+The holder's real pid is the one it put in its **own owner string**, and every sister harness that
+claims a display does: `smoke.mjs <branch> [pid]`, `probe-room.mjs <branch> [pid]`,
+`focus-check [pid]`, `spike-check [pid]`, `live-growth-check #120 [pid]`, and — the other spelling
+— `record-demo pid $PID`. Our own `ownerTag()` writes ` pid <n>`. So both spellings are read,
+**every** pid a record names must be gone, and a foreign record earns a 60 s floor so one caught
+mid-handoff is not stolen. A record naming no pid of its own keeps its window, which is what
+leaves `release.ps1`'s `--owner "release <version>"` and `CLAUDE.md`'s `--owner "#12 plaques"`
+alone. **pid reuse degrades to exactly the old behaviour** — a recycled pid reads alive, so the
+contender waits.
+
+Measured by driving **both repos' real `lock.mjs` files** over one isolated root
+(`VAULT_LOCKS_HOME`), the sister's copied verbatim with only its `ROOT`/`LEGACY_ROOTS`
+redirected. No real lock is taken:
+
+| holder | contender wants | before | after |
+|---|---|---|---|
+| VG `screen-left`, **live** run aged 5 min | VS `screen-left` | BUSY | BUSY |
+| VS `screen-left` | VG `screen-left` | BUSY | BUSY |
+| VS `suite` | VG `screen-left` | ACQUIRED | ACQUIRED |
+| VG `suite` | VS `screen-left` | ACQUIRED | ACQUIRED |
+| VS `suite`, **same owner** | VS `screen-left` | ACQUIRED | ACQUIRED |
+| VG `screen-left`, **orphaned**, fresh (2 s) | VS `screen-left` | BUSY | BUSY — the floor |
+| **VG `screen-left`, orphaned, aged 2 min** | **VS `screen-left`** | **BUSY — 20 min** | **`BREAKING dead ... pid 1128132/1128296 is gone`** |
+| VG hand hold naming no pid (`release 2.6.0`) | VS `screen-left` | BUSY | BUSY |
+| VS CLI hold (`holder: "cli"`) | VS `screen-left` | BUSY | BUSY |
+| VS live in-process hold | VS `screen-left` | BUSY | BUSY |
+| `record` held by the **same owner** | VS `screen-left` | BUSY | ACQUIRED |
+
+Two rows move, and they are the two tickets. `status` moves with them, over the exact record
+`github#52` reported:
+
+| | before | after |
+|---|---|---|
+| `lock.mjs status` on an orphaned sister hold | `holder unverified  stale in 1078s` | `holder pid 1057524/1129552 DEAD  stale in 1080s` |
+
+**Rows 3 and 4 are not holes.** `github#43` read them as the gap; by the time it was worked the
+sister's `smoke.mjs:6483` already took `screen-left` **by name** and took no `suite` lock at all,
+which is option 1 of that ticket. `suite` and a display being independent is now correct, and it
+is why **no `suite`↔screen alias may ever be added here**: `smoke.mjs` takes `suite` and *then*
+`takeLeftScreen()`, so an alias would hang every run against its own hold. The last row is the
+guard — `aliasHold()` exempts its own asker, the way the sister's already does, so the hazard
+cannot be reintroduced by adding a name to `aliasesOf`.
+
+One asymmetry stays, deliberately: the sister never refreshes `at`, so a hold of theirs older than
+its window is still broken on age. Unchanged by this, and one-sided by construction — their
+`acquire` reads only `owner` and `at`, both of which we still write and beat.
+
+**If the sister adds `holder: "process"` without also claiming in-process, this still holds.**
+`github#52`'s comment asks them for that field, and the field alone would not make their recorded
+pid mean anything — it would only move their record into the branch that trusts it. So a record
+claiming `holder: "process"` is judged on **every** pid it names too, its owner string included. For
+our own records that is a no-op: `ownerTag()` writes the same pid the record does.
+
+Nine of the selftest's 34 cases are this rule; the pre-push hook runs them. **25 → 34 cases, and
+the floor of five runs moved 7.1 s → 9.5 s** on a machine carrying six worktrees — the 1.0 s in the
+section above was measured on an idle machine and no longer reproduces for the old file either.
 
 ### A hold driven by hand is refreshed, not aged out
 
@@ -2481,6 +2802,66 @@ re-measurement has something to diff rather than a number to argue with.
 
 `--timings <file>` writes every check's milliseconds as JSON, which is how every column was made.
 
+## A draining room measure is waited out, and nothing else is
+
+`decisions/0016`, `decisions/0013`, github#57, github#69. The busy-page rule is aimed, not
+dropped, and the aiming has a check of its own.
+
+**Three constants, and they are reads rather than milliseconds.** `SETTLE_MS = 3000` is the
+budget — fifty of `settleRoom`'s 60 ms coalescing timer, and under `cdp.mjs`'s 10 s reply
+timeout. `SETTLE_QUIET = 5` and `SETTLE_GAP = 20` are the shape of "quiet": **five consecutive
+reads at zero**, 20 ms apart. One read is not enough because a resize Chrome has not dispatched
+yet reads `pending === 0` and sets it a tick later. Five at 20 ms is the pattern the github#32
+worker reached independently for its index-rail check.
+
+**The waiting happens inside the page.** `settled()` polls `__vs.room().pending` on the page's
+own `setTimeout`, in one CDP round trip — *not* `await sleep()` in Node. That is the whole fix:
+a Node sleep is wall clock on a process the machine starves, which is the failure; the page's
+timer is the same clock `settleRoom` is coalescing into.
+
+**`settleRoom`'s timer is the only item `atRest()` names that drains on its own.** A sheet left
+open, a drag in the air, an edge scroll, an overscroll band — every one of those is state a check
+must clear, and every one still fails the check that left it, unchanged. A room measure that has
+*not* drained inside `SETTLE_MS` also still fails, now saying `(still there after 3000ms)` so a
+rescheduling repack is told apart from a merely late one.
+
+**Measured, before and after, at `--jobs 1` with all 24 cores under synthetic load.**
+`"the room has a width, however wide the window is"` failed **2 of 14** runs before and **0 of
+12** after; idle it was 14 of 14 either way. Every number the failing runs measured was correct
+— shelves 1180 (683/698), rail 1180, row 1180, spread 1084, worst overflow 0px — which is what
+made it a runner defect rather than a page one.
+
+**All seven viewport-driving checks go through one pair of helpers.** `viewport(p, w, h)` sets
+the override, dispatches the resize CDP does not reliably deliver, and waits for the page's own
+`innerWidth`/`innerHeight` to agree *and* the repack to drain; `unviewport(p, was)` clears it and
+comes back. No check calls `Emulation.setDeviceMetricsOverride` by hand any more, and the three
+private copies of the stability loop are gone.
+
+**The guarantee is checked, both ways.** `"a draining room measure is waited out, and nothing
+else is"` returns with the timer deliberately just scheduled, so it is the check that goes red if
+the runner ever stops draining — and it asks `atRest()` directly whether an open sheet is still
+named, so the exemption cannot widen into the rule unnoticed. With the drain removed it fails
+with `LEFT THE PAGE BUSY: a pending room measure (settleRoom's 60ms timer)`; with it, it passes.
+
+**The cost is one `settled()` call per check, whose floor is the arithmetic — five reads 20 ms
+apart, so ~80 ms — in one CDP round trip.** Measured *after*: two consecutive full runs on the
+merge result at **103 s and 108 s wall** for **140 check runs**, 140/140 both times, which
+stamped tree `ec48616`. **No before-figure is claimed on this base.** The branch's own base moved
+eleven commits mid-ticket and the suite grew from 135 checks to 139, so a wall comparison across
+the two would be measuring the merge, not the drain — the same caution the column above records
+about comparing runs taken on unlike days. Several converted checks plainly got *faster*, because
+a `sleep(400)` or `sleep(250)` sized for the worst case now returns as soon as the page agrees.
+
+**A `--timings` row now includes the drain**, as it already included `atRest()`. A JSON written
+before 2026-09-14 and one written after are therefore not directly comparable per check; the
+column above is the last one taken without it.
+
+**github#69 is not claimed as measured.** `"a lifted spine is painted whole, in every look"` did
+not reproduce here in **29 runs** at `--jobs 1` under full load, alone and after its neighbour.
+It shares github#57's mechanism and the runner now guarantees it a page at rest at both ends;
+whether that was its mechanism is unproven, and its pixel logic and thresholds are untouched. If
+it recurs, look at the compositor read in `paintedAbove()`, never at a tolerance.
+
 ## Every release guard fires, and none of them writes a tag
 
 `.\scripts
@@ -2616,15 +2997,179 @@ has a 343px sheet, zero horizontal overflow, fourteen swatches and six binding s
 ## Compressing index and shelf actions - design/0032
 
 Right-edge tabs share the available height without scrolling. Search and A-Z/Date stay
-28px high with unchanged type sizes. At 1180x480 all 25 alphabetical tabs fit inside the
-56px strip, with zero scroll overflow; switching to Date keeps both fixed controls equal.
+28px high with unchanged type sizes. At 1180x480 every alphabetical cut fits inside the
+60px strip, with zero scroll overflow; switching to Date keeps both fixed controls equal.
 At narrow widths the horizontal index wraps below the pages.
+
+**The sharing has a floor, and the strip is 60px - design/0034.** A cut shares down to 20px
+and no further; below that the cut gathers instead of shrinking. Before that floor, 25 cuts
+in a 480px-high window came out **6.7px tall in 5.2px type**, and the worst book in the
+library reached **4.09px** - an index you cannot read rather than one you cannot see. Type
+is 11.5px at every size now. The short window's cuts are no longer required to be strictly
+shorter than the tall window's, because the floor may stop them being so.
+
+## The thumb index - design/0034
+
+**The cut is a tree and the rail lists one level of it**, under the cuts it came through.
+Pressing a cut goes to its note *and* opens what is under it; pressing a trail step comes
+back and moves nobody. The state is one number - how deep the rail is - and every cut shown
+is derived from where the page stands, so Next carries the trail with it.
+
+**Nothing is dropped to make it fit.** The old cap of about thirty tabs dropped the days and
+then the months: `people/-unfiled`, 2,450 notes, showed **11 year tabs with nothing under
+them**. It now shows 11 years, each opening its months. A level that overflows is halved into
+spans naming what they open (`Jan-Apr`), and the cuts it held become what those spans open; a
+range of ranges is still one range, so gathering twice reads `Jan-Aug`. Every level at that
+depth is gathered together, never one at a time.
+
+**A numeric volume is indexed like a date book.** The Encyclopedia's `0-9` volume is a date
+book wearing a letter's clothes, and `titlePrefix` used to pin its key at four digits: asking
+for a deeper prefix returned the same key, so the layer separated nothing and the recursion
+fell out at its own depth cap. Measured before: **15 top cuts, 0 of them opening, 587 notes
+behind `2026`** - the only volume in the library where the rail went nowhere, against A's 3 of
+14 and S's 12 of 16. A year now hands its notes to the layers a date book already uses, read
+off the **title** rather than the date property: **11 of 12 fat cuts open**, `2026` (596 notes)
+opens into 9 months and `Sep` (91) into 13 days, and the biggest dead end is `0-9` x5. The
+"before" column was measured on the fixture as it stood before the `DIGIT_RUN` sentinel below
+was planted, which is why it counts 2,063 notes behind 15 cuts against today's 2,064 behind 16. The labels stay `Mar`
+and `04`, which is what keeps the rail 60px - a raw `2026-03` key would want the same 71px
+that made a span label a range rather than its start.
+
+**Four digits are a year only if they stop at four.** `202212123123` opens with the same four
+characters as `2022-12-12`, so the year test carries `(?!\d)` and a longer digit run falls to
+the `0-9` bucket rather than hanging twelve months off a title with no date in it. A month is
+validated by probing its first day through `isIsoDay` for the same reason the exporter learned:
+a real vault produced `2024-15-03`, once shelved as a fifteenth month called "15 2024". The
+test is deliberately **not a plausible range**, so `1000 small decisions` still files under
+`1000` beside `2015` - what a volume spine does with a number it cannot read.
+
+**A digit run is named by the digits it opens with.** `202212331243` files after every `2022-`
+note and before every `2023-` one, so its cut says **`2022·`** - where it sits, and that it is
+not the year. `0-9` said neither, three times over, since the numerics are not adjacent. This
+made `2022x` at **39px** the widest label the rail draws, against `2020`'s 32px: inside the 48px
+of cut with 9px to spare, **0 cropped** at 1180x1000 and 1180x480, so the rail stays **60px**.
+
+**The vault carries the digit run, and the generator refuses to finish without it.**
+`202212331243` - twelve digits opening with a plausible year - sits in `00 - Inbox`, and
+`make-vault.mjs` names it in `DIGIT_RUN` and lists it with the sentinels: without one in the
+vault, the `(?!\d)` that stops it is unreachable from any check and would go quiet rather than
+red. It lands at index 649 of the `0-9` volume, under a cut labelled **`2022x` with 0 under it**,
+between the 2022 and 2023 runs - which is what takes the volume from 15 top cuts to 16.
+
+**Fit is measured, not calculated**, off the last cut's own bottom and never `scrollHeight` -
+the rail's overflow is visible by design, and a box that does not scroll does not reliably
+report a scrolling area. It is fitted to the **fattest level the book can show**, not the one
+open now, so a page turn cannot re-fit the index and give one book two shapes. The rail is
+re-fitted on every room measure, before the width is compared: the room ignores a resize that
+changed only the height, and the rail is fitted to the height it has.
+
+**Measured 2026-09-14 over the fourteen fattest books, closed and then folded all the way down,
+at 1180x1000 and 1180x480:** 0 clipped, 0 outside the spread, 0 over a fifth of it, **0 with the
+label cropped**, smallest type **11.5px** at both sizes, rail **60px = 5.5% of the spread**, most
+cuts on show 30. Exactly **1** cut lit over 42 openings (before: up to **26 of 26**, because
+`aria-current` was set on every cut at or before the page).
+
+**A span is named by where it starts**, and what it covers is on the cut rather than in it. A
+range label is what made the rail wide - `2024-2025` wants **71px** against `2020`'s 32px -
+and it was being cropped on the left in **30** places before any check could see a label at all.
+`scrollWidth` cannot see that crop in LTR, because the overflow is in the start direction; the
+text's own laid-out rect can. And the crop only shows on the **deepest** fold, since every notch
+of the staircase takes another 5px off the label beside it: one level open, 0 cropped; all of
+them, 6.
+
+**Every box above a track is a whole pixel** (`github#32`, design/0034, amending design/0021).
+The shelf head's floor was **32.25px** and a text field's line box 13 × 1.5 = 19.5, so the rail
+was **46.5** and every shelf **217.25**; with a Reading shelf above it the Encyclopedia's track
+sat at **652.25**, its 7px clip edge at 645.25, which Chrome snaps to 646 - and *a lifted spine
+is painted whole, in every look* read **6 of 7** in all three looks, for a pointer lift and a
+query lift alike. The head is **32px** and a field's line box **20px** now, the rail **47**;
+fresh, the track sits at **409** and paints **7 of 7**. The check prints the track's raw top,
+the scroll state and every box above it on failure, which is what found the head in one run.
+
+**A check's lane is its parity.** `smoke.mjs` deals steady checks round-robin by index, so one
+inserted check flips the lane of every check after it. That is how a defect older than this
+branch turned red on it: the same predecessors had never preceded that check before. Neither
+rounding the check nor restoring the order was taken - the pixel was really missing.
+
+**The ribbons check asks for six notes, not five.** It marks five and then turns to the last row
+expecting a page without a ribbon; on the re-cut vault the first five-note month (`2015-09`)
+has exactly five, so that row was marked and 0 stubs was correct. `2015-10`, 15 notes, now.
+
+**The face of the contents toggle names the rail, and a glyph says it is pressable.** The cuts
+directly under it are cut by that mode - letters under `A-Z`, years under `Date` - so a face
+showing the mode it would switch *to* would stand the word `Date` on top of a column of
+letters. A lone word cannot say both what a control is and what it does, so the word stays the
+state and `⇄` carries the act; the `aria-label` says both in full ("Contents: A-Z. Switch to
+Date"). The glyph is part of the label's own text, not a span: a span is an element *a look
+moves nothing on the page* measures, and leather and cyber drew it **12px high against modern's
+10px** and 1.7px lower. As text it adds no box, and the toggle stays **55x28 at 10px** - the
+same as before and the same as the glass tab above it.
+
+**A tab is a cut, not a plate**: `border-radius: 3px 0 0 3px` with `border-right: 0`, the gap
+between cuts gone and adjacent hairlines collapsed by `margin-top: -1px`, and the shadow
+falling down-and-left out of a cut rather than down-and-right off a plate. The geometry is
+`page.css`'s alone; leather and cyber keep only their type and the depth of their shadow, and
+both look checks stay at **0 off**.
+
+**The rail reserves its staircase rather than growing into it** - 48px of cut at the fore-edge
+plus 12px of trail gutter, one width whatever the fold, so the prose never reflows under the
+hand pressing the index. The index costs the right-hand page **76px of padding where it cost
+72px**. Trail steps step in 5px each, to a maximum of two notches, and keep a tighter gutter so
+they pay for their own notches out of their own room.
 
 Shelf metadata ends in dot-separated gear and eye buttons. Both are always visible, use
 equal 12px SVGs and inherit the note count's colour. The regression drives Edit and Hide,
 verifies their shelf targets, and checks that hiding leaves the definition intact.
 The top-right Manage control uses a gear with an accessible name and tooltip. Book creation
 uses the plus spine; shelf headers no longer contain a separate New book button.
+
+## A volume of numbers - design/0035
+
+`core.IndexMode` is `az | date | number`. **`number` orders by the leading digit run of a
+title** - `firstLetter`'s trim, then the digits - comparing by length with leading zeros
+stripped and then by characters, so `202212331243` is exact and no float is involved. A tie
+falls to the title comparator and a note with no leading digit sorts last, which keeps the
+comparator total.
+
+**It stands in the A-Z slot, never beside it.** A book is offered two modes; where every one of
+its notes opens with a digit the pair is Number and Date. `number` replaces the **automatic**
+`az` only - never `date`, so a Months book of daily notes is untouched, and never a saved mode.
+`indexMode(shelf, key, notes)` takes the notes as an optional third argument, so a shelf picker,
+which has no one book, is unchanged. **Like `az` it ignores the reading order**, which is why
+*date contents default to oldest and saved newest settings remain readable* stays green where
+the rejected date-book version of this turned it red (design/0034).
+
+**The cuts are one per distinct leading number**, not ranges: 20 over the vault shape's `0-9`
+volume, inside the rail's ceiling of 32 closed, with `fitTabs` still owning what happens when a
+level will not fit. A `/^\d{4}$/` cut hands its notes to `TITLE_DATE_LAYERS` exactly as
+`prefixCuts` does, so a year still opens into `Mmm` and `dd`; anything else is a leaf. A run
+longer than four digits keeps design/0034's label with a middle dot for the mark: `2022·`.
+**Four digits is the cap and the mark is not one of them.** `x` read as a character of the number;
+`·` is small and sits at mid-height, so it reads as a placeholder. It is plain text, never a span -
+a span with its own font-size is what *a look moves nothing on the page* measures. Measured,
+`2022·` is **36px** where `2022x` was 39px and `2022...` was **43px in the 40px a cut leaves**,
+which *no index cut is clipped* caught as 1 cropped.
+
+**The rail's face is `0-9`, the picker's word is `Number`.** Measured: `Number` plus the glyph
+runs **6px** past the toggle's 55x28 box and **wraps**, which passes every measurement of its
+width - found by looking, not by the check. `0-9` fits with a pixel to spare in the same box the
+lettered volume draws. The `aria-label` and the manage-sheet buttons keep the word.
+
+`INDEX_MODES` is the one list of modes, beside `LOOKS`, and `migrate` validates `indexMode` and
+every `bookIndexes` entry against it. No schema bump.
+
+Measured on the vault shape: the `0-9` volume's 2,064 notes open **0 3 7 12 24 42 99 1000** and
+end `202212331243` (index **2063**, was 649), behind **20** cuts (was 16) of which **11 of 11**
+fat ones open (was 11 of 12), with **no dead end** (was `0-9` x5) and **no** cut labelled `0-9`
+(was three, scattered around the years). `"a volume of numbers reads by number, and only such a
+volume is offered it"` asserts all of it, plus the face fitting its box in both directions and
+migration keeping `number` while dropping an unknown mode.
+
+**A picker reads the automatic answer, not the shelf's.** A numeric book with nothing saved drew
+its two buttons with **neither** pressed, because the picker asked the shelf - which has no
+notes and so answers `az` - for what the book would fall back to. The check reads the picker
+**before** the toggle saves anything, and it goes red at `number,date` where it now reads
+`number!,date`.
 
 ## Age wear on a fresh library
 

@@ -178,6 +178,17 @@ export function firstLetter(title: string): string {
   return ch;
 }
 
+/** github#70, design/0035 */
+export function leadingNumber(title: string): string {
+  const m = /^\d+/.exec(title.replace(/^[^\p{L}\p{N}]+/u, ""));
+  return m ? m[0] : "";
+}
+
+/** github#70, design/0035 */
+export function numericBook(notes: Note[]): boolean {
+  return notes.length > 0 && notes.every((n) => leadingNumber(n.title) !== "");
+}
+
 export function labelFor(key: string, kind: ClassifierKind): string {
   if (key === UNDATED) return "Undated";
   if (key === UNFILED) return kind === "person" ? "No one named"
@@ -265,7 +276,7 @@ export function buildShelf(shelf: Shelf, notes: Note[], order: NoteOrder = "olde
       label: labelFor(key, shelf.classifier),
       cover: coverFor(key, shelf.classifier),
       plaque: plaqueFor(key, shelf),
-      notes: list.slice().sort(readingOrder(shelf, order, key)),
+      notes: list.slice().sort(readingOrder(shelf, order, key, list)),
       bands: bandsOf(list),
       matches: 0,
     });
@@ -301,7 +312,7 @@ function madeBookOf(shelf: Shelf, key: string, notes: Note[], order: NoteOrder):
      * classifier key underneath it to strip a hash from. */
     cover: made.name,
     plaque: null,
-    notes: members.slice().sort(readingOrder(shelf, order, key)),
+    notes: members.slice().sort(readingOrder(shelf, order, key, members)),
     bands: bandsOf(members),
     matches: 0,
   };
@@ -409,11 +420,11 @@ export function unpick(picks: string[] | undefined, live: Set<string>, sourceId:
  * design/0018 -- and a shelf arranged by hand has neither: this is only what its LEFTOVERS
  * fall into, so it is A-to-Z and the reading order in the top bar cannot reach it.
  */
-/* design/0015 */
-function readingOrder(shelf: Shelf, order: NoteOrder, key?: string): (a: Note, b: Note) => number {
-  return indexMode(shelf, key) === "az"
-    ? byTitleThenDate
-    : (a, b) => (order === "newest" ? 1 : -1) * byDateThenTitle(a, b);
+/* design/0015, design/0035 */
+function readingOrder(shelf: Shelf, order: NoteOrder, key?: string, notes?: Note[]): (a: Note, b: Note) => number {
+  const mode = indexMode(shelf, key, notes);
+  if (mode === "number") return byNumberThenTitle;
+  return mode === "az" ? byTitleThenDate : byDateThenTitle(order);
 }
 
 function autoDirection(shelf: Shelf, order: NoteOrder): "alphabetical" | "chronological" {
@@ -474,29 +485,48 @@ function compareKeys(a: string, b: string, direction: "alphabetical" | "chronolo
 }
 
 /**
- * design/0030
+ * design/0030, github#70, design/0035
  */
-export function indexMode(shelf: Shelf, key?: string): import("./types").IndexMode {
-  return (key && shelf.bookIndexes?.[key]) || shelf.indexMode ||
-    (shelf.classifier === "initial" || shelf.classifier === "tag" ? "az" : "date");
+export function indexMode(shelf: Shelf, key?: string, notes?: Note[]): import("./types").IndexMode {
+  const saved = (key && shelf.bookIndexes?.[key]) || shelf.indexMode;
+  if (saved) return saved;
+  const automatic = shelf.classifier === "initial" || shelf.classifier === "tag" ? "az" : "date";
+  return automatic === "az" && notes && numericBook(notes) ? "number" : automatic;
+}
+
+/* github#80 -- one A-Z, so the two indexes cannot disagree. */
+function byTitle(a: Note, b: Note): number {
+  const at = a.title.toLowerCase();
+  const bt = b.title.toLowerCase();
+  return at === bt ? 0 : at < bt ? -1 : 1;
 }
 
 function byTitleThenDate(a: Note, b: Note): number {
-  const at = a.title.toLowerCase();
-  const bt = b.title.toLowerCase();
-  if (at !== bt) return at < bt ? -1 : 1;
+  const byName = byTitle(a, b);
+  if (byName !== 0) return byName;
   const ad = a.date === null ? "" : a.date;
   const bd = b.date === null ? "" : b.date;
   return ad === bd ? 0 : ad < bd ? 1 : -1;
 }
 
-/** Newest first. `buildShelf` flips it for the oldest-first reading order, which is the
- * default: a notebook that opens on its last page reads as if it were written backwards. */
-function byDateThenTitle(a: Note, b: Note): number {
-  const ad = a.date === null ? "" : a.date;
-  const bd = b.date === null ? "" : b.date;
-  if (ad !== bd) return ad < bd ? 1 : -1;
-  return a.title < b.title ? -1 : a.title > b.title ? 1 : 0;
+/** github#70, design/0035 */
+function byNumberThenTitle(a: Note, b: Note): number {
+  const an = leadingNumber(a.title).replace(/^0+(?=\d)/, "");
+  const bn = leadingNumber(b.title).replace(/^0+(?=\d)/, "");
+  if (!an || !bn) return an === bn ? byTitleThenDate(a, b) : an ? -1 : 1;
+  if (an.length !== bn.length) return an.length < bn.length ? -1 : 1;
+  return an === bn ? byTitleThenDate(a, b) : an < bn ? -1 : 1;
+}
+
+/* github#80, decisions/0018 -- the direction is the date's, not the tie-break's. */
+function byDateThenTitle(order: NoteOrder): (a: Note, b: Note) => number {
+  const dir = order === "newest" ? -1 : 1;
+  return (a, b) => {
+    const ad = a.date === null ? "" : a.date;
+    const bd = b.date === null ? "" : b.date;
+    if (ad !== bd) return ad < bd ? -dir : dir;
+    return byTitle(a, b);
+  };
 }
 
 function bandsOf(notes: Note[]): Book["bands"] {
@@ -765,7 +795,7 @@ export function plaqueBook(view: ShelfView, run: Book[], order: NoteOrder = "old
       notes.push(note);
     }
   }
-  notes.sort(readingOrder(view.shelf, order, PLAQUE_KEY + plaque));
+  notes.sort(readingOrder(view.shelf, order, PLAQUE_KEY + plaque, notes));
   return {
     id: plaqueBookId(view.shelf.id, plaque),
     shelfId: view.shelf.id,

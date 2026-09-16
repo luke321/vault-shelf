@@ -5,13 +5,8 @@ exists so an agent that looks for `AGENTS.md` by convention finds its way there 
 guessing, and it deliberately does not restate the laws: two copies of a rule become two
 different rules.
 
-**Where you are decides what you are.** A session in the main checkout
-(`C:\git-personal\vault-shelf`) is the orchestrator: it surveys, dispatches, reviews, merges,
-pushes and releases, and it never implements. A session in an Orca worktree is a worker: it
-implements one piece of work, runs its own gates, and stops at its own branch. Say which one
-you are before you start, and if you are the orchestrator, **take the name**: `/rename Jarvis`,
-so a session in the sister repo — or Alfred, in the notes vault — can address you. Every
-orchestrator in every repo is `Jarvis`; a message for Jarvis goes to all of them.
+**Read `CLAUDE.md` for the orchestrator/worker split** — this file doesn't restate it. Pushing
+and merging are each a separate ask, every time, no matter who is asking or how the last one went.
 
 Five things are worth knowing before you touch anything, all expanded in `CLAUDE.md`:
 
@@ -38,7 +33,7 @@ Five things are worth knowing before you touch anything, all expanded in `CLAUDE
   acquire/release makes the hook block on you and the push hang.
 
   **Nor do you have to remember it for any harness that opens a window** — `refresh-check`,
-  `teardown-check`, `check-data-escape --browser` and `update-layout-snapshots` each claim
+  `teardown-check`, `check-data-escape --browser`, `check-css-support` and `update-layout-snapshots` each claim
   `screen-left` themselves and give up by name if somebody else has the display. This repo
   makes **no screen recording** (`design/0007`), so there is nothing left to wrap by hand;
   driving a window yourself is the one case:

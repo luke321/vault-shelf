@@ -1,4 +1,4 @@
-import type { MadeBook, Note, Shelf, SourceKind } from "./types";
+import type { IndexMode, MadeBook, Note, Shelf, SourceKind } from "./types";
 import { buildShelf, isMadeKey, seedPicks } from "./shelves";
 import { bookSpinesOf, isSpineStyle } from "./bindings";
 import type { SpineStyle } from "./bindings";
@@ -200,6 +200,18 @@ export function isOffered(value: unknown): value is Look {
   return LOOKS.some((l) => l.value === value && !l.shelved);
 }
 
+/** design/0030, github#70, design/0035 */
+export const INDEX_MODES: { value: IndexMode; name: string }[] = [
+  { value: "az", name: "A–Z" },
+  { value: "date", name: "Date" },
+  /* design/0035 */
+  { value: "number", name: "Number" },
+];
+
+export function isIndexMode(value: unknown): value is IndexMode {
+  return INDEX_MODES.some((m) => m.value === value);
+}
+
 /** design/0015 -- the order the notes inside a date-ordered book are read in. */
 export type NoteOrder = "oldest" | "newest";
 
@@ -289,10 +301,10 @@ export function migrate(raw: unknown): Persisted {
 /** design/0029 */
 function boundBy(shelf: Shelf): Shelf {
   const out = { ...shelf };
-  if (out.indexMode !== "az" && out.indexMode !== "date") delete out.indexMode;
+  if (!isIndexMode(out.indexMode)) delete out.indexMode;
   if (out.bookIndexes) {
     out.bookIndexes = Object.fromEntries(Object.entries(out.bookIndexes)
-      .filter(([, mode]) => mode === "az" || mode === "date"));
+      .filter(([, mode]) => isIndexMode(mode)));
   }
   if (!isSpineStyle(out.spineStyle)) delete out.spineStyle;
   if (!["one", "book", "year", "decade"].includes(out.spineSeries || "")) delete out.spineSeries;
@@ -421,6 +433,18 @@ function madeOf(raw: unknown): Record<string, MadeBook> {
 }
 
 /**
+ * github#79 -- a stored position is the only record a reorder leaves
+ * design/0018 -- a shelf with no position goes to the end, as a key does
+ */
+function sequenced(shelves: Shelf[]): Shelf[] {
+  const keyed = shelves.map((s, i) => ({
+    shelf: s, i, at: Number.isFinite(s.position) ? s.position : Infinity,
+  }));
+  keyed.sort((a, b) => (a.at === b.at ? a.i - b.i : a.at < b.at ? -1 : 1));
+  return keyed.map((k, i) => ({ ...k.shelf, position: i }));
+}
+
+/**
  * design/0019 -- SCHEMA 10 PUT A FAVOURITES SHELF FIRST. A file written under an earlier one
  * has no pick shelf because there was no such thing, which was never a decision -- the same
  * argument `decadesOn` makes about plaques -- so one is put at position 0 and every other
@@ -429,7 +453,7 @@ function madeOf(raw: unknown): Record<string, MadeBook> {
  * unless a shelf a person made already took it (`slug("Favourites")` is the same word).
  */
 function withFavourites(shelves: Shelf[], from: number): Shelf[] {
-  const placed = shelves.map((s, i) => ({ ...s, position: i }));
+  const placed = sequenced(shelves);
   if (from >= 10 || placed.some((s) => s.classifier === "pick")) return placed;
   const taken = new Set(placed.map((s) => s.id));
   let id = "favourites";

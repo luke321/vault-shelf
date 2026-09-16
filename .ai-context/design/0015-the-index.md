@@ -122,12 +122,20 @@ only where it separates something.
 - A layer with one group is not drawn: a book that is all 2026 does not need a 2026 tab.
 - A group of three notes or fewer is not cut further: three notes on following days are three
   rows on the left, not an index.
-- The whole thing is capped at about thirty tabs, dropping days first and then months.
+- ~~The whole thing is capped at about thirty tabs, dropping days first and then months.~~
+- ~~The layers step in from the edge — a year tab is bold and widest, a month tab steps in, a
+  day tab steps in again.~~
 
-The layers step in from the edge — a year tab is bold and widest, a month tab steps in, a day
-tab steps in again — so the shape says which is which before the label does. The Encyclopedia
-keeps its letters; the letter cut and the date cut are the two orders a book can have, and the
-tabs follow whichever the book is in.
+**Both struck through by [0034](0034-the-thumb-index.md).** The cap was a mitigation for the
+overflow wearing the clothes of a design rule, and it is why a book of 2,450 notes showed eleven
+year tabs with nothing under them: the layers are nested now and the rail draws one of them at a
+time, so nothing is dropped to make it fit. The step-in went with it — every level standing in
+one column is what ran off the bottom of the page — and the trail says which layer you are in
+instead. What this section settles and 0034 does not touch is **what the layers are**: years,
+then months, then days, each drawn only where it separates something.
+
+The Encyclopedia keeps its letters; the letter cut and the date cut are the two orders a book
+can have, and the tabs follow whichever the book is in.
 
 ## The contents follow the jump (2026-09-11)
 

@@ -2,7 +2,7 @@
 
 Choose which notes belong, then what makes a book: title, year, month, ISO week, person, tag, folder or any note property. A preview shows the actual books and counts. Recipes give you a starting point you can change.
 
-![Build a shelf](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/build.webp)
+![Build a shelf](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/build.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.0.0 - 2026-09-13` |
+| Last re-recorded | `1.1.0 - 2026-09-16` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 17 seconds |
 | WebP | 100 frames; 1,025,752 bytes |

@@ -186,8 +186,26 @@ jobs:
         run: npm run lint --silent
       - name: The page cannot style, or be styled by, its host
         run: node scripts/check-scope.mjs
+      # This runner has no .pii-names -- it's gitignored on purpose (see .pii-names.example) --
+      # so the name half of check-pii.mjs only ever runs here if PII_NAMES is fed in. Left
+      # unfed, the script itself degrades to patterns-only and prints a warning nobody reads
+      # in CI logs, then exits 0: a green step that never checked a single name, on a repo
+      # that is PUBLIC, about other people. github#82. So the check here is not "did
+      # check-pii.mjs exit 0" -- it's "was it actually fed a name list first".
       - name: No other people's names or identifiers
-        run: node scripts/check-pii.mjs
+        env:
+          PII_NAMES: ${{ secrets.PII_NAMES }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PII_NAMES:-}" ]; then
+            echo "::error::PII_NAMES repository secret is not set -- check-pii.mjs would silently"
+            echo "::error::degrade to patterns-only and exit 0 on a PUBLIC repo, about other people's"
+            echo "::error::names. Create it: Settings -> Secrets and variables -> Actions -> New"
+            echo "::error::repository secret, name PII_NAMES, value a COMMA-separated list of names"
+            echo "::error::(this differs from the local .pii-names file, which is one name per line)."
+            exit 1
+          fi
+          node scripts/check-pii.mjs
       - name: Comments are pointers
         run: node scripts/check-comments.mjs
       - name: The update note decides the way it says

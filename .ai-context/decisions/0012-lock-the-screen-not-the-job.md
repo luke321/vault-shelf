@@ -186,9 +186,28 @@ already guarded against for `suite`. It now names who took it and stops.
 ### And the lock has a check that can fail
 
 Its behaviour was a hand-measured table in `invariants.md`, which is not a thing that fails on a
-push. `node scripts/lock.mjs --selftest` is **25 cases against a throwaway root**
+push. `node scripts/lock.mjs --selftest` is **34 cases against a throwaway root**
 (`VAULT_LOCKS_HOME`, so never the live mutex), and the pre-push hook runs it beside the
-update-note selftest — 1.0 s.
+update-note selftest.
+
+## Amended 2026-09-14 — liveness has to cross the repo boundary (`github#43`, `github#52`)
+
+Naming the resource made the two repos contend correctly. It did not make them **legible** to each
+other: `holderGone` read a pid only when the record said `holder: "process"`, which no sister
+record says, so a vault-graph hold held by nothing sat for its full twenty minutes while every
+worktree on the machine queued behind it.
+
+The rule now: `holder: "process"` is read as before; `holder` naming anything else — `"cli"` — is
+never read for pids at all; and a record with **no** `holder` is a foreign one, judged on the pids
+its **owner string** names, all of which must be gone, past a 60 s floor.
+
+| Option | Why not |
+|---|---|
+| **Trust `pid` when `holder` is absent** | The obvious repair, and it breaks a live sister hold. Their harnesses shell out to `lock.mjs acquire`, so the recorded pid belongs to a subprocess that exits at once — measured dead while the run held the display. Two harnesses on one screen is the failure this whole record exists to prevent, and the 60 s floor does not save it: their runs outlive it. |
+| **Ask the sister to write `holder` and claim in-process** | Correct, and cross-repo, so not a worker's call. It also is not needed: a pid is a machine-wide fact, and the one the holder names is already in every sister record. This change is one-sided by construction. **Half of it would be worse than none** — `holder: "process"` added while they still shell out would move their records into the branch that trusts a recorded pid, so every pid a record names is checked whatever its `holder` says. |
+| **Shorten the `screen-left` window** | Weakens a guard for every holder to pay for one that lies — and the row above already records shortening being measured breaking a live holder. |
+| **Mirror the sister's `suite`→`screen-left` alias** | `smoke.mjs` takes `suite` and *then* `takeLeftScreen()`, so the alias would hang every run against its own hold until the window expired. `aliasHold()` now exempts its own asker so the hazard cannot be reintroduced, but the alias itself still must not be added. |
+| **Read the sister's owner-string convention as a protocol** | It is not read as one. A pid found there can only ever be **additional** evidence that a hold is dead; a record naming none keeps its window, so the failure direction is always "wait longer", never "steal". |
 
 | Option | Why not |
 |---|---|

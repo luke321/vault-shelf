@@ -44,6 +44,11 @@
 /** @typedef {import("./core/index").Shelf} Shelf */
 /** @typedef {import("./core/index").Book} Book */
 /** @typedef {import("./core/index").ShelfView} ShelfView */
+/**
+ * design/0034 -- one cut of the index; a span keeps the ends it was named from
+ * @typedef {{ label: string, at: number, kids: Cut[], span?: boolean, head?: string,
+ *             tail?: string }} Cut
+ */
 
 /**
  * @typedef {Object} MountOptions
@@ -234,7 +239,8 @@ function mountVaultShelf(root, data, options) {
   var bookIndex = {};
   /** The biggest book in the library, which every thickness is scaled against. */
   var thickest = 1;
-  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, revealMatch?: boolean, land?: "top"|"bottom"|null, lit?: string }|null} */
+  /* design/0034 -- the fitted cut, what it was fitted for, and how deep the rail stands */
+  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, revealMatch?: boolean, land?: "top"|"bottom"|null, lit?: string, tabs?: Cut[], tabsKey?: string, depth?: number }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
   var history = [];
@@ -745,6 +751,8 @@ function mountVaultShelf(root, data, options) {
     function measure() {
       pending = 0;
       roomLog.pending = 0;
+      /* github#32, design/0034 -- the room ignores a height-only resize; the rail cannot */
+      if (reader) renderTabs();
       var w = shelfWidth();
       roomLog.measured++;
       roomLog.last = w;
@@ -1696,24 +1704,37 @@ function mountVaultShelf(root, data, options) {
 
   /** design/0030 */
   /** @param {import("./core/index").IndexMode} mode @returns {string} */
-  function indexLabel(mode) { return mode === "az" ? "A\u2013Z" : "Date"; }
+  function indexLabel(mode) {
+    return mode === "az" ? "A\u2013Z" : mode === "number" ? "Number" : "Date";
+  }
+
+  /** github#70, design/0035
+   * @param {boolean} numeric @returns {import("./core/index").IndexMode[]} */
+  function indexPair(numeric) { return numeric ? ["number", "date"] : ["az", "date"]; }
+
+  /**
+   * github#70, design/0035
+   * @param {import("./core/index").IndexMode} mode @returns {string}
+   */
+  function railFace(mode) { return mode === "number" ? "0\u20139" : indexLabel(mode); }
 
   /** @param {HTMLElement} box @param {import("./core/index").IndexMode|undefined} mode
-   * @param {import("./core/index").IndexMode} automatic @param {(mode: import("./core/index").IndexMode|null) => void} pick */
-  function indexChoices(box, mode, automatic, pick) {
+   * @param {import("./core/index").IndexMode} automatic @param {(mode: import("./core/index").IndexMode|null) => void} pick
+   * @param {boolean} [numeric] */
+  function indexChoices(box, mode, automatic, pick, numeric) {
     var label = el("div", "vs-indexchoice");
     label.appendChild(el("span", "vs-bindinglabel", "Default contents order"));
     var choices = el("div", "vs-indexbuttons");
     choices.setAttribute("role", "group");
     choices.setAttribute("aria-label", "Default contents order");
-    ["az", "date"].forEach(function (value) {
-      var button = el("button", "", value === "az" ? "A\u2013Z" : "Date");
+    indexPair(!!numeric).forEach(function (value) {
+      var button = el("button", "", indexLabel(value));
       button.type = "button";
       button.setAttribute("data-index-mode", value);
       button.setAttribute("aria-pressed", String((mode || automatic) === value));
       on(button, "click", function () {
         Array.from(choices.children).forEach(function (other) { other.setAttribute("aria-pressed", String(other === button)); });
-        pick(value === "az" ? "az" : "date");
+        pick(value);
       });
       choices.appendChild(button);
     });
@@ -1734,13 +1755,17 @@ function mountVaultShelf(root, data, options) {
         mode = home.bookIndexes && home.bookIndexes[aggregate.key];
       }
     }
-    indexChoices(menu, mode, core.indexMode(home), function (choice) {
+    /* github#70, design/0035 */
+    var numeric = !shelf && books.length > 0 &&
+      books.every(function (book) { return core.numericBook(book.notes); });
+    var automatic = core.indexMode(home);
+    indexChoices(menu, mode, numeric && automatic === "az" ? "number" : automatic, function (choice) {
       if (shelf) {
         if (choice) shelf.indexMode = choice; else delete shelf.indexMode;
         delete shelf.bookIndexes;
       }
       setBookIndexes(books, shelf ? null : choice);
-    });
+    }, numeric);
   }
 
   /** @param {Book[]} books @param {import("./core/index").IndexMode|null} mode */
@@ -2843,52 +2868,46 @@ function mountVaultShelf(root, data, options) {
    * date-ordered list is what produced tabs that jumped backwards.
    */
   /** @param {Book} book @returns {{ label: string, at: number }[]} */
-  function indexSections(book) {
+  /**
+   * design/0034 -- the cut is a tree, and the rail draws one level of it
+   * @param {Book} book @returns {Cut[]}
+   */
+  function indexCuts(book) {
+    var mode = bookIndexMode(book);
+    if (mode === "az") return letterCuts(book.notes);
+    /* github#70, design/0035 */
+    if (mode === "number") return numberCuts(book.notes);
+    /* design/0015 -- one index for every date-ordered book, however it was classified */
+    return dateCuts(book.notes);
+  }
+
+  /** github#70, design/0035
+   * @param {Book} book @returns {import("./core/index").IndexMode} */
+  function bookIndexMode(book) {
     var source = sourceOf(book);
-    var shelf = shelfById(source.shelfId);
-    /** @type {{ label: string, at: number }[]} */
-    var out = [];
-    if (core.indexMode(shelf, source.key) === "az") {
-      out = letterTabs(book.notes);
-    } else {
-      /* design/0015 -- ONE INDEX FOR EVERY DATE-ORDERED BOOK, however it was classified. A
-       * year book, a month book and a tag book used to be cut three different ways -- months,
-       * then days, then whichever single unit happened to split the book -- so the same kind
-       * of tab read "Jul" in one book, "07" in another and "2024" in a third. The layered cut
-       * reads the book instead of the shelf. */
-      return dateTabs(book.notes);
-    }
-    if (out.length <= 26) return out;
-    /** @type {{ label: string, at: number }[]} */
-    var parts = [];
-    var per = Math.ceil(out.length / 12);
-    for (var i = 0; i < out.length; i += per) {
-      parts.push({ label: out[i].label + "\u2013" + out[Math.min(i + per, out.length) - 1].label,
-                   at: out[i].at });
-    }
-    return parts;
+    return core.indexMode(shelfById(source.shelfId), source.key, book.notes);
   }
 
   /**
-   * One tab per distinct key, at the first note that carries it. A note with no key -- an
-   * undated one in a date-cut book -- is skipped rather than given a tab of its own.
-   * @param {ShelfNote[]} notes
-   * @param {function(ShelfNote): string} keyOf
-   * @param {function(string): string} labelOf
-   * @returns {{ label: string, at: number }[]}
+   * github#70, design/0035
+   * @param {ShelfNote[]} notes @returns {Cut[]}
    */
-  function cutBy(notes, keyOf, labelOf) {
-    /** @type {{ label: string, at: number }[]} */
-    var out = [];
-    /** @type {Record<string, boolean>} */
-    var seen = {};
-    notes.forEach(function (n, i) {
-      var key = keyOf(n);
-      if (!key || seen[key]) return;
-      seen[key] = true;
-      out.push({ label: labelOf(key), at: i });
+  function numberCuts(notes) {
+    var runs = runsOf(notes, function (n) { return core.leadingNumber(n.title); });
+    var under = function (/** @type {{ key: string, at: number, size: number, notes: ShelfNote[] }} */ r) {
+      return r.size <= 3 || !/^\d{4}$/.test(r.key) ? [] : cutTree(r.notes, r.at, TITLE_DATE_LAYERS);
+    };
+    /* design/0015 */
+    if (runs.length <= 1) return runs.length ? under(runs[0]) : [];
+    return runs.map(function (r) {
+      return { label: numberLabel(r.key), at: r.at, kids: under(r) };
     });
-    return out;
+  }
+
+  /** design/0034
+   * @param {string} digits @returns {string} */
+  function numberLabel(digits) {
+    return digits.length <= 4 ? digits : digits.slice(0, 4) + "\u00b7";
   }
 
   /**
@@ -2899,17 +2918,42 @@ function mountVaultShelf(root, data, options) {
    *
    * It stops as soon as the tabs are worth having, because deeper is not better: Mar, Mat, Mea
    * over a book of forty is a wall of tabs that says less than Ma, Me, Mi.
-   * @param {ShelfNote[]} notes @returns {{ label: string, at: number }[]}
+   *
+   * design/0034 -- and what is deeper still is not thrown away, it is what `Ma` OPENS
+   * @param {ShelfNote[]} notes @returns {Cut[]}
    */
-  function letterTabs(notes) {
-    /** @type {{ label: string, at: number }[]} */
-    var out = [];
-    for (var depth = 1; depth <= 3; depth++) {
-      out = cutBy(notes, function (n) { return titlePrefix(n.title, depth); },
-                  function (key) { return key; });
-      if (out.length >= 4 || out.length >= notes.length) return out;
+  function letterCuts(notes) {
+    var top = 1;
+    for (; top < 3; top++) {
+      var here = runsOf(notes, prefixAt(top));
+      if (here.length >= 4 || here.length >= notes.length) break;
     }
-    return out;
+    return prefixCuts(notes, 0, top);
+  }
+
+  /**
+   * design/0034 -- one level of the letter cut, and the longer prefix under each cut
+   * @param {ShelfNote[]} notes @param {number} base @param {number} depth @returns {Cut[]}
+   */
+  function prefixCuts(notes, base, depth) {
+    if (depth > 3) return [];
+    var runs = runsOf(notes, prefixAt(depth));
+    if (runs.length <= 1) {
+      /* A layer that separates nothing is not drawn; the one below it takes its place. */
+      return runs.length ? prefixCuts(runs[0].notes, base + runs[0].at, depth + 1) : [];
+    }
+    return runs.map(function (r) {
+      /* design/0034 -- only the 0-9 branch can produce a four-digit key */
+      return { label: r.key, at: base + r.at,
+               kids: r.size <= 3 ? []
+                   : /^\d{4}$/.test(r.key) ? cutTree(r.notes, base + r.at, TITLE_DATE_LAYERS)
+                   : prefixCuts(r.notes, base + r.at, depth + 1) };
+    });
+  }
+
+  /** design/0034 @param {number} depth @returns {function(ShelfNote): string} */
+  function prefixAt(depth) {
+    return function (n) { return titlePrefix(n.title, depth); };
   }
 
   /**
@@ -2930,9 +2974,52 @@ function mountVaultShelf(root, data, options) {
     /* THE 0-9 VOLUME IS INDEXED BY YEAR. It is one book of 351 notes in a vault of daily
      * notes, and "0-9" is the only tab a letter cut can give it. What a title beginning
      * `2023-02-16` is actually filed under is 2023. */
-    if (head === "0-9") return /^\d{4}/.test(word[0]) ? word[0].slice(0, 4) : head;
+    if (head === "0-9") return titleYear(title) || titleRun(title) || head;
     return head + word[0].slice(1, depth).toLowerCase();
   }
+
+  /**
+   * design/0034 -- four digits are a year only if they stop at four: `202212123123` is not 2022
+   * @param {string} title @returns {string} the year, or ""
+   */
+  function titleYear(title) {
+    var m = /^(\d{4})(?!\d)/.exec(title.replace(/^[^\p{L}\p{N}]+/u, ""));
+    return m ? m[1] : "";
+  }
+
+  /**
+   * design/0034, github#70 -- a digit run that opens like a year and keeps going: `2022·` for
+   * `202212331243`, so the cut files where the reader looks for it and still says it is not 2022
+   * @param {string} title @returns {string} the label, or ""
+   */
+  function titleRun(title) {
+    var m = /^(\d{4})\d/.exec(title.replace(/^[^\p{L}\p{N}]+/u, ""));
+    return m ? m[1] + "\u00b7" : "";
+  }
+
+  /**
+   * design/0034 -- the ISO date a title BEGINS with, cut to a year, a month or a day; "" if it
+   * carries none or an impossible one, which the cut skips the way it skips an undated note
+   * @param {string} title @param {number} length 4, 7 or 10 @returns {string}
+   */
+  function titleIso(title, length) {
+    var trimmed = title.replace(/^[^\p{L}\p{N}]+/u, "");
+    var m = /^(\d{4})-(\d{2})(?:-(\d{2}))?(?!\d)/.exec(trimmed);
+    if (!m) return length === 4 ? titleYear(title) : "";
+    var day = m[3] ? m[0] : m[0] + "-01";
+    if (!core.isIsoDay(day)) return length === 4 ? titleYear(title) : "";
+    if (length === 10 && !m[3]) return "";
+    return m[0].slice(0, length);
+  }
+
+  /* github#32, design/0034 -- the 0-9 volume is a date book wearing a letter's clothes: its
+   * years take DATE_LAYERS read off the title, not a fifth digit the key does not have. */
+  var TITLE_DATE_LAYERS = [
+    { key: function (/** @type {ShelfNote} */ n) { return titleIso(n.title, 7); },
+      label: function (/** @type {string} */ k) { return core.monthLabel(k).slice(0, 3); } },
+    { key: function (/** @type {ShelfNote} */ n) { return titleIso(n.title, 10); },
+      label: function (/** @type {string} */ k) { return k.slice(8); } }
+  ];
 
   /**
    * design/0015 -- THE LAYERED DATE INDEX. Years, then the months inside a year, then the days
@@ -2947,39 +3034,43 @@ function mountVaultShelf(root, data, options) {
    *
    * The result is the same shape for a year book, a tag book and a person's book, which is
    * what an index is for: you learn to read it once.
-   * @param {ShelfNote[]} notes @returns {{ label: string, at: number, level?: number }[]}
+   *
+   * design/0034 -- and nothing is dropped to make it fit: the cap of about thirty is gone
+   * @param {ShelfNote[]} notes @returns {Cut[]}
    */
-  function dateTabs(notes) {
-    /** @type {{ label: string, at: number, level?: number }[]} */
-    var out = [];
-    var years = runsOf(notes, function (n) { return n.date ? n.date.slice(0, 4) : ""; });
-    var showYears = years.length > 1;
-    years.forEach(function (y) {
-      if (showYears) out.push({ label: y.key, at: y.at, level: 0 });
-      if (y.size <= 3) return;
-      var months = runsOf(y.notes, function (n) { return n.date ? n.date.slice(0, 7) : ""; });
-      var showMonths = months.length > 1;
-      months.forEach(function (m) {
-        if (showMonths) {
-          out.push({ label: core.monthLabel(m.key).slice(0, 3), at: y.at + m.at,
-                     level: showYears ? 1 : 0 });
-        }
-        if (m.size <= 3) return;
-        var days = runsOf(m.notes, function (n) { return n.date || ""; });
-        if (days.length <= 1) return;
-        days.forEach(function (d) {
-          out.push({ label: d.key.slice(8), at: y.at + m.at + d.at,
-                     level: (showYears ? 1 : 0) + (showMonths ? 1 : 0) });
-        });
-      });
-    });
-    var deepest = out.reduce(function (max, t) { return Math.max(max, t.level || 0); }, 0);
-    while (out.length > 30 && deepest > 0) {
-      var drop = deepest;
-      out = out.filter(function (t) { return (t.level || 0) < drop; });
-      deepest--;
+  function dateCuts(notes) {
+    return cutTree(notes, 0, DATE_LAYERS);
+  }
+
+  /** design/0015, design/0034 -- years, then the months inside one, then the days inside one. */
+  var DATE_LAYERS = [
+    { key: function (/** @type {ShelfNote} */ n) { return n.date ? n.date.slice(0, 4) : ""; },
+      label: function (/** @type {string} */ k) { return k; } },
+    { key: function (/** @type {ShelfNote} */ n) { return n.date ? n.date.slice(0, 7) : ""; },
+      label: function (/** @type {string} */ k) { return core.monthLabel(k).slice(0, 3); } },
+    { key: function (/** @type {ShelfNote} */ n) { return n.date || ""; },
+      label: function (/** @type {string} */ k) { return k.slice(8); } }
+  ];
+
+  /**
+   * design/0015, design/0034 -- one layer of cuts, with the layers below it hanging off each;
+   * a layer that separates nothing is not drawn, and three notes or fewer are not cut at all
+   * @param {ShelfNote[]} notes @param {number} base
+   * @param {{ key: function(ShelfNote): string, label: function(string): string }[]} layers
+   * @returns {Cut[]}
+   */
+  function cutTree(notes, base, layers) {
+    if (!layers.length) return [];
+    var runs = runsOf(notes, layers[0].key);
+    if (runs.length <= 1) {
+      /* design/0015 -- the size rule applies to a layer that stood aside too */
+      if (!runs.length || runs[0].size <= 3) return [];
+      return cutTree(runs[0].notes, base + runs[0].at, layers.slice(1));
     }
-    return out;
+    return runs.map(function (r) {
+      return { label: layers[0].label(r.key), at: base + r.at,
+               kids: r.size <= 3 ? [] : cutTree(r.notes, base + r.at, layers.slice(1)) };
+    });
   }
 
   /**
@@ -3020,30 +3111,230 @@ function mountVaultShelf(root, data, options) {
     find.setAttribute("aria-label", "Search inside this book");
     on(find, "click", findInBook);
     box.appendChild(find);
-    var source = sourceOf(reader.book);
-    var mode = core.indexMode(shelfById(source.shelfId), source.key);
-    var toggle = el("button", "vs-indextoggle", indexLabel(mode));
+    var mode = bookIndexMode(reader.book);
+    /* github#70, design/0035 */
+    var other = mode === "date" ? indexPair(core.numericBook(reader.book.notes))[0] : "date";
+    /* github#32, design/0034 -- the face names the mode the rail below is cut BY; the glyph
+     * says it is pressable. Flipping the face would put `Date` over a column of letters. */
+    /* The glyph is part of the label, not a span of its own: a span is an element the look
+     * check measures, and leather drew it 12px high against modern's 10px. */
+    var toggle = el("button", "vs-indextoggle", railFace(mode) + " ⇄");
     toggle.type = "button";
     toggle.setAttribute("data-index-mode", mode);
-    toggle.setAttribute("aria-label", "Contents: " + indexLabel(mode) + ". Switch to " + indexLabel(mode === "az" ? "date" : "az"));
+    toggle.setAttribute("aria-label", "Contents: " + indexLabel(mode) + ". Switch to " + indexLabel(other));
     toggle.title = "Switch contents order";
     on(toggle, "click", function () {
-      setBookIndexes([reader.book], mode === "az" ? "date" : "az");
+      setBookIndexes([reader.book], other);
       var next = node("tabs").querySelector(".vs-indextoggle");
       if (next instanceof HTMLElement) next.focus({ preventScroll: true });
     });
     box.appendChild(toggle);
-    var sections = indexSections(reader.book);
-    box.style.setProperty("--vs-tab-count", String(Math.max(1, sections.length)));
-    sections.forEach(function (section) {
-      var b = el("button", "vs-indextab", section.label);
-      b.type = "button";
-      b.setAttribute("data-level", String(section.level || 0));
-      if (section.at <= reader.index) b.setAttribute("aria-current", "true");
-      on(b, "click", function () { goTo(section.at); });
+    fitTabs(box, mode);
+    var view = railView();
+    var rows = view.trail.length + view.level.length;
+    box.style.setProperty("--vs-tab-count", String(Math.max(1, rows)));
+    /* design/0034 -- the trail steps in; the level stays flush at the fore-edge */
+    view.trail.forEach(function (cut, k) {
+      var b = cutRow(cut, k, view.trail.length - k, true, false);
+      on(b, "click", function () { reader.depth = k; renderTabs(); keepAt(cut.at); });
+      box.appendChild(b);
+    });
+    /* design/0034 -- ONE THUMB: the deepest cut the page has reached, and one only. */
+    var lit = cutAt(view.level, reader.index);
+    view.level.forEach(function (cut) {
+      var b = cutRow(cut, view.trail.length, 0, false, cut === lit);
+      on(b, "click", function () {
+        if (cut.kids.length) reader.depth = view.trail.length + 1;
+        goTo(cut.at);
+        keepAt(cut.at);
+      });
       box.appendChild(b);
     });
   }
+
+  /**
+   * design/0034 -- a press rebuilds the rail, so Enter on a year focused nothing after it
+   * @param {number} at
+   */
+  function keepAt(at) {
+    var again = node("tabs").querySelector('.vs-indextab[data-at="' + at + '"]');
+    if (again instanceof HTMLElement) again.focus({ preventScroll: true });
+  }
+
+  /**
+   * design/0034 -- one leaf of the cut edge; `data-at` is the position it opens, because a
+   * press rebuilds the rail and a cut cannot be addressed by where it stands
+   * @param {Cut} cut @param {number} level @param {number} stepIn @param {boolean} isTrail
+   * @param {boolean} isLit @returns {HTMLElement}
+   */
+  function cutRow(cut, level, stepIn, isTrail, isLit) {
+    var b = el("button", "vs-indextab" + (isTrail ? " vs-trailstep" : ""), cut.label);
+    b.type = "button";
+    b.setAttribute("data-at", String(cut.at));
+    /* design/0015 -- which layer of the cut this is; design/0034 -- and how far in it stands. */
+    b.setAttribute("data-level", String(level));
+    if (stepIn) b.setAttribute("data-step", String(Math.min(stepIn, 2)));
+    /* design/0034 -- an index that opens further on some cuts and not others says which */
+    if (isTrail) b.setAttribute("data-back", "1");
+    else if (cut.kids.length) b.setAttribute("data-opens", "1");
+    if (isLit) b.setAttribute("aria-current", "true");
+    /* design/0034 -- a span shows only where it starts, so what it covers is said here. */
+    var says = cut.span && cut.tail ? cut.label + " to " + cut.tail : cut.label;
+    b.title = isTrail ? "Back to " + says
+      : cut.kids.length ? says + " — opens " + cut.kids.length + " more"
+        : says;
+    b.setAttribute("aria-label", b.title);
+    return b;
+  }
+
+  /**
+   * design/0034 -- the cuts the page came through, and the level under the deepest of them.
+   * Derived from where the page stands, so Next carries the trail with it.
+   * @returns {{ trail: Cut[], level: Cut[] }}
+   */
+  function railView() {
+    var level = reader.tabs || [];
+    /** @type {Cut[]} */
+    var trail = [];
+    for (var d = 0; d < (reader.depth || 0); d++) {
+      var here = cutAt(level, reader.index);
+      if (!here || !here.kids.length) break;
+      trail.push(here);
+      level = here.kids;
+    }
+    return { trail: trail, level: level };
+  }
+
+  /** design/0034 @param {Cut[]} level @param {number} index @returns {Cut|null} */
+  function cutAt(level, index) {
+    /** @type {Cut|null} */
+    var found = null;
+    level.forEach(function (c) { if (c.at <= index) found = c; });
+    return found;
+  }
+
+  /**
+   * design/0034 -- FIT IS MEASURED, NOT CALCULATED: draw it, and while the level that draws
+   * the most rows does not fit, gather it one step and draw again. Fitted to the fattest
+   * level the book can show, or a page turn would re-fit it and give one book two shapes.
+   * @param {HTMLElement} box @param {string} mode
+   */
+  function fitTabs(box, mode) {
+    var key = reader.book.id + "|" + mode + "|" + reader.book.notes.length + "|" +
+      Math.round(box.getBoundingClientRect().height);
+    if (reader.tabsKey === key) return;
+    var cuts = indexCuts(reader.book);
+    for (var step = 0; step < 24; step++) {
+      var view = widestOf(cuts, 0, []);
+      if (drawsInside(box, view)) break;
+      var next = gathered(cuts, view.path.length);
+      if (!next) break;
+      cuts = next;
+    }
+    reader.tabs = cuts;
+    reader.tabsKey = key;
+    reader.depth = 0;
+  }
+
+  /**
+   * design/0034 -- the level that draws the most rows, and the way down to it
+   * @param {Cut[]} cuts @param {number} trail @param {number[]} path
+   * @returns {{ rows: number, trail: number, level: Cut[], path: number[] }}
+   */
+  function widestOf(cuts, trail, path) {
+    var best = { rows: trail + cuts.length, trail: trail, level: cuts, path: path };
+    cuts.forEach(function (c, i) {
+      if (!c.kids.length) return;
+      var below = widestOf(c.kids, trail + 1, path.concat(i));
+      if (below.rows > best.rows) best = below;
+    });
+    return best;
+  }
+
+  /**
+   * design/0034 -- the last cut's own bottom, never `scrollHeight`: the rail's overflow is
+   * visible by design, and a box that does not scroll does not report a scrolling area
+   * @param {HTMLElement} box @param {{ rows: number, trail: number, level: Cut[] }} view
+   * @returns {boolean}
+   */
+  function drawsInside(box, view) {
+    /** @type {HTMLElement[]} */
+    var probe = [];
+    box.style.setProperty("--vs-tab-count", String(Math.max(1, view.rows)));
+    for (var i = 0; i < view.trail; i++) {
+      probe.push(cutRow({ label: "2026", at: 0, kids: [] }, i, view.trail - i, true, false));
+    }
+    view.level.forEach(function (c) { probe.push(cutRow(c, view.trail, 0, false, false)); });
+    probe.forEach(function (n) { box.appendChild(n); });
+    var last = probe[probe.length - 1];
+    var fits = !last || last.getBoundingClientRect().bottom <= box.getBoundingClientRect().bottom + 1;
+    probe.forEach(function (n) { box.removeChild(n); });
+    return fits;
+  }
+
+  /**
+   * design/0034 -- one step shallower, and nothing is thrown away to take it: the level is
+   * halved into spans naming what they open, and its cuts become what those spans open.
+   * EVERY level at that depth, or one year's months read differently from the next year's.
+   * @param {Cut[]} cuts @param {number} depth @returns {Cut[]|null}
+   */
+  function gathered(cuts, depth) {
+    if (!depth) {
+      if (cuts.length < 2) return null;
+      var spans = spanned(cuts);
+      return spans.length < cuts.length ? spans : null;
+    }
+    var moved = false;
+    var out = cuts.map(function (c) {
+      var kids = c.kids.length ? gathered(c.kids, depth - 1) : null;
+      if (!kids) return c;
+      moved = true;
+      return { label: c.label, at: c.at, span: c.span, head: c.head, tail: c.tail, kids: kids };
+    });
+    return moved ? out : null;
+  }
+
+  /**
+   * design/0034 -- a range of ranges is still one range, so a span is flattened first
+   * @param {Cut[]} list @returns {Cut[]}
+   */
+  function spanned(list) {
+    /** @type {Cut[]} */
+    var out = [];
+    for (var i = 0; i < list.length; i += 2) {
+      var a = list[i];
+      var b = list[i + 1];
+      if (!b) { out.push(a); continue; }
+      /* design/0034 -- A SPAN IS NAMED BY WHERE IT STARTS, which is what a printed thumb index
+       * does and what keeps the rail one narrow width: the cut below it is its other end. The
+       * range it covers is on the cut, where a pointer or a screen reader finds it. */
+      out.push({ label: headOf(a), head: headOf(a), tail: tailOf(b),
+                 span: true, at: a.at, kids: membersOf(a).concat(membersOf(b)) });
+    }
+    return out;
+  }
+
+  /**
+   * design/0034 -- the cut as a check reads it, with no note behind it
+   * @typedef {{ label: string, at: number, span: boolean, kids: PlainCut[] }} PlainCut
+   * @param {Cut[]} cuts @returns {PlainCut[]}
+   */
+  function strip(cuts) {
+    /** @type {PlainCut[]} */
+    var out = [];
+    cuts.forEach(function (c) {
+      out.push({ label: c.label, at: c.at, span: !!c.span, kids: strip(c.kids) });
+    });
+    return out;
+  }
+
+  /** design/0034 @param {Cut} c @returns {string} */
+  function headOf(c) { return c.head || c.label; }
+  /** design/0034 @param {Cut} c @returns {string} */
+  function tailOf(c) { return c.tail || c.label; }
+  /** design/0034 @param {Cut} c @returns {Cut[]} */
+  function membersOf(c) { return c.span ? c.kids : [c]; }
+
 
   /**
    * github#0 -- scroll the left page to the top, where the find box is, and leave the cursor in
@@ -4512,6 +4803,8 @@ function mountVaultShelf(root, data, options) {
       var again = findBook(reader.book.id, reader.noteId);
       if (again) {
         reader.book = again;
+        /* design/0034 -- a rebuild is a new book behind one address; the key cannot see it */
+        reader.tabsKey = "";
         /* github#5 -- THE PLACE IS A NOTE, NOT A ROW NUMBER. */
         var at = -1;
         if (reader.noteId) {
@@ -4860,6 +5153,23 @@ function mountVaultShelf(root, data, options) {
       return !!book;
     },
     closeReader: closeReader,
+    /**
+     * design/0034 -- the fitted cut, so a check can reason about the fold without pressing
+     * into it: on a book of thousands of notes the press would be the whole cost
+     */
+    indexTabs: function () {
+      if (!reader) return null;
+      var box = node("tabs");
+      var rows = box.querySelectorAll(".vs-indextab");
+      var last = rows[rows.length - 1];
+      var bottom = box.getBoundingClientRect().bottom;
+      return {
+        depth: reader.depth || 0,
+        cuts: strip(reader.tabs || []),
+        railHeight: Math.round(box.getBoundingClientRect().height),
+        over: last ? Math.round(last.getBoundingClientRect().bottom - bottom) : 0
+      };
+    },
     /** design/0004 -- where a link went: "book", "shelf", "near" or null. */
     openNote: openNote,
     /**

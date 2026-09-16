@@ -34,6 +34,11 @@ changing what a shelf contains or how a book is addressed.
 | `0012-lock-the-screen-not-the-job` | Why a lock is named after the display it takes over rather than the activity, what the claim-and-return shape buys over handing back a name, and how a hold proves it is still alive |
 | `0013-two-chromes-and-a-check-says-what-it-needs` | Why the suite caps at two browsers where the sister repo went to one, why a check declares the shapes it needs, and why a check that leaves the page moving fails |
 | `0014-one-vault-for-the-checks-and-the-film` | Four generated vaults become one: what the one vault had to absorb to replace three, what was given up, why the film stopped being shot in a mirror, and what `0013`'s per-shape narrowing means once there is one shape |
+| `0015-the-suite-owns-its-own-focus` | Why the suite takes the window's focus itself and drives real keys rather than dispatching the events |
+| `0016-the-runner-drains-the-room-before-it-blames-a-check` | Why a check that returns with the page still moving is the runner's finding, and what it names |
+| `0017-a-smoothness-budget-counts-frames` | Why a percentile of frame intervals cannot be measured at 34ms, what a missed-vsync count replaces it with, why the vsync has to be calibrated rather than read off the run being judged, and why the only slowdown that costs a frame is the regression the check exists to catch |
+| `0018-the-tie-break-within-a-date` | What decides the order of notes sharing a date, why the reading order does not reach it, and the three tie-breaks rejected |
+| `0019-a-gate-carries-its-own-negative-controls` | Why the scope gate parses CSS rather than lines, why a construct it cannot judge is refused rather than skipped, and why its planted shapes run on every invocation instead of behind a flag |
 
 ### DDRs — `design/`
 
@@ -131,3 +136,9 @@ are the regression suite.
 - [0032 - Compressing index and shelf actions](design/0032-compressing-index-and-shelf-actions.md): fixed search/order controls, fitting tabs and inline gear/eye buttons.
 
 - [0033 - Age and reading wear](design/0033-age-and-reading-wear.md): older books start worn without inventing opening history; recent notes keep active collections fresh.
+
+- [0034 - The thumb index](design/0034-the-thumb-index.md): a cut is a tree and the rail lists one level of it, under the trail it came through; fit is measured, not calculated.
+
+- [0035 - A volume of numbers](design/0035-a-volume-of-numbers.md): a third contents mode that reads digits as numbers, offered in the A-Z slot where every note opens with one.
+
+- [0036 - The CSS floor is measured](design/0036-the-css-floor-is-measured.md): a linter's browser-support table is not evidence; a real Obsidian is, and four of five warnings were noise.

@@ -11,110 +11,69 @@ of measuring it.** Build the page, drive it, read the numbers.
 
 ## Laws — every one has a check in `scripts/smoke.mjs` and a section in `.ai-context/invariants.md`
 
-- **A shelf's note count is unique notes, never the sum of its books.** A note with three
-  people is in three books and is still one note.
+- **A shelf's note count is unique notes, never the sum of its books.** A note in three books
+  is still one note.
 - **Every note has at least one address.** Nothing a predicate admits may fall off a shelf.
 - **A book's address is `shelfId/classifierKey`** and survives a rebuild. A saved reading
-  place re-resolves rather than breaking: the named book, else the first visible book that
-  still holds the note.
-- **Metadata is declared, never inferred, and the file stamp is the floor.** A date comes from
-  a property, then a title, then the earliest stamp the filesystem has (`dates.stampOf` — the
-  earlier of creation and modification, since a bulk edit moves one and a copied vault moves
-  the other). People come from the people property and never from prose. A missing value gets
-  its own book (`-undated`, `-unfiled`), never an exclusion. `decisions/0003`, amended.
+  place re-resolves: the named book, else the first visible book still holding the note.
+- **Metadata is declared, never inferred.** A date comes from a property, then a title, then
+  the earliest file stamp; people come from the people property, never prose; a missing value
+  gets its own book, never an exclusion (`decisions/0003`).
 - **The ISO week keeps its week-year.** 2027-01-01 is 2026-W53.
-- **A plaque names the unit above the book**: months and weeks under their year, years under
-  their decade, people and tags under their letter. Only when asked for. A plaque lives in the
-  same row as the books it names, and a run that wraps is named on every row it reaches. **A
-  run is whatever is adjacent**, so a shelf arranged by hand can carry the same label twice in
-  one row — a plate says what is under it, never what it wishes were under it. **And a plaque
-  opens its run as one book**: unique notes across the books under it, addressed
-  `shelfId/-plaque-<label>` so a ribbon left in it re-resolves; a plate drawn on two rows opens
-  the same book; a plaque-book is never on the shelf, so no address, count or golden moves.
-  `design/0019`.
+- **A plaque names the unit above the book** (months/weeks→year, years/people/tags→decade or
+  letter), only when asked, in the same row as its books — **a run is whatever is adjacent**, so
+  a hand-arranged row can carry the same label twice. **It opens its run as one book** of unique
+  notes at `shelfId/-plaque-<label>`; the plaque itself gets no address, count or golden
+  (`design/0019`).
 - **A shelf is a bookcase, not a conveyor belt.** Nothing scrolls sideways; a run too long for
   the room continues on the next row down.
-- **A filter narrows; the query marks.** A filter removes notes before books are built. The
-  search query never does: every book stays on the shelf and draws forward or thins to a ghost.
-  **And it reads a catalogue, not prose**: a note matches on its title, on the **cover** of any
-  book it sits behind, or on its declared metadata — tags, people, folder. Body and path are
-  dropped, so `which` fell from 2,867 of 4,938 notes to 0 while `Aug 2026` — a name printed on a
-  spine and contained in no note — became findable at all. A cover is not a property of a note, so
-  `core.buildSearchIndex` folds each note's own text and every cover it stands behind into one
-  string, built once in `rebuild()` beside the vocabulary and never per keystroke; the box offers
-  a book by that same cover, so **the vocabulary and the search are one set** and every suggestion
-  marks a note by identity rather than by a pass that checks it. `design/0008`, `design/0026`.
-- **A marked book says why, and its own find box never denies it.** The head reads *N of M
-  match*, the matching rows wear the accent, and the note names the surface the needle sits in —
-  `core.matchReasons` mirrors `matchesQuery` rather than reimplementing it, and a check over the
-  vault asserts a reason exists **exactly** when there is a match. *Find within this book* narrows
-  by that same `matchesQuery`, so a book can never contradict the shelf it stands on. **Every one
-  of these reads the same `SearchIndex` the library builds**: a cover is the one reason not
-  written on the note, so a reader-side call without the index marks a note it cannot explain and
-  a find box without it denies the very word that lit the book. `design/0027`, `design/0008`.
+- **A filter narrows; the query marks.** A filter removes notes before books are built; the
+  query never does — every book stays on the shelf, drawing forward or thinning to a ghost. It
+  matches on title, on the **cover** of any book a note sits behind, or on declared metadata
+  (tags, people, folder) — never body or path — against one search index built once per
+  rebuild, never per keystroke (`design/0008`, `design/0026`).
+- **A marked book says why, and its own find box never denies it.** `core.matchReasons` mirrors
+  `matchesQuery` exactly, and *Find within this book* narrows by that same function, so a book
+  can never show a match the shelf can't explain, or deny one it does (`design/0008`,
+  `design/0027`).
 - **A filter changes membership and nothing else.** Shelf order and book addresses do not move.
 - **A hidden shelf keeps its definition and its books.** Hiding never deletes; hiding
   everything still offers a way back.
-- **The page is scoped, in both directions**: every CSS rule under `.vault-shelf`, every id
-  and **every class** prefixed `vs-`, every document through `root.ownerDocument`; nothing
-  shipped reaches the network. Obsidian's own `app.css` claims `.spread`, and it claimed ours.
-- **The first twelve colour slots are Vault Graph's**, read from the cascade rather than
+- **The page is scoped, in both directions.** Every CSS rule under `.vault-shelf`, every id and
+  class prefixed `vs-`, every document through `root.ownerDocument`; nothing shipped reaches
+  the network (`design/0005`).
+- **The first twelve colour slots are Vault Graph's**, read live from the cascade, never
   copied; two brighter slots extend the picker to fourteen (`design/0029`). The theme is
   whatever the host says it is.
-- **A tab is a position in the contents**, so the index is cut the way the book is ordered: Encyclopedia
-  and Tags default to A-Z; other shelves default to dates. Shelf and book pickers can change
-  that default; the switch below search changes both contents and tabs (`design/0030`).
-- **A book opens on its oldest note, and so does a date shelf.** A notebook that starts on its
-  last page reads as if it were written backwards. The old top-bar direction button is removed;
-  saved direction settings still load. Shelf/book pickers choose A-Z or Date (`design/0031`). **A shelf can also have no rule**:
-  `manual` is the order a person dragged the books into, held as `Shelf.order` — a list of
-  classifier **keys**, so it survives a rebuild the way an address does. It moves the sequence
-  and nothing else: not an address, not membership, not what is inside a book. A key it does
-  not name goes to the end, a key the vault has lost is dropped on save, and the toggle in the
-  contents order cannot move it. `design/0018`.
-- **A favourite is a reference, never a copy.** The shelf at position 0 is a `pick` shelf: it
-  classifies nothing and holds the **addresses** of other shelves' books, in the order they were
-  dropped, so its label, notes and bands are the source's and are live. `picks` is the only
-  list — membership and sequence are one question here — a dead pick is dropped **on save** like
-  a manual key, a hidden source still resolves, and the reader is never told a pick shelf
-  exists: opening a favourite opens the source book. **Dragging one off the shelf takes it off**,
-  and it is bound to a drop rather than to `dragend` so Escape cancels. A pick shelf is a **kind**
-  of shelf, not one shelf: the builder makes as many as a person wants, a book may sit on several,
-  and every reference is its own. `design/0019`.
-- **A book can be made on any shelf arranged by hand, and it is a saved query.** Right-click
-  empty rail space, or press the quiet plus where the books end: a name and a `Source` —
-  folder, tag, person, the whole vault — held in `Shelf.made` under a key `-made-<slug>` that
-  also stands in `picks` (a pick shelf) or `order` (any other manual shelf), so the sequence is
-  still one list. The key is fixed at creation, so a rename keeps the address. An automatic
-  shelf has no plus and keeps a made book it inherits, sorted last. **A reference is not a place a note
-  lives; a made book is**: the reader, the reading places and *also shelved in* skip references,
-  never made books. Off the rail means delete, another pick shelf refuses it, a lost source is
-  an empty spine rather than a dropped book, and nothing in the vault moves. `design/0020`.
-- **A look is paint.** `data-look` picks a stylesheet — `"leather"` the default and sole
-  offered look, Modern (`""`) and Cyber (`"cyber"`) shelved but still shipped and still
-  measured (`design/0029`) — and it may repaint anything and move nothing: not a shelf's
-  order, not a book's address, not a count, **not a book's size and not a control's** — a
-  spine is the same width and height in all three, in a room of the same width, and every
-  button, box, tab, ribbon and swatch is the same height, so switching does not move the
-  furniture. **Every element's top is the same in every look, and so is its box across the way
-  its text runs**; the one thing a face may move is a label's neighbour **along its own row**,
-  because a wider face draws wider glyphs and nothing can be done about that. `page.css` owns
-  the geometry — a control's, a head's, a plank's, a line box's — and a look sets colour,
-  border, shadow and face, plus decoration that is absolutely positioned and so moves nothing.
-  A **responsive layout is not a look's**: leather carried a private one below 860px, and below
-  that width the two looks were not the same product. `core.LOOKS` is the one list of them, in
-  the order the selector offers them (leather first, which is what a fresh library opens in),
-  and `migrate` validates against it. `design/0016`, `design/0021`.
+- **A tab is a position in the contents.** Encyclopedia/Tags default A-Z, others date; pickers
+  can override either, and the switch below search changes both together (`design/0030`).
+- **A book opens on its oldest note, and so does a date shelf.** Pickers choose A-Z or Date
+  (`design/0031`); a shelf can also run **manual** — a dragged sequence held as classifier
+  **keys** in `Shelf.order`, surviving a rebuild, dropping a lost key on save, sending an
+  unlisted one to the end (`design/0018`).
+  **Notes sharing a date read A-Z, in both directions** — the reading order names the date axis
+  and reaches nothing else, and it is the same case-insensitive A-Z the index itself uses
+  (`decisions/0018`).
+- **A favourite is a reference, never a copy.** Position 0 can be a `pick` shelf — a **kind** of
+  shelf, not a single one — holding **addresses** of other shelves' books, live. Taking one off
+  is bound to `drop` not `dragend` (Escape cancels); a dead pick drops on save; the reader never
+  knows a pick shelf exists, so opening a favourite opens the source book (`design/0019`).
+- **A book made on a hand-arranged shelf is a saved query.** Right-click empty rail space, or
+  the quiet plus at the row's end, for a name and `Source`; its key `-made-<slug>` is fixed at
+  creation, so renaming keeps the address. **A reference is not a place a note lives; a made
+  book is** — the reader, reading places and *also shelved in* skip references, never made
+  books. A lost source is an empty spine, not a dropped book (`design/0020`).
+- **A look is paint.** `data-look` picks a stylesheet — `"leather"` the only offered look
+  (`design/0029`) — and may repaint anything but move nothing: not a shelf's order, a book's
+  address, count or size, or any control's size. `page.css` alone owns geometry; `core.LOOKS` is
+  the one list `migrate` validates against (`design/0016`, `design/0021`).
 
 ## How to work here
 
 - `node scripts/smoke.mjs --only "<substring>"` is the iteration loop. The full suite runs on
   the push to `develop` (the pre-push hook); do not run it by hand unless asked.
 - **Two Chromes at once, and two is a ceiling.** `--jobs` clamps to 2 and says so; `--jobs 1` is
-  the quiet run, and is what to use beside a recording. Four was the default until github#39, and
-  it is the load that hard-restarted the sister repo's machine across six worktrees. **The cap
-  costs time and is worth it anyway**: 78 s at four lanes against 90 s at two, before the fixture
-  audit took the whole run to 41-43 s. **A check declares which shapes it needs** — `check(name, fn, { on: "demo" })`, or a
+  the quiet run, and is what to use beside a recording (`github#39`). **A check declares which shapes it needs** — `check(name, fn, { on: "demo" })`, or a
   list of fixture names — and **the default is all three**, deliberately the opposite of
   `vault-graph#113`: a forgotten annotation must cost time, not coverage. **A check that returns
   with the page still moving fails**, naming what it left open or in flight. `decisions/0013`.
@@ -138,6 +97,14 @@ of measuring it.** Build the page, drive it, read the numbers.
   makes no screen recording at all (`design/0007`: the recorder asks the browser for each frame
   over CDP and touches no desktop).
 
+  **`suite` and a display are separate names, and must stay separate.** `smoke.mjs` takes `suite`
+  and *then* `screen-left`, so aliasing the two together would hang every run against its own
+  hold — the sister repo is one nested acquire from the same fault. `aliasHold()` exempts its own
+  asker so the hazard cannot be reintroduced by accident, but **do not add a `suite`↔screen alias**
+  (`github#43`). A hold from the sister repo is judged by the pid its **owner string** names, never
+  by the `pid` it recorded — theirs belongs to a subprocess that exits at once, so trusting it
+  would break a live vault-graph run off the display (`github#52`, `invariants.md`).
+
   **`smoke.mjs` takes the `suite` lock itself now** (`github#8`), at startup, and releases it on
   exit and on a signal — so *every* run is covered, including the `--only` iteration loop, which
   is the one nobody ever wrapped. **Do not wrap a suite run in `lock.mjs`**: it would wait for a
@@ -149,13 +116,14 @@ of measuring it.** Build the page, drive it, read the numbers.
   so it is the one that gets wrapped by reflex.** `.githooks/pre-push` takes the `suite` lock
   itself around the run it makes and releases it on every way out. Wrap the push in an outer
   acquire/release and the hook's own attempt blocks on yours, and the push hangs until the
-  outer lock's stale window expires. The sister repo hit that live, pushing a release
-  (`vault-graph@f9a167a`). A plain `git push origin develop` is correctly gated on its own.
+  outer lock's stale window expires (`vault-graph@f9a167a`). A plain `git push origin develop`
+  is correctly gated on its own.
 
   **And the screen is claimed by whatever parks a window on it** (`github#37`), which is every
-  one of `smoke.mjs`, `refresh-check.mjs`, `teardown-check.mjs`, `check-data-escape --browser`
-  and `update-layout-snapshots.mjs`. Four of the five took no lock at all until now, and the
-  fifth's `suite` lock was never about the display. The claim comes from the same call that
+  one of `smoke.mjs`, `refresh-check.mjs`, `teardown-check.mjs`, `check-data-escape --browser`,
+  `check-css-support.mjs` and `update-layout-snapshots.mjs`. Four of the original five took no
+  lock at all until `github#37`, and `smoke.mjs`'s `suite` lock was never about the display;
+  `check-css-support.mjs` claimed one from its first commit. The claim comes from the same call that
   gives a harness its window position, so it cannot be forgotten; `--lock-timeout-ms` says how
   long a blocked run waits before naming the holder and giving up. **There is nothing left to
   wrap by hand.** Driving a window yourself is the one case:
@@ -166,65 +134,35 @@ of measuring it.** Build the page, drive it, read the numbers.
   node scripts/lock.mjs status
   ```
 
+  **The CLI's own wait flag is `--timeout-ms`, not the harnesses' `--lock-timeout-ms`.** The
+  parser matches a flag name exactly, so the longer spelling is read as nothing and the acquire
+  falls back to `DEFAULT_TIMEOUT` — 45 minutes — in silence, which looks exactly like the deadlock
+  this whole section exists to prevent. `--lock-timeout-ms` belongs to the six harnesses above:
+  they parse it themselves and then acquire in process.
+
   The lock lives in the OS temp dir under one root for **every sister project** —
-  `obsidian-vault-locks` — so a Vault Graph suite and a Vault Shelf suite block each other.
-  They did not until 2026-09-10: each repo had its own directory, so each held a lock the
-  other could not see and the two ran together anyway. A machine has one Chrome and one
-  screen no matter which repository the suite belongs to. The root was never enough on its own:
-  contention is by **name**, so until `github#37` a Vault Graph recording on the left screen and
-  a Vault Shelf harness on the same screen asked for nothing the other held.
-  `--shot` is part of a suite run, so it is inside the lock like everything else.
+  `obsidian-vault-locks` — so a Vault Graph suite and a Vault Shelf suite block each other. A
+  machine has one Chrome and one screen no matter which repository the suite belongs to; and
+  contention is by **name** (`github#37`), so `--shot` is part of a suite run and is inside the
+  lock like everything else.
 - **The fixture store is shared and content-addressed, and nothing prunes a sibling.** Every
   worktree resolves the same `.fixtures` through git's common dir, so a fixture directory is
   named after the digest of the generators that built it, and two digests coexist. A run
   collects only what is provably finished with: a fixture older than the refresh window, and an
-  abandoned build directory. It used to delete every other digest of a fixture on a miss, which
-  pulled the vault out from under five other running suites every time somebody edited a
-  generator. `github#8`.
-- `git push` and merging into `develop` are separate asks, every time. `main` only ever
-  receives `develop`.
-- **Which session is the orchestrator is decided by where it stands.** A session opened in the
-  main checkout (`C:\git-personal\vault-shelf`, on `develop` or an integration branch) *is* the
-  orchestrator, and says so at the start rather than waiting to be told; a session opened in an
-  Orca worktree is a worker, and never becomes an orchestrator by finishing well. The checkout
-  is the role, so the answer never depends on who remembered to mention it. **And it says so
-  in its name: every orchestrator is called `Jarvis`.** `/rename Jarvis` at the start, or
-  `claude -n Jarvis` at launch. Named 2026-09-11 by Lukas, replacing `vault-shelf-orchestrator`.
-  A sister session with something to say about the shared mutex has to be able to find it in a
-  list of sixty, and one capitalised word does that better than a 22-character slug that reads
-  like a worktree. **Both repos' orchestrators share the name on purpose** — Lukas addresses the
-  role, not the instance (*"when I tell you to tell something to jarvis send it with orca send
-  to all jarvis running"*), so a message for Jarvis goes to **every** running Jarvis and the
-  worktree path is what tells two of them apart afterwards. The session in the notes vault
-  checkout is **Alfred**, and is the one that does that sending.
-- **Only the orchestrator session pushes to `develop` or cuts a release.** A dispatched
-  worktree — an Orca worktree of its own, never a child of the orchestrator's, one per piece of
-  work — implements, runs its own gates, and stops at its own branch: it never pushes past that
-  branch, never merges into `develop`, and never tags, no matter how clean the result.
-  Integrating finished branches and shipping them is the orchestrator's job alone, so one place
-  is answerable for what is actually on `develop` and what a release contains. The orchestrator
-  itself never implements: it stays on the integration branch, surveys, dispatches, reviews and
-  merges. **A merge is always an ask, never an initiative**: "merge N" authorises that one local
-  merge and nothing more, the push is its own ask again, and no branch is merged because it
-  looks finished. **The rule bites at `git merge`, not at the commit** — not a trial merge, not
-  `--no-commit` to see whether it conflicts, not "just to run the suite on it". An unasked merge
-  is a mistake the moment it starts, and aborting it is damage control rather than a defence.
-  **A worker's handover is a claim, not a verdict** — a green gate table and "stopped at the
-  branch" say the worker believes it is done, which is not the same as it being done, and the
-  orchestrator has no standing to decide that on its own. **At most six Orca worktrees work at once**: when six are in progress the orchestrator
-  spawns nothing more — it files the issue and the brief, and dispatches when one has finished
-  and been merged. (Copied from Vault Graph, 2026-09-11; the cap added the same day.)
-- **Every issue the orchestrator files carries a label, and "unsure" is a question for Lukas, not
-  a reason to skip it.** `gh issue create` without `--label` silently succeeds, so an unlabelled
-  issue is never caught at filing time — and unlabelled is what this backlog already is: **31 of
-  31 open issues carried no label on 2026-09-11**, which is how a label stops being worth
-  filtering on at all. The set is the GitHub default: `bug`, `enhancement`, `documentation`,
-  `accessibility`, `question`, plus `duplicate` / `invalid` / `wontfix` for closing. Most work
-  here is `bug` or `enhancement`, and the split is about what the issue *claims*: something the
-  library already promises and does not do is a `bug`; something it does not promise yet is an
-  `enhancement`. **When it is genuinely either — a behaviour that is defensible as designed but
-  reads as broken — ask Lukas which, and file after the answer.** Do not guess and do not file
-  bare. (Copied from Vault Graph, 2026-09-11.)
+  abandoned build directory. `github#8`.
+- `git push` and merging into `develop` are separate asks, every time; only the orchestrator
+  does either. `main` only ever receives `develop`. (Orchestrator role and rules: `~/.claude/CLAUDE.md`;
+  dispatch/merge/cleanup mechanics: the `orchestrator-brief` skill.)
+- **Every issue the orchestrator files carries a label, and "unsure" is a question for the
+  maintainer, not a reason to skip it.** `gh issue create` without `--label` silently succeeds,
+  so an unlabelled issue is never caught at filing time. The set is the GitHub default: `bug`,
+  `enhancement`, `documentation`, `accessibility`, `question`, plus `duplicate` / `invalid` /
+  `wontfix` for closing. Most work here is `bug` or `enhancement`, and the split is about what
+  the issue *claims*: something the library already promises and does not do is a `bug`;
+  something it does not promise yet is an `enhancement`. **When it is genuinely either — a
+  behaviour that is defensible as designed but reads as broken — ask the maintainer, or raise it
+  on the issue, and file after the answer.** Do not guess and do not file bare. (Copied from
+  Vault Graph, 2026-09-11.)
 - **A release is the range, not the work in hand.** Everything it needs — a `CHANGELOG.md`
   section accounting for every merge since the last tag, every clip it embeds, every doc naming
   the version, the release body itself — is finished on `release/<version>` and read there
@@ -238,9 +176,8 @@ of measuring it.** Build the page, drive it, read the numbers.
 - **One vault, and it is generated.** `scripts/make-vault.mjs` in the shared store — 5,000
   notes over eleven years ending today, every classifier populated, a recent year that is
   genuinely active, a 760-day hole so one calendar year comes out empty, a fifth of the
-  non-daily notes undated, and a handful in eleven books at once. It replaced three fixtures
-  (`decisions/0014`), which is why nothing here says "the demo vault" any more. Never a real
-  vault, never a built `vault-shelf.html`, in anything that reaches the repo.
+  non-daily notes undated, and a handful in eleven books at once (`decisions/0014`). Never a
+  real vault, never a built `vault-shelf.html`, in anything that reaches the repo.
 - **The generator proves its own declaration.** It refuses to finish if a month in the last
   three years is empty, if a week in the last year is empty, if no whole calendar year fell in
   the hole, if a sentinel is missing or if the people tail flattened — the mirror's pattern,
@@ -265,10 +202,12 @@ of measuring it.** Build the page, drive it, read the numbers.
   `check-pii`, `check-scope`, `check-network`, `check-comments`, `check-data-escape`,
   `refresh-check --wiring-only` and the two determinism checks gate every push and have no
   skip flag.
-- **Three gates drive a browser**, run by hand rather than by the hook: `check-data-escape
+- **Four gates drive a browser**, run by hand rather than by the hook: `check-data-escape
   --browser` (a vault whose metadata is markup), `teardown-check` (twenty mount/unmount cycles,
-  nothing left behind) and `refresh-check` (the library and an open book follow a changed
-  vault). Each claims `screen-left` itself (`github#37`) — the documentation called them
+  nothing left behind), `refresh-check` (the library and an open book follow a changed
+  vault) and `check-css-support` (a real Obsidian is asked whether it supports the CSS the
+  sheets rely on -- `github#61`, `design/0036`; it launches Obsidian, which is why it stays
+  out of the hook). Each claims `screen-left` itself (`github#37`) — the documentation called them
   lock jobs for months while they took no lock at all. The packing is a golden per fixture in
   `scripts/layout-snapshots/`, diffed by the suite and rewritten, deliberately, by
   `node scripts/update-layout-snapshots.mjs`.
@@ -285,7 +224,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP): **90 checks over the one vault shape** (`decisions/0014`), two lanes, three browsers |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP): **143 checks over the one vault shape** (`decisions/0014`), two lanes, three browsers |
 | `scripts/release.ps1` | the local half of a release: the guards, the gates, the tag, the tag push. `-SelfTest` drives every refusal in a throwaway clone; `.ai-context/releasing.md` is the authority on the flow |
 | `scripts/suite-stamp.mjs` | which trees have passed the suite (`decisions/0010`), read by the pre-push hook and `release.ps1`. `--selftest` proves the hit and miss cases |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |
