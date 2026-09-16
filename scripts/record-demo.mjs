@@ -563,7 +563,8 @@ function storyboard(P) {
       ] }),
     scene({ name: "wear", seconds: 19, title: sec=>sec<6?'Books carry <b>the notes they have gathered</b>.':'Every visit <b>adds to their story</b>.', sub: 'Existing notes, new notes and real visits leave their mark.', setup:async s=>{
         await onShelf()(s);
-        await prove(`document.querySelector('[data-shelf="years"] .vs-spine[data-book="years/2015"]').getAttribute('data-wear')==='3' && __vs.settings().wear['years/2015']>=54`,'wear: the old book did not keep its note entries');
+        // github#85 -- the window slides, so ask the book its own count
+        await prove(`(function(){var b=__vs.views().find(function(v){return v.shelf.id==='years';}).books.find(function(b){return b.id==='years/2015';});return document.querySelector('[data-shelf="years"] .vs-spine[data-book="years/2015"]').getAttribute('data-wear')==='3' && b.notes.length>0 && __vs.settings().wear['years/2015']===b.notes.length;})()`,'wear: the old book did not keep its note entries');
         s.book='tags/acoustics';s.shelf='tags';
         s.notes=await j(`__vs.settings().bookNotes[${JSON.stringify(s.book)}].slice()`);
         await prove(`__vs.settings().wear[${JSON.stringify(s.book)}]===1 && __vs.settings().lastOpened[${JSON.stringify(s.book)}]==='never' && __vs.views().find(function(v){return v.shelf.id==='tags';}).books.find(function(b){return b.id===${JSON.stringify(s.book)};}).notes.length===1 && !document.querySelector(${JSON.stringify(bookTarget(s))}).hasAttribute('data-wear')`,'wear: one-note book must begin with one entry and no visits');

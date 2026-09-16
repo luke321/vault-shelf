@@ -2,7 +2,7 @@
 
 Find the contents and a search within the book on the left, and your note on the right. With a library search active, opening the book brings its first matching contents row into view without changing the note on the right. Matching rows and highlighted metadata explain the results. The book's own search narrows its contents by the same rule. In Obsidian, its renderer draws links, embeds, callouts, tasks, tables and code. Wide tables scroll inside the page.
 
-![Read a two-page spread](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/read.webp)
+![Read a two-page spread](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/read.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.0.0 - 2026-09-13` |
+| Last re-recorded | `1.1.0 - 2026-09-16` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 10 seconds |
 | WebP | 26 frames; 219,168 bytes |

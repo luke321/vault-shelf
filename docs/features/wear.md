@@ -2,7 +2,7 @@
 
 Books show their age, entries and visits. Existing notes count once per book; a newly added note or a visit adds to its activity. Reopening the vault or removing and restoring the same note does not count that entry again. Age also adds wear after one, three and seven years, measured from the newest dated note. Each book remembers its last actual visit; until then, its last-opened value is never. Your bindings and earlier visit counts stay intact.
 
-![Books carry their age and use](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/wear.webp)
+![Books carry their age and use](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/wear.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.0.0 - 2026-09-13` |
+| Last re-recorded | `1.1.0 - 2026-09-16` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 19 seconds |
 | WebP | 74 frames; 637,696 bytes |

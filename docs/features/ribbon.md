@@ -2,7 +2,7 @@
 
 Save a note and ribbons hang from the books that contain it. The Reading shelf gathers your marked books. Reading places survive rearranging or rebuilding, and resolve through another visible shelf if the original is hidden. Each reader ribbon carries its book's binding.
 
-![Keep a ribbon in it](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/ribbon.webp)
+![Keep a ribbon in it](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/ribbon.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.0.0 - 2026-09-13` |
+| Last re-recorded | `1.1.0 - 2026-09-16` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 18 seconds |
 | WebP | 83 frames; 399,694 bytes |

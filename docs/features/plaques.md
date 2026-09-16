@@ -2,7 +2,7 @@
 
 Months and weeks gather under years, years under decades, and people and tags under letters. Click a plaque to read its run as one book. When a run wraps, either copy of its plaque opens the same collection.
 
-![Open a whole run](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/plaques.webp)
+![Open a whole run](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/plaques.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.0.0 - 2026-09-13` |
+| Last re-recorded | `1.1.0 - 2026-09-16` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 10 seconds |
 | WebP | 62 frames; 397,356 bytes |

@@ -12,7 +12,7 @@ with a ribbon keeping your place. The files never move.
 One note can sit in a yearbook, a person's volume and a tag's anthology at the same time.
 Each book is another way into the same vault.
 
-<img src="https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/assets/demo.webp" width="1000" height="1000" style="max-width:100%;height:auto" alt="Scroll through the library, open a book, use its index, read a note and leave a ribbon, return to the top, drag a book onto Favourites, create a book, choose its binding and colour, and change the binding and colour of a plaque’s run">
+<img src="https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/assets/demo.webp" width="1000" height="1000" style="max-width:100%;height:auto" alt="Scroll through the library, open a book, use its index, read a note and leave a ribbon, return to the top, drag a book onto Favourites, create a book, choose its binding and colour, and change the binding and colour of a plaque’s run">
 
 ## Try it live
 

@@ -2,7 +2,7 @@
 
 Right-click a book you made to change its name or what it holds. Renaming preserves its reading places. Deleting the book removes its saved rule and leaves every note in the vault.
 
-![Edit a book](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/editbook.webp)
+![Edit a book](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/editbook.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.0.0 - 2026-09-13` |
+| Last re-recorded | `1.1.0 - 2026-09-16` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 16 seconds |
 | WebP | 101 frames; 469,516 bytes |
