@@ -105,6 +105,67 @@ The `design/0019` migration check is untouched and still green: Favourites still
 position 0 with `direction: "manual"`, an id that steps aside for a shelf that took the name,
 and every other shelf in the relative order it already had — now the order the **file** said,
 rather than the order the array happened to be in.
+## 2026-09-15 — The scope gate reads a selector, not a line (`github#81`, `decisions/0019`)
+
+`check-scope`'s CSS half walked one line at a time and took the selector to be the text on the
+line carrying the `{`. Planted into a throwaway copy of the tree, one shape per run, against
+`a2de7fa`:
+
+| planted into `page.css` | before | after |
+|---|---|---|
+| `p,` `blockquote,` `input,` `.vault-shelf .vs-spine {` over four lines | clean, exit 0, rules 514 | **exit 1**, three hits at lines 1, 2 and 3 |
+| `@media (…) { body { margin: 0 } }` on one line | clean, exit 0, rules 513 | **exit 1**, `body` |
+| `@supports { @media { html { … } } }` | clean, exit 0, rules 513 | **exit 1**, `html` |
+| `.vault-shelf .vs-a { … } body { … }` on one line | clean, exit 0, rules 514 | **exit 1**, `body` |
+| `p, /* a note */` then a scoped member | clean, exit 0 | **exit 1**, `p` |
+| `[hidden],` then a scoped member | clean, exit 0 | **exit 1**, `[hidden]` |
+| `*,` then a scoped member | clean, exit 0 | **exit 1**, `*` |
+| `content: "}"` then `body { margin: 0 }` | exit 1, but **`unbalanced braces (depth -1)`** | **exit 1**, `body` |
+| `.vault-shelf :is(.vs-a, .vs-b) { … }` | exit 1 — **false positive**, `.vs-b)` | **exit 0** |
+| `body { margin: 0 }` at depth 0 | exit 1 | unchanged |
+| a scoped multi-line list, `@keyframes` | exit 0 | unchanged |
+
+Three of those were the issue's; the string desynchronisation and the `:is()` false positive were
+found while measuring. The `{` direction of the string bug is the dangerous one — it raises the
+depth counter and hides rules rather than inventing a complaint.
+
+**What the gate never read.** The rule count is the number that looked reassuring throughout:
+
+| | rules | selector members read, before | after | never read |
+|---|---|---|---|---|
+| `page.css` | 340 | 347 | 366 | **19** |
+| `leather.css` | 99 | 99 | 128 | **29** |
+| `cyber.css` | 74 | 74 | 88 | **14** |
+| **total** | **513** | **520** | **582** | **62** |
+
+**513 rules before and 513 after** — the rewrite moves no rule count, which is exactly why the
+defect was invisible. The issue's headline figure of 210 unread continuation lines counted
+declaration continuations (`box-shadow: a,` over two lines) as well as selector ones; the number
+of selector **members** the line walker never read is **62**, and all 62 are scoped. `124 prefixed
+classes` is unchanged too: unifying the class scan onto the same parser closed its own hole —
+`sel.trim().startsWith("@")` skipped the first rule inside every `@media` — and gained no new
+class name, because every class inside an `@media` is used outside one as well.
+
+**Found while writing the controls, beyond the issue:** `.vault-shelf + p` and
+`.vault-shelf:hover ~ p` were read as scoped. Both style a **sibling** of the page, which is
+outside it. `scoped()` now walks the root compound and refuses a `+` or `~` that follows it;
+`.vault-shelf .vs-a + .vs-b` is still fine.
+
+**The controls ship with the gate and run on every invocation** — 28 in-memory fixtures, each
+asserting rules read, members read and the exact set of problems raised. Measured at **0.21 ms** for all 28,
+against **4.5 ms** to scan the three sheets and **102 ms** for the whole check. `--selftest` prints them case by case:
+`check-scope selftest: 28/28 controls caught`. Not a flag the hook calls, for the reason in
+`decisions/0019`: this defect survived because nobody had run the equivalent by hand.
+
+Clean line now, on `513 css rules`:
+
+```
+check-scope: clean (513 css rules, 582 css selectors, 76 ids, 124 prefixed classes,
+72 id lookups, 19 shipped files with no invisible characters, 28 negative controls caught)
+```
+
+`check-comments` stays at **1536** and `check-scope.mjs`'s own share at **24**: the new code
+carries pointers, and its reasoning went to `decisions/0019` rather than into the file.
 
 ## 2026-09-15 — A look's paint room is measured against itself (`github#78`, `design/0021`)
 
