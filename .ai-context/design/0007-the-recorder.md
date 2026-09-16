@@ -287,9 +287,12 @@ book here* landing that takes the accent as a book crosses it, was the one Favou
 film had never shown, and the review that needed it had only a still.
 
 `--empty-picks` takes them off through the page's own write (`__vs.unpick`) after the look is
-applied and before the first act, and asserts the shelf came up at zero. It is a **diagnostic**,
-like `--look` and `--mirror-of`: off by default, so no act, no film and no committed asset
-changes, and any act can now be shot from the empty state rather than only this one.
+applied and before the first act, and asserts every shelf `__vs.picks()` returns came up at
+zero — `design/0019` makes a pick shelf a **kind**, not a single one, and a demo build only ever
+seeds the first, but the flag clears all of them so a library carrying more than one never reports
+cleared while a second stays populated (github#72). It is a **diagnostic**, like `--look` and
+`--mirror-of`: off by default, so no act, no film and no committed asset changes, and any act can
+now be shot from the empty state rather than only this one.
 
 **It is for a take, not for the film.** The acts share one page, and several later ones assume
 the picks are there — `autocomplete` looks for a `months/` pick, `rearrange` for a sequence to

@@ -757,21 +757,27 @@ try {
   }
 
   /* github#23, design/0007 -- the demo build seeds picks; this takes them off.
-   * github#71, design/0020 -- off is delete for a made book; skip it, not unpick it. */
+   * github#71, design/0020 -- off is delete for a made book; skip it, not unpick it.
+   * github#72, design/0019 -- clears every shelf __vs.picks() returns, not just the first. */
   if (EMPTY_PICKS) {
     const left = await j(`(function(){
-      var shelf = __vs.picks()[0];
-      if (!shelf) return null;
-      var made = __vs.made(shelf.id);
-      shelf.picks.forEach(function (id) {
-        if (made[id]) return;
-        __vs.unpick(id, shelf.id);
+      var shelves = __vs.picks();
+      if (!shelves.length) return null;
+      shelves.forEach(function (shelf) {
+        var made = __vs.made(shelf.id);
+        shelf.picks.forEach(function (id) {
+          if (made[id]) return;
+          __vs.unpick(id, shelf.id);
+        });
       });
-      return __vs.picks()[0].picks.length;
+      return __vs.picks().map(function (s) { return { name: s.name, left: s.picks.length }; });
     })()`);
     if (left === null) throw new Error("--empty-picks: this library has no pick shelf");
-    if (left !== 0) throw new Error(`--empty-picks: the pick shelf still holds ${left}`);
-    say("picks: cleared");
+    const stuck = left.filter((s) => s.left !== 0);
+    if (stuck.length) {
+      throw new Error("--empty-picks: " + stuck.map((s) => `"${s.name}" still holds ${s.left}`).join(", "));
+    }
+    say(`picks: cleared (${left.length} shelf${left.length === 1 ? "" : "s"})`);
   }
 
   await go(`(function(){
