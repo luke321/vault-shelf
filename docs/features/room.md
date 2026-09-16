@@ -2,7 +2,7 @@
 
 A centred bookcase keeps shelves within reach. Long shelves continue onto the next board, and the page makes room as the window narrows.
 
-![The reading room](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/room.webp)
+![The reading room](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/room.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.0.0 - 2026-09-13` |
+| Last re-recorded | `1.1.0 - 2026-09-16` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 5 seconds |
 | WebP | 2 frames; 45,536 bytes |

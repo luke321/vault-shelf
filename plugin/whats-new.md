@@ -18,9 +18,9 @@
   1.0.0 carries no "> " line on purpose: that line names what a release ADDED, and on the
   first release that is the whole page. See design/0023.
 -->
-# 1.0.0
-- Your vault becomes a library. Browse by title, date, person or tag, and build shelves of your own without moving a note.
-- Collect books on Favourites, arrange them by hand, or make a book from a folder, tag, person or the whole vault.
-- Choose six bindings and fourteen colours. Books show their age, note entries and visits, and remember when you last opened them.
-- Read a two-page spread, choose A-Z or Date for its contents, and push past a note's end to turn the page.
-- Leave a ribbon to keep your place. The Reading shelf brings your marked books together for an easy return.
+# 1.1.0
+- Order a book or a shelf by Number as well as A-Z and Date, so 2, 10 and 100 read in the order you would say them.
+- A volume of digits opens into its months and days in the edge index, instead of overflowing the rail.
+- Shelves you rearrange by hand stay rearranged after a reload, in the plugin and in an exported library.
+- Notes that share a date now read A-Z within that date, in both directions, instead of running the alphabet backwards.
+- A spine that lifts on hover is painted in full, and every binding has room to paint into at the edge of its book.

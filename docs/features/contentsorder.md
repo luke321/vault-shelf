@@ -2,7 +2,7 @@
 
 Set a contents default for a shelf, a plaque's run or one book. The reader's switch changes both contents and tabs while keeping the selected note and its scroll position. Fresh Encyclopedia and Tags books start in A–Z; other books start with dates, oldest first. A book whose notes all start with a digit is offered Number in place of A–Z, and starts there: 3 and 7 read before 12, 24 and 1000 rather than after 2026.
 
-![Choose A–Z, Date or Number](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/contentsorder.webp)
+![Choose A–Z, Date or Number](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/contentsorder.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.0.0 - 2026-09-13` |
+| Last re-recorded | `1.1.0 - 2026-09-16` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 13 seconds |
 | WebP | 84 frames; 852,996 bytes |

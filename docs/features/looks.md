@@ -2,7 +2,7 @@
 
 Choose from fourteen colours and six bindings: Original, Minimal, Gilt, Morocco, Vellum and Aged. Hover or focus a choice to preview it, then select to keep it. A book, a plaque's whole run or a shelf can receive the change. Manage also lets you edit book and ribbon colours and coordinate books by year or decade.
 
-![Colours and leather bindings](https://raw.githubusercontent.com/luke321/vault-shelf/1.0.0/docs/features/looks.webp)
+![Colours and leather bindings](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/looks.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.0.0 - 2026-09-13` |
+| Last re-recorded | `1.1.0 - 2026-09-16` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 26 seconds |
 | WebP | 154 frames; 1,023,164 bytes |
