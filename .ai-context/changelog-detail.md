@@ -1,5 +1,16 @@
 # Changelog detail
 
+## 2026-09-16 — The comment baseline is a merge-result number (`github#79`, `github#80`, `github#81`, `github#82`)
+
+Four branches merged into `develop` in one pass, and the comment baseline landed **2 under**
+every number any of them measured. `develop` read 1534 and each branch read 1534 or 1536
+against its own base; the merged tree reads **1532**, because two sides dropped different
+comment lines relative to the merge base and no branch could see the other doing it. Ratcheted
+to 1532 here. `check-comments` fails **under** the baseline as well as over (`decisions/0007`),
+so the merge could not have been pushed without this line moving — which is the gate working,
+not a defect. The 1536 quoted in the `github#81` section above is that branch measured on its
+own base and stays as written.
+
 ## 2026-09-15 — A smoothness budget counts frames (`github#77`, `decisions/0017`)
 
 `scrolling the library stays smooth in every look` was **red four runs in five** on a clean
