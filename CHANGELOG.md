@@ -12,6 +12,53 @@ The measurements behind each entry are in
 
 ---
 
+## 1.1.0 — "Indices" — 2026-09-16
+
+**Indices. A volume of numbers reads by number, the edge index opens a digits volume into its months and days, and the shelves you arrange by hand stay where you put them.**
+
+### Read by title, date or number
+
+![Read by title, date or number](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/contentsorder.webp)
+
+- **Number** joins A–Z and Date as a way to order a book or a shelf. `2`, `10` and `100` now sort as numbers rather than as characters, so a volume of numbered notes reads in the order you would say them.
+- Contents and the edge index change together: choose Number in one and both follow, and your note and reading position survive the switch.
+
+### The edge index reads like a real index
+
+![Jump straight to the right section](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/index.webp)
+
+- A volume of digits opens into its months and days instead of overflowing the rail.
+- The rail fits the tabs into the room it actually has, at every size the library is drawn at.
+
+### The order you chose is the order you get
+
+![Make room for the shelves you need](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/manage.webp)
+
+- Rearranging your shelves survives a reload, on both the plugin and the exported page. The order comes from the position each shelf stored rather than from where it happened to sit in the file — dragging a shelf, adding one at the top, or hiding and restoring one all hold.
+- Notes that share a date now read A–Z within that date, in both directions, instead of running the alphabet backwards. In a vault where most notes are dated, this is most of what you read.
+
+### Books keep their shape
+
+![Choose a binding and colour](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/looks.webp)
+
+- A spine that lifts on hover is painted in full: the clip that holds it now allows for the lift as well as the paint, so a lifted book is no longer flattened against its board.
+- Every look is given room to paint into, so a binding that draws a little outside its spine is not sliced at the edge while the library is busy.
+
+If Vault Shelf is useful to you:
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/luke321)
+
+### For the record
+
+- Number ordering is a third `IndexMode` alongside `az` and `date`; saved reading directions and existing shelves load unchanged, and a shelf that has never been given an order still opens on its oldest note.
+- Shelf order is held as the stored `position` of each shelf and re-read on load, rather than renumbered from the array on the way in. Hand-edited settings with a duplicate or missing position resolve to a stable sequence instead of silently reordering.
+- The exporter's `--empty-picks` skips a made book rather than deleting it: a made book is a place a note lives, and only references are dropped.
+- The stylesheets were measured against a real Obsidian rather than argued about: no stylesheet changed, and a gate now says which CSS features the sheets rely on and why each is supported.
+- The suite grew from 90 checks to 144 over one vault shape, and four gates got sharper. `check-scope` parses a selector instead of reading the line its brace sits on, which had left 62 selector members in the shipped sheets unread, and it carries 28 negative controls that run on every invocation. `check-pii` fails loudly in CI when its name-list secret is missing instead of degrading to patterns. `check-data-escape --browser` counts only the SVG the page does not own. The scroll-smoothness budget counts missed vsyncs instead of taking a percentile of frame intervals, which could not be measured at the old 34ms line.
+- The runner drains the room before blaming a check, and a check that returns with the page still moving now fails naming what it left in flight. A spine-lift check that measured a 0×0 rest box now says the spine had no box rather than claiming it did not lift.
+- The screen lock is judged across sister repositories by the pid its owner string names, so a live run next door is no longer broken off the display, and a dead hold no longer queues the machine behind it.
+- The comment baseline ratcheted to 1532 — the number the merged tree actually has, which was two under every number any branch measured on its own base.
+
 ## 1.0.1 — "Source picker" — 2026-09-13
 
 **Source picker. This hotfix keeps the tag, folder and property choices you make while building a shelf instead of snapping the dropdown back to the first value.**
