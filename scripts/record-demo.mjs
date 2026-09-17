@@ -278,6 +278,24 @@ function storyboard(P) {
     await go(`__vs.openBook(${JSON.stringify(state.book)},null); void 0`);
     state.index=await j(`__vs.reader().index`);
   };
+  /* github#19, design/0037 -- the one book whose note says its own tag out loud */
+  const inGarden = async (state) => {
+    state.shelf='tags';
+    state.book=await j(`(function(){
+      var v=__vs.views().filter(function(v){return v.shelf.id==='tags';})[0];
+      var b=v&&v.books.filter(function(b){return b.key==='garden';})[0];
+      return b?b.id:null;
+    })()`);
+    state.note=await j(`(function(){
+      var n=__vs.data().notes.filter(function(n){
+        return n.title==='A season in the same bed, start to finish';})[0];
+      return n?n.id:null;
+    })()`);
+    if (!state.book||!state.note) throw new Error('sticky: this vault has no garden book whose note writes its own tag');
+    await settleOn('tags'); await pointer(neutral);
+    await go(`__vs.openBook(${JSON.stringify(state.book)},${JSON.stringify(state.note)}); void 0`);
+    await prove(`__vs.stickies().flags.length===4 && !__vs.stickies().hidden`,'sticky: the fore-edge did not draw four flags');
+  };
   const bookTarget = (state) => spineOf(state.book,state.shelf);
   const madeTarget = (state) => `[data-shelf="${state.fav}"] .vs-spine[data-book$="-made-my-journal"]`;
   const madeSetup = async (state) => {
@@ -556,6 +574,12 @@ function storyboard(P) {
         {at:3,target:'#vs-tabs .vs-indextab:nth-of-type(5)',run:async()=>{await prove(`__vs.reader().index>0`,'index: section did not move');}},
         {at:6,target:'#vs-tabs .vs-indextab:nth-of-type(8)'},
         {at:9,target:'#vs-tabs .vs-findtab',run:async()=>{await prove(`document.activeElement.id==='vs-within'`,'index: find tab did not focus search');}}
+      ] }),
+    /* github#19, design/0037 */
+    scene({ name: "sticky", seconds: 13, title: 'Find the tag <b>where it actually is</b>.', sub: 'Flags on the fore-edge; press one and the note comes to it.', setup:inGarden,steps:[
+        {at:3.5,target:'#vs-stickies .vs-sticky[data-at="1"]',run:async s=>{s.first=await j(`__vs.stickies().scrollTop`);await prove(`__vs.stickies().here===1 && __vs.stickies().scrollTop>0`,'sticky: the first flag did not move the page');}},
+        {at:7,target:'#vs-stickies .vs-sticky[data-at="2"]',run:async s=>{await prove(`__vs.stickies().here===1 && __vs.stickies().scrollTop>${s.first}`,'sticky: the second flag did not go further down the note');}},
+        {at:10.5,target:'#vs-stickies .vs-sticky[data-at="0"]',run:async()=>{await prove(`__vs.stickies().here===1 && __vs.stickies().inMeta===1 && __vs.stickies().scrollTop===0`,'sticky: the declared flag did not return to the details line');}}
       ] }),
     scene({ name: "alsoin", seconds: 10, title: 'One note. <b>Every place it belongs.</b>', sub: 'Step into another book without losing the note.', setup:async s=>{await inBook()(s);await go(`document.querySelector('.vs-page.vs-right').scrollTop=99999;void 0`);s.note=await j(`__vs.reader().note`);},steps:[
         {at:3,target:'#vs-alsoin button',run:async s=>{await prove(`__vs.reader().note===${JSON.stringify(s.note)}`,'alsoin: note was lost');}},
