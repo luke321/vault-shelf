@@ -314,24 +314,9 @@ const FRAME_HELPERS = `(function(){
         requestAnimationFrame(step);
       });
     },
-    /* github#20 -- AND ONE WAY DOWN, for the library, because a sweep that turns round measures
-     * the wrong thing there. sweep() crosses 1120px in its 1.4s, and a room with a Weeks shelf
-     * in it is 4,427px: it never leaves the first viewport and a bit, and every pixel after the
-     * first leg is ground it has already rasterised. Measured on the same room in the same
-     * minute, leather: turned round 0 missed of 84, one way down 56 of 332, and a REAL WHEEL
-     * dispatched over CDP 42 of 369. The wheel and the descent agree; the turn is the outlier,
-     * which is what says the driver was never the problem and the route was.
-     *
-     * IT STOPS AT THE FLOOR, and the clock is only the backstop. Rows materialise as they are
-     * reached and the room's height firms up underneath the reader, so the floor recedes while
-     * it is being approached and a descent bounded only by a span read once at the start can
-     * wait forever -- measured at over 10s on a room whose height moved 541px while it was
-     * being crossed. Running ON past the floor is the worse failure of the two and the reason
-     * this does not simply burn the clock: a scroller already at its end stops changing, an
-     * unchanging scroller invalidates nothing, and decisions/0017 measured a page nothing is
-     * asking to move at TWO frames in 400ms. Those are missing frames by arithmetic and stutter
-     * by no other measure, and they would be charged to whichever look happened to arrive
-     * first. So the walk ends where the room does, and what is timed is what actually ran. */
+    /* github#20 -- ONE WAY DOWN: a turned-round sweep re-crosses what it rasterised
+     * github#20 -- it stops at the FLOOR; a still scroller paints nothing
+     * github#20 -- and re-reads the span, which firms up as rows are reached */
     descend: function (el, ms, pxPerSec) {
       return new Promise(function (done) {
         el.scrollTop = 0;
@@ -343,7 +328,7 @@ const FRAME_HELPERS = `(function(){
           var want = (now - start) / 1000 * pxPerSec;
           el.scrollTop = Math.min(span, want);
           if (now - start < ms && want < span) requestAnimationFrame(step);
-          else { el.scrollTop = 0; done({ ts: ts, span: Math.round(span0), reached: Math.round(span) }); }
+          else { el.scrollTop = 0; done({ ts: ts, span: Math.round(span0) }); }
         }
         requestAnimationFrame(step);
       });
@@ -6596,25 +6581,16 @@ check("scrolling the library stays smooth in every look", async (p) => {
    * and a median of the intervals between the ones that did cannot see them at all. */
   await p.eval(FRAME_HELPERS);
   /* p.eval, not p.j: this one is a promise, and eval awaits it while j would stringify it. */
-  /* github#20 -- ONE CALL PER LEG, because cdp.mjs gives any single Runtime.evaluate ten
-   * seconds to reply and this walk is about twenty. The old check fitted inside one call only
-   * because each of its legs was 1.4s; three 2s descents, a probe and two settles do not, and
-   * the first version of this change failed with "got no reply in 10s" rather than with a
-   * number. Nothing here is timed across a call boundary -- every sample is taken whole inside
-   * the page -- so the split costs the measurement nothing. */
+  /* github#20 -- ONE CALL PER LEG: cdp.mjs allows 10s, this walk is 20
+   * github#20 -- no sample crosses a boundary, so the split is free */
   const run = (body) => p.eval(
     `(async function(){ var lib = document.getElementById("vs-library");` +
     ` var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };` +
     body + ` })()`);
 
-  /* github#20 -- AND A ROOM WITH SOMETHING OFF SCREEN IN IT. The six default shelves are
-   * 1,494px on this window, which is a viewport and a half: no shelf is ever far enough away
-   * for content-visibility to defer anything, so the first paint this check exists to catch
-   * cannot happen in that room at all, and every look scored a flat 0 there while a reader
-   * with a taller library was missing a frame in six. A Weeks shelf over the fixture's eleven
-   * years is ~574 books and takes the room past 4,000px, which is the room a reader who adds
-   * one actually scrolls. Put back at the end, the way every other check that moves the
-   * settings does. */
+  /* github#20 -- A ROOM WITH SOMETHING OFF SCREEN IN IT
+   * github#20 -- six shelves are 1.5 viewports; every look scored 0
+   * github#20 -- Weeks takes it past 4,000px. Put back at the end. */
   const room = await run(`
     var settings = __vs.settings();
     window.__smoothHad = settings.shelves.map(function (s) { return s.id; });
@@ -6626,27 +6602,26 @@ check("scrolling the library stays smooth in every look", async (p) => {
     return Math.round(lib.scrollHeight - lib.clientHeight);
   `);
 
-  /* the throwaway pass is what gets frames flowing at all, and __fr.calibrate says why it
-   * has to come first */
-  const idle = await run(`
+  /* github#20 -- the room is put back even when a leg throws; the old check
+   * github#20 -- could not leak it, being one call, and this one can */
+  let idle, out, slowed, spines;
+  try {
+
+  /* decisions/0017 -- the throwaway pass gets frames flowing before calibrate */
+  idle = await run(`
     __vs.setLook("");
     await wait(120);
     await __fr.sweep(lib, 240, 800);
     return await __fr.calibrate(lib, 500);
   `);
 
-  /* github#20 -- 2000px/s, one way. Faster than 800 and harsher: on the shipped room leather
-   * missed 68 of the 175 frames a flick offers against 54 of 375 at 800px/s, and a descent
-   * costs 2.2s a look instead of 5.5. A flick is also how a reader reaches a shelf they have
-   * not seen, which is the motion whose first paint is the subject.
-   * THE LEG IS THE ROOM, not a constant: descend() stops at the floor, and a leg sized to a
-   * room this is not would either stop short of the shelves that cost the most or sit at the
-   * bottom painting nothing, which decisions/0017 measured at two frames in 400ms. */
+  /* github#20 -- 2000px/s one way: harsher than 800 and 2.5x cheaper
+   * github#20 -- THE LEG IS THE ROOM; descend() stops at the floor */
   const DOWN = 2000;
   const LEGMS = Math.round(room / DOWN * 1000) + 400;
   const looks = JSON.parse(await p.eval(
     `JSON.stringify(window.VaultShelfCore.LOOKS.map(function (l) { return l.value; }))`));
-  const out = {};
+  out = {};
   for (const one of looks) {
     out[one || "modern"] = await run(`
       __vs.setLook(${JSON.stringify(one)});
@@ -6659,20 +6634,11 @@ check("scrolling the library stays smooth in every look", async (p) => {
     `);
   }
 
-  /* github#77 -- AND THE SAME ROOM WITH design/0014 TAKEN BACK OFF IT. A budget nothing can
-   * push past is decorative, which is what github#77 suspected this one of being, so the run
-   * that asserts the budget also proves the number can still see THE REGRESSION IT EXISTS TO
-   * CATCH rather than some cost invented for the occasion. Three cheaper slowdowns were tried
-   * first and not one of them cost a frame -- a filter over every spine, a blur over the whole
-   * library, a 20px shadow spread on 231 spines -- because a scroll composites tiles that are
-   * already rasterised, and per-spine paint does not enter a frame until containment is what
-   * changes. That is worth knowing on its own: it is why github#77's own A/B looked insensitive.
-   * github#20 -- and the probe takes off WHAT design/0014 IS NOW: the row is the unit, so the
-   * regression is the row's containment going away. Putting the shelf's back on is part of it,
-   * because a shelf that is a unit again defers its own rows' assessment until it materialises,
-   * which measured worse than either arrangement alone -- 65 missed against 54 and 8.
+  /* github#77 -- THE SAME ROOM WITH design/0014 TAKEN BACK OFF IT
+   * github#77 -- a budget nothing can push past has stopped seeing cost
+   * github#20 -- the probe takes off what design/0014 IS NOW
    * design/0017 -- on leather, the one look the selector offers. */
-  const slowed = await run(`
+  slowed = await run(`
     __vs.setLook("leather");
     await wait(120);
     var probe = document.createElement("style");
@@ -6695,21 +6661,27 @@ check("scrolling the library stays smooth in every look", async (p) => {
     }
   `);
 
-  /* github#20 -- and the room goes back to the one every other check is entitled to find */
-  const spines = await run(`
+  spines = await run(`
     __vs.setLook(window.VaultShelfCore.LOOKS[0].value);
     await wait(120);
-    var n = document.querySelectorAll("#vs-shelves .vs-spine").length;
-    var settings = __vs.settings();
-    settings.shelves = settings.shelves.filter(function (s) {
-      return window.__smoothHad.indexOf(s.id) >= 0;
-    });
-    delete window.__smoothHad;
-    __vs.setFilters({});
-    await wait(250);
-    lib.scrollTop = 0;
-    return n;
+    return document.querySelectorAll("#vs-shelves .vs-spine").length;
   `);
+
+  } finally {
+    /* github#20 -- the room goes back to the one every other check expects */
+    await run(`
+      var settings = __vs.settings();
+      var had = window.__smoothHad;
+      settings.shelves = settings.shelves.filter(function (s) {
+        return had ? had.indexOf(s.id) >= 0 : s.id !== "-smoothweeks";
+      });
+      delete window.__smoothHad;
+      __vs.setFilters({});
+      await wait(250);
+      lib.scrollTop = 0;
+      return settings.shelves.length;
+    `).catch(function () {});
+  }
 
   const r = { looks: out, idle: idle, room: room, spines: spines };
 
@@ -6719,11 +6691,9 @@ check("scrolling the library stays smooth in every look", async (p) => {
   for (const n of names) look[n] = frameStats(r.looks[n], VSYNC);
   const probed = frameStats(slowed, VSYNC);
 
-  /* github#20, decisions/0017 -- missed vsyncs of the ~190 a 4s descent at 2000px/s offers.
-   * Shipped measures 1-8 in every look and the probe 60-100, so the budget sits in the empty
-   * gap between them exactly as the old one did; what changed is that the gap is now measured
-   * on the route a reader takes rather than on one that never leaves the first viewport. */
-  const BUDGET = 22;
+  /* github#20, decisions/0017 -- 0-17 shipped, 41-55 for the regression, 89-115 probed
+   * github#20, decisions/0017 -- 30 is the empty gap, and below what it must catch */
+  const BUDGET = 30;
   const over = names.filter((n) => look[n].missed > BUDGET);
   /* github#77, decisions/0017 -- a budget nothing can fail has stopped seeing cost */
   const blind = probed.missed <= BUDGET;
@@ -9171,8 +9141,13 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
   const MOVED = 6;   /* github#51 -- dither is a unit; an arriving edge moves one by tens */
   const REACH = 60;  /* github#51 -- past the widest room a look could ask for */
   const SIDE = 24;   /* github#51 -- a glow spills sideways too, so read wider than the spine */
+  /* github#20 -- HOW MANY pixels moved, not just how far one did
+   * github#20 -- an edge arrives 44px wide; a glow moves 2 or 3 */
+  const WIDE = 8;
   /* github#78 -- this spine's own track, not every track */
   const OPEN = " #vs-app .vs-track:has([data-probe51b]) { overflow-clip-margin: 90px !important; }";
+  /* github#20 -- the control's baseline: no room at all */
+  const SHUT = " #vs-app .vs-track:has([data-probe51b]) { overflow-clip-margin: 0 !important; }";
 
   /* github#51, design/0021 -- the band stays in the page; only the answer crosses. */
   const grab = async (slot, x, y, w, rows) => {
@@ -9193,30 +9168,33 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
     })()`);
   };
 
+  /* github#20 -- a row moves when WIDE pixels are past MOVED */
   const reachOf = (a, b) => p.j(`(function(){
     var A = window.__vs51b[${JSON.stringify(a)}], B = window.__vs51b[${JSON.stringify(b)}];
     if (!A || !B || A.w !== B.w || A.h !== B.h) return -1;
     for (var y = 0; y < A.h; y++) {
-      var most = 0;
+      var n = 0;
       for (var x = 0; x < A.w; x++) {
         var i = (y * A.w + x) * 4;
-        most = Math.max(most, Math.abs(A.d[i] - B.d[i]),
-                        Math.abs(A.d[i + 1] - B.d[i + 1]), Math.abs(A.d[i + 2] - B.d[i + 2]));
+        var d = Math.max(Math.abs(A.d[i] - B.d[i]),
+                         Math.abs(A.d[i + 1] - B.d[i + 1]), Math.abs(A.d[i + 2] - B.d[i + 2]));
+        if (d > ${MOVED}) n++;
       }
-      if (most > ${MOVED}) return A.h - y;
+      if (n >= ${WIDE}) return A.h - y;
     }
     return 0;
   })()`);
 
-  /* github#78, design/0021 -- what the clip takes, not what paint wants */
-  const slicedAbove = async (g) => {
+  /* github#78, design/0021 -- what the clip takes, not what paint wants
+   * github#20 -- `also` is in BOTH shots, so it never differs */
+  const slicedAbove = async (g, baseline, also) => {
     const x = Math.max(0, Math.round(g.left) - SIDE);
     const w = Math.max(2, Math.round(g.w) + SIDE * 2);
     const y = Math.floor(g.trackTop) - REACH;
     if (y < 0) return -1;
-    await sheet("");
+    await sheet((also || "") + (baseline || ""));
     await grab("shipped", x, y, w, REACH);
-    await sheet(OPEN);
+    await sheet((also || "") + OPEN);
     await grab("open", x, y, w, REACH);
     await sheet("");
     return reachOf("shipped", "open");
@@ -9301,6 +9279,18 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
     }
   }
 
+  /* github#20, decisions/0019 -- a floor raised must answer for itself in the run.
+   * github#20 -- the spine is 30px up in BOTH shots; only the clip moves
+   * github#20 -- a real slice is 30px of a 44px spine; must read > 0 */
+  const LIFT = " #vs-app [data-probe51b] { transform: translateY(-30px) !important; }";
+  let control = -2;
+  {
+    await p.j(`(__vs.setLook("cyber"), 1)`);
+    await rest("control setLook");
+    const g = await mark(WORN);
+    if (g) control = await slicedAbove(g, SHUT, LIFT);
+  }
+
   await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
   await sleep(160);
   await p.j(`(function(){
@@ -9315,8 +9305,11 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
   const missing = rows.filter((x) => x.missing);
   const cut = rows.filter((x) => x.cut > 0);
   const unread = rows.filter((x) => !x.missing && x.sliced < 0);
+  /* github#20, decisions/0019 -- a reading that cannot go positive is not a reading */
+  const blind = control <= 0;
   const ok = missing.length === 0 && cut.length === 0 && unread.length === 0 &&
-             restless.length === 0 && rows.length === looks.length * states.length;
+             restless.length === 0 && !blind &&
+             rows.length === looks.length * states.length;
   /* github#78 -- the room and the states held; the reach is gone */
   const held = new Map();
   for (const x of rows) {
@@ -9352,7 +9345,10 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
               : "") +
             (restless.length
               ? ` -- STILL MOVING WHEN MEASURED: ` + restless.join(", ")
-              : "")
+              : "") +
+            /* github#20, decisions/0019 -- what makes the width floor mean anything */
+            `; a cyber spine held 30px over a track shut to no room reads ${control}px sliced` +
+            (blind ? `, which is nothing -- the reading has stopped seeing a slice` : "")
   };
 });
 

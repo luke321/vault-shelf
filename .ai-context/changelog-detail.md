@@ -1,5 +1,105 @@
 # Changelog detail
 
+## 2026-09-17 — The containment unit is a row, and the sweep goes one way down (`github#20`)
+
+`github#20` asked whether scrolling could still be better, said the worst frame was a shelf's
+first paint, and set one condition on changing the check: drive a **real input**, and if the
+numbers differ from the scripted scroll then the scripted scroll is the wrong measurement. They
+differ by everything.
+
+**The check could not reach its own subject.** Its sweep crossed **1,120px** in 1.4 seconds at
+800px/s and turned round at either end; a room with a Weeks shelf in it is **4,427px**. It never
+left the first viewport and a half, so every pixel after the first leg was ground it had already
+rasterised. Leather, same room, same browser, same minute:
+
+| route | shelf is the unit (shipped) | row is the unit (now) |
+|---|---|---|
+| turned round, 1.4s @ 800px/s — **what the check did** | **2 of 81** | 1 of 80 |
+| one way down @ 800px/s | **43 of 302** | 15 of 303 |
+| one way down @ 2000px/s — **what it does now** | **50 of 124** | 6 of 122 |
+| a real wheel over CDP, 60Hz | **25 of 320** | 16 of 319 |
+
+**The wheel agrees with the descent, not with the turn.** So the driver was never the problem and
+the route was: the check still moves `scrollTop` and simply stops turning round. That is
+`github#20`'s fourth line answered with a measurement rather than retired by assertion.
+
+**A shelf is as many rows as it takes**, and eleven years of weeks is **25 rows and 2,664px of
+spines**, so a shelf materialising paints all of it inside one frame. `design/0014` put
+`content-visibility: auto` on the shelf; it moves to the row. One way down at 2000px/s, missed
+vsyncs of the ~121 on offer, three runs each:
+
+| | leather | modern | cyber |
+|---|---|---|---|
+| the shelf is the unit (before) | **45–46** | 2 | **41–55** |
+| the row is the unit (now) | **2–7** | 2–3 | **5–9** |
+| `design/0014` off altogether | 93–97 | 2–3 | 90–91 |
+
+p95 **89.2 → 18.5ms** on leather and **105.7 → 18.4ms** on cyber; worst frame **123 → 36ms** and
+**124 → 69ms**. **Modern is 2 in every row of that table** and always was — this is a look's
+paint, which is what `design/0014` said it was.
+
+**Keeping both units is worse than either: 65 missed, against 54 for the shelf alone and 8 for
+the row alone.** A skipped shelf cannot have its own rows assessed for visibility, so when it
+materialises every row is evaluated, laid out and painted at once and its height jumps from the
+intrinsic guess to the truth, which moves everything below it.
+
+**The shelf keeps no containment at all, and that was not free.** `contain: paint` on it puts the
+win straight back where it was — leather **43** — because one paint box is one rasterisation unit
+however its rows are skipped; and `contain: layout paint` additionally stops `margin-bottom: 26px`
+collapsing, which moves the golden packing. Both were measured before the shelf was left bare.
+
+**What a spine costs to paint is not what a scroll pays**, which is `github#20`'s second line
+answered and closed. Priced against the same descent, leather: **47** with the grain's
+`soft-light` blend off, **61** with the grain gone altogether, **38** with the spine's
+`box-shadow` gone — against **54** shipped and **8** for containment. Not one of them is near the
+win, two are inside run-to-run spread, and pre-rasterising a look's texture would have changed
+the look for a fraction of what containment gives for nothing. **No look's paint was touched.**
+
+**A row's intrinsic size is its own `min-height` expression** — `calc(var(--spine-h) +
+var(--board) + 24px)` — and never a second number for the same height. A flat **214px** put the
+cold scroll height **541px** past the truth; **192px** put it **32px** past. The expression is
+exact for a plain row (**170px**), 6px short for one carrying a plaque (**176px**), and `auto`
+replaces it with the measured height the first time a row renders. A skipped row still reports
+**1180px** wide, unchanged, because `width: 100%` comes from the containing block.
+
+**The check's room is its own.** The six default shelves are **1,494px**, a viewport and a half,
+where nothing is ever deferred and every look scored a flat **0**; the check adds a Weeks shelf
+for its own duration (**3,746–4,109px**, 24 rows, ~691 spines) and removes it before returning —
+in a `finally`, because a split eval can leak a shelf where the old single call could not, and a
+deliberately faulted run was used to confirm the goldens still read 6 shelves and 227 spines after
+it. Budget **30 missed** of the ~110 a descent offers: above a loaded shipped ceiling of **17**,
+below the **41–55** that putting the unit back on the shelf measures, and far below the probe's
+**89–115**.
+The check costs **13.7s** against 8.9s, and is split across one `Runtime.evaluate` per leg
+because cdp.mjs allows any single call ten seconds and the walk is about twenty.
+
+### What the clip check had to learn (`github#78`, `decisions/0019`)
+
+Taking containment off the shelf made `nothing a look paints outside a spine is cut off, in every
+look` go red, deterministically, in the two shelved looks: modern **1px**, cyber **8px** and
+**9px** above their tracks, each of them **inside** the room that look already allows, where a
+clip cannot reach. The check says so itself, and it was right to.
+
+**It was the same paint, rasterised against a different layer.** With no paint box at the shelf,
+opening one track's clip re-rasterises that row: measured, cyber's worn-and-hovered spine moved
+**2 pixels of a 92px band at 8px above the track, 2 at 7px and 3 at 6px, by 12–14 of 255**. The
+delta is exactly what an arriving edge has, so depth cannot separate them — but an arriving edge
+arrives a **spine wide**, 44px of one. The two captures were saved and **looked at side by side**
+and are indistinguishable. `MOVED = 6` per pixel now needs **`WIDE = 8`** pixels in the row with
+it, and all three looks slice nothing again.
+
+**And the floor answers for itself in the same run.** A threshold raised to make a red check green
+is worth nothing without proof it still bites, so the check carries a negative control: the probed
+spine is held **30px above its own track in both captures** and only the clip changes — shut to
+nothing, against opened to 90px. It must read positive and reads **31px**. The first form of the
+control shut the clip with **no** lift and read **0**, because what cyber paints above a hovered
+spine is narrower than the floor; that is recorded rather than replaced, because it is the limit
+of what the floor claims — not that nothing is up there, only that three pixels are not an edge.
+
+Two sibling checks are unmoved throughout and are the independent word that no paint was lost: `a
+lifted spine is painted whole, in every look` (leather 8 of 8, modern 7 of 7, cyber 25 of 25) and
+`the room above a spine is the largest lift plus the look's halo, in every look`.
+
 ## 2026-09-16 — The comment baseline is a merge-result number (`github#79`, `github#80`, `github#81`, `github#82`)
 
 Four branches merged into `develop` in one pass, and the comment baseline landed **2 under**
