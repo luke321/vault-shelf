@@ -1281,6 +1281,28 @@ write("03 - Resources", "Rebinding a quarto, end to end",
         status: "Evergreen", area: "Making" },
       longNote.join("\n"));
 
+/* github#19, design/0037 -- the one note that writes its own tag in its prose */
+const STICKY_NOTE = "A season in the same bed, start to finish";
+const stickyBody = ["# " + STICKY_NOTE, "",
+                    "Everything one bed did in a year, written down once, and filed where " +
+                    "the rest of the bed notes are.", ""];
+for (let s = 0; s < 9; s++) {
+  stickyBody.push("## " + (s + 1) + ". " + pick(HEADINGS), "");
+  stickyBody.push(para(between(3, 5)), "");
+  if (s === 1) stickyBody.push("Everything from here on is #garden work and nothing else.", "");
+  if (s === 4) stickyBody.push("Cross-referenced with the rest of #garden at this point.", "");
+  if (s === 6) stickyBody.push("The sowing half of it is under #garden/seeds instead.", "");
+  if (s % 3 === 1) stickyBody.push(bullets(4, false), "");
+  if (s % 4 === 2) stickyBody.push(quote(), "");
+  stickyBody.push(para(between(2, 4)), "");
+}
+stickyBody.push("## Next year", "", para(3), "",
+                "Same bed, same notebook, and the tag stays #garden.", "");
+write("03 - Resources", STICKY_NOTE,
+      { type: "reference", date: dayAt(between(30, 900)), tags: ["garden"],
+        status: "Evergreen", area: "Growing" },
+      stickyBody.join("\n"));
+
 /* Two hubs at the root, which is where a vault keeps them -- and the one place in here where
  * a body is mostly links, so following one has somewhere to go from the first note anybody
  * opens. */
@@ -1366,6 +1388,14 @@ if (!written.has("/Wide table of everything")) {
 if (!written.has("00 - Inbox/" + DIGIT_RUN)) {
   problems.push(`${DIGIT_RUN} was not written; nothing in the vault then starts like a year ` +
                 `without being one, and the 0-9 index has no digit run to leave alone`);
+}
+/* github#19, design/0037 -- three in the prose, and one child tag that is not it */
+const stickySaid = (stickyBody.join("\n").match(/(^|\s)#garden(?![\w/-])/g) || []).length;
+const stickyChild = (stickyBody.join("\n").match(/(^|\s)#garden\/seeds(?![\w/-])/g) || []).length;
+if (!written.has("03 - Resources/" + STICKY_NOTE) || stickySaid < 3 || stickyChild !== 1) {
+  problems.push(`the fore-edge sentinel says #garden ${stickySaid} times and #garden/seeds ` +
+                `${stickyChild}; nothing else in this vault writes a tag in its body, so the ` +
+                `sticky-note marks have only the details line to point at`);
 }
 const tailPeople = [...dealt.entries()].filter(([, n]) => n <= 3).length;
 if (tailPeople < TAIL_PEOPLE.length - 1) {

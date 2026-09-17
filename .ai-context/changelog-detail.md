@@ -1,5 +1,60 @@
 # Changelog detail
 
+## 2026-09-17 — A sticky note on the fore-edge (`github#19`, `design/0037`)
+
+A tag, person or property book is *about* something the note contains, so the reading spread
+grows a column of flags on the fore-edge of the right-hand page: one per place the subject is
+written, pressed to scroll there and mark that occurrence. It stands in the 16px of air
+`design/0034` already reserved inside the thumb index, so the rail keeps its 60px and the prose
+keeps its column — **0 moved, 0 resized** in *a look moves nothing on the page*, and the golden
+snapshot is unchanged by the code.
+
+Measured on the vault shape, `tags/garden` open on the planted sentinel, at the suite's viewport:
+
+| | |
+|---|---|
+| flags on the fore-edge | **4** — 1 on the details line, 3 in the text |
+| where they stand | 8, 134, 343, **701**px down a 713px column |
+| what the three written ones press to | **314, 1182, 2342** of a 2342px span, under a 3049px leaf |
+| `.vs-here` marks on the page at once | **1**, always |
+| the note's text before and after | 4,482 characters, **identical** |
+| the same note in `tags/garden/seeds` | **2** flags — and never the parent's mention |
+| a `status` property book of 543 notes | **0** flags, column hidden |
+| checks | 144 → **148** |
+
+**The first cut scrolled smoothly and went nowhere.** The targets were computed exactly right —
+314, 1182, 2342 — and the page stayed at **0, 0, 0**, because a smooth scroll is an animation and
+an animation does not advance in a window the compositor is throttling. It sets `scrollTop`
+directly now, like `landOn`; `design/0012` had already rejected an animated page turn as *"a
+delay between a person and their note"*, so the harness only found what the design record already
+said.
+
+**The hollow flag drew a dark blob on a cream leaf.** `var(--surface-1)` from a rule at
+`.vault-shelf` scope is the *room's* value; leather redefines the surface tokens inside the
+spread. It is `transparent` now. Found by looking at it — every assertion about it was green.
+
+### The fixture had to learn to say its own tag, and that cost a re-cut
+
+**0 of 4,939** notes in the vault shape wrote a tag in a body; every tag was declared in
+frontmatter (808 notes declare `garden`, 404 `garden/seeds`). So the ticket's own check could not
+have been earned, and would have gone quiet rather than red. `make-vault.mjs` plants one long
+note that says `#garden` three times in its prose and `#garden/seeds` once, guarded like every
+other sentinel.
+
+| | before | after |
+|---|---|---|
+| notes in the fixture | 4,939 | **4,940** |
+| fixture digest | `c1f3a5ca` | **`3ea58174`** |
+| `layout-snapshots/vault.json` | — | rewritten, **16 rows moved** |
+| suite stamps on this machine | — | all miss |
+
+**And the re-cut turned an older check red, which is `github#87` and not this work.** *no index
+cut is clipped* fails at 1180x480 on `people/Otto Brandt` with **1 clipped, 10 cuts on show**.
+Isolated: `origin/develop`'s `src/` passes on the old fixture (0 clipped, 9 cuts) and fails on the
+new one with the same numbers as this branch, so nothing in `src/` is implicated. The fixture is
+unpinned and re-cuts weekly by design, so this was one month boundary away from red at any time;
+`#19` drew the card rather than printing it.
+
 ## 2026-09-17 — The containment unit is a row, and the sweep goes one way down (`github#20`)
 
 `github#20` asked whether scrolling could still be better, said the worst frame was a shelf's

@@ -251,6 +251,11 @@ const POINTER_DRIVEN = [
   "the room parts",
   /* github#14, design/0021 -- it walks every box on the page, four times, in every look. */
   "moves nothing",
+  /* github#19, design/0037 -- they press a flag and read where the mark landed. */
+  "sticky note takes",
+  "details line",
+  "alias the note",
+  "own subject and no other",
   /* github#44, design/0022 -- it reads every spine's box, before and after a hover. */
   "hovered swatch",
   "leather bindings",
@@ -6868,6 +6873,205 @@ check("a wide table scrolls inside the page and never widens the book", async (p
   };
 });
 
+/* github#19, design/0037 -- the fore-edge flags, and the one note that earns them */
+const STICKY_NOTE_TITLE = "A season in the same bed, start to finish";
+
+/* github#19, design/0037 -- press a flag, and let the page stop before reading it */
+const STICKY_PRESS = `async function (at) {
+  __vs.pressSticky(at);
+  var page = document.querySelector("#vs-reader .vs-page.vs-right");
+  var last = -1, quiet = 0;
+  for (var i = 0; i < 80; i++) {
+    if (page && page.scrollTop === last) { quiet++; if (quiet >= 3) break; }
+    else { quiet = 0; last = page ? page.scrollTop : 0; }
+    await new Promise(function (r) { setTimeout(r, 20); });
+  }
+  return __vs.stickies();
+}`;
+
+check("a sticky note takes the reader to where the book's subject is written", async (p) => {
+  const r = await p.eval(`(async function(){
+    var press = ${STICKY_PRESS};
+    var note = __vs.data().notes.filter(function (n) {
+      return n.title === ${JSON.stringify(STICKY_NOTE_TITLE)}; })[0];
+    if (!note) return { found: false };
+    __vs.openBook("tags/garden", note.id);
+    var before = __vs.stickies();
+    var steps = [];
+    for (var i = 0; i < before.flags.length; i++) {
+      var now = await press(i);
+      steps.push({ at: i, declared: before.flags[i].declared, goingTo: now.goingTo,
+                   scrollTop: now.scrollTop, here: now.here, marked: now.marked,
+                   onScreen: now.onScreen, inMeta: now.inMeta, span: now.span,
+                   leaf: now.leaf });
+    }
+    var after = __vs.stickies();
+    __vs.closeReader();
+    return { found: true, subject: before.subject, kind: before.kind, book: before.book,
+             hidden: before.hidden, tops: before.flags.map(function (f) { return f.top; }),
+             declared: before.flags.filter(function (f) { return f.declared; }).length,
+             steps: steps, sameText: before.text === after.text, chars: before.text.length };
+  })()`);
+  if (!r.found) {
+    return { ok: false, detail: `this vault has no "${STICKY_NOTE_TITLE}"; the generator's own ` +
+                                `guard should have refused to write it` };
+  }
+  const written = r.steps.filter((s) => !s.declared);
+  const offsets = written.map((s) => s.scrollTop);
+  const rising = r.tops.every((t, i) => i === 0 || t > r.tops[i - 1]);
+  const oneMark = r.steps.every((s) => s.here === 1);
+  const allSeen = r.steps.every((s) => s.onScreen);
+  const rightText = r.steps.every((s) => s.marked === "#garden");
+  const distinct = new Set(offsets).size;
+  const ok = r.subject === "#garden" && r.kind === "tag" && !r.hidden &&
+             r.declared === 1 && written.length === 3 && rising &&
+             oneMark && allSeen && rightText && distinct >= 2 && r.sameText;
+  return {
+    ok,
+    detail: `${r.book} is about ${r.subject}: ${r.tops.length} flags down the fore-edge at ` +
+            `${r.tops.join(", ")}px, ${r.declared} of them on the details line and ` +
+            `${written.length} in the text. Pressing each one leaves ${oneMark ? "exactly one" :
+            "not one"} mark, always on "${r.steps[0] && r.steps[0].marked}", ` +
+            `${allSeen ? "on screen every time" : "off screen somewhere"}; the written three ` +
+            `aim at ${written.map((s) => s.goingTo).join(", ")} and ` +
+            `scroll the page to ${offsets.join(", ")} (${distinct} distinct) of a ` +
+            `${r.steps[0] && r.steps[0].span}px span under a ${r.steps[0] && r.steps[0].leaf}px ` +
+            `leaf. The note's ${r.chars} characters are ` +
+            `${r.sameText ? "identical" : "NOT identical"} afterwards`
+  };
+});
+
+check("a subject that is only declared is flagged on the details line", async (p) => {
+  const r = await p.eval(`(async function(){
+    var press = ${STICKY_PRESS};
+    var skip = ${JSON.stringify(STICKY_NOTE_TITLE)};
+    var book = null;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.id !== "tags") return;
+      v.books.forEach(function (b) {
+        if (book || b.key !== "garden") return;
+        book = b;
+      });
+    });
+    if (!book) return { found: false };
+    var note = book.notes.filter(function (n) { return n.title !== skip; })[0];
+    if (!note) { __vs.closeReader(); return { found: false }; }
+    __vs.openBook(book.id, note.id);
+    var shown = __vs.stickies();
+    var after = await press(0);
+    __vs.closeReader();
+    return { found: true, subject: shown.subject, flags: shown.flags.length,
+             declared: shown.flags.filter(function (f) { return f.declared; }).length,
+             label: shown.flags[0] && shown.flags[0].label,
+             scrollTop: after.scrollTop, here: after.here, inMeta: after.inMeta,
+             marked: after.marked, title: note.title };
+  })()`);
+  if (!r.found) return { ok: false, detail: "no garden book, or nothing in it but the sentinel" };
+  const ok = r.subject === "#garden" && r.flags === 1 && r.declared === 1 &&
+             r.here === 1 && r.inMeta === 1 && r.marked === "#garden" && r.scrollTop === 0;
+  return {
+    ok,
+    detail: `a note whose tag is declared and never written draws ${r.flags} flag, ` +
+            `${r.declared} of them on the details line ("${r.label}"). Pressing it marks ` +
+            `${r.inMeta} occurrence in the details line and ${r.here - r.inMeta} in the text, ` +
+            `and lands the page at ${r.scrollTop}`
+  };
+});
+
+check("a person is found through the alias the note actually wrote", async (p) => {
+  const r = await p.eval(`(async function(){
+    var press = ${STICKY_PRESS};
+    var book = null;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.id !== "people") return;
+      v.books.forEach(function (b) { if (b.key === "Halvor Estrin") book = b; });
+    });
+    if (!book) { __vs.closeReader(); return { found: false }; }
+    /* the alias is what the body wrote; the full name is never in the prose */
+    var note = null, plain = null;
+    book.notes.forEach(function (n) {
+      if (note) return;
+      if (n.body.indexOf("[[Halvor Estrin|Halvor]]") >= 0) note = n;
+      else if (!plain && n.body.indexOf("[[Halvor Estrin]]") >= 0) plain = n;
+    });
+    if (!note) return { found: false };
+    __vs.openBook(book.id, note.id);
+    var shown = __vs.stickies();
+    var written = shown.flags.filter(function (f) { return !f.declared; }).length;
+    var at = shown.flags.length - 1;
+    var after = await press(at);
+    var out = { found: true, subject: shown.subject, kind: shown.kind,
+                flags: shown.flags.length, written: written, marked: after.marked,
+                here: after.here, onScreen: after.onScreen, title: note.title,
+                inBody: note.body.indexOf("Halvor Estrin|Halvor") >= 0 };
+    __vs.closeReader();
+    return out;
+  })()`);
+  if (!r.found) return { ok: false, detail: "no Halvor Estrin book, or no aliased mention in it" };
+  const ok = r.subject === "Halvor Estrin" && r.kind === "person" && r.written === 1 &&
+             r.marked === "Halvor" && r.here === 1 && r.onScreen && r.inBody;
+  return {
+    ok,
+    detail: `the note writes "[[Halvor Estrin|Halvor]]" and nothing else names them, so the ` +
+            `book draws ${r.flags} flags, ${r.written} of them in the text. Pressing the last ` +
+            `marks "${r.marked}" -- the alias the reader can see, not the target -- ` +
+            `${r.onScreen ? "on screen" : "off screen"}, and it is the only mark on the page`
+  };
+});
+
+check("a book flags its own subject and no other", async (p) => {
+  const r = await p.eval(`(async function(){
+    var title = ${JSON.stringify(STICKY_NOTE_TITLE)};
+    var note = __vs.data().notes.filter(function (n) { return n.title === title; })[0];
+    if (!note) return { found: false };
+    var read = function (bookId) {
+      __vs.openBook(bookId, note.id);
+      var s = __vs.stickies();
+      return { subject: s.subject, hidden: s.hidden, flags: s.flags.length,
+               declared: s.flags.filter(function (f) { return f.declared; }).length };
+    };
+    var parent = read("tags/garden");
+    var child = read("tags/garden/seeds");
+    __vs.closeReader();
+    /* a property book: the value is in the frontmatter and in no body anywhere */
+    __vs.addShelf({ id: "vs19-status", name: "Status", source: { kind: "all" },
+                    classifier: "property", property: "status", direction: "alphabetical",
+                    hidden: false, position: 9, plaques: false });
+    var prop = null, propNote = null;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.id !== "vs19-status") return;
+      v.books.forEach(function (b) { if (b.key === "Evergreen") prop = b; });
+    });
+    if (prop) {
+      propNote = prop.notes[0];
+      __vs.openBook(prop.id, propNote.id);
+    }
+    var property = prop ? __vs.stickies() : null;
+    var bodyHas = propNote ? propNote.body.toLowerCase().indexOf("evergreen") >= 0 : true;
+    __vs.closeReader();
+    __vs.deleteShelf("vs19-status");
+    return { found: true, parent: parent, child: child,
+             property: property ? { subject: property.subject, hidden: property.hidden,
+                                    flags: property.flags.length } : null,
+             notes: prop ? prop.notes.length : 0, bodyHas: bodyHas };
+  })()`);
+  if (!r.found) return { ok: false, detail: `this vault has no "${STICKY_NOTE_TITLE}"` };
+  const ok = r.parent.flags === 4 && r.parent.declared === 1 &&
+             r.child.flags === 2 && r.child.declared === 1 &&
+             !!r.property && r.property.flags === 0 && r.property.hidden && !r.bodyHas;
+  return {
+    ok,
+    detail: `the same note in two books: ${r.parent.subject} draws ${r.parent.flags} flags ` +
+            `(${r.parent.declared} declared, wanted 1 + 3 written and never the child tag), ` +
+            `${r.child.subject} draws ${r.child.flags} ` +
+            `(${r.child.declared} declared, wanted 1 + 1 written and never the parent). ` +
+            `A property book of ` +
+            `${r.notes} notes whose value is ${r.bodyHas ? "IN" : "in no"} body draws ` +
+            `${r.property ? r.property.flags : "no"} flags and ` +
+            `${r.property && r.property.hidden ? "stays hidden" : "shows an empty column"}`
+  };
+});
+
 check("clicking a spine opens a book on the note it names", async (p) => {
   await p.eval("__vs.closeReader()");
   const r = await p.j(`(function(){
@@ -10205,8 +10409,11 @@ async function capture(page, out) {
         var want = ${JSON.stringify(SHOT_NOTE)};
         var note = __vs.data().notes.filter(function (n) { return n.title === want; })[0];
         if (!note) return false;
+        /* github#19 -- --shot-book beside it says WHICH of the books holding it to open */
+        var inBook = ${JSON.stringify(SHOT_BOOK)};
         var home = null;
         __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+          if (inBook && b.id !== inBook) return;
           if (!home && b.notes.some(function (n) { return n.id === note.id; })) home = b.id;
         }); });
         return home ? __vs.openBook(home, note.id) : false;

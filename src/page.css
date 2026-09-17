@@ -1239,6 +1239,68 @@
 .vault-shelf .vs-contents button[data-match="1"] .vs-t { color: var(--accent); font-weight: 600; }
 .vault-shelf .vs-contents button[data-match="1"] .vs-when { color: var(--text-2); }
 
+/* github#19, design/0037 -- the flags stand inside the cuts, on the fore-edge of the page.
+ * design/0034 reserves the outer 60px for the thumb index and 16px of air inside it; the
+ * flags take the air, so the rail keeps its width and the prose keeps its column. */
+.vault-shelf .vs-stickies {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  right: 60px;
+  width: 16px;
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* github#19, design/0037 -- a cut is a notch, square outside and arced within; a flag is its
+ * mirror -- square where it leaves the page and arced where it points out past it, with the
+ * shadow that goes with a plate rather than the one that goes with a knife. */
+.vault-shelf .vs-sticky {
+  position: absolute;
+  right: 0;
+  width: 16px;
+  height: 12px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, #000);
+  border-left: 0;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  box-shadow: 1px 1px 2px color-mix(in srgb, #000 30%, transparent);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.vault-shelf .vs-sticky:hover,
+.vault-shelf .vs-sticky:focus-visible {
+  background: color-mix(in srgb, var(--accent) 80%, var(--text-1));
+}
+
+/* github#19, design/0037 -- declared, not written: no paper of its own, and a dashed edge.
+ * It cannot take a surface token: the pages redefine those, and a rule out here reads the
+ * room's values instead of the page's, which drew a dark blob on a cream leaf. */
+.vault-shelf .vs-sticky[data-declared="1"] {
+  background: transparent;
+  border-style: dashed;
+  border-left: 0;
+  box-shadow: none;
+}
+
+.vault-shelf .vs-sticky[aria-current="true"] {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  background: var(--accent);
+}
+
+/* github#19, design/0037 -- the mark the flag takes you to, and the search's stays its own */
+.vault-shelf .vs-here {
+  background: color-mix(in srgb, var(--accent) 46%, transparent);
+  color: var(--text-1);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
 /* github#13, design/0027 -- the needle where it sits, and the reason in words */
 .vault-shelf .vs-hit {
   background: color-mix(in srgb, var(--accent) 34%, transparent);
@@ -2059,6 +2121,8 @@
   .vault-shelf .vs-tabs .vs-indextab,
   .vault-shelf .vs-tabs .vs-indextab + .vs-indextab { margin: 0; }
   .vault-shelf .vs-tabs button[data-step] { margin-right: 0; }
+  /* github#19, design/0037 -- the pages stack, so the right page has no fore-edge to flag */
+  .vault-shelf .vs-stickies { display: none; }
   .vault-shelf button { min-height: 34px; }
 }
 

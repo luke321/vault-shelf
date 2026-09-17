@@ -240,7 +240,9 @@ function mountVaultShelf(root, data, options) {
   /** The biggest book in the library, which every thickness is scaled against. */
   var thickest = 1;
   /* design/0034 -- the fitted cut, what it was fitted for, and how deep the rail stands */
-  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, revealMatch?: boolean, land?: "top"|"bottom"|null, lit?: string, tabs?: Cut[], tabsKey?: string, depth?: number }|null} */
+  /* github#19, design/0037 -- what this book is about, and which flag was last pressed */
+  /** @typedef {{ kind: string, value: string, label: string }} Subject */
+  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, revealMatch?: boolean, land?: "top"|"bottom"|null, lit?: string, tabs?: Cut[], tabsKey?: string, depth?: number, subject?: Subject|null, stickies?: number, stickyAt?: number|null, stickyTo?: number }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
   var history = [];
@@ -752,7 +754,8 @@ function mountVaultShelf(root, data, options) {
       pending = 0;
       roomLog.pending = 0;
       /* github#32, design/0034 -- the room ignores a height-only resize; the rail cannot */
-      if (reader) renderTabs();
+      /* github#19, design/0037 -- nor can a map of a box that just changed height */
+      if (reader) { renderTabs(); renderStickies(); }
       var w = shelfWidth();
       roomLog.measured++;
       roomLog.last = w;
@@ -2636,6 +2639,9 @@ function mountVaultShelf(root, data, options) {
   function closeReader() {
     if (!reader) return;
     var opener = reader.opener;
+    /* github#19, design/0037 -- no mark and no flag outlives the book */
+    clearHere();
+    hideStickies();
     reader = null;
     pushStop();   // github#40 -- no band outlives the book it was in
     history.length = 0;
@@ -3362,9 +3368,13 @@ function mountVaultShelf(root, data, options) {
       $("place").textContent = "No notes";
       field("prevnote").disabled = true;
       field("nextnote").disabled = true;
+      /* github#19, design/0037 -- no note, so nothing to point into */
+      hideStickies();
       return;
     }
     reader.noteId = note.id;
+    /* github#19, design/0037 -- a flag is about the page you are on */
+    reader.stickyAt = null;
     /* github#40 -- consumed once; a stale landing moves a refresh */
     var land = reader.land;
     reader.land = null;
@@ -3380,14 +3390,19 @@ function mountVaultShelf(root, data, options) {
      * no longer in the document. Nothing to cancel and nothing to compare. */
     var host = el("div");
     box.appendChild(host);
+    /* github#19, design/0037 -- a host that settles later draws its own flags, once */
+    var settles = false;
     if (opts.renderNote) {
       /* github#40, design/0028 -- the host's renderer settles after goTo has returned */
       attempt(function () {
         var done = opts.renderNote(host, note);
-        if (!land || !done || typeof done.then !== "function") return;
+        if (!done || typeof done.then !== "function") return;
+        settles = true;
         done.then(function () {
-          if (reader && reader.noteId === note.id) landOn(land);
-        }, function () {});
+          if (!reader || reader.noteId !== note.id) return;
+          if (land) landOn(land);
+          renderStickies();
+        }, function () { renderStickies(); });
       });
     } else {
       renderMarkdownInto(host, note);
@@ -3403,15 +3418,19 @@ function mountVaultShelf(root, data, options) {
     var also = $("alsoin");
     clear(also);
     var others = core.alsoShelvedIn(note.id, views, reader.book.id);
-    if (!others.length) return;
-    also.appendChild(el("span", "vs-lbl", "Also shelved in"));
-    others.slice(0, 8).forEach(function (other) {
-      var shelf = shelfById(other.shelfId);
-      var b = el("button", "", (shelf ? shelf.name + ": " : "") + other.label);
-      b.type = "button";
-      on(b, "click", function () { openBook(other, note.id); });
-      also.appendChild(b);
-    });
+    if (others.length) {
+      also.appendChild(el("span", "vs-lbl", "Also shelved in"));
+      others.slice(0, 8).forEach(function (other) {
+        var shelf = shelfById(other.shelfId);
+        var b = el("button", "", (shelf ? shelf.name + ": " : "") + other.label);
+        b.type = "button";
+        on(b, "click", function () { openBook(other, note.id); });
+        also.appendChild(b);
+      });
+    }
+    /* github#19, design/0037 -- the whole leaf is standing before the map is drawn */
+    if (settles) hideStickies();
+    else renderStickies();
   }
 
   /**
@@ -3472,9 +3491,13 @@ function mountVaultShelf(root, data, options) {
         var a = el("a", "vs-link", label);
         a.setAttribute("href", "#");
         a.setAttribute("data-note", target.id);
+        /* github#19, design/0037 -- what was linked, so an alias can be read back */
+        a.setAttribute("data-target", m[1]);
         out.appendChild(a);
       } else {
-        out.appendChild(el("span", "vs-deadlink", label));
+        var dead = el("span", "vs-deadlink", label);
+        dead.setAttribute("data-target", m[1]);
+        out.appendChild(dead);
       }
       at = m.index + m[0].length;
       m = re.exec(text);
@@ -3557,6 +3580,262 @@ function mountVaultShelf(root, data, options) {
     renderTabs();
     renderNote();
     landOn(land === "bottom" ? "bottom" : "top");
+  }
+
+  /* ---- a sticky note on the fore-edge ----------------------------------------
+   * github#19, design/0037 -- what the book is about, where the note writes it
+   * github#19, design/0037 -- the flags stand inside the cuts, never on one
+   * github#19, design/0037 -- the view is marked; the note is never written
+   */
+
+  /* github#19, design/0037 -- the floor between two flags, and where a press lands */
+  var STICKY_GAP = 14, STICKY_HEIGHT = 12, STICKY_LAND = 0.34;
+  /* github#19, design/0037 -- ASCII word chars, and the letter blocks above them */
+  var WORDY = /[0-9A-Za-z_À-῿Ⰰ-￿]/;
+  /* github#19, design/0037 -- what a tag may run on into, and so may not stop at */
+  var TAGGY = /[0-9A-Za-z_/-]/;
+
+  /**
+   * github#19, design/0037 -- what the open book is ABOUT, or null for one that is not
+   * @param {Book} book @returns {{ kind: string, value: string, label: string }|null}
+   */
+  function subjectOf(book) {
+    var shelf = shelfById(book.shelfId);
+    if (!shelf) return null;
+    var kind = shelf.classifier;
+    if (kind !== "tag" && kind !== "person" && kind !== "property") return null;
+    /* github#19, design/0037 -- every synthetic key opens with a dash; a real one cannot */
+    if (!book.key || book.key.charAt(0) === "-") return null;
+    return { kind: kind, value: book.key,
+             label: kind === "tag" ? "#" + book.key : book.key };
+  }
+
+  /**
+   * github#19, design/0037 -- `#garden`, never `#gardening` and never `#garden/seeds`
+   * @param {string} text @param {string} value @returns {{ start: number, end: number }[]}
+   */
+  function tagRuns(text, value) {
+    /** @type {{ start: number, end: number }[]} */
+    var out = [];
+    var needle = "#" + value;
+    var at = text.indexOf(needle);
+    while (at >= 0) {
+      var before = at === 0 ? "" : text.charAt(at - 1);
+      var after = text.charAt(at + needle.length);
+      if (!TAGGY.test(before) && before !== "#" && !TAGGY.test(after)) {
+        out.push({ start: at, end: at + needle.length });
+      }
+      at = text.indexOf(needle, at + 1);
+    }
+    return out;
+  }
+
+  /**
+   * github#19, design/0037 -- the whole name, on both boundaries, whatever its case
+   * @param {string} text @param {string} value @returns {{ start: number, end: number }[]}
+   */
+  function wordRuns(text, value) {
+    /** @type {{ start: number, end: number }[]} */
+    var out = [];
+    var low = text.toLowerCase();
+    var needle = value.toLowerCase();
+    if (!needle) return out;
+    var at = low.indexOf(needle);
+    while (at >= 0) {
+      var before = at === 0 ? "" : text.charAt(at - 1);
+      var after = text.charAt(at + needle.length);
+      if (!WORDY.test(before) && !WORDY.test(after)) {
+        out.push({ start: at, end: at + needle.length });
+      }
+      at = low.indexOf(needle, at + 1);
+    }
+    return out;
+  }
+
+  /**
+   * github#19, design/0037 -- a link target, as either host spells it
+   * @param {Node} from @param {Element} stop @returns {string|null}
+   */
+  function linkTarget(from, stop) {
+    var at = from;
+    while (at && at !== stop) {
+      if (at.nodeType === 1) {
+        var box = /** @type {Element} */ (at);
+        var href = box.getAttribute("data-href") || box.getAttribute("data-target") ||
+                   (box.tagName === "A" ? box.getAttribute("href") : null);
+        if (href) return href;
+      }
+      at = at.parentNode;
+    }
+    return null;
+  }
+
+  /**
+   * github#19, design/0037 -- `[[Halvor Estrin|Halvor]]` is that person, alias and all
+   * @param {string} href @param {string} value @returns {boolean}
+   */
+  function targetNames(href, value) {
+    var want = String(href).split("#")[0].split("|")[0]
+      .replace(/\.md$/i, "").trim().toLowerCase();
+    if (!want) return false;
+    var name = value.trim().toLowerCase();
+    return want === name || want.split("/").pop() === name;
+  }
+
+  /**
+   * github#19, design/0037 -- every place the subject is written, in reading order
+   * @param {{ kind: string, value: string, label: string }} subject
+   * @returns {{ node: Text, start: number, end: number, declared: boolean }[]}
+   */
+  function stickyRuns(subject) {
+    /** @type {{ node: Text, start: number, end: number, declared: boolean }[]} */
+    var out = [];
+    [{ box: $("notemeta"), declared: true }, { box: $("note"), declared: false }]
+      .forEach(function (where) {
+        if (!where.box) return;
+        var walk = DOC.createTreeWalker(where.box, NodeFilter.SHOW_TEXT);
+        var text = /** @type {Text|null} */ (walk.nextNode());
+        while (text) {
+          var raw = text.nodeValue || "";
+          var linked = subject.kind === "person" &&
+            targetsSubject(text, where.box, subject.value);
+          if (linked && raw.trim()) {
+            out.push({ node: text, start: 0, end: raw.length, declared: where.declared });
+          } else {
+            var runs = subject.kind === "tag" ? tagRuns(raw, subject.value)
+                                              : wordRuns(raw, subject.value);
+            runs.forEach(function (run) {
+              out.push({ node: /** @type {Text} */ (text), start: run.start, end: run.end,
+                         declared: where.declared });
+            });
+          }
+          text = /** @type {Text|null} */ (walk.nextNode());
+        }
+      });
+    return out;
+  }
+
+  /**
+   * github#19, design/0037 -- whether the link this text sits in names the subject
+   * @param {Node} text @param {Element} stop @param {string} value @returns {boolean}
+   */
+  function targetsSubject(text, stop, value) {
+    var href = linkTarget(text.parentNode, stop);
+    return !!href && targetNames(href, value);
+  }
+
+  /* github#19, design/0037 -- the view is put back exactly as the renderer left it */
+  function clearHere() {
+    var olds = root.querySelectorAll("#" + ID + "reader .vs-here");
+    for (var i = 0; i < olds.length; i++) {
+      var mark = olds[i];
+      var parent = mark.parentNode;
+      if (!parent) continue;
+      while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+      parent.removeChild(mark);
+      if (parent instanceof Element) parent.normalize();
+    }
+  }
+
+  function hideStickies() {
+    var box = node("stickies");
+    clear(box);
+    box.hidden = true;
+  }
+
+  /**
+   * github#19, design/0037 -- the fractions, then a floor between them, then back inside
+   * @param {number[]} fractions @param {number} room @returns {number[]}
+   */
+  function spaced(fractions, room) {
+    var tops = fractions.map(function (f) {
+      return Math.max(0, Math.min(room, Math.round(f * room)));
+    });
+    if (tops.length < 2) return tops;
+    var gap = Math.min(STICKY_GAP, room / (tops.length - 1));
+    for (var i = 1; i < tops.length; i++) {
+      if (tops[i] < tops[i - 1] + gap) tops[i] = tops[i - 1] + gap;
+    }
+    var over = tops[tops.length - 1] - room;
+    if (over > 0) {
+      for (var k = 0; k < tops.length; k++) tops[k] = Math.max(0, tops[k] - over);
+    }
+    return tops;
+  }
+
+  function renderStickies() {
+    if (!reader) { hideStickies(); return; }
+    var subject = subjectOf(reader.book);
+    reader.subject = subject;
+    reader.stickies = 0;
+    if (!subject || !reader.book.notes.length) { hideStickies(); return; }
+    var runs = stickyRuns(subject);
+    reader.stickies = runs.length;
+    if (!runs.length) { hideStickies(); return; }
+    var box = node("stickies");
+    clear(box);
+    box.hidden = false;
+    box.setAttribute("aria-label", "Where " + subject.label + " is in this note");
+    var leaf = $("leaf");
+    var frame = leaf.getBoundingClientRect();
+    var room = Math.max(0, box.clientHeight - STICKY_HEIGHT);
+    var tops = spaced(runs.map(function (run) {
+      var range = DOC.createRange();
+      range.setStart(run.node, run.start);
+      range.setEnd(run.node, run.end);
+      var at = range.getBoundingClientRect().top - frame.top;
+      return frame.height > 0 ? at / frame.height : 0;
+    }), room);
+    runs.forEach(function (run, i) {
+      var flag = /** @type {HTMLButtonElement} */ (el("button", "vs-sticky"));
+      flag.type = "button";
+      flag.style.top = tops[i] + "px";
+      flag.setAttribute("data-at", String(i));
+      if (run.declared) flag.setAttribute("data-declared", "1");
+      if (reader.stickyAt === i) flag.setAttribute("aria-current", "true");
+      var said = run.declared
+        ? subject.label + " in this note's details"
+        : subject.label + ", mention " + (i + 1) + " of " + runs.length;
+      flag.setAttribute("aria-label", said);
+      flag.setAttribute("title", said);
+      on(flag, "click", function () { pressSticky(i); });
+      box.appendChild(flag);
+    });
+  }
+
+  /**
+   * github#19, design/0037 -- the scroller is the page, so the page is what is told
+   * @param {number} at @returns {number|null}
+   */
+  function pressSticky(at) {
+    if (!reader || !reader.subject) return null;
+    clearHere();
+    /* github#19, design/0037 -- the unwrap normalised the tree, so read it again */
+    var runs = stickyRuns(reader.subject);
+    var run = runs[at];
+    if (!run) { renderStickies(); return null; }
+    var mark = el("mark", "vs-here");
+    var range = DOC.createRange();
+    range.setStart(run.node, run.start);
+    range.setEnd(run.node, run.end);
+    range.surroundContents(mark);
+    reader.stickyAt = at;
+    var page = rightPage();
+    if (page) {
+      var top = mark.getBoundingClientRect().top - page.getBoundingClientRect().top;
+      var span = Math.max(0, page.scrollHeight - page.clientHeight);
+      var want = page.scrollTop + top - page.clientHeight * STICKY_LAND;
+      /* github#19, design/0037 -- landOn sets scrollTop, and so does this */
+      var to = Math.max(0, Math.min(want, span));
+      reader.stickyTo = to;
+      page.scrollTop = to;
+    }
+    var flags = root.querySelectorAll("#" + ID + "stickies .vs-sticky");
+    for (var i = 0; i < flags.length; i++) {
+      if (i === at) flags[i].setAttribute("aria-current", "true");
+      else flags[i].removeAttribute("aria-current");
+    }
+    return at;
   }
 
   /* ---- reading off the bottom turns the page ---------------------------------
@@ -5451,6 +5730,63 @@ function mountVaultShelf(root, data, options) {
         meta: $("notemeta").textContent,
         empty: box.textContent.indexOf("Nothing in this book matches.") >= 0
       };
+    },
+    /* github#19, design/0037 -- the flags the open note carries, and where each stands */
+    stickies: function () {
+      if (!reader) return null;
+      var box = node("stickies");
+      /** @type {{ top: number, declared: boolean, current: boolean, label: string|null }[]} */
+      var flags = [];
+      box.querySelectorAll(".vs-sticky").forEach(function (f) {
+        var flag = /** @type {HTMLElement} */ (f);
+        flags.push({ top: Math.round(parseFloat(flag.style.top) || 0),
+                     declared: flag.getAttribute("data-declared") === "1",
+                     current: flag.getAttribute("aria-current") === "true",
+                     label: flag.getAttribute("aria-label") });
+      });
+      var note = $("note");
+      return {
+        book: reader.book.id,
+        subject: reader.subject ? reader.subject.label : null,
+        kind: reader.subject ? reader.subject.kind : null,
+        hidden: !!box.hidden,
+        flags: flags,
+        here: root.querySelectorAll("#" + ID + "reader .vs-here").length,
+        marked: (function () {
+          var m = root.querySelector("#" + ID + "reader .vs-here");
+          return m ? m.textContent : null;
+        })(),
+        inMeta: root.querySelectorAll("#" + ID + "notemeta .vs-here").length,
+        goingTo: reader.stickyTo === undefined ? -1 : Math.round(reader.stickyTo),
+        /* github#19, design/0037 -- how far the page can scroll, and how tall the leaf is */
+        span: (function () {
+          var page = rightPage();
+          return page ? Math.round(page.scrollHeight - page.clientHeight) : -1;
+        })(),
+        leaf: Math.round($("leaf") ? $("leaf").getBoundingClientRect().height : -1),
+        scrollTop: (function () {
+          var page = rightPage();
+          return page ? Math.round(page.scrollTop) : -1;
+        })(),
+        /* github#19, design/0037 -- whether the mark is actually on screen */
+        onScreen: (function () {
+          var page = rightPage();
+          var mark = root.querySelector("#" + ID + "reader .vs-here");
+          if (!page || !mark) return false;
+          var box = mark.getBoundingClientRect();
+          var view = page.getBoundingClientRect();
+          return box.top >= view.top - 1 && box.bottom <= view.bottom + 1;
+        })(),
+        text: note ? note.textContent : ""
+      };
+    },
+    /* github#19, design/0037 -- press one, as a reader does, and say it was there */
+    /** @param {number} at */
+    pressSticky: function (at) {
+      var flag = root.querySelector("#" + ID + 'stickies .vs-sticky[data-at="' + at + '"]');
+      if (!(flag instanceof HTMLElement)) return false;
+      flag.click();
+      return true;
     },
     /** Every book's address, so a check can assert they are stable across a rebuild. */
     addresses: function () {
