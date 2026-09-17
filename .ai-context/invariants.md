@@ -3227,3 +3227,37 @@ The Reading shelf has one untransformed board baseline per packed row. Painted b
 lift by exactly 0/1/2px at wear levels 0-1/2/3. The Reading-row check requires the exact
 transform, line containment and shared baseline, preserves its tight-packing assertions,
 and proves that a 3px layout shift or invalid 3px lift fails.
+
+### The fore-edge flags (`github#19`, `design/0037`)
+
+A book has a subject only when its shelf classifies by `tag`, `person` or `property` and the
+book's key does not open with `-`. The subject is the key exactly: `garden` and `garden/seeds`
+are different books and neither flags the other's mention.
+
+A tag occurrence is `#<key>` with no word character, `-` or `/` on either side of it. A person
+occurrence is a link whose `data-href`, `data-target` or `href` names them, or the full name on
+both word boundaries. A property occurrence is the value on both word boundaries. The scan
+covers `#vs-notemeta` and `#vs-note` and nothing else; a hit inside the details line is
+`declared`.
+
+The column is 16px wide and stands at `right: 60px` — the thumb index's own width
+(`design/0034`) — and is `display: none` below 860px. A flag is 16x12, square where it leaves
+the page and arced where it points out past it, and carries no text, so no look can resize it.
+The floor between two flags is 14px, or `room / (n - 1)` when that is smaller; there is no cap
+on how many are drawn.
+
+Exactly one `.vs-here` exists at a time. It is a `<mark>` in the rendered view; the previous one
+is unwrapped and its parent normalised before the next, and a press re-scans rather than reusing
+the ranges the column was drawn from. `.vs-here` is not `.vs-hit`, which stays the search's.
+
+A press sets `scrollTop` directly — never an animated scroll — to `mark.top - clientHeight *
+0.34`, clamped to the page's span.
+
+Measured on the vault shape: `tags/garden` on the planted sentinel draws 4 flags at 8/134/343/
+701px, the three written ones pressing to 314/1182/2342 of a 2342px span; `tags/garden/seeds`
+draws 2; a `status` property book of 543 notes draws 0 and stays hidden. The note's 4,482
+characters are identical before and after every press.
+
+`make-vault.mjs` refuses to finish unless "A season in the same bed, start to finish" exists,
+says `#garden` at least three times in its body and `#garden/seeds` exactly once. Without it no
+note in the vault writes a tag inline at all.

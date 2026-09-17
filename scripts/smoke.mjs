@@ -6808,7 +6808,7 @@ check("a wide table scrolls inside the page and never widens the book", async (p
 /* github#19, design/0037 -- the fore-edge flags, and the one note that earns them */
 const STICKY_NOTE_TITLE = "A season in the same bed, start to finish";
 
-/* github#19, design/0037 -- press a flag and wait for the smooth scroll to stop */
+/* github#19, design/0037 -- press a flag, and let the page stop before reading it */
 const STICKY_PRESS = `async function (at) {
   __vs.pressSticky(at);
   var page = document.querySelector("#vs-reader .vs-page.vs-right");
@@ -6822,7 +6822,6 @@ const STICKY_PRESS = `async function (at) {
 }`;
 
 check("a sticky note takes the reader to where the book's subject is written", async (p) => {
-  /* p.eval, not p.j: this one is a promise, and eval awaits it while j would stringify it. */
   const r = await p.eval(`(async function(){
     var press = ${STICKY_PRESS};
     var note = __vs.data().notes.filter(function (n) {
@@ -6875,7 +6874,6 @@ check("a sticky note takes the reader to where the book's subject is written", a
 });
 
 check("a subject that is only declared is flagged on the details line", async (p) => {
-  /* p.eval, not p.j: this one is a promise, and eval awaits it while j would stringify it. */
   const r = await p.eval(`(async function(){
     var press = ${STICKY_PRESS};
     var skip = ${JSON.stringify(STICKY_NOTE_TITLE)};
@@ -6913,7 +6911,6 @@ check("a subject that is only declared is flagged on the details line", async (p
 });
 
 check("a person is found through the alias the note actually wrote", async (p) => {
-  /* p.eval, not p.j: this one is a promise, and eval awaits it while j would stringify it. */
   const r = await p.eval(`(async function(){
     var press = ${STICKY_PRESS};
     var book = null;
@@ -6955,7 +6952,6 @@ check("a person is found through the alias the note actually wrote", async (p) =
 });
 
 check("a book flags its own subject and no other", async (p) => {
-  /* p.eval, not p.j: this one is a promise, and eval awaits it while j would stringify it. */
   const r = await p.eval(`(async function(){
     var title = ${JSON.stringify(STICKY_NOTE_TITLE)};
     var note = __vs.data().notes.filter(function (n) { return n.title === title; })[0];
@@ -6998,8 +6994,10 @@ check("a book flags its own subject and no other", async (p) => {
   return {
     ok,
     detail: `the same note in two books: ${r.parent.subject} draws ${r.parent.flags} flags ` +
-            `(1 declared, 3 written) and never the child tag, ${r.child.subject} draws ` +
-            `${r.child.flags} (1 declared, 1 written) and never the parent. A property book of ` +
+            `(${r.parent.declared} declared, wanted 1 + 3 written and never the child tag), ` +
+            `${r.child.subject} draws ${r.child.flags} ` +
+            `(${r.child.declared} declared, wanted 1 + 1 written and never the parent). ` +
+            `A property book of ` +
             `${r.notes} notes whose value is ${r.bodyHas ? "IN" : "in no"} body draws ` +
             `${r.property ? r.property.flags : "no"} flags and ` +
             `${r.property && r.property.hidden ? "stays hidden" : "shows an empty column"}`

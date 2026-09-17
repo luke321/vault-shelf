@@ -3390,17 +3390,19 @@ function mountVaultShelf(root, data, options) {
      * no longer in the document. Nothing to cancel and nothing to compare. */
     var host = el("div");
     box.appendChild(host);
+    /* github#19, design/0037 -- a host that settles later draws its own flags, once */
+    var settles = false;
     if (opts.renderNote) {
       /* github#40, design/0028 -- the host's renderer settles after goTo has returned */
       attempt(function () {
         var done = opts.renderNote(host, note);
         if (!done || typeof done.then !== "function") return;
+        settles = true;
         done.then(function () {
           if (!reader || reader.noteId !== note.id) return;
           if (land) landOn(land);
-          /* github#19, design/0037 -- the flags are placed once the note has settled */
           renderStickies();
-        }, function () {});
+        }, function () { renderStickies(); });
       });
     } else {
       renderMarkdownInto(host, note);
@@ -3427,7 +3429,8 @@ function mountVaultShelf(root, data, options) {
       });
     }
     /* github#19, design/0037 -- the whole leaf is standing before the map is drawn */
-    renderStickies();
+    if (settles) hideStickies();
+    else renderStickies();
   }
 
   /**
