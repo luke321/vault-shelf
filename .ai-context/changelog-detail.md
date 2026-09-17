@@ -1,5 +1,52 @@
 # Changelog detail
 
+## 2026-09-17 — The index fit never converged (`github#87`, `design/0034`)
+
+*No index cut is clipped* went red on `people/Otto Brandt` at 1180×480 the week the fixture
+re-cut itself. The issue read it as `fitTabs` stopping early — `gathered` returning `null` and
+the loop breaking with the tenth cut still hanging off the bottom. Traced per step, it is the
+opposite: **`gathered` never returns `null` and the loop never terminates.**
+
+A level at depth *d* draws `d + its cuts` rows, because the rail stands the trail it came through
+above it. A gather **adds a level**, so gathering the fattest level makes every deeper level one
+row worse; `widestOf` moves to one of those, and the two chase each other down until the 24-step
+cap stops them. On `Otto Brandt` the chosen depth went 2 → 0 → 3 → 4 → 7 → … → **24**, and the
+rows the fit was trying to shrink went **10 → 12**.
+
+**The shut rail fitted, which is why one book went red and six did not.** The top of a runaway
+tree is six or seven spans, so nothing clips until a fold is opened onto an over-full level
+underneath. The check opens the three widest folds; on `Otto Brandt` the third landed on one.
+
+| measured over the fourteen fattest books | before | after |
+|---|---|---|
+| deepest level, 1180×480 | **depth 25** (`Otto Brandt`, 486 notes) | **depth 8** |
+| books whose fit had not converged | **7 of 14** | **0** |
+| cuts clipped, 1180×480 | **1** | **0** |
+| most cuts on show, 1180×480 | **10** in a room of 9 | **9** |
+| cuts kept (nothing dropped) | 6,025 | **6,025** |
+| room, 1180×1000 / 1180×480 | — | **37** / **9** rows, measured |
+| 1180×1000 | room 37, nothing gathers | **unchanged** |
+| checks | 148 → **149** |
+
+**Two changes, and the second is the one that mattered.** The room is measured once — the CSS
+clamp makes the fit monotonic in the row count, so a binary search settles it in six draws rather
+than the twenty-four the old loop spent — and each depth is then fitted in turn, shallowest
+first, into `room − depth` spans. A gather is paid for by everything under it, so the payment is
+made before the levels that owe it are read; the pass ends where `room − depth` falls under two,
+so the depth stays under the room by construction.
+
+**Three chooser-only fixes were built and measured first, and all three failed.** *Gather the
+deepest over-full level* fixed three books and broke four (25 → 26, 27 → 28). *Gather whichever
+depth most reduces the maximum* stalled in a local minimum at 15 rows. *Keep the best tree seen*
+left four books at 13. Halving is one arity chosen in advance and is too coarse to reach a
+fitting tree inside the depth the trail leaves — which is why the operator changed too.
+
+**Known and left:** `website-migration`, `garden`, `sleep`, `reading` and `idea` are ~26 letters
+over four raw levels and settle at depth 8 with **10 rows against a room of 9** — 94 levels over,
+each eight presses down. A beam search over every grouping sequence there is proves **10 is the
+floor**: grouping adjacent cuts only ever adds levels, and each one costs a row. Filed rather
+than guessed at; the two candidate operators both break something `design/0034` already settled.
+
 ## 2026-09-17 — A sticky note on the fore-edge (`github#19`, `design/0037`)
 
 A tag, person or property book is *about* something the note contains, so the reading spread

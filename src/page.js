@@ -242,7 +242,7 @@ function mountVaultShelf(root, data, options) {
   /* design/0034 -- the fitted cut, what it was fitted for, and how deep the rail stands */
   /* github#19, design/0037 -- what this book is about, and which flag was last pressed */
   /** @typedef {{ kind: string, value: string, label: string }} Subject */
-  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, revealMatch?: boolean, land?: "top"|"bottom"|null, lit?: string, tabs?: Cut[], tabsKey?: string, depth?: number, subject?: Subject|null, stickies?: number, stickyAt?: number|null, stickyTo?: number }|null} */
+  /** @type {{ book: Book, index: number, noteId: string|null, within: string, opener: HTMLElement|null, revealed?: string|null, revealMatch?: boolean, land?: "top"|"bottom"|null, lit?: string, tabs?: Cut[], tabsKey?: string, tabsRoom?: number, depth?: number, subject?: Subject|null, stickies?: number, stickyAt?: number|null, stickyTo?: number }|null} */
   var reader = null;
   /** @type {{ bookId: string, noteId: string|null }[]} */
   var history = [];
@@ -3220,9 +3220,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0034 -- FIT IS MEASURED, NOT CALCULATED: draw it, and while the level that draws
-   * the most rows does not fit, gather it one step and draw again. Fitted to the fattest
-   * level the book can show, or a page turn would re-fit it and give one book two shapes.
+   * design/0034, github#87 -- fit is measured, and fitted top down.
    * @param {HTMLElement} box @param {string} mode
    */
   function fitTabs(box, mode) {
@@ -3230,47 +3228,51 @@ function mountVaultShelf(root, data, options) {
       Math.round(box.getBoundingClientRect().height);
     if (reader.tabsKey === key) return;
     var cuts = indexCuts(reader.book);
-    for (var step = 0; step < 24; step++) {
-      var view = widestOf(cuts, 0, []);
-      if (drawsInside(box, view)) break;
-      var next = gathered(cuts, view.path.length);
-      if (!next) break;
-      cuts = next;
+    var room = roomFor(box);
+    for (var depth = 0; depth + 2 <= room && depth <= deepestLevel(cuts); depth++) {
+      var next = gathered(cuts, depth, room - depth);
+      if (next) cuts = next;
     }
     reader.tabs = cuts;
     reader.tabsKey = key;
+    reader.tabsRoom = room;
     reader.depth = 0;
   }
 
-  /**
-   * design/0034 -- the level that draws the most rows, and the way down to it
-   * @param {Cut[]} cuts @param {number} trail @param {number[]} path
-   * @returns {{ rows: number, trail: number, level: Cut[], path: number[] }}
-   */
-  function widestOf(cuts, trail, path) {
-    var best = { rows: trail + cuts.length, trail: trail, level: cuts, path: path };
-    cuts.forEach(function (c, i) {
-      if (!c.kids.length) return;
-      var below = widestOf(c.kids, trail + 1, path.concat(i));
-      if (below.rows > best.rows) best = below;
+  /** github#87 @param {Cut[]} cuts @returns {number} */
+  function deepestLevel(cuts) {
+    var down = 0;
+    cuts.forEach(function (c) {
+      if (c.kids.length) down = Math.max(down, 1 + deepestLevel(c.kids));
     });
-    return best;
+    return down;
   }
 
   /**
-   * design/0034 -- the last cut's own bottom, never `scrollHeight`: the rail's overflow is
-   * visible by design, and a box that does not scroll does not report a scrolling area
-   * @param {HTMLElement} box @param {{ rows: number, trail: number, level: Cut[] }} view
-   * @returns {boolean}
+   * github#87 -- THE MOST ROWS THE RAIL CAN DRAW, measured; the fit is monotonic in the count.
+   * @param {HTMLElement} box @returns {number}
    */
-  function drawsInside(box, view) {
+  function roomFor(box) {
+    var lo = 0, hi = 64;
+    while (lo < hi) {
+      var mid = Math.ceil((lo + hi) / 2);
+      if (drawsRows(box, mid)) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+  }
+
+  /**
+   * design/0034 -- the last row's own bottom, never `scrollHeight`: the rail's overflow is
+   * visible by design, and a box that does not scroll does not report a scrolling area
+   * @param {HTMLElement} box @param {number} rows @returns {boolean}
+   */
+  function drawsRows(box, rows) {
     /** @type {HTMLElement[]} */
     var probe = [];
-    box.style.setProperty("--vs-tab-count", String(Math.max(1, view.rows)));
-    for (var i = 0; i < view.trail; i++) {
-      probe.push(cutRow({ label: "2026", at: 0, kids: [] }, i, view.trail - i, true, false));
+    box.style.setProperty("--vs-tab-count", String(Math.max(1, rows)));
+    for (var i = 0; i < rows; i++) {
+      probe.push(cutRow({ label: "2026", at: 0, kids: [] }, i, 0, false, false));
     }
-    view.level.forEach(function (c) { probe.push(cutRow(c, view.trail, 0, false, false)); });
     probe.forEach(function (n) { box.appendChild(n); });
     var last = probe[probe.length - 1];
     var fits = !last || last.getBoundingClientRect().bottom <= box.getBoundingClientRect().bottom + 1;
@@ -3280,19 +3282,19 @@ function mountVaultShelf(root, data, options) {
 
   /**
    * design/0034 -- one step shallower, and nothing is thrown away to take it: the level is
-   * halved into spans naming what they open, and its cuts become what those spans open.
-   * EVERY level at that depth, or one year's months read differently from the next year's.
-   * @param {Cut[]} cuts @param {number} depth @returns {Cut[]|null}
+   * gathered into spans naming what they open, and its cuts become what those spans open.
+   * EVERY level at that depth; github#87 -- into `groups` spans, never into halves.
+   * @param {Cut[]} cuts @param {number} depth @param {number} groups @returns {Cut[]|null}
    */
-  function gathered(cuts, depth) {
+  function gathered(cuts, depth, groups) {
     if (!depth) {
-      if (cuts.length < 2) return null;
-      var spans = spanned(cuts);
+      if (cuts.length < 2 || cuts.length <= groups) return null;
+      var spans = spanned(cuts, groups);
       return spans.length < cuts.length ? spans : null;
     }
     var moved = false;
     var out = cuts.map(function (c) {
-      var kids = c.kids.length ? gathered(c.kids, depth - 1) : null;
+      var kids = c.kids.length ? gathered(c.kids, depth - 1, groups) : null;
       if (!kids) return c;
       moved = true;
       return { label: c.label, at: c.at, span: c.span, head: c.head, tail: c.tail, kids: kids };
@@ -3301,21 +3303,25 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * design/0034 -- a range of ranges is still one range, so a span is flattened first
-   * @param {Cut[]} list @returns {Cut[]}
+   * design/0034 -- a range of ranges is still one range, so a span is flattened first;
+   * github#87 -- in runs as even as division makes them.
+   * @param {Cut[]} list @param {number} groups @returns {Cut[]}
    */
-  function spanned(list) {
+  function spanned(list, groups) {
+    var size = Math.ceil(list.length / Math.max(1, groups));
     /** @type {Cut[]} */
     var out = [];
-    for (var i = 0; i < list.length; i += 2) {
-      var a = list[i];
-      var b = list[i + 1];
-      if (!b) { out.push(a); continue; }
+    for (var i = 0; i < list.length; i += size) {
+      var run = list.slice(i, i + size);
+      if (run.length < 2) { out.push(run[0]); continue; }
+      /** @type {Cut[]} */
+      var kids = [];
+      run.forEach(function (c) { kids = kids.concat(membersOf(c)); });
       /* design/0034 -- A SPAN IS NAMED BY WHERE IT STARTS, which is what a printed thumb index
        * does and what keeps the rail one narrow width: the cut below it is its other end. The
        * range it covers is on the cut, where a pointer or a screen reader finds it. */
-      out.push({ label: headOf(a), head: headOf(a), tail: tailOf(b),
-                 span: true, at: a.at, kids: membersOf(a).concat(membersOf(b)) });
+      out.push({ label: headOf(run[0]), head: headOf(run[0]), tail: tailOf(run[run.length - 1]),
+                 span: true, at: run[0].at, kids: kids });
     }
     return out;
   }
@@ -5446,6 +5452,7 @@ function mountVaultShelf(root, data, options) {
         depth: reader.depth || 0,
         cuts: strip(reader.tabs || []),
         railHeight: Math.round(box.getBoundingClientRect().height),
+        room: reader.tabsRoom || 0,
         over: last ? Math.round(last.getBoundingClientRect().bottom - bottom) : 0
       };
     },
