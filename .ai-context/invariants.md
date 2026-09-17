@@ -3176,15 +3176,14 @@ and the rail is fitted to the height it has.
 level at depth *d* draws `d + its cuts` rows - the rail stands the trail above it - so gathering
 the fattest level wherever it stood made every deeper level one row worse, and the two chased
 each other: *gather the level that draws the most rows* **never terminated**. It ran its 24-step
-cap out on **7 of the 14** fattest books and left `people/Otto Brandt`, 486 notes, an index **24
-levels deep**; the shut rail fitted, so only the book whose overflow happened to sit three folds
-down went red. The room is measured once - `clamp(20px, (100cqh - 67px)/n, 28px)` makes the fit
+cap out on **7 of the 14** fattest books and left `people/Otto Brandt`, 486 notes, a tree whose
+deepest level stands at **depth 25**; the shut rail fitted, so only the book whose overflow
+happened to sit three folds down went red. The room is measured once - `clamp(20px, (100cqh - 67px)/n, 28px)` makes the fit
 monotonic in the row count, so a binary search settles it in six draws - and each depth is then
 gathered into `room - depth` spans in turn, shallowest first. The pass ends where `room - depth`
 falls under two, so **the depth stays under the room by construction**.
 
-**Measured 2026-09-17**, fourteen fattest books, no cut lost: deepest fitted tree **24 -> 8**
-levels, books that had not converged **7 -> 0**, cuts clipped at 1180x480 **1 -> 0**, most cuts
+**Measured 2026-09-17**, fourteen fattest books, no cut lost: deepest level **depth 25 -> 8**, books that had not converged **7 -> 0**, cuts clipped at 1180x480 **1 -> 0**, most cuts
 on show **10 (in a room of 9) -> 9**. At 1180x1000 the room is **37** rows and nothing gathers at
 all, so the tall case is untouched.
 

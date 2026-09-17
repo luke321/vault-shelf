@@ -289,8 +289,8 @@ loop spends all twenty-four steps:
 **A gather adds a level, and the trail charges it to everything below.** A level at depth *d* draws
 `d + its cuts` rows, because the rail stands the trail above it. So gathering the fattest level
 makes every deeper level one row worse, `widestOf` moves to one of those, and the two chase each
-other down: step 4 went from 10 rows to 12. The 24-step cap then left a book of 486 notes an index
-**24 levels deep**, `tags/idea` 23 and `tags/project/website-migration` 22.
+other down: step 4 went from 10 rows to 12. The 24-step cap then left `people/Otto Brandt`, 486
+notes, a tree whose deepest level stands at **depth 25**.
 
 **The shut rail fitted, which is why one book went red and six did not.** The top level of those
 runaway trees is small — six or seven spans — so nothing is clipped until a fold is opened onto one
@@ -323,7 +323,7 @@ inside the depth the trail leaves.
 
 | | before | after |
 |---|---|---|
-| deepest fitted tree, 1180×480 | **24 levels** | **8** |
+| deepest level, 1180×480 | **depth 25** | **depth 8** |
 | books whose fit had not converged | **7 of 14** | **0** |
 | cuts clipped, 1180×480 | 1 | **0** |
 | most cuts on show, 1180×480 | 10 (in a room of 9) | **9** |

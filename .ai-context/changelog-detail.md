@@ -19,7 +19,7 @@ underneath. The check opens the three widest folds; on `Otto Brandt` the third l
 
 | measured over the fourteen fattest books | before | after |
 |---|---|---|
-| deepest fitted tree, 1180×480 | **24 levels** (`Otto Brandt`, 486 notes) | **8** |
+| deepest level, 1180×480 | **depth 25** (`Otto Brandt`, 486 notes) | **depth 8** |
 | books whose fit had not converged | **7 of 14** | **0** |
 | cuts clipped, 1180×480 | **1** | **0** |
 | most cuts on show, 1180×480 | **10** in a room of 9 | **9** |

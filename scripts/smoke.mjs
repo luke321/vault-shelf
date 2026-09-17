@@ -7280,7 +7280,7 @@ check("the fitted index converges: no level deeper than the rail's room", async 
       cuts.forEach(function (c) { n += c.kids.length ? leaves(c.kids) : 1; });
       return n;
     };
-    var worst = { deepest: 0, room: 0, tooDeep: 0, reachableOver: 0, floorOver: 0,
+    var worst = { deepest: 0, room: 0, noRoom: 0, tooDeep: 0, reachableOver: 0, floorOver: 0,
                   checked: 0, book: null, notes: 0, leaves: 0 };
     books.slice(0, 14).forEach(function (b) {
       __vs.openBook(b.id, null);
@@ -7289,9 +7289,13 @@ check("the fitted index converges: no level deeper than the rail's room", async 
       var deep = 0;
       ls.forEach(function (l) { if (l.depth > deep) deep = l.depth; });
       worst.checked++;
-      worst.room = t.room;
       worst.leaves += leaves(t.cuts);
       if (deep > worst.deepest) { worst.deepest = deep; worst.book = b.id; worst.notes = b.notes.length; }
+      /* github#87 -- the room is what the levels below are judged against, so a rail that does
+       * not report one says so here rather than comparing against NaN. The depth above is read
+       * either way: it is the measurement that names the fault. */
+      if (!(typeof t.room === "number" && t.room > 0)) { worst.noRoom++; __vs.closeReader(); return; }
+      if (t.room > worst.room) worst.room = t.room;
       /* github#87 -- the level under room minus two is the floor, counted apart. */
       if (deep >= t.room) worst.tooDeep++;
       ls.forEach(function (l) {
@@ -7311,11 +7315,11 @@ check("the fitted index converges: no level deeper than the rail's room", async 
     await unviewport(p, original);
     await putWearBack();
   }
-  const ok = (r) => !r.tooDeep && !r.reachableOver && r.deepest < r.room;
+  const ok = (r) => !r.noRoom && !r.tooDeep && !r.reachableOver && r.deepest < r.room;
   const say = (n, r) => `${n}: ${r.checked} books, room ${r.room} rows, deepest tree ${r.deepest}` +
-    `${r.book ? " (" + r.book + ", " + r.notes + " notes)" : ""}, ${r.tooDeep} deeper than the ` +
-    `room, ${r.reachableOver} level(s) over it above the floor, ${r.floorOver} at the floor, ` +
-    `${r.leaves} cuts kept`;
+    `${r.book ? " (" + r.book + ", " + r.notes + " notes)" : ""}, ${r.noRoom} with no room ` +
+    `reported, ${r.tooDeep} deeper than the room, ${r.reachableOver} level(s) over it above the ` +
+    `floor, ${r.floorOver} at the floor, ${r.leaves} cuts kept`;
   return { ok: ok(tall) && ok(short),
            detail: say("1180x1000", tall) + "; " + say("1180x480", short) };
 });
