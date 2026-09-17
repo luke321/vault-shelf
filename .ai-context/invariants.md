@@ -1355,6 +1355,25 @@ the room should *be* belongs to the sibling check. Forced short, it still names 
 | 20px | 3 | hovered, worn and hovered, a search match |
 | 12px | 3 | `a search match paints 25px into a room of 12px, so 13px of it is sliced off` |
 
+**A row has to move WIDE as well as far** (`github#20`). Depth alone stopped separating the two
+cases when `design/0014`'s containment moved off the shelf: with the shelf no longer painting into
+a box of its own, opening one track's clip re-rasterises that row against a different layer, and
+cyber's worn-and-hovered spine moved **2px of the 92px band at 8px above its track, 2px at 7 and
+3px at 6, by 12–14 of 255** — which clears `MOVED` on its own, because that is the same delta an
+arriving edge has. The two captures are **indistinguishable side by side**; it was looked at, not
+only counted. A spine arriving through an opened clip arrives a **spine wide** — 44px of one — so
+`WIDE = 8` pixels in a row must be past the delta before the row counts, and the three looks go
+back to slicing nothing.
+
+**A floor raised to make a red check green has to answer for itself in the same run**
+(`decisions/0019`), so the check now carries a negative control: the probed spine is held **30px
+above its own track in both captures** and only the clip changes, shut to nothing against opened
+to 90px. It must read **positive**, and it reads **31px**. Shutting the clip with **no** lift was
+tried first and read **0** — what cyber paints above a hovered spine is narrower than the floor —
+and that is recorded rather than quietly replaced: the floor is not a claim that nothing is up
+there, it is a refusal to call three pixels an edge, and the control therefore has to put a real
+edge in front of it rather than trusting a look to.
+
 **And it waits for the room rather than sleeping at it** (`decisions/0016`). Every `setLook`,
 `setQuery` and `clearQuery` in the check waits on `settled()` where it used to guess at 160ms and
 280ms, and a state whose room never came to rest is collected and **fails the check by name**
@@ -1953,10 +1972,45 @@ measured 14.1, 15.1 and 19.9 ms across three runs of code that never changed.
 
 ## Scrolling stays smooth
 
-`"scrolling the library stays smooth in every look"` scripts a 1.4-second scroll of the room in
-each look at a **fixed 800px/s**, turned round at either end, and keeps every frame's timestamp.
-What is asserted is **how many vsyncs the page failed to paint**, under **14** of the ~80 a sweep
-offers. `github#77`, `decisions/0017`.
+`"scrolling the library stays smooth in every look"` takes the room **one way down** in each
+look at a **fixed 2000px/s**, in a room with a **Weeks shelf** added for the check's own
+duration, and keeps every frame's timestamp. What is asserted is **how many vsyncs the page
+failed to paint**, under **30** of the ~110 a descent offers. `github#77`, `github#20`,
+`decisions/0017`.
+
+**It swept 1.4 seconds at 800px/s turned round at either end until `github#20`, and that route
+could not reach the thing it was measuring.** A sweep like that crosses 1,120px; the room with a
+Weeks shelf in it is **4,427px**. It never left the first viewport and a half, so every pixel
+after the first leg was ground it had already rasterised, and it scored **2 missed of 81** on a
+room that was dropping **43 of 302** going one way down. Measured on the same room in the same
+browser in the same minute, leather:
+
+| route | before `github#20` | after |
+|---|---|---|
+| turned round, 1.4s @ 800px/s (what the check did) | **2 of 81** | 1 of 80 |
+| one way down @ 800px/s | **43 of 302** | 15 of 303 |
+| one way down @ 2000px/s (what it does now) | **50 of 124** | 6 of 122 |
+| a real wheel over CDP, 60Hz | **25 of 320** | 16 of 319 |
+
+**The wheel and the descent agree; the turn is the outlier.** That is what retires `github#20`'s
+fourth line — drive a real input and see whether the scripted scroll is wrong. It was wrong about
+the route, not about the driver, so the check still moves `scrollTop` and simply stops turning
+round. A wheel would need node-side dispatch interleaved with page-side recording for a signal
+the descent already carries.
+
+**The room is the check's, not the fixture's.** The six default shelves are **1,494px** on a
+1000px window, which is a viewport and a half: nothing is ever far enough off screen for
+`content-visibility` to defer it, so the first paint this check exists to catch cannot occur
+there at all and every look scored a flat **0**. The Weeks shelf takes it to **4,109px** over
+**24 rows** and **695 spines**, and is removed before the check returns.
+
+**The leg is the room, and the walk stops at the floor.** `descend()` ends where the room does
+rather than burning a fixed clock: a scroller already at its end stops changing, an unchanging
+scroller invalidates nothing, and `decisions/0017` measured a page nothing is asking to move at
+**two frames in 400ms** — missing frames by arithmetic and stutter by no other measure, charged
+to whichever look happened to arrive first. It re-reads the span every frame for the opposite
+reason: rows firm up as they are reached, so a descent bounded by a span read once at the start
+waited **over 10s** on a room whose height moved 541px while it was being crossed.
 
 **It asserted a 95th percentile of the intervals under 34ms until `github#77`, and that number was
 not measurable.** A frame interval is a whole count of vsyncs, so the intervals arrive in clusters —
@@ -1968,24 +2022,74 @@ Two aggravators went with it — the percentile index came from the sample size,
 span in a fixed time made the velocity depend on what the preceding checks left behind, 231 spines
 over 1494px under `--only` against 227 over 1102px in a full suite.
 
-Measured now, missed vsyncs over six runs: leather **0–1**, modern **0–1**, cyber **0–3**, with the
-period **calibrated at 17.4–17.8ms** rather than assumed to be 16.7. A period outside 6–26ms fails
-the check on its own and says so separately: it is a fact about the machine, not about the room.
+Measured now, missed vsyncs of the shipped room: **leather 2–17, modern 0–3, cyber 4–16** over
+eleven runs, the period **calibrated at 16.7–17.9ms** rather than assumed to be 16.7. The top of
+that range is the check sharing a browser with a dozen others, which is how it runs in the suite
+and not how it runs under `--only` — leather read 2–8 alone and 9–17 loaded, so the budget is set
+against the loaded figure. A period outside 6–26ms fails the check on its own and says so
+separately: it is a fact about the machine, not about the room.
 
 **The same run takes `design/0014` back off the room and fails if that does not go over the
-budget** — containment off, the compositor layer gone. Measured **59–66 missed**, so the budget of
-14 sits in the empty gap between 3 and 59. `decisions/0017` records the three cheaper slowdowns
-that were tried first and cost nothing at all (a filter over every spine, a blur over the whole
-library, a 20px shadow spread on 231 spines): a scroll composites tiles that are already rasterised,
-so per-spine paint does not enter a frame until containment is what changes, which is most of why
-`github#77`'s own A/B looked insensitive.
+budget.** Measured **89–115 missed of ~110**. The budget of **30** has two things under it rather
+than one: it is above the loaded shipped ceiling of **17**, and below the **41–55** that putting
+the containment unit back on the shelf measures — so it fails the regression it was written for,
+not only the total removal the probe asserts. Empty on both sides: nothing has ever been observed
+between 17 and 41, or between 55 and 89. `decisions/0017` records the three cheaper slowdowns that were tried first and cost nothing
+at all (a filter over every spine, a blur over the whole library, a 20px shadow spread on 231
+spines): a scroll composites tiles that are already rasterised, so per-spine paint does not enter a
+frame until containment is what changes, which is most of why `github#77`'s own A/B looked
+insensitive. `github#20` priced three more of the same kind against the descent and they moved it
+just as little — leather **47** with the grain's `soft-light` blend off, **61** with the grain gone
+altogether, **38** with the spine's `box-shadow` gone, against **54** shipped and **8** for
+containment. **What a spine costs to paint is not what a scroll pays**, which is why no look's
+paint was touched.
 
-Measured before `design/0014`, p50/p95/worst in ms: modern **16.7/16.8/17**, leather **50/117/150**,
-cyber **83/400/400** — the looks paint a spine as several layers of gradient and texture,
-and every visible one was rasterised again per scroll step. After `content-visibility` on a
-shelf, `contain: layout paint` on a row and a compositor layer under the library: leather
-**17.6/18.7/105**, cyber **17.6/18.5/35**, modern unchanged. Those percentiles are still printed in
-the detail line, and are still the right shape to read; they are simply no longer what is asserted.
+### The unit is a row, not a shelf
+
+`design/0014` put `content-visibility: auto` on a **shelf**. A shelf is as many rows as it takes
+(`design/0014` again), and eleven years of weeks is **25 rows and 2,664px of spines**, so a shelf
+materialising paints all of it inside **one frame**. In the check's room, one way down at
+2000px/s, missed vsyncs of the ~121 on offer:
+
+| | leather | modern | cyber |
+|---|---|---|---|
+| the shelf is the unit (before `github#20`) | **45–46** | 2 | **41–55** |
+| the row is the unit (now) | **2–7** | 2–3 | **5–9** |
+| `design/0014` off altogether | 93–97 | 2–3 | 90–91 |
+
+p95 goes **89.2 → 18.5ms** on leather and **105.7 → 18.4ms** on cyber; the worst frame **123 →
+36ms** and **124 → 69ms**. **Modern is 2 in every row of that table**, which is the same thing
+`design/0014` found: this is a look's paint, and the look that paints least never pays it.
+
+**Keeping both units is worse than either — 65 missed, against 54 for the shelf alone and 8 for
+the row alone.** A skipped shelf cannot have its own rows assessed for visibility, so when it
+materialises every row is evaluated, laid out and painted at once and its height jumps from the
+intrinsic guess to the truth, which moves everything below it.
+
+**The shelf keeps no paint containment either, and that is not a free choice.** `contain: paint`
+on the shelf puts the win straight back where it was — leather **43** — because one paint box is
+one rasterisation unit however its rows are skipped, and `contain: layout paint` also stops
+`margin-bottom: 26px` collapsing, which moves the golden packing. So the shelf carries neither.
+What that cost is in *the clip check*, below.
+
+**A row's intrinsic size is its own `min-height` expression**, `calc(var(--spine-h) +
+var(--board) + 24px)`, and never a second number for the same height. Measured: a flat **214px**
+put the cold scroll height **541px** past the truth, **192px** put it **32px** past. The
+expression is exact for a plain row (**170px**) and 6px short for one carrying a plaque
+(**176px**), and `auto` replaces it with the measured height the first time a row renders. A
+skipped row still reports its own width — **1180px**, unchanged — because `width: 100%` comes
+from the containing block rather than from the intrinsic size, so `room()` is unaffected;
+`shelfWidth()` measures the container rather than a row anyway, for the harder case of a *shelf*
+being skipped.
+
+**The `calc()` resolves rather than falling back**, which is the one thing a length inside
+`contain-intrinsic-size` could quietly not do. Read off a live track: `contain-intrinsic-size`
+computes to **`auto 170px`** against a `min-height` of **170px**, `content-visibility` to `auto`
+and `contain` to `layout paint`; the shelf reads `none` and `visible`. `CSS.supports` says yes to
+the `calc()` and to a `var()` inside one, and — the control that makes those answers worth
+anything — the same parser **rejects** `contain-intrinsic-size: auto nonsense` outright. No CSS
+floor moves: `contain-intrinsic-size: auto <length>` is Chrome 98 and `design/0021` already
+stands on `color-mix()` at 111.
 
 ## The room
 

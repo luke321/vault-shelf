@@ -314,6 +314,25 @@ const FRAME_HELPERS = `(function(){
         requestAnimationFrame(step);
       });
     },
+    /* github#20 -- ONE WAY DOWN: a turned-round sweep re-crosses what it rasterised
+     * github#20 -- it stops at the FLOOR; a still scroller paints nothing
+     * github#20 -- and re-reads the span, which firms up as rows are reached */
+    descend: function (el, ms, pxPerSec) {
+      return new Promise(function (done) {
+        el.scrollTop = 0;
+        var span0 = Math.max(1, el.scrollHeight - el.clientHeight);
+        var ts = [], start = performance.now();
+        function step(now) {
+          ts.push(now);
+          var span = Math.max(1, el.scrollHeight - el.clientHeight);
+          var want = (now - start) / 1000 * pxPerSec;
+          el.scrollTop = Math.min(span, want);
+          if (now - start < ms && want < span) requestAnimationFrame(step);
+          else { el.scrollTop = 0; done({ ts: ts, span: Math.round(span0) }); }
+        }
+        requestAnimationFrame(step);
+      });
+    },
     /* THIS MACHINE'S VSYNC, which is the one number neither check may read off the measurement
      * it is judging: a run that drops three frames in four has no single-vsync interval left
      * to find, so the period reads long, the frames expected read few, and the worst run
@@ -6562,85 +6581,134 @@ check("scrolling the library stays smooth in every look", async (p) => {
    * and a median of the intervals between the ones that did cannot see them at all. */
   await p.eval(FRAME_HELPERS);
   /* p.eval, not p.j: this one is a promise, and eval awaits it while j would stringify it. */
-  const r = await p.eval(`(async function(){
-    var lib = document.getElementById("vs-library");
-    var looks = window.VaultShelfCore.LOOKS.map(function (l) { return l.value; });
-    var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  /* github#20 -- ONE CALL PER LEG: cdp.mjs allows 10s, this walk is 20
+   * github#20 -- no sample crosses a boundary, so the split is free */
+  const run = (body) => p.eval(
+    `(async function(){ var lib = document.getElementById("vs-library");` +
+    ` var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };` +
+    body + ` })()`);
 
-    /* the throwaway pass is what gets frames flowing at all, and __fr.calibrate says why it
-     * has to come first */
+  /* github#20 -- A ROOM WITH SOMETHING OFF SCREEN IN IT
+   * github#20 -- six shelves are 1.5 viewports; every look scored 0
+   * github#20 -- Weeks takes it past 4,000px. Put back at the end. */
+  const room = await run(`
+    var settings = __vs.settings();
+    window.__smoothHad = settings.shelves.map(function (s) { return s.id; });
+    settings.shelves.push({ id: "-smoothweeks", name: "Weeks", source: { kind: "all" },
+      classifier: "week", direction: "chronological", hidden: false,
+      position: settings.shelves.length, plaques: true, spineSeries: "year" });
+    __vs.setFilters({});
+    await wait(500);
+    return Math.round(lib.scrollHeight - lib.clientHeight);
+  `);
+
+  /* github#20 -- the room is put back even when a leg throws; the old check
+   * github#20 -- could not leak it, being one call, and this one can */
+  let idle, out, slowed, spines;
+  try {
+
+  /* decisions/0017 -- the throwaway pass gets frames flowing before calibrate */
+  idle = await run(`
     __vs.setLook("");
     await wait(120);
     await __fr.sweep(lib, 240, 800);
-    var idle = await __fr.calibrate(lib, 500);
+    return await __fr.calibrate(lib, 500);
+  `);
 
-    var out = {};
-    for (var i = 0; i < looks.length; i++) {
-      __vs.setLook(looks[i]);
+  /* github#20 -- 2000px/s one way: harsher than 800 and 2.5x cheaper
+   * github#20 -- THE LEG IS THE ROOM; descend() stops at the floor */
+  const DOWN = 2000;
+  const LEGMS = Math.round(room / DOWN * 1000) + 400;
+  const looks = JSON.parse(await p.eval(
+    `JSON.stringify(window.VaultShelfCore.LOOKS.map(function (l) { return l.value; }))`));
+  out = {};
+  for (const one of looks) {
+    out[one || "modern"] = await run(`
+      __vs.setLook(${JSON.stringify(one)});
       await wait(120);
       /* one discarded pass, so the look's stylesheet has painted before anything is timed */
       await __fr.sweep(lib, 240, 800);
-      out[looks[i] || "modern"] = await __fr.sweep(lib, 1400, 800);
-    }
+      lib.scrollTop = 0;
+      await wait(250);
+      return await __fr.descend(lib, ${LEGMS}, ${DOWN});
+    `);
+  }
 
-    /* github#77 -- AND THE SAME ROOM WITH design/0014 TAKEN BACK OFF IT. A budget nothing can
-     * push past is decorative, which is what github#77 suspected this one of being, so the run
-     * that asserts the budget also proves the number can still see THE REGRESSION IT EXISTS TO
-     * CATCH rather than some cost invented for the occasion. Containment off and the compositor
-     * layer gone is the state design/0014 measured at leather 117ms and cyber 400ms at the 95th
-     * percentile. Three cheaper slowdowns were tried first and not one of them cost a frame --
-     * a filter over every spine, a blur over the whole library, a 20px shadow spread on 231
-     * spines -- because a scroll composites tiles that are already rasterised, and per-spine
-     * paint does not enter a frame until containment is what changes. That is worth knowing on
-     * its own: it is why github#77's own A/B looked insensitive.
-     * design/0017 -- on leather, the one look the selector offers. */
+  /* github#77 -- THE SAME ROOM WITH design/0014 TAKEN BACK OFF IT
+   * github#77 -- a budget nothing can push past has stopped seeing cost
+   * github#20 -- the probe takes off what design/0014 IS NOW
+   * design/0017 -- on leather, the one look the selector offers. */
+  slowed = await run(`
     __vs.setLook("leather");
     await wait(120);
     var probe = document.createElement("style");
     probe.id = "vs-smoothprobe";
     probe.textContent =
-      ".vault-shelf .vs-shelf{content-visibility:visible!important;contain-intrinsic-size:auto!important}" +
-      ".vault-shelf .vs-track{contain:none!important}" +
+      ".vault-shelf .vs-shelf{content-visibility:auto!important;contain-intrinsic-size:auto 240px!important}" +
+      ".vault-shelf .vs-track{contain:none!important;content-visibility:visible!important;" +
+        "contain-intrinsic-size:auto!important}" +
       ".vault-shelf .vs-shelfrail{contain:none!important}" +
       ".vault-shelf #vs-shelves{will-change:auto!important}";
     document.head.appendChild(probe);
-    var slowed;
     try {
       await wait(200);
       await __fr.sweep(lib, 240, 800);
-      slowed = await __fr.sweep(lib, 1400, 800);
+      lib.scrollTop = 0;
+      await wait(250);
+      return await __fr.descend(lib, ${LEGMS}, ${DOWN});
     } finally {
       probe.parentNode.removeChild(probe);
     }
-    __vs.setLook(looks[0]);
-    await wait(120);
+  `);
 
-    return { looks: out, slowed: slowed, idle: idle,
-             spines: document.querySelectorAll("#vs-shelves .vs-spine").length };
-  })()`);
+  spines = await run(`
+    __vs.setLook(window.VaultShelfCore.LOOKS[0].value);
+    await wait(120);
+    return document.querySelectorAll("#vs-shelves .vs-spine").length;
+  `);
+
+  } finally {
+    /* github#20 -- the room goes back to the one every other check expects */
+    await run(`
+      var settings = __vs.settings();
+      var had = window.__smoothHad;
+      settings.shelves = settings.shelves.filter(function (s) {
+        return had ? had.indexOf(s.id) >= 0 : s.id !== "-smoothweeks";
+      });
+      delete window.__smoothHad;
+      __vs.setFilters({});
+      await wait(250);
+      lib.scrollTop = 0;
+      return settings.shelves.length;
+    `).catch(function () {});
+  }
+
+  const r = { looks: out, idle: idle, room: room, spines: spines };
 
   const VSYNC = framePeriod(r.idle);
   const names = Object.keys(r.looks);
   const look = {};
   for (const n of names) look[n] = frameStats(r.looks[n], VSYNC);
-  const slowed = frameStats(r.slowed, VSYNC);
+  const probed = frameStats(slowed, VSYNC);
 
-  /* github#77, decisions/0017 -- missed vsyncs of the ~80 a 1.4s sweep offers */
-  const BUDGET = 14;
+  /* github#20, decisions/0017 -- 0-17 shipped, 41-55 for the regression, 89-115 probed
+   * github#20, decisions/0017 -- 30 is the empty gap, and below what it must catch */
+  const BUDGET = 30;
   const over = names.filter((n) => look[n].missed > BUDGET);
   /* github#77, decisions/0017 -- a budget nothing can fail has stopped seeing cost */
-  const blind = slowed.missed <= BUDGET;
+  const blind = probed.missed <= BUDGET;
 
   return {
     ok: over.length === 0 && !blind && frameSteady(VSYNC),
-    detail: `${r.spines} spines swept at 800px/s through ${look[names[0]].span}px; missed ` +
-            `vsyncs of the ${look[names[0]].painted + look[names[0]].missed} on offer, and ` +
+    detail: `${r.spines} spines, ${r.room}px of room with a Weeks shelf in it, taken ONE WAY ` +
+            `DOWN at 2000px/s; missed vsyncs of the ` +
+            `${look[names[0]].painted + look[names[0]].missed} on offer, and ` +
             `p50/p95/worst frame in ms -- ` + names.map((n) =>
               `${n} ${look[n].missed} (${look[n].p50.toFixed(1)}/${look[n].p95.toFixed(1)}/` +
               `${look[n].worst.toFixed(0)})`).join(", ") +
             ` (budget: ${BUDGET} missed${over.length ? "; over in " + over.join(", ") : ""})` +
-            `; the same room with design/0014 off it missed ${slowed.missed} of ` +
-            `${slowed.painted + slowed.missed}` +
+            `; the same room with design/0014 off it missed ${probed.missed} of ` +
+            `${probed.painted + probed.missed}` +
             (blind ? `, inside the budget -- the number has stopped seeing cost` : "") +
             `; vsync calibrated at ${VSYNC.toFixed(1)}ms` +
             (frameSteady(VSYNC) ? "" : ", which is no frame this machine can paint")
@@ -9073,8 +9141,13 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
   const MOVED = 6;   /* github#51 -- dither is a unit; an arriving edge moves one by tens */
   const REACH = 60;  /* github#51 -- past the widest room a look could ask for */
   const SIDE = 24;   /* github#51 -- a glow spills sideways too, so read wider than the spine */
+  /* github#20 -- HOW MANY pixels moved, not just how far one did
+   * github#20 -- an edge arrives 44px wide; a glow moves 2 or 3 */
+  const WIDE = 8;
   /* github#78 -- this spine's own track, not every track */
   const OPEN = " #vs-app .vs-track:has([data-probe51b]) { overflow-clip-margin: 90px !important; }";
+  /* github#20 -- the control's baseline: no room at all */
+  const SHUT = " #vs-app .vs-track:has([data-probe51b]) { overflow-clip-margin: 0 !important; }";
 
   /* github#51, design/0021 -- the band stays in the page; only the answer crosses. */
   const grab = async (slot, x, y, w, rows) => {
@@ -9095,30 +9168,33 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
     })()`);
   };
 
+  /* github#20 -- a row moves when WIDE pixels are past MOVED */
   const reachOf = (a, b) => p.j(`(function(){
     var A = window.__vs51b[${JSON.stringify(a)}], B = window.__vs51b[${JSON.stringify(b)}];
     if (!A || !B || A.w !== B.w || A.h !== B.h) return -1;
     for (var y = 0; y < A.h; y++) {
-      var most = 0;
+      var n = 0;
       for (var x = 0; x < A.w; x++) {
         var i = (y * A.w + x) * 4;
-        most = Math.max(most, Math.abs(A.d[i] - B.d[i]),
-                        Math.abs(A.d[i + 1] - B.d[i + 1]), Math.abs(A.d[i + 2] - B.d[i + 2]));
+        var d = Math.max(Math.abs(A.d[i] - B.d[i]),
+                         Math.abs(A.d[i + 1] - B.d[i + 1]), Math.abs(A.d[i + 2] - B.d[i + 2]));
+        if (d > ${MOVED}) n++;
       }
-      if (most > ${MOVED}) return A.h - y;
+      if (n >= ${WIDE}) return A.h - y;
     }
     return 0;
   })()`);
 
-  /* github#78, design/0021 -- what the clip takes, not what paint wants */
-  const slicedAbove = async (g) => {
+  /* github#78, design/0021 -- what the clip takes, not what paint wants
+   * github#20 -- `also` is in BOTH shots, so it never differs */
+  const slicedAbove = async (g, baseline, also) => {
     const x = Math.max(0, Math.round(g.left) - SIDE);
     const w = Math.max(2, Math.round(g.w) + SIDE * 2);
     const y = Math.floor(g.trackTop) - REACH;
     if (y < 0) return -1;
-    await sheet("");
+    await sheet((also || "") + (baseline || ""));
     await grab("shipped", x, y, w, REACH);
-    await sheet(OPEN);
+    await sheet((also || "") + OPEN);
     await grab("open", x, y, w, REACH);
     await sheet("");
     return reachOf("shipped", "open");
@@ -9203,6 +9279,18 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
     }
   }
 
+  /* github#20, decisions/0019 -- a floor raised must answer for itself in the run.
+   * github#20 -- the spine is 30px up in BOTH shots; only the clip moves
+   * github#20 -- a real slice is 30px of a 44px spine; must read > 0 */
+  const LIFT = " #vs-app [data-probe51b] { transform: translateY(-30px) !important; }";
+  let control = -2;
+  {
+    await p.j(`(__vs.setLook("cyber"), 1)`);
+    await rest("control setLook");
+    const g = await mark(WORN);
+    if (g) control = await slicedAbove(g, SHUT, LIFT);
+  }
+
   await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
   await sleep(160);
   await p.j(`(function(){
@@ -9217,8 +9305,11 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
   const missing = rows.filter((x) => x.missing);
   const cut = rows.filter((x) => x.cut > 0);
   const unread = rows.filter((x) => !x.missing && x.sliced < 0);
+  /* github#20, decisions/0019 -- a reading that cannot go positive is not a reading */
+  const blind = control <= 0;
   const ok = missing.length === 0 && cut.length === 0 && unread.length === 0 &&
-             restless.length === 0 && rows.length === looks.length * states.length;
+             restless.length === 0 && !blind &&
+             rows.length === looks.length * states.length;
   /* github#78 -- the room and the states held; the reach is gone */
   const held = new Map();
   for (const x of rows) {
@@ -9254,7 +9345,10 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
               : "") +
             (restless.length
               ? ` -- STILL MOVING WHEN MEASURED: ` + restless.join(", ")
-              : "")
+              : "") +
+            /* github#20, decisions/0019 -- what makes the width floor mean anything */
+            `; a cyber spine held 30px over a track shut to no room reads ${control}px sliced` +
+            (blind ? `, which is nothing -- the reading has stopped seeing a slice` : "")
   };
 });
 

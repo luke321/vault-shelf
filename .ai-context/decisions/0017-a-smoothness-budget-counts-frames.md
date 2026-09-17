@@ -154,3 +154,45 @@ the smoothest in the suite.
 - The detail line now prints the count, the frames on offer, the calibrated period, and what
   the probe measured, so a future disagreement has the numbers in the log rather than in a
   rerun.
+
+## Amended 2026-09-17 — the library's sweep goes one way down (`github#20`)
+
+This record fixed the **metric** and left the **route** alone, and the route was the other half of
+the same fault. Part 3 above chose a fixed velocity turned round at either end, for a good reason —
+so the pixels crossed per frame stop depending on how tall a room the preceding checks left behind.
+What it did not ask is how far 1.4 seconds at 800px/s actually gets: **1,120px**, against a room
+with a Weeks shelf in it of **4,427px**. The sweep never left the first viewport and a half, and
+every pixel after the first leg was ground it had already rasterised.
+
+So the budget was being asserted against a route with no first paints in it. Measured on leather in
+one browser in one minute, before `github#20`'s fix: the turned-round 1.4s sweep read **2 missed of
+81** on a room that was dropping **43 of 302** taken one way down, and **50 of 124** on a flick. A
+real wheel dispatched over CDP read **25 of 320** — it agrees with the descent and not with the
+turn, which is what says the driver was never the problem.
+
+**The library check descends instead: one way, 2000px/s, in a room the check gives itself a Weeks
+shelf for.** Everything else here stands — the count of missed vsyncs, the calibrated period, the
+throwaway pass before calibrating, the whole-pixel nudge, and the probe that must go over the
+budget in the same run. Three things are new and each is measured in `invariants.md`:
+
+- **The leg is the room, and the walk stops at the floor.** This record's own finding that a still
+  page paints two frames in 400ms is exactly what a descent that overruns its room would produce,
+  and it would be charged to whichever look arrived first.
+- **The span is re-read every frame.** Rows firm up as they are reached, so a descent waiting to
+  arrive at a span read once at the start waited over 10s on a room whose height moved 541px
+  underneath it.
+- **The budget is 30** of the ~110 a descent offers, and it is chosen against TWO readings rather
+  than one: above the loaded shipped ceiling of 17, and below the 41–55 that putting the
+  containment unit back on the shelf measures. The probe's 89–115 proves the reading is alive;
+  the 41–55 is what the budget actually has to fail. Nothing has been observed between 17 and 41.
+  A first pass set it at 22 against an unloaded 0–8, which left five frames of headroom over a
+  check that reads 17 sharing a browser with a dozen others — the same thin-margin mistake this
+  record was written about, caught by sampling the loaded case rather than the convenient one.
+
+**The wheel check is untouched.** It pushes against the end of an open book, which is not a room to
+descend, and it has no probe for the reason given above: there is still no known-expensive change
+to a reader page that has been measured here.
+
+**`decisions/0010` is again untouched, and again deliberately.** A stamp taken on the old route is
+worth what the old route was worth — it asserted a real budget against a motion that could not
+produce the cost — but the stamp mechanism was not what was wrong either time.
