@@ -7260,6 +7260,66 @@ check("no index cut is clipped, and none is shrunk past reading", async (p) => {
   return { ok: clean(tall) && clean(short), detail: say("1180x1000", tall) + "; " + say("1180x480", short) };
 });
 
+/* github#87, design/0034 -- the check above sees three folds down; this reads the whole tree. */
+check("the fitted index converges: no level deeper than the rail's room", async (p) => {
+  const original = await p.j("({width:innerWidth,height:innerHeight})");
+  const putWearBack = await holdWear(p);
+  const read = () => p.j(`(function(){
+    var books = [];
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) { books.push(b); }); });
+    books = books.filter(function (b) { return b.id.indexOf("favourites/") !== 0; });
+    books.sort(function (a, b) { return b.notes.length - a.notes.length; });
+    /* every level of the fitted tree, as rows: the trail it came through plus its own cuts */
+    var levels = function (cuts, depth, out) {
+      out.push({ depth: depth, rows: depth + cuts.length });
+      cuts.forEach(function (c) { if (c.kids.length) levels(c.kids, depth + 1, out); });
+      return out;
+    };
+    var leaves = function (cuts) {
+      var n = 0;
+      cuts.forEach(function (c) { n += c.kids.length ? leaves(c.kids) : 1; });
+      return n;
+    };
+    var worst = { deepest: 0, room: 0, tooDeep: 0, reachableOver: 0, floorOver: 0,
+                  checked: 0, book: null, notes: 0, leaves: 0 };
+    books.slice(0, 14).forEach(function (b) {
+      __vs.openBook(b.id, null);
+      var t = __vs.indexTabs();
+      var ls = levels(t.cuts, 0, []);
+      var deep = 0;
+      ls.forEach(function (l) { if (l.depth > deep) deep = l.depth; });
+      worst.checked++;
+      worst.room = t.room;
+      worst.leaves += leaves(t.cuts);
+      if (deep > worst.deepest) { worst.deepest = deep; worst.book = b.id; worst.notes = b.notes.length; }
+      /* github#87 -- the level under room minus two is the floor, counted apart. */
+      if (deep >= t.room) worst.tooDeep++;
+      ls.forEach(function (l) {
+        if (l.rows <= t.room) return;
+        if (l.depth <= t.room - 2) worst.reachableOver++; else worst.floorOver++;
+      });
+      __vs.closeReader();
+    });
+    return worst;
+  })()`);
+  let tall, short;
+  try {
+    await viewport(p, 1180, 1000); tall = await read();
+    await viewport(p, 1180, 480);  short = await read();
+  } finally {
+    await p.eval("__vs.closeReader();");
+    await unviewport(p, original);
+    await putWearBack();
+  }
+  const ok = (r) => !r.tooDeep && !r.reachableOver && r.deepest < r.room;
+  const say = (n, r) => `${n}: ${r.checked} books, room ${r.room} rows, deepest tree ${r.deepest}` +
+    `${r.book ? " (" + r.book + ", " + r.notes + " notes)" : ""}, ${r.tooDeep} deeper than the ` +
+    `room, ${r.reachableOver} level(s) over it above the floor, ${r.floorOver} at the floor, ` +
+    `${r.leaves} cuts kept`;
+  return { ok: ok(tall) && ok(short),
+           detail: say("1180x1000", tall) + "; " + say("1180x480", short) };
+});
+
 /* github#32, design/0034 */
 check("one cut is lit, and it is the deepest the page has reached", async (p) => {
   const putWearBack = await holdWear(p);

@@ -3121,10 +3121,15 @@ is derived from where the page stands, so Next carries the trail with it.
 
 **Nothing is dropped to make it fit.** The old cap of about thirty tabs dropped the days and
 then the months: `people/-unfiled`, 2,450 notes, showed **11 year tabs with nothing under
-them**. It now shows 11 years, each opening its months. A level that overflows is halved into
+them**. It now shows 11 years, each opening its months. A level that overflows is gathered into
 spans naming what they open (`Jan-Apr`), and the cuts it held become what those spans open; a
 range of ranges is still one range, so gathering twice reads `Jan-Aug`. Every level at that
 depth is gathered together, never one at a time.
+
+**Into as many spans as the rail has room for, never into halves** (`github#87`). Halving is one
+arity chosen in advance, and each gather is a level of depth the trail then bills to every level
+below it: a level of twenty-six needs four of them to get under nine. One gather into the room
+that is there costs one.
 
 **A numeric volume is indexed like a date book.** The Encyclopedia's `0-9` volume is a date
 book wearing a letter's clothes, and `titlePrefix` used to pin its key at four digits: asking
@@ -3160,12 +3165,37 @@ vault, the `(?!\d)` that stops it is unreachable from any check and would go qui
 red. It lands at index 649 of the `0-9` volume, under a cut labelled **`2022x` with 0 under it**,
 between the 2022 and 2023 runs - which is what takes the volume from 15 top cuts to 16.
 
-**Fit is measured, not calculated**, off the last cut's own bottom and never `scrollHeight` -
+**Fit is measured, not calculated**, off the last row's own bottom and never `scrollHeight` -
 the rail's overflow is visible by design, and a box that does not scroll does not reliably
-report a scrolling area. It is fitted to the **fattest level the book can show**, not the one
-open now, so a page turn cannot re-fit the index and give one book two shapes. The rail is
-re-fitted on every room measure, before the width is compared: the room ignores a resize that
-changed only the height, and the rail is fitted to the height it has.
+report a scrolling area. It is fitted to the **whole book**, not the fold open now, so a page
+turn cannot re-fit the index and give one book two shapes. The rail is re-fitted on every room
+measure, before the width is compared: the room ignores a resize that changed only the height,
+and the rail is fitted to the height it has.
+
+**And fitted top down, because a gather is paid for by everything under it** (`github#87`). A
+level at depth *d* draws `d + its cuts` rows - the rail stands the trail above it - so gathering
+the fattest level wherever it stood made every deeper level one row worse, and the two chased
+each other: *gather the level that draws the most rows* **never terminated**. It ran its 24-step
+cap out on **7 of the 14** fattest books and left `people/Otto Brandt`, 486 notes, an index **24
+levels deep**; the shut rail fitted, so only the book whose overflow happened to sit three folds
+down went red. The room is measured once - `clamp(20px, (100cqh - 67px)/n, 28px)` makes the fit
+monotonic in the row count, so a binary search settles it in six draws - and each depth is then
+gathered into `room - depth` spans in turn, shallowest first. The pass ends where `room - depth`
+falls under two, so **the depth stays under the room by construction**.
+
+**Measured 2026-09-17**, fourteen fattest books, no cut lost: deepest fitted tree **24 -> 8**
+levels, books that had not converged **7 -> 0**, cuts clipped at 1180x480 **1 -> 0**, most cuts
+on show **10 (in a room of 9) -> 9**. At 1180x1000 the room is **37** rows and nothing gathers at
+all, so the tall case is untouched.
+
+**Known floor: four alphabetical tag books are one row over, at the bottom of the rail.**
+`website-migration`, `garden`, `sleep`, `reading` and `idea` settle at depth 8 with 10 rows
+against a room of 9 at 1180x480 - **94 levels over, every one of them eight presses down**. A
+beam search over every grouping sequence there is (all depths x all group counts) proves 10 is
+the floor: grouping adjacent cuts only ever *adds* levels, and each one costs a row. *The fitted
+index converges* therefore asserts the depth and the levels the pass can reach, and **prints**
+this count rather than asserting it - a check red for a reason nobody intends to act on stops
+being read.
 
 **Measured 2026-09-14 over the fourteen fattest books, closed and then folded all the way down,
 at 1180x1000 and 1180x480:** 0 clipped, 0 outside the spread, 0 over a fifth of it, **0 with the
