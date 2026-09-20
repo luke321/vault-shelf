@@ -145,3 +145,87 @@ is unchanged, because both read the same stamp.
 | **Record the count but keep trusting one green** | Honest reporting with none of the effect. The behaviour the issue calls wrong would stay exactly as it is. |
 | **Three or more greens** | Each extra run buys less than the one before, and the cost is paid on every fresh tree. Two is where a single flake stops being able to stamp on its own. |
 | **Require the two runs to be on different days, or by different callers** | A clock cannot say which tree it saw — the same objection the original record makes to trusting recency. |
+
+---
+
+## Amendment, 2026-09-20 — a stamp names the instrument that earned it
+
+**Issue** [#77](https://github.com/luke321/vault-shelf/issues/77) · **Status** accepted
+
+Nothing above changes. One field is added: `epoch`, `STAMP_EPOCH` in
+`scripts/suite-stamp.mjs`, and `lookup()` is a hit only when the stamp carries the epoch the
+suite is at now.
+
+### What went wrong
+
+`"scrolling the library stays smooth in every look"` sampled a frame interval against a budget
+that sat **inside a quantisation cluster**, so one dropped frame read as 34.2 (pass) or 34.7
+(fail) — the same physical event on opposite sides of the line. Measured on `a2de7fa`: **four
+reds in five runs**, and `modern`, the only look a user gets, could not fail at all. The budget
+was replaced with a count of missed vsyncs (`decisions/0017`) and given a negative control
+(`decisions/0019`).
+
+**The stamps that check earned did not go anywhere.** Tree `0989b3e` — `develop` at the time —
+was stamped 2/2 green, so a push would have skipped the suite on the strength of two coin
+tosses that came up heads. The streak law of #55 is exactly what makes this durable: a stamp
+that survives says two greens in a row happened, and about a check that was red four times in
+five, being retried until that happens is a matter of patience.
+
+Measured on this machine the day this landed: **79 stamps, 17 of them at the full streak, and
+0 of them hitting**, because the one fixture in the store is `3ea58174` of 2026-09-16 and no
+stamp names it. That is a reprieve, not a defence. A fixture digest is a function of the
+generator sources, so it returns whenever those do, and `.githooks/pre-push` looks up **every
+commit being pushed** rather than the tip alone — a `develop` push carrying a range of older
+commits is the shape that collects dormant stamps.
+
+### The decision
+
+**The instrument is part of the claim.**
+
+- `record()` writes `epoch: STAMP_EPOCH` and treats an epoch change exactly as it treats a
+  regenerated fixture: the streak restarts at 1 rather than inheriting greens earned by a
+  measurement now known to be unreliable.
+- `lookup()` misses on any other epoch, **before** it reads the fixtures or the streak, and
+  names both — `tree 0989b3e was stamped under epoch none and the suite is at epoch 2, so
+  another instrument measured it`. Stamps written before the field existed read as `none` and
+  are demoted, the same way #55 demoted the ones with no `greens`.
+- `list` prints each stamp's epoch and says when it is not the current one, so the command the
+  issue points at enumerates the candidates honestly.
+- The equality is **strict**. The epoch is part of the tree, so a stamp for a tree always
+  carries that tree's own epoch and a mismatch can only mean the stamp predates a bump.
+
+| epoch | drawn at | why |
+|---|---|---|
+| 1 (written as `none`) | everything up to `65411f7` | the smoothness budget sampled one frame interval against a threshold inside a vsync cluster (github#77) |
+| 2 | the frame-counting budget, `decisions/0017` | the budget counts missed vsyncs, sweeps at a fixed velocity, and proves on every run that it can still see the regression it exists to catch (`decisions/0019`) |
+
+**What makes the demotion reach the past at all**: both gates run
+`scripts/suite-stamp.mjs` **from the checkout doing the pushing**, not from the commit whose
+stamp is being looked up — `.githooks/pre-push` calls `$root/scripts/suite-stamp.mjs` for every
+sha in the range. So a working tree at epoch 2 judges an old tree's stamp by epoch 2 and misses
+it. The one way round that is to check the old tree out and push from there, which runs the old
+script by construction; nothing in this repo does that, and a tree old enough to matter would
+fail the branch policy long before the stamp came up.
+
+**Bumping it is a maintainer's act, and deliberately manual.** A stamp is keyed to the git
+tree, and the tree contains the check, so a *future* change to a check can never inherit an old
+stamp — that much is already covered. The epoch exists for the one thing tree-keying cannot
+express: a discovery, made later, that a measurement already taken was lying. That is a fact
+about the past, and no key derived from the tree can state it.
+
+### What it costs, said plainly
+
+Every tree on this machine loses its stamp, so the next `develop` push pays two suite runs to
+re-earn one — about 45 s more, and **0 s today**, since nothing hit anyway. The line is drawn
+bluntly: `55147fa` (2/2, 2026-09-16) was honestly earned on the new check and is demoted with
+the rest.
+
+### Rejected
+
+| Option | Why not |
+|---|---|
+| **Delete the 17 files and be done** | The store lives in the shared git common dir, so it is per machine: a delete fixes this one, leaves the other untouched, and says nothing to a fresh clone. It also destroys the record, which is the defect this record holds against `SKIP_SMOKE` in the first place. |
+| **Demote per stamp, by whether its `commit` has `65411f7` as an ancestor** | Surgical, and it would have kept `55147fa`. But it needs each recorded commit to exist in whatever checkout is doing the lookup, which a store shared across worktrees and machines cannot promise, and it makes trust depend on git archaeology rather than a number in the tree. |
+| **Raise `GREENS_REQUIRED` instead** | Weighed and rejected in the amendment above, and it answers a different question: no number of greens rescues a stamp earned by an instrument that was not measuring its subject. |
+| **Derive the epoch from a digest of the check sources** | The tree hash already is that digest, and it already works. What is wanted here is a judgement about a past measurement, which no digest of the present can carry. |
+| **Accept `stamp.epoch >= STAMP_EPOCH`** | Nothing writes a stamp from the future, so it buys no case and loses fail-closed. |

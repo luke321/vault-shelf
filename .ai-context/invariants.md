@@ -2754,8 +2754,9 @@ which on Windows throws rather than replacing.
 ## A tree is gated once, and a stamp is two consecutive green runs
 
 Not a check in `smoke.mjs` but a property of the gates themselves, held by
-`node scripts/suite-stamp.mjs --selftest` — **30 cases** (17 before github#55), against a
-throwaway repository and a seeded fixture store. `decisions/0010`, amended 2026-09-12.
+`node scripts/suite-stamp.mjs --selftest` — **36 cases** (17 before github#55, 30 before
+github#77), against a throwaway repository and a seeded fixture store. `decisions/0010`, amended
+2026-09-12 and 2026-09-20.
 
 What it asserts: a clean tree records a stamp; the same tree hits again from a **new commit**
 and from a **`--no-ff` merge commit**, which is the whole point, since the merge that reaches
@@ -2810,14 +2811,47 @@ run often enough. A partial run (`--only`, `--vault`, `--url`, `--look`) neither
 clears, because it says nothing about the tree. Stamps written before this carry no `greens`
 field, read as 0, and are demoted rather than grandfathered.
 
-Eleven of the 28 cases are this law: one green counts 1 and misses; a second counts 2 and hits;
+Twelve of the 36 cases are this law: one green counts 1 and misses; a second counts 2 and hits;
 the hit says how many runs it stands on; a red run forgets the streak; forgetting twice says
-there was nothing to forget; one green after a red one is back to 1 and misses; two after a red
-one hit again; a run against a regenerated fixture starts the count again.
+there was nothing to forget; a dirty tree refuses to forget and the stamp it would have cleared
+still hits; one green after a red one is back to 1 and misses; two after a red one hit again; a
+run against a regenerated fixture starts the count again.
+
+**A STAMP NAMES THE INSTRUMENT THAT EARNED IT** — `STAMP_EPOCH = 2`, github#77,
+`decisions/0010` amended again. The streak law is what made the smoothness budget's stamps
+durable: `"scrolling the library stays smooth in every look"` was red **four runs in five** on
+`a2de7fa`, and a check that green about half the time reaches two in a row by being retried. Tree
+`0989b3e` — `develop` at the time — carried 2/2 green, so a push would have skipped the suite on
+two coin tosses. The budget was replaced (`decisions/0017`) and given a negative control
+(`decisions/0019`); the stamps stayed.
+
+So `record()` writes the epoch and treats a change of it exactly as it treats a regenerated
+fixture — the streak restarts at 1 — and `lookup()` misses on any other epoch **before** it reads
+the fixtures or the streak, naming both: `tree 0989b3e was stamped under epoch none and the suite
+is at epoch 2, so another instrument measured it`. Stamps written before the field existed read
+as `none` and are demoted, the same way #55 demoted the ones with no `greens`. `list` prints each
+stamp's epoch and says when it is not the current one. The equality is **strict**: the epoch is
+part of the tree, so a stamp always carries its own tree's epoch and a mismatch can only mean the
+stamp predates a bump.
+
+Measured on this machine the day it landed — **79 stamps, 17 at the full streak, 0 hitting**,
+because the only fixture in the store is `3ea58174` of 2026-09-16 and no stamp names it. The
+fixture check was doing that work by coincidence, not by design: a digest is a function of the
+generator sources and returns whenever those do, and the hook looks up **every commit being
+pushed** rather than the tip alone. After the epoch, all 79 miss for a reason that does not
+depend on what the store happens to hold. Six of the 36 cases are this law, and each of the two
+halves was proved by disabling it: without the `lookup()` gate two cases go red, without
+`record()`'s reset three do.
+
+**Bumping the epoch is a maintainer's act and deliberately manual.** A tree contains its own
+checks, so a *future* change to a check can never inherit an old stamp. The epoch is for the one
+thing tree-keying cannot express: a discovery, made later, that a measurement already taken was
+lying.
 
 **The cost, stated rather than hidden: the first push on a fresh tree pays for two suite runs
 instead of one**, about 45 s more on this machine. Every push after that on the same tree is
-unchanged, and so is the release path, because both read the same stamp.
+unchanged, and so is the release path, because both read the same stamp. The epoch bump costs the
+same 45 s once per tree still in use, and **0 s today**, since nothing hit anyway.
 
 A stamped push to `develop` costs **7.5 s** and an unstamped one the suite on top, both measured
 by driving the hook with the ref lines git hands it. What the suite itself costs is the next

@@ -1,5 +1,43 @@
 # Changelog detail
 
+## 2026-09-20 — A stamp names the instrument that earned it (`github#77`, `decisions/0010`)
+
+The measurement half of #77 landed on 2026-09-15 (`decisions/0017`, `decisions/0019`): the
+smoothness budget counts missed vsyncs instead of sampling a frame interval against a threshold
+sitting inside a vsync cluster, and it re-runs the same room with `design/0014` off to prove it
+can still fail. **The stamps the old check earned stayed where they were.**
+
+The old check was red **four full runs in five** on `a2de7fa`. Under `decisions/0010` two greens
+in a row stamp a tree and both local gates then skip the suite, so a check that is green about
+half the time converts into a permanent pass by being retried — which is what happened to tree
+`0989b3e`, `develop` at the time, stamped 2/2.
+
+| the stamp store on this machine | before | after |
+|---|---|---|
+| stamps held | 79 | **79** — demoted, not deleted |
+| at the full two-green streak | **17** | 17, and none of them trusted |
+| that `lookup()` would hit | **0** | **0** |
+| why they miss | the fixture in the store is `3ea58174` of 2026-09-16 and no stamp names it | `stamped under epoch none and the suite is at epoch 2` |
+| does the miss depend on what the store holds | **yes** — a digest is a function of the generator sources and returns whenever those do | no |
+| `--selftest` cases | 30 | **36** |
+| cost of the bump | — | 45 s per tree still in use, **0 s today** |
+
+**0 of 79 hitting is the number that matters, and it is a reprieve rather than a defence.** The
+fixture check was carrying the whole load by coincidence; `.githooks/pre-push` looks up every
+commit being pushed rather than the tip alone, so a `develop` push carrying a range of older
+commits is exactly the shape that collects dormant stamps.
+
+`STAMP_EPOCH` is now written into every stamp. `lookup()` misses on any other epoch **before** it
+reads the fixtures or the streak, `record()` restarts the streak across an epoch change exactly as
+it does across a regenerated fixture, and `list` prints each stamp's epoch. Both halves were
+proved by disabling them: without the `lookup()` gate two of the six new cases go red, without
+`record()`'s reset three do.
+
+The line is drawn bluntly at the frame-counting merge, so `55147fa` (2/2, 2026-09-16) is demoted
+although it was honestly earned — a per-stamp ancestry test would need each recorded commit to
+exist in whatever checkout does the lookup, which a store shared across worktrees and machines
+cannot promise.
+
 ## 2026-09-17 — The index fit never converged (`github#87`, `design/0034`)
 
 *No index cut is clipped* went red on `people/Otto Brandt` at 1180×480 the week the fixture
