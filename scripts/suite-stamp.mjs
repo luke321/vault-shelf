@@ -16,6 +16,8 @@ export const FIXTURE_MAX_AGE_DAYS = 7;
 export const FIXTURE_NAMES = ["vault"];
 /* github#55, decisions/0010 -- how many green runs in a row a stamp is worth */
 export const GREENS_REQUIRED = 2;
+/* github#77, decisions/0010 -- which instrument earned the stamp */
+export const STAMP_EPOCH = 2;
 
 function git(args, cwd) {
   const r = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" });
@@ -84,6 +86,13 @@ export function lookup(rev = "HEAD", cwd = ROOT) {
   let stamp;
   try { stamp = JSON.parse(readFileSync(file, "utf8")); }
   catch (e) { return { ok: false, tree, why: `unreadable stamp for tree ${tree.slice(0, 7)}: ${e.message}` }; }
+  // github#77 -- a run judged by another instrument is not this tree's pass
+  const epoch = Number(stamp.epoch) || 0;
+  if (epoch !== STAMP_EPOCH) {
+    return { ok: false, tree, stamp,
+             why: `tree ${tree.slice(0, 7)} was stamped under epoch ${epoch || "none"} and the suite ` +
+                  `is at epoch ${STAMP_EPOCH}, so another instrument measured it` };
+  }
   const have = currentFixtures(cwd);
   const stamped = Array.isArray(stamp.fixtures) ? stamp.fixtures : [];
   for (const name of FIXTURE_NAMES) {
@@ -153,10 +162,11 @@ export function record({ fixtures, checks, cwd = ROOT }) {
   mkdirSync(dir, { recursive: true });
   const file = join(dir, tree + ".json");
   const ranFixtures = ran.map((f) => ({ name: f.name, digest: f.digest, day: f.day, pinned: !!f.pinned }));
-  /* github#55 -- a regenerated fixture starts the count again */
+  /* github#55 -- a regenerated fixture starts the count again
+   * github#77 -- and so does a new instrument */
   let before = null;
   try { before = JSON.parse(readFileSync(file, "utf8")); } catch { before = null; }
-  const sameRun = before && FIXTURE_NAMES.every((name) =>
+  const sameRun = before && (Number(before.epoch) || 0) === STAMP_EPOCH && FIXTURE_NAMES.every((name) =>
     sameFixture(ranFixtures.find((f) => f.name === name),
                 (before.fixtures || []).find((f) => f && f.name === name)));
   const greens = (sameRun ? Number(before.greens) || 0 : 0) + 1;
@@ -166,6 +176,7 @@ export function record({ fixtures, checks, cwd = ROOT }) {
     at: new Date().toISOString(),
     first: sameRun && before.first ? before.first : new Date().toISOString(),
     greens,
+    epoch: STAMP_EPOCH,
     checks,
     fixtures,
   };
@@ -178,7 +189,8 @@ export function describe(hit) {
   const s = hit.stamp;
   // github#55 -- the count is part of the claim, so it is printed with it
   return `tree ${hit.tree.slice(0, 7)} passed the invariant suite ${s.greens} times in a row, ` +
-         `last at ${s.at} (${s.checks} checks, commit ${String(s.commit || "?").slice(0, 7)}, ` +
+         `last at ${s.at} (${s.checks} checks, epoch ${Number(s.epoch) || 0}, ` +
+         `commit ${String(s.commit || "?").slice(0, 7)}, ` +
          `fixtures ${s.fixtures.map((f) => f.name + "@" + f.day).join(" ")})`;
 }
 
@@ -297,6 +309,27 @@ function selftest() {
     green(); green();
     expect("a pinned fixture never ages", lookup("HEAD", repo).ok);
 
+    /* github#77 -- the instrument is part of the claim */
+    const epochFile = lookup("HEAD", repo).file;
+    const earned = JSON.parse(readFileSync(epochFile, "utf8"));
+    expect("a fresh stamp names the epoch that earned it", Number(earned.epoch) === STAMP_EPOCH);
+    delete earned.epoch;
+    writeFileSync(epochFile, JSON.stringify(earned, null, 2) + "\n");
+    const legacy = lookup("HEAD", repo);
+    expect("a stamp from before the epoch existed misses",
+           !legacy.ok && /stamped under epoch none/.test(legacy.why) &&
+           legacy.why.includes(`epoch ${STAMP_EPOCH}`));
+    earned.epoch = STAMP_EPOCH - 1;
+    earned.greens = GREENS_REQUIRED + 3;
+    writeFileSync(epochFile, JSON.stringify(earned, null, 2) + "\n");
+    const older = lookup("HEAD", repo);
+    expect("a long streak under an older epoch misses too",
+           !older.ok && /another instrument measured it/.test(older.why));
+    expect("a green run after an epoch change starts the count again", green().greens === 1);
+    expect("...and misses until the streak is re-earned", !lookup("HEAD", repo).ok);
+    expect("two under the current epoch hit again",
+           green().greens === GREENS_REQUIRED && lookup("HEAD", repo).ok);
+
     const named = lookup("HEAD", repo);
     const stampFile = named.file;
     const partial = JSON.parse(readFileSync(stampFile, "utf8"));
@@ -352,8 +385,10 @@ if (invokedDirectly) {
     for (const f of (dir && existsSync(dir) ? readdirSync(dir).sort() : [])) {
       try {
         const s = JSON.parse(readFileSync(join(dir, f), "utf8"));
+        const epoch = Number(s.epoch) || 0;
         console.log(`${s.tree.slice(0, 7)}  ${s.at}  commit ${String(s.commit || "?").slice(0, 7)}  ` +
-                    `${s.checks} checks  ${Number(s.greens) || 0}/${GREENS_REQUIRED} green`);
+                    `${s.checks} checks  ${Number(s.greens) || 0}/${GREENS_REQUIRED} green  ` +
+                    `epoch ${epoch}${epoch === STAMP_EPOCH ? "" : ` (the suite is at ${STAMP_EPOCH})`}`);
       } catch { console.log(`${f}  (unreadable)`); }
     }
     process.exit(0);
