@@ -7260,8 +7260,9 @@ check("no index cut is clipped, and none is shrunk past reading", async (p) => {
   return { ok: clean(tall) && clean(short), detail: say("1180x1000", tall) + "; " + say("1180x480", short) };
 });
 
-/* github#87, design/0034 -- the check above sees three folds down; this reads the whole tree. */
-check("the fitted index converges: no level deeper than the rail's room", async (p) => {
+/* github#87, design/0034 -- the check above sees three folds down; this reads the whole tree.
+ * github#88 -- the ROWS are bounded now, not the depth. */
+check("the fitted index converges: no level draws more rows than the rail's room", async (p) => {
   const original = await p.j("({width:innerWidth,height:innerHeight})");
   const putWearBack = await holdWear(p);
   const read = () => p.j(`(function(){
@@ -7269,10 +7270,10 @@ check("the fitted index converges: no level deeper than the rail's room", async 
     __vs.views().forEach(function (v) { v.books.forEach(function (b) { books.push(b); }); });
     books = books.filter(function (b) { return b.id.indexOf("favourites/") !== 0; });
     books.sort(function (a, b) { return b.notes.length - a.notes.length; });
-    /* every level of the fitted tree, as rows: the trail it came through plus its own cuts */
-    var levels = function (cuts, depth, out) {
-      out.push({ depth: depth, rows: depth + cuts.length });
-      cuts.forEach(function (c) { if (c.kids.length) levels(c.kids, depth + 1, out); });
+    /* github#88 -- a level's rows: min(depth, cap) trail plus its cuts */
+    var levels = function (cuts, depth, cap, out) {
+      out.push({ depth: depth, rows: Math.min(depth, cap) + cuts.length });
+      cuts.forEach(function (c) { if (c.kids.length) levels(c.kids, depth + 1, cap, out); });
       return out;
     };
     var leaves = function (cuts) {
@@ -7280,15 +7281,17 @@ check("the fitted index converges: no level deeper than the rail's room", async 
       cuts.forEach(function (c) { n += c.kids.length ? leaves(c.kids) : 1; });
       return n;
     };
-    var worst = { deepest: 0, room: 0, noRoom: 0, tooDeep: 0, reachableOver: 0, floorOver: 0,
-                  checked: 0, book: null, notes: 0, leaves: 0 };
+    var worst = { deepest: 0, room: 0, cap: 0, noRoom: 0, over: 0, worstRows: 0,
+                  checked: 0, book: null, notes: 0, leaves: 0, at: null };
     books.slice(0, 14).forEach(function (b) {
       __vs.openBook(b.id, null);
       var t = __vs.indexTabs();
-      var ls = levels(t.cuts, 0, []);
+      var cap = typeof t.trailCap === "number" ? t.trailCap : 1e9;
+      var ls = levels(t.cuts, 0, cap, []);
       var deep = 0;
       ls.forEach(function (l) { if (l.depth > deep) deep = l.depth; });
       worst.checked++;
+      worst.cap = cap;
       worst.leaves += leaves(t.cuts);
       if (deep > worst.deepest) { worst.deepest = deep; worst.book = b.id; worst.notes = b.notes.length; }
       /* github#87 -- the room is what the levels below are judged against, so a rail that does
@@ -7296,11 +7299,14 @@ check("the fitted index converges: no level deeper than the rail's room", async 
        * either way: it is the measurement that names the fault. */
       if (!(typeof t.room === "number" && t.room > 0)) { worst.noRoom++; __vs.closeReader(); return; }
       if (t.room > worst.room) worst.room = t.room;
-      /* github#87 -- the level under room minus two is the floor, counted apart. */
-      if (deep >= t.room) worst.tooDeep++;
+      /* github#88 -- EVERY level now: the floor is closed */
       ls.forEach(function (l) {
         if (l.rows <= t.room) return;
-        if (l.depth <= t.room - 2) worst.reachableOver++; else worst.floorOver++;
+        worst.over++;
+        if (l.rows > worst.worstRows) {
+          worst.worstRows = l.rows;
+          worst.at = b.id + " at depth " + l.depth;
+        }
       });
       __vs.closeReader();
     });
@@ -7315,11 +7321,11 @@ check("the fitted index converges: no level deeper than the rail's room", async 
     await unviewport(p, original);
     await putWearBack();
   }
-  const ok = (r) => !r.noRoom && !r.tooDeep && !r.reachableOver && r.deepest < r.room;
-  const say = (n, r) => `${n}: ${r.checked} books, room ${r.room} rows, deepest tree ${r.deepest}` +
-    `${r.book ? " (" + r.book + ", " + r.notes + " notes)" : ""}, ${r.noRoom} with no room ` +
-    `reported, ${r.tooDeep} deeper than the room, ${r.reachableOver} level(s) over it above the ` +
-    `floor, ${r.floorOver} at the floor, ${r.leaves} cuts kept`;
+  const ok = (r) => !r.noRoom && !r.over;
+  const say = (n, r) => `${n}: ${r.checked} books, room ${r.room} rows, trail folds at ${r.cap}, ` +
+    `deepest tree ${r.deepest}${r.book ? " (" + r.book + ", " + r.notes + " notes)" : ""}, ` +
+    `${r.noRoom} with no room reported, ${r.over} level(s) over the room` +
+    `${r.at ? " -- worst " + r.worstRows + " rows, " + r.at : ""}, ${r.leaves} cuts kept`;
   return { ok: ok(tall) && ok(short),
            detail: say("1180x1000", tall) + "; " + say("1180x480", short) };
 });
@@ -7427,6 +7433,86 @@ check("the rail lists one level under the trail it came through", async (p) => {
                    `shows ${r.level} of them (went to its note: ${r.wentThere}) under ${r.trail} ` +
                    `trail step marked back (${r.trailIsBack}) and stepped in (${r.staircase}), keeping the focus (${r.kept}); ` +
                    `pressing it comes back (${r.cameBack})` };
+});
+
+/* github#88, design/0034 -- the trail is bounded, and nothing is dropped to bound it */
+check("a deep trail folds to three rows and says what it hides", async (p) => {
+  const original = await p.j("({width:innerWidth,height:innerHeight})");
+  const putWearBack = await holdWear(p);
+  let r;
+  try {
+    await viewport(p, 1180, 480);
+    r = await p.j(`(function(){
+      var books = [];
+      __vs.views().forEach(function (v) { v.books.forEach(function (b) { books.push(b); }); });
+      books = books.filter(function (b) { return b.id.indexOf("favourites/") !== 0; });
+      books.sort(function (a, b) { return b.notes.length - a.notes.length; });
+      var rows = function () {
+        return [].slice.call(document.querySelectorAll("#vs-tabs .vs-indextab")).map(function (t) {
+          return { at: Number(t.getAttribute("data-at")),
+                   trail: t.classList.contains("vs-trailstep"),
+                   fold: t.classList.contains("vs-trailfold"),
+                   folded: Number(t.getAttribute("data-fold") || 0),
+                   back: t.getAttribute("data-back") === "1",
+                   title: t.title, right: Math.round(t.getBoundingClientRect().right) };
+        });
+      };
+      var found = null;
+      for (var i = 0; i < books.length && !found; i++) {
+        __vs.openBook(books[i].id, null);
+        var cap = __vs.indexTabs().trailCap, room = __vs.indexTabs().room;
+        /* github#88 -- press in until the trail is deeper than the cap */
+        for (var step = 0; step < cap + 6; step++) {
+          var opens = [].slice.call(document.querySelectorAll('#vs-tabs .vs-indextab[data-opens="1"]'));
+          if (!opens.length || __vs.indexTabs().depth > cap) break;
+          opens[0].click();
+        }
+        var depth = __vs.indexTabs().depth;
+        if (depth <= cap) { __vs.closeReader(); continue; }
+        var drawn = rows();
+        var trail = drawn.filter(function (x) { return x.trail; });
+        var folds = drawn.filter(function (x) { return x.fold; });
+        var level = drawn.filter(function (x) { return !x.trail; });
+        var fold = folds[0] || null;
+        /* the run it stands for is named on it, one label per step */
+        var named = fold ? fold.title.split("\\u203A").length : 0;
+        /* design/0034 -- a trail step moves the depth, never the page */
+        var landed = null;
+        if (fold) {
+          var press = [].slice.call(document.querySelectorAll("#vs-tabs .vs-trailfold"))[0];
+          press.click();
+          var after = rows();
+          landed = { depth: __vs.indexTabs().depth,
+                     shows: after.some(function (x) { return !x.trail && x.at === fold.at; }),
+                     folds: after.filter(function (x) { return x.fold; }).length };
+        }
+        found = {
+          book: books[i].id, depth: depth, room: room, cap: cap,
+          trailRows: trail.length, folds: folds.length,
+          folded: fold ? fold.folded : 0, named: named,
+          back: !!fold && fold.back,
+          /* it stands in from the fore-edge with the rest of the trail */
+          staircase: !!level.length && trail.every(function (x) { return x.right < level[0].right; }),
+          rowsDrawn: drawn.length,
+          wentBack: !!landed && landed.depth === 1 && landed.shows && !landed.folds
+        };
+        __vs.closeReader();
+      }
+      return found;
+    })()`);
+  } finally {
+    await p.eval("__vs.closeReader();");
+    await unviewport(p, original);
+    await putWearBack();
+  }
+  if (!r) return { ok: false, detail: "no book here draws a trail deeper than the fold's cap" };
+  const ok = r.trailRows === r.cap && r.folds === 1 && r.folded === r.depth - (r.cap - 1) &&
+             r.named === r.folded && r.back && r.staircase && r.wentBack &&
+             r.rowsDrawn <= r.room;
+  return { ok, detail: `${r.book}: pressed to depth ${r.depth} in a room of ${r.room}, drawing ` +
+    `${r.rowsDrawn} rows -- ${r.trailRows} of trail (cap ${r.cap}) with ${r.folds} fold standing ` +
+    `for ${r.folded} steps, naming ${r.named} of them, marked back (${r.back}) and stepped in ` +
+    `(${r.staircase}); pressing it goes back to the shallowest of them (${r.wentBack})` };
 });
 
 /* github#32, design/0034 -- it asserts the FOLD, not the cuts: 15 cuts was already true and

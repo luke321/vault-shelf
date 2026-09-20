@@ -1498,6 +1498,11 @@
   padding-left: 6px;
   padding-right: 3px;
 }
+/* github#88 -- THE FOLD. Past three steps the middle of the trail stands as one mark, so a level
+ * eight presses down owes three rows rather than eight and keeps the room for its own cuts. The
+ * glyph is centred and mid-height, which is what a placeholder looks like (design/0035) -- it is
+ * not a label, and the run it stands for is on its title. */
+.vault-shelf .vs-tabs .vs-trailfold { text-align: center; letter-spacing: 0; }
 .vault-shelf .vs-tabs button[data-step="1"] { margin-right: var(--vs-stepin); }
 /* Two notches is a staircase; a third would only cost the label its room, so anything deeper
  * stands where the second stands. */

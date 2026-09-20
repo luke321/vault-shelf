@@ -3214,21 +3214,43 @@ cap out on **7 of the 14** fattest books and left `people/Otto Brandt`, 486 note
 deepest level stands at **depth 25**; the shut rail fitted, so only the book whose overflow
 happened to sit three folds down went red. The room is measured once - `clamp(20px, (100cqh - 67px)/n, 28px)` makes the fit
 monotonic in the row count, so a binary search settles it in six draws - and each depth is then
-gathered into `room - depth` spans in turn, shallowest first. The pass ends where `room - depth`
-falls under two, so **the depth stays under the room by construction**.
+gathered into `room - trailRows(depth)` spans in turn, shallowest first.
+
+**The trail costs three rows at most, so the budget stops shrinking (`github#88`).** It was
+`room - depth`, which ran out at depth `room - 2` and left every level below un-gathered; past
+`TRAIL_ROWS` (3) the middle of the trail folds into one mark, a level owes `min(depth, 3)` rows,
+and the pass runs to the bottom of the tree. **Every level therefore draws at most `room` rows by
+construction**, which is stronger than the depth bound it replaces - the depth itself is now free
+to exceed the room, and does. A fuse at `FIT_STEPS` (64) stands where `depth + 2 <= room` used to
+bound the loop; nothing measured comes near it and *the fitted index converges* goes red if it
+ever binds.
 
 **Measured 2026-09-17**, fourteen fattest books, no cut lost: deepest level **depth 25 -> 8**, books that had not converged **7 -> 0**, cuts clipped at 1180x480 **1 -> 0**, most cuts
 on show **10 (in a room of 9) -> 9**. At 1180x1000 the room is **37** rows and nothing gathers at
 all, so the tall case is untouched.
 
-**Known floor: four alphabetical tag books are one row over, at the bottom of the rail.**
-`website-migration`, `garden`, `sleep`, `reading` and `idea` settle at depth 8 with 10 rows
-against a room of 9 at 1180x480 - **94 levels over, every one of them eight presses down**. A
-beam search over every grouping sequence there is (all depths x all group counts) proves 10 is
-the floor: grouping adjacent cuts only ever *adds* levels, and each one costs a row. *The fitted
-index converges* therefore asserts the depth and the levels the pass can reach, and **prints**
-this count rather than asserting it - a check red for a reason nobody intends to act on stops
-being read.
+**THE TRAIL IS BOUNDED, AND THAT CLOSED THE FLOOR - `github#88`.** Five alphabetical tag books
+(`website-migration`, `garden`, `sleep`, `reading`, `idea`) settled at depth 8 with 10 rows against
+a room of 9 - **94 levels over**, and a beam search over every grouping sequence there is proved 10
+was the floor, because grouping only ever *adds* levels and each one costs a row. The operator that
+closes it is not a better chooser: past three steps the middle of the trail stands as **one fold**,
+so eight rows of breadcrumb over two rows of content become three. Nothing is thrown away to buy
+them - the cut count is unchanged at **6,025** - and the run the fold stands for is named on it.
+
+**A fold is a trail step.** It carries `data-back`, it steps in where the second step stands, and
+pressing it returns to the shallowest step it hides, so the rail keeps *one way out and one state*
+(design/0034). It is the operator `spanned` already applies to the cut list, one axis over: one
+row standing for a run of them, named so the reader knows the run is there.
+
+**Measured 2026-09-20**, fourteen fattest books at 1180x480, room 9: levels over the room
+**94 -> 0**, deepest tree **8 -> 7**, cuts kept **6,025 -> 6,025**. At 1180x1000 nothing moves -
+room 37, deepest tree 3, and no trail there is deeper than the fold's cap. *The fitted index
+converges* now **asserts** that count instead of printing it, which design/0034 rejected only
+because the floor was known and unactionable.
+
+*a deep trail folds to three rows and says what it hides* presses a book past the cap and reads
+the rail back: three trail rows, one fold standing for `depth - 2` steps and naming every one of
+them, marked back and stepped in, the whole rail inside the room, and the level it comes back to.
 
 **Measured 2026-09-14 over the fourteen fattest books, closed and then folded all the way down,
 at 1180x1000 and 1180x480:** 0 clipped, 0 outside the spread, 0 over a fifth of it, **0 with the

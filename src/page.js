@@ -96,6 +96,11 @@ var INDEX_SLOTS = 35;
 /* github#45, design/0021 -- WIDE ENOUGH FOR A LETTER, so the alphabet reads one way */
 var INDEX_MIN = 24;
 
+/* github#88, design/0034 -- the most rows the trail may cost */
+var TRAIL_ROWS = 3;
+/* github#88 -- the fuse the room used to be; see design/0034 */
+var FIT_STEPS = 64;
+
 var ID = "vs-";
 
 /**
@@ -3137,11 +3142,25 @@ function mountVaultShelf(root, data, options) {
     box.appendChild(toggle);
     fitTabs(box, mode);
     var view = railView();
-    var rows = view.trail.length + view.level.length;
+    /* github#88 -- past TRAIL_ROWS the middle of the trail folds */
+    var steps = view.trail;
+    var after = steps.length - (TRAIL_ROWS - 2);
+    var hidden = steps.length > TRAIL_ROWS ? steps.slice(1, after) : [];
+    /* github#88 -- the rows DRAWN, never another count */
+    var rows = steps.length - hidden.length + (hidden.length ? 1 : 0) + view.level.length;
     box.style.setProperty("--vs-tab-count", String(Math.max(1, rows)));
     /* design/0034 -- the trail steps in; the level stays flush at the fore-edge */
-    view.trail.forEach(function (cut, k) {
-      var b = cutRow(cut, k, view.trail.length - k, true, false);
+    steps.forEach(function (cut, k) {
+      if (hidden.length && k > 0 && k < after) {
+        if (k === 1) box.appendChild(trailFold(hidden));
+        return;
+      }
+      var b = cutRow(cut, k, steps.length - k, true, false);
+      /* github#88 -- the first step past the fold says what it hides */
+      if (hidden.length && k === after) {
+        b.title = b.title + " — through " + stepsSay(hidden);
+        b.setAttribute("aria-label", b.title);
+      }
       on(b, "click", function () { reader.depth = k; renderTabs(); keepAt(cut.at); });
       box.appendChild(b);
     });
@@ -3156,6 +3175,32 @@ function mountVaultShelf(root, data, options) {
       });
       box.appendChild(b);
     });
+  }
+
+  /* github#88 */
+  /** @param {Cut[]} steps @returns {string} */
+  function stepsSay(steps) {
+    return steps.map(function (c) { return c.label; }).join(" › ");
+  }
+
+  /**
+   * github#88, design/0034 -- one trail step standing for a run
+   * @param {Cut[]} hidden @returns {HTMLElement}
+   */
+  function trailFold(hidden) {
+    var b = el("button", "vs-indextab vs-trailstep vs-trailfold", "⋯");
+    b.type = "button";
+    b.setAttribute("data-at", String(hidden[0].at));
+    b.setAttribute("data-level", "1");
+    /* design/0034 -- deeper stands where the second stands */
+    b.setAttribute("data-step", "2");
+    b.setAttribute("data-back", "1");
+    b.setAttribute("data-fold", String(hidden.length));
+    b.title = "Back to " + hidden[0].label + " — " + hidden.length +
+      (hidden.length === 1 ? " step folded: " : " steps folded: ") + stepsSay(hidden);
+    b.setAttribute("aria-label", b.title);
+    on(b, "click", function () { reader.depth = 1; renderTabs(); keepAt(hidden[0].at); });
+    return b;
   }
 
   /**
@@ -3229,8 +3274,10 @@ function mountVaultShelf(root, data, options) {
     if (reader.tabsKey === key) return;
     var cuts = indexCuts(reader.book);
     var room = roomFor(box);
-    for (var depth = 0; depth + 2 <= room && depth <= deepestLevel(cuts); depth++) {
-      var next = gathered(cuts, depth, room - depth);
+    /* github#88, design/0034 -- the budget stops shrinking */
+    for (var depth = 0; trailRows(depth) + 2 <= room && depth <= deepestLevel(cuts) &&
+                        depth < FIT_STEPS; depth++) {
+      var next = gathered(cuts, depth, room - trailRows(depth));
       if (next) cuts = next;
     }
     reader.tabs = cuts;
@@ -3238,6 +3285,10 @@ function mountVaultShelf(root, data, options) {
     reader.tabsRoom = room;
     reader.depth = 0;
   }
+
+  /* github#88 */
+  /** @param {number} depth @returns {number} */
+  function trailRows(depth) { return Math.min(depth, TRAIL_ROWS); }
 
   /** github#87 @param {Cut[]} cuts @returns {number} */
   function deepestLevel(cuts) {
@@ -5453,6 +5504,8 @@ function mountVaultShelf(root, data, options) {
         cuts: strip(reader.tabs || []),
         railHeight: Math.round(box.getBoundingClientRect().height),
         room: reader.tabsRoom || 0,
+        /* github#88 -- rows are min(depth, trailCap) + the cuts */
+        trailCap: TRAIL_ROWS,
         over: last ? Math.round(last.getBoundingClientRect().bottom - bottom) : 0
       };
     },

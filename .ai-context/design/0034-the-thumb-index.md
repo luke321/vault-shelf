@@ -329,7 +329,8 @@ inside the depth the trail leaves.
 | most cuts on show, 1180×480 | 10 (in a room of 9) | **9** |
 | 1180×1000 | room 37, nothing gathers | unchanged |
 
-**Known and left: four alphabetical tag books are one row over, at the bottom of the rail.**
+**Known and left, and since closed by the section below.** ***Four alphabetical tag books are one
+row over, at the bottom of the rail.***
 `website-migration`, `garden`, `sleep`, `reading` and `idea` are 26-ish letters over four raw
 levels, and at 1180×480 they settle at depth 8 with 10 rows against a room of 9 — 94 levels over,
 every one of them eight presses down. This is **not the chooser giving up**: a beam search over
@@ -345,6 +346,59 @@ and a check that is red for a reason nobody intends to act on stops being read. 
 converges* asserts what was actually violated — the depth stays under the room, and every level the
 pass can reach is inside it — and **prints** the floor's count so the number is on screen rather
 than in a record.
+
+## The trail was what the deep levels were paying for — `github#88`
+
+The floor above is real and the beam search is right: **no chooser closes it**, because grouping
+adjacent cuts only ever adds levels and a level at depth *d* costs `d + its cuts` rows. What the
+search cannot question is the cost model. At depth 8 those ten rows are **eight of breadcrumb over
+two of content** — the rail spending four fifths of a short window saying how you got somewhere
+rather than showing you what is there.
+
+So the trail is bounded, the way the staircase already bounds its notches at two: **past three
+steps the ones between the first and the last stand as one fold**. A level then costs
+`min(d, 3) + its cuts`.
+
+**The fold is a trail step, not a gap.** It carries `‹`, it stands where the second step stands,
+and pressing it returns to the shallowest step it hides — so there is still one way out and one
+state, which is the rule this record settled. It is **the operator `spanned` already applies to
+the cut list, one axis over**: one row standing for a run of them. And the objection the issue
+raised against bounding — that the rail stops saying how you got there — is answered the same way
+a span answers it: what the fold covers is **on** the fold (`2 steps folded: 2015 › Oct`), and on
+the last shown step for a reader who is hearing the rail rather than seeing it.
+
+**Both halves are needed, and the second is the one that closes the floor.** Folding the drawing
+alone would leave every level below `room − 2` un-gathered, because `fitTabs` gathered depth *d*
+into `room − d` spans and that budget ran out. With the trail bounded the budget is
+`room − min(d, 3)`, it **stops shrinking**, and the pass runs to the bottom of the tree — so
+**every level draws at most `room` rows by construction**, which is strictly stronger than the
+depth bound it replaces. The depth is free to exceed the room now, and does.
+
+What bounds the loop instead: `depth <= deepestLevel(cuts)`, recomputed as the tree grows. A
+gather fires only on a level over its budget and each one adds a single layer, so there are
+finitely many. A fuse at 64 stands where `depth + 2 <= room` used to, because a fit that does not
+terminate is the bug this record was reopened for — and it is a *visible* fuse: if it ever binds,
+levels below it go un-gathered and the converge check goes red, rather than a 24-step cap quietly
+leaving a tree at depth 25.
+
+**Measured 2026-09-20**, fourteen fattest books at 1180×480, room 9 rows:
+
+| | before | after |
+|---|---|---|
+| levels over the room | **94** | **0** |
+| deepest level | 8 | 7 |
+| cuts kept | 6,025 | **6,025** |
+| 1180×1000 | room 37, deepest 3, 0 over | unchanged |
+
+**Rejected: collapsing a raw layer when the one below it separates little.** It buys the row
+directly and throws a cut away. This record exists because three answers to one question each
+ended in something the reader cannot use — a cut clipped, a cut dropped, a cut too small to read —
+and that is the dropped one wearing a fourth hat.
+
+**And the check widens.** *Rejected: widening the check to every level* above was right while the
+floor was unactionable; closing it removes the reason. *The fitted index converges* counts a
+level's rows through the cap and asserts every one of them, and *a deep trail folds to three rows
+and says what it hides* holds the fold itself.
 
 ## One thumb
 
