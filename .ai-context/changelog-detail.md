@@ -1,5 +1,55 @@
 # Changelog detail
 
+## 2026-09-20 — The trail was what the deep levels were paying for (`github#88`, `design/0034`)
+
+`github#87` left a floor it had proved it could not cross: five alphabetical tag books settled at
+**depth 8 with 10 rows against a room of 9** at 1180×480 — *94 levels over* across the fourteen
+fattest books — and a beam search over every grouping sequence there is (all depths × all group
+counts, 600 wide, 14 steps) showed 10 was the best any chooser could do. Grouping adjacent cuts
+only ever *adds* levels, and a level at depth *d* costs `d + its cuts` rows.
+
+**What the search could not question is the cost model.** Eight of those ten rows are trail. The
+rail was spending four fifths of a short window saying how you got somewhere rather than showing
+what is there — so the trail is bounded at **three rows**, the way the staircase already bounds
+its notches at two: past three steps the ones between the first and the last stand as one **fold**,
+and a level costs `min(d, 3) + its cuts`.
+
+**Both halves are needed, and the second closes the floor.** Folding the drawing alone would leave
+every level below `room − 2` un-gathered, because `fitTabs` gathered depth *d* into `room − d`
+spans and that budget ran out. With the trail bounded the budget is `room − min(d, 3)`, it stops
+shrinking, and the pass runs to the bottom of the tree — so **every level draws at most `room`
+rows by construction**, which is stronger than the depth bound it replaces. The depth is free to
+exceed the room now, and does.
+
+| measured over the fourteen fattest books, 1180×480 | before | after |
+|---|---|---|
+| levels over the room | **94** | **0** |
+| deepest level | 8 | **7** |
+| room | 9 rows | 9 rows |
+| cuts kept (nothing dropped) | 6,025 | **6,025** |
+| trail rows at depth 8 | **8** | **3** |
+| 1180×1000 | room 37, deepest 3, 0 over | **unchanged** |
+| checks | 149 → **150** |
+
+**The fold is a trail step, not a gap.** It carries `‹`, stands where the second step stands, and
+pressing it returns to the shallowest step it hides — one way out, one state. What it covers is
+named on it (`2 steps folded: 2015 › Oct`) and on the last shown step, so the rail still says how
+you got there; it stops *drawing* every step, not saying them. It is the operator `spanned`
+already applies to the cut list, one axis over.
+
+**Rejected: collapsing a raw layer**, the issue's other candidate. It buys the row directly and
+throws a cut away — `design/0034` exists because three answers to one question each ended in a cut
+the reader cannot use, clipped, dropped or too small, and that is the dropped one again.
+
+**The loop is bounded by the tree now**, `depth <= deepestLevel(cuts)`: a gather fires only on a
+level over its budget and each adds a single layer, so there are finitely many. A **visible** fuse
+at 64 stands where `depth + 2 <= room` used to — if it ever binds, levels go un-gathered and the
+converge check goes red, rather than a cap quietly leaving a tree at depth 25.
+
+*The fitted index converges* counts a level's rows through the cap and now **asserts** the count
+it used to print; `design/0034` rejected widening it only because the floor was unactionable.
+*A deep trail folds to three rows and says what it hides* is new and holds the fold itself.
+
 ## 2026-09-17 — The index fit never converged (`github#87`, `design/0034`)
 
 *No index cut is clipped* went red on `people/Otto Brandt` at 1180×480 the week the fixture
