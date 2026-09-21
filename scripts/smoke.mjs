@@ -7089,6 +7089,73 @@ check("a book flags its own subject and no other", async (p) => {
   };
 });
 
+check("a search that highlights the details line never changes which flags a book draws",
+      async (p) => {
+  const r = await p.eval(`(async function(){
+    var title = ${JSON.stringify(STICKY_NOTE_TITLE)};
+    var note = __vs.data().notes.filter(function (n) { return n.title === title; })[0];
+    if (!note) return { found: false };
+    __vs.setQuery("");
+    __vs.openBook("tags/garden", note.id);
+    var read = function () {
+      var s = __vs.stickies();
+      return { flags: s.flags.length,
+               declared: s.flags.filter(function (f) { return f.declared; }).length };
+    };
+    var plain = read();
+    /* "#garden" also opens "#garden/seeds" -- the highlight span it wraps around its own
+     * substring must not make that neighbour look like a plain #garden of its own */
+    __vs.setQuery("#garden");
+    var hashQuery = read();
+    /* "garden" (no #) highlights INSIDE the declared #garden itself, splitting the "#" off
+     * on one side of the span and "garden" on the other */
+    __vs.setQuery("garden");
+    var bareQuery = read();
+    __vs.setQuery("");
+    __vs.closeReader();
+    return { found: true, plain: plain, hashQuery: hashQuery, bareQuery: bareQuery };
+  })()`);
+  if (!r.found) return { ok: false, detail: `this vault has no "${STICKY_NOTE_TITLE}"` };
+  const same = (a, b) => a.flags === b.flags && a.declared === b.declared;
+  const ok = r.plain.flags === 4 && r.plain.declared === 1 &&
+             same(r.hashQuery, r.plain) && same(r.bareQuery, r.plain);
+  return {
+    ok,
+    detail: `no query: ${r.plain.flags} flags (${r.plain.declared} declared); searching ` +
+            `"#garden" (its own highlight also lands inside the neighbouring #garden/seeds): ` +
+            `${r.hashQuery.flags} flags (${r.hashQuery.declared} declared); searching ` +
+            `"garden" (its highlight splits the declared #garden's own "#"): ` +
+            `${r.bareQuery.flags} flags (${r.bareQuery.declared} declared) -- all three must ` +
+            `match`
+  };
+});
+
+check("a crowd of mentions never stacks two flags on the same pixel", async (p) => {
+  const r = await p.eval(`(function(){
+    var room = 200;
+    /* the declared flag near the top, one early mention just under it, then twenty crammed
+     * against the bottom -- the shape design/0037 calls out: shifting every flag by the same
+     * amount to fit the crowd back inside room used to carry both early ones down to 0 */
+    var fractions = [0.02, 0.05];
+    for (var i = 0; i < 20; i++) fractions.push(0.9 + i * 0.005);
+    var tops = __vs.spaceStickies(fractions, room);
+    var distinct = new Set(tops).size;
+    var inRoom = tops.every(function (t) { return t >= 0 && t <= room; });
+    var rising = tops.every(function (t, i) { return i === 0 || t >= tops[i - 1]; });
+    var firstTop = tops[0];
+    return { tops: tops, distinct: distinct, inRoom: inRoom, rising: rising,
+             firstTop: firstTop, n: fractions.length };
+  })()`);
+  const ok = r.distinct === r.n && r.inRoom && r.rising && r.firstTop < r.tops[r.tops.length - 1];
+  return {
+    ok,
+    detail: `${r.n} flags packed into a ${200}px column: ${r.distinct} distinct pixel(s), ` +
+            `${r.inRoom ? "all inside" : "some outside"} the room, ` +
+            `${r.rising ? "monotonic" : "NOT monotonic"}, the early flag at ${r.firstTop}px ` +
+            `(last at ${r.tops[r.tops.length - 1]}px)`
+  };
+});
+
 check("clicking a spine opens a book on the note it names", async (p) => {
   await p.eval("__vs.closeReader()");
   const r = await p.j(`(function(){

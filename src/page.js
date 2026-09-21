@@ -3740,34 +3740,72 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * github#19, design/0037 -- every place the subject is written, in reading order
+   * github#19, design/0037 -- (node, offset) for a global offset across bridged pieces
+   * @param {{ node: Text, from: number }[]} pieces @param {number} offset
+   * @returns {{ node: Text, offset: number }}
+   */
+  function pointAt(pieces, offset) {
+    var i = pieces.length - 1;
+    while (i > 0 && pieces[i].from > offset) i--;
+    return { node: pieces[i].node, offset: offset - pieces[i].from };
+  }
+
+  /**
+   * github#19, design/0037 -- every place the subject is written, bridging vs-hit spans
    * @param {{ kind: string, value: string, label: string }} subject
-   * @returns {{ node: Text, start: number, end: number, declared: boolean }[]}
+   * @returns {{ startNode: Text, startOffset: number, endNode: Text, endOffset: number, declared: boolean }[]}
    */
   function stickyRuns(subject) {
-    /** @type {{ node: Text, start: number, end: number, declared: boolean }[]} */
+    /** @type {{ startNode: Text, startOffset: number, endNode: Text, endOffset: number, declared: boolean }[]} */
     var out = [];
+    /** @type {(text: string) => { start: number, end: number }[]} */
+    var finder = subject.kind === "tag"
+      ? function (text) { return tagRuns(text, subject.value); }
+      : function (text) { return wordRuns(text, subject.value); };
     [{ box: $("notemeta"), declared: true }, { box: $("note"), declared: false }]
       .forEach(function (where) {
         if (!where.box) return;
-        var walk = DOC.createTreeWalker(where.box, NodeFilter.SHOW_TEXT);
-        var text = /** @type {Text|null} */ (walk.nextNode());
-        while (text) {
-          var raw = text.nodeValue || "";
-          var linked = subject.kind === "person" &&
-            targetsSubject(text, where.box, subject.value);
-          if (linked && raw.trim()) {
-            out.push({ node: text, start: 0, end: raw.length, declared: where.declared });
-          } else {
-            var runs = subject.kind === "tag" ? tagRuns(raw, subject.value)
-                                              : wordRuns(raw, subject.value);
-            runs.forEach(function (run) {
-              out.push({ node: /** @type {Text} */ (text), start: run.start, end: run.end,
-                         declared: where.declared });
-            });
-          }
-          text = /** @type {Text|null} */ (walk.nextNode());
+        /** @type {{ node: Text, from: number }[]} */
+        var pieces = [];
+        var text = "";
+        function flush() {
+          if (!pieces.length) return;
+          finder(text).forEach(function (run) {
+            var a = pointAt(pieces, run.start);
+            var b = pointAt(pieces, run.end);
+            out.push({ startNode: a.node, startOffset: a.offset, endNode: b.node,
+                       endOffset: b.offset, declared: where.declared });
+          });
+          pieces = [];
+          text = "";
         }
+        /** @param {Node} node */
+        function walk(node) {
+          for (var child = node.firstChild; child; child = child.nextSibling) {
+            if (child.nodeType === 3) {
+              var t = /** @type {Text} */ (child);
+              var raw = t.nodeValue || "";
+              if (subject.kind === "person" && targetsSubject(t, where.box, subject.value)) {
+                flush();
+                if (raw.trim()) {
+                  out.push({ startNode: t, startOffset: 0, endNode: t, endOffset: raw.length,
+                             declared: where.declared });
+                }
+                continue;
+              }
+              pieces.push({ node: t, from: text.length });
+              text += raw;
+            } else if (child.nodeType === 1 &&
+                       /** @type {Element} */ (child).classList.contains("vs-hit")) {
+              walk(child);
+            } else {
+              flush();
+              walk(child);
+            }
+          }
+        }
+        walk(where.box);
+        flush();
       });
     return out;
   }
@@ -3801,7 +3839,7 @@ function mountVaultShelf(root, data, options) {
   }
 
   /**
-   * github#19, design/0037 -- the fractions, then a floor between them, then back inside
+   * github#19, design/0037 -- the fractions, floored apart, folded back from the tail
    * @param {number[]} fractions @param {number} room @returns {number[]}
    */
   function spaced(fractions, room) {
@@ -3813,9 +3851,11 @@ function mountVaultShelf(root, data, options) {
     for (var i = 1; i < tops.length; i++) {
       if (tops[i] < tops[i - 1] + gap) tops[i] = tops[i - 1] + gap;
     }
-    var over = tops[tops.length - 1] - room;
-    if (over > 0) {
-      for (var k = 0; k < tops.length; k++) tops[k] = Math.max(0, tops[k] - over);
+    if (tops[tops.length - 1] > room) {
+      tops[tops.length - 1] = room;
+      for (var k = tops.length - 2; k >= 0; k--) {
+        if (tops[k] > tops[k + 1] - gap) tops[k] = tops[k + 1] - gap;
+      }
     }
     return tops;
   }
@@ -3838,8 +3878,8 @@ function mountVaultShelf(root, data, options) {
     var room = Math.max(0, box.clientHeight - STICKY_HEIGHT);
     var tops = spaced(runs.map(function (run) {
       var range = DOC.createRange();
-      range.setStart(run.node, run.start);
-      range.setEnd(run.node, run.end);
+      range.setStart(run.startNode, run.startOffset);
+      range.setEnd(run.endNode, run.endOffset);
       var at = range.getBoundingClientRect().top - frame.top;
       return frame.height > 0 ? at / frame.height : 0;
     }), room);
@@ -3873,8 +3913,8 @@ function mountVaultShelf(root, data, options) {
     if (!run) { renderStickies(); return null; }
     var mark = el("mark", "vs-here");
     var range = DOC.createRange();
-    range.setStart(run.node, run.start);
-    range.setEnd(run.node, run.end);
+    range.setStart(run.startNode, run.startOffset);
+    range.setEnd(run.endNode, run.endOffset);
     range.surroundContents(mark);
     reader.stickyAt = at;
     var page = rightPage();
@@ -5848,6 +5888,9 @@ function mountVaultShelf(root, data, options) {
       flag.click();
       return true;
     },
+    /* github#19, design/0037 -- the layout math alone, for the suite */
+    /** @param {number[]} fractions @param {number} room @returns {number[]} */
+    spaceStickies: function (fractions, room) { return spaced(fractions.slice(), room); },
     /** Every book's address, so a check can assert they are stable across a rebuild. */
     addresses: function () {
       /** @type {string[]} */
