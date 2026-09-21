@@ -2016,6 +2016,11 @@
 .vault-shelf .vs-suggest {
   position: absolute;
   z-index: 46;
+  /* github#41 -- as wide as what it offers, floored at the box and capped by the room.
+   * --vs-sug-min and --vs-sug-room are set once per opening, never per keystroke. */
+  width: max-content;
+  min-width: var(--vs-sug-min, 232px);
+  max-width: min(440px, var(--vs-sug-room, 440px));
   max-height: 260px;
   overflow-y: auto;
   padding: 4px;

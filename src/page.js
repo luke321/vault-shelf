@@ -2507,9 +2507,11 @@ function mountVaultShelf(root, data, options) {
     var list = node("suggest");
     var host = root.getBoundingClientRect();
     var box = field("q").getBoundingClientRect();
-    list.style.width = box.width + "px";
-    var left = Math.min(box.left - host.left, Math.max(8, host.width - box.width - 8));
-    list.style.left = Math.max(8, left) + "px";
+    var left = Math.max(8, Math.min(box.left - host.left, Math.max(8, host.width - box.width - 8)));
+    /* github#41, design/0026 -- the box floors it, the room caps it */
+    list.style.setProperty("--vs-sug-min", box.width + "px");
+    list.style.setProperty("--vs-sug-room", Math.max(box.width, host.width - left - 8) + "px");
+    list.style.left = left + "px";
     list.style.top = (box.bottom - host.top + 4) + "px";
   }
 
