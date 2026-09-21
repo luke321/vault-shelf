@@ -133,3 +133,40 @@ when it returns. Whether that was *its* mechanism is unproven. If it recurs, the
 look is the compositor read inside `paintedAbove()` — `Page.captureScreenshot` returning a frame
 that predates the style change despite the double `requestAnimationFrame` — and **not** a
 tolerance. That check's pixel logic, thresholds and assertions are deliberately untouched here.
+
+## Amendment, 2026-09-21 — it recurred once, and not as the frame-staleness theory guessed
+
+Re-attempted under `github#69` itself, same method: `--jobs 1`, 24 cores under synthetic load,
+this check run both mid-suite (immediately after its neighbour) and in isolation. **1 failure in 8
+runs** — not the 29-clean streak this record closed on, and not a stale-frame pixel mismatch
+either:
+
+```
+FAIL  a lifted spine is painted whole, in every look 12.4s
+         threw: Page.captureScreenshot got no reply in 10s
+```
+
+**The mechanism is a fixed CDP reply timeout, not a stale compositor read.** `scripts/cdp.mjs`'s
+`send()` gives every CDP call a flat 10 s Node-side timer (`... got no reply in 10s`) regardless of
+system load. This check calls `Page.captureScreenshot` roughly a dozen times per run — two per
+`paintedAbove()` call (`there` and `bare`), across three looks and two states (hover-lift and
+query-match) — far more than most checks in the suite. Its neighbour in the same failing run,
+which takes no screenshots, passed in 0.2 s under identical load. That contrast is the evidence
+this is about this check's CDP *volume*, not generic contention: twelve independent 10 s windows
+for the browser to keep up, any one of which can miss under sustained saturation, versus zero for
+a check that never asks the browser to paint and encode anything.
+
+**Why this is not folded into a fix here.** Unlike `settleRoom`'s 60 ms timer — a known, bounded
+wait where the runner could poll the page's own clock instead of guessing a Node-side duration —
+there is no faster signal to poll for a `Page.captureScreenshot` reply. Chrome's compositing and
+PNG-encoding cost under real CPU starvation is not a fixed quantity to wait out; it scales with how
+starved it is. Three shapes were visible and none is obviously the narrow, safe fix `github#57`
+found: raising `cdp.mjs`'s global 10 s timeout affects every CDP call in the runner, including the
+one case a genuinely hung browser should still be caught by; a per-check retry changes what "the
+check ran once and reported" means everywhere else in the file; and cutting this check's own
+`captureScreenshot` count is a rewrite of `paintedAbove()`'s design, not a fix to it. **Left for
+whoever picks this up next to choose, with this measurement in hand** — see `github#69`'s comment
+thread for the full run log. No code, threshold, or timeout was changed to make this land.
+
+**1/8 does not establish a rate**, only that the check is not clean at this load level the way the
+29-run streak suggested. `github#69` stays open on that basis.
