@@ -6750,6 +6750,23 @@ check("a draining room measure is waited out, and nothing else is", async (p) =>
   };
 });
 
+/* github#69, decisions/0016 */
+let cdpRetryProbeAttempt = 0;
+check("a CDP timeout is retried once, and nothing else is", async () => {
+  cdpRetryProbeAttempt++;
+  if (cdpRetryProbeAttempt === 1) {
+    const err = new Error("simulated -- Page.captureScreenshot got no reply in 10s");
+    err.code = "CDP_TIMEOUT";
+    throw err;
+  }
+  return {
+    ok: true,
+    detail: `threw a CDP_TIMEOUT on attempt 1 and the runner retried the whole check, recovering ` +
+            `on attempt ${cdpRetryProbeAttempt} -- a throw with no CDP_TIMEOUT code is never ` +
+            `retried, only reported (github#69)`
+  };
+});
+
 /* github#57 -- the numbers were never wrong; both ends wait on real signals now */
 check("the room has a width, however wide the window is", async (p) => {
   const was = await p.j("({width:innerWidth,height:innerHeight})");
@@ -9213,7 +9230,10 @@ check("a hovered spine shows one peek, big enough to read, and short labels stan
 
 /* github#51, design/0021 -- pixels: a clipped spine's rect reads whole. */
 check("a lifted spine is painted whole, in every look", async (p) => {
+  /* github#69 -- idempotent: this check can now run twice on one page */
   await p.j(`(function(){
+    var old = document.getElementById("vs-probe-51");
+    if (old) old.remove();
     var s = document.createElement("style");
     s.id = "vs-probe-51";
     document.head.appendChild(s);
@@ -10413,7 +10433,19 @@ async function runOne(vault, work) {
       let r;
       const t0 = Date.now();
       try { r = await c.fn(page, ctx); }
-      catch (e) { r = { ok: false, detail: "threw: " + e.message }; }
+      catch (e) {
+        /* github#69, decisions/0016 */
+        if (e.code === "CDP_TIMEOUT") {
+          try {
+            r = await c.fn(page, ctx);
+            r.detail = `(after one CDP-timeout retry: ${e.message}) ${r.detail || ""}`;
+          } catch (e2) {
+            r = { ok: false, detail: `threw twice -- first: ${e.message}; retry: ${e2.message}` };
+          }
+        } else {
+          r = { ok: false, detail: "threw: " + e.message };
+        }
+      }
       /* github#57, decisions/0016 -- past the coalescing timer before judging */
       const drained = await settled(page).catch(() => true);
       /* github#57, decisions/0016 -- a check that threw mid-resize leaves the override on */

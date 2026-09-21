@@ -168,7 +168,12 @@ export async function attach(port, match = "") {
         ? "Runtime.evaluate " + JSON.stringify(String(params.expression || "").slice(0, 70))
         : method;
       const timer = setTimeout(() => {
-        if (pending.delete(id)) reject(new Error(label + " got no reply in 10s"));
+        if (pending.delete(id)) {
+          /* github#69, decisions/0016 */
+          const err = new Error(label + " got no reply in 10s");
+          err.code = "CDP_TIMEOUT";
+          reject(err);
+        }
       }, 10000);
       pending.set(id, {
         resolve: (v) => { clearTimeout(timer); resolve(v); },

@@ -307,18 +307,18 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 5395 | `offBook` |
 | 5429 | `typing` |
 
-## `scripts/smoke.mjs` — 10862 lines, 6 sections, 199 functions, 150 checks
+## `scripts/smoke.mjs` — 10894 lines, 6 sections, 199 functions, 151 checks
 
 ### Sections
 
 | lines | section |
 |---|---|
 | 158–384 | the checks |
-| 385–9987 | the invariants |
-| 9988–10136 | which vault, and why |
-| 10137–10242 | at rest, or |
-| 10243–10683 | one run |
-| 10684–10862 | main |
+| 385–10007 | the invariants |
+| 10008–10156 | which vault, and why |
+| 10157–10262 | at rest, or |
+| 10263–10715 | one run |
+| 10716–10894 | main |
 
 ### Functions
 
@@ -474,55 +474,55 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 6379 | · `hits` |
 | 6403 | · `spellsIt` |
 | 6537 | · · `name` |
-| 6760 | · `box` |
-| 7027 | · `read` |
-| 7100 | · `cutOf` |
-| 7106 | · `pick` |
-| 7110 | · `years` |
-| 7114 | · `kidsOf` |
-| 7117 | · `plain` |
-| 7140 | · `walk` |
-| 7184 | · `gauge` |
-| 7274 | · `levels` |
-| 7279 | · `leaves` |
-| 7379 | · `rows` |
-| 7450 | · · `rows` |
-| 7531 | · `sizeOf` |
-| 7591 | · `numberOf` |
-| 7613 | · · `picker` |
-| 7761 | · `inside` |
-| 8025 | · `place` |
-| 8320 | · `scrolled` |
-| 8325 | · `at` |
-| 8484 | · · · `step` |
-| 8541 | · `books` |
-| 8544 | · `holds` |
-| 8649 | · `press` |
-| 8695 | · `press` |
-| 8710 | · `spotOf` |
-| 8717 | · `byId` |
-| 8718 | · `bareTurn` |
-| 8731 | · `hit` |
-| 8785 | · `press` |
-| 8794 | · `nameOf` |
-| 9409 | · `px` |
-| 9717 | · `faceOnto` |
-| 9731 | · `faceOf` |
-| 9746 | · `read` |
-| 10013 | `resolveVaults` |
-| 10123 | `buildFor` |
-| 10150 | `settled` |
-| 10166 | `viewport` |
-| 10179 | `unviewport` |
-| 10189 | `atRest` |
-| 10217 | `settlePage` |
-| 10249 | `press` |
-| 10261 | `runOne` |
-| 10481 | `tagged` |
-| 10487 | `capture` |
-| 10533 | · · `pick` |
-| 10642 | `killBrowser` |
-| 10686 | `main` |
+| 6777 | · `box` |
+| 7044 | · `read` |
+| 7117 | · `cutOf` |
+| 7123 | · `pick` |
+| 7127 | · `years` |
+| 7131 | · `kidsOf` |
+| 7134 | · `plain` |
+| 7157 | · `walk` |
+| 7201 | · `gauge` |
+| 7291 | · `levels` |
+| 7296 | · `leaves` |
+| 7396 | · `rows` |
+| 7467 | · · `rows` |
+| 7548 | · `sizeOf` |
+| 7608 | · `numberOf` |
+| 7630 | · · `picker` |
+| 7778 | · `inside` |
+| 8042 | · `place` |
+| 8337 | · `scrolled` |
+| 8342 | · `at` |
+| 8501 | · · · `step` |
+| 8558 | · `books` |
+| 8561 | · `holds` |
+| 8666 | · `press` |
+| 8712 | · `press` |
+| 8727 | · `spotOf` |
+| 8734 | · `byId` |
+| 8735 | · `bareTurn` |
+| 8748 | · `hit` |
+| 8802 | · `press` |
+| 8811 | · `nameOf` |
+| 9429 | · `px` |
+| 9737 | · `faceOnto` |
+| 9751 | · `faceOf` |
+| 9766 | · `read` |
+| 10033 | `resolveVaults` |
+| 10143 | `buildFor` |
+| 10170 | `settled` |
+| 10186 | `viewport` |
+| 10199 | `unviewport` |
+| 10209 | `atRest` |
+| 10237 | `settlePage` |
+| 10269 | `press` |
+| 10281 | `runOne` |
+| 10513 | `tagged` |
+| 10519 | `capture` |
+| 10565 | · · `pick` |
+| 10674 | `killBrowser` |
+| 10718 | `main` |
 
 ### Checks
 
@@ -622,59 +622,60 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 6516 | the rail is fixed controls, and nothing in it scrolls sideways |
 | 6581 | scrolling the library stays smooth in every look |
 | 6724 | a draining room measure is waited out, and nothing else is |
-| 6754 | the room has a width, however wide the window is |
-| 6815 | the reader and the sheets are not painted until they are opened |
-| 6832 | a wide table scrolls inside the page and never widens the book |
-| 6892 | a sticky note takes the reader to where the book's subject is written |
-| 6944 | a subject that is only declared is flagged on the details line |
-| 6981 | a person is found through the alias the note actually wrote |
-| 7022 | a book flags its own subject and no other |
-| 7075 | clicking a spine opens a book on the note it names |
-| 7094 | the date index is layered: years over months over days, each only where it separates |
-| 7168 | no index cut is clipped, and none is shrunk past reading |
-| 7265 | the fitted index converges: no level draws more rows than the rail's room |
-| 7334 | one cut is lit, and it is the deepest the page has reached |
-| 7372 | the rail lists one level under the trail it came through |
-| 7439 | a deep trail folds to three rows and says what it hides |
-| 7520 | a numeric volume is indexed like a date book, not stopped at its years |
-| 7586 | a volume of numbers reads by number, and only such a volume is offered it |
-| 7686 | index tabs compress without scrolling and shelf icons edit and hide |
-| 7733 | the reader's index tabs stay countable on the biggest book |
-| 7753 | opening a searched book reveals its first matching contents row without changing the note |
-| 7831 | the contents scroll to the current row after a tab, Previous and a ribbon |
-| 7912 | clicking a row in the index moves the mark and leaves the index where it stood |
-| 7982 | previous and next walk the book and stop at its ends |
-| 8015 | the turn sits under the spread, says the place, and yields to a caret |
-| 8131 | pushing past the end of a page turns it, and one hard flick turns one page |
-| 8199 | a push made slowly still turns, and the latch still clears on its own |
-| 8262 | a turn arrives at the top going forward and the bottom going back |
-| 8309 | every way to another note starts at the top of it |
-| 8368 | the push resists at both ends of the book and never turns |
-| 8417 | the contents never turns the page, and nor does a key that scrolls one |
-| 8458 | a wheel on the spread stays smooth in every look |
-| 8532 | a wikilink in a book goes to that note in this book, this shelf, or the nearest |
-| 8592 | also shelved in moves to another book and keeps the note |
-| 8625 | previous collection walks back, and Alt+Left does the same |
-| 8647 | a click off the book puts it down, and a click on it does not |
-| 8693 | every part of the turn turns the page rather than putting the book down |
-| 8783 | nothing in the reader but the desk puts the book down |
-| 8857 | escape closes the reader and leaves the shelf where it was |
-| 8876 | the reading shelf survives its own shelf being hidden |
-| 8912 | a saved reading place re-resolves after its own book is gone |
-| 8927 | the builder previews the shelf it would actually save |
-| 8977 | a saved shelf gets a stable id and joins the library |
-| 8998 | parent tag inclusion is a setting, and it changes the answer |
-| 9018 | a person is read from every people property, and out of a wikilink |
-| 9052 | a link to a person's note names that person, once, by the note's name |
-| 9085 | people come from the property alone, never from prose |
-| 9106 | plain list mode keeps every book reachable |
-| 9123 | every control the keyboard can reach has a name |
-| 9145 | nothing on the page reaches the network |
-| 9155 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
-| 9215 | a lifted spine is painted whole, in every look |
-| 9403 | the room above a spine is the largest lift plus the look's halo, in every look |
-| 9478 | nothing a look paints outside a spine is cut off, in every look |
-| 9710 | a short cover is stood upright by one face, not the look's |
-| 9863 | a tag book's cover carries no hash, and every other place it is named keeps it |
-| 9913 | a spine lifts on hover and holds its size |
-| 9937 | the shelves are packed the way the golden snapshot says |
+| 6755 | a CDP timeout is retried once, and nothing else is |
+| 6771 | the room has a width, however wide the window is |
+| 6832 | the reader and the sheets are not painted until they are opened |
+| 6849 | a wide table scrolls inside the page and never widens the book |
+| 6909 | a sticky note takes the reader to where the book's subject is written |
+| 6961 | a subject that is only declared is flagged on the details line |
+| 6998 | a person is found through the alias the note actually wrote |
+| 7039 | a book flags its own subject and no other |
+| 7092 | clicking a spine opens a book on the note it names |
+| 7111 | the date index is layered: years over months over days, each only where it separates |
+| 7185 | no index cut is clipped, and none is shrunk past reading |
+| 7282 | the fitted index converges: no level draws more rows than the rail's room |
+| 7351 | one cut is lit, and it is the deepest the page has reached |
+| 7389 | the rail lists one level under the trail it came through |
+| 7456 | a deep trail folds to three rows and says what it hides |
+| 7537 | a numeric volume is indexed like a date book, not stopped at its years |
+| 7603 | a volume of numbers reads by number, and only such a volume is offered it |
+| 7703 | index tabs compress without scrolling and shelf icons edit and hide |
+| 7750 | the reader's index tabs stay countable on the biggest book |
+| 7770 | opening a searched book reveals its first matching contents row without changing the note |
+| 7848 | the contents scroll to the current row after a tab, Previous and a ribbon |
+| 7929 | clicking a row in the index moves the mark and leaves the index where it stood |
+| 7999 | previous and next walk the book and stop at its ends |
+| 8032 | the turn sits under the spread, says the place, and yields to a caret |
+| 8148 | pushing past the end of a page turns it, and one hard flick turns one page |
+| 8216 | a push made slowly still turns, and the latch still clears on its own |
+| 8279 | a turn arrives at the top going forward and the bottom going back |
+| 8326 | every way to another note starts at the top of it |
+| 8385 | the push resists at both ends of the book and never turns |
+| 8434 | the contents never turns the page, and nor does a key that scrolls one |
+| 8475 | a wheel on the spread stays smooth in every look |
+| 8549 | a wikilink in a book goes to that note in this book, this shelf, or the nearest |
+| 8609 | also shelved in moves to another book and keeps the note |
+| 8642 | previous collection walks back, and Alt+Left does the same |
+| 8664 | a click off the book puts it down, and a click on it does not |
+| 8710 | every part of the turn turns the page rather than putting the book down |
+| 8800 | nothing in the reader but the desk puts the book down |
+| 8874 | escape closes the reader and leaves the shelf where it was |
+| 8893 | the reading shelf survives its own shelf being hidden |
+| 8929 | a saved reading place re-resolves after its own book is gone |
+| 8944 | the builder previews the shelf it would actually save |
+| 8994 | a saved shelf gets a stable id and joins the library |
+| 9015 | parent tag inclusion is a setting, and it changes the answer |
+| 9035 | a person is read from every people property, and out of a wikilink |
+| 9069 | a link to a person's note names that person, once, by the note's name |
+| 9102 | people come from the property alone, never from prose |
+| 9123 | plain list mode keeps every book reachable |
+| 9140 | every control the keyboard can reach has a name |
+| 9162 | nothing on the page reaches the network |
+| 9172 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
+| 9232 | a lifted spine is painted whole, in every look |
+| 9423 | the room above a spine is the largest lift plus the look's halo, in every look |
+| 9498 | nothing a look paints outside a spine is cut off, in every look |
+| 9730 | a short cover is stood upright by one face, not the look's |
+| 9883 | a tag book's cover carries no hash, and every other place it is named keeps it |
+| 9933 | a spine lifts on hover and holds its size |
+| 9957 | the shelves are packed the way the golden snapshot says |

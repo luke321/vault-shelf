@@ -156,17 +156,27 @@ this is about this check's CDP *volume*, not generic contention: twelve independ
 for the browser to keep up, any one of which can miss under sustained saturation, versus zero for
 a check that never asks the browser to paint and encode anything.
 
-**Why this is not folded into a fix here.** Unlike `settleRoom`'s 60 ms timer — a known, bounded
-wait where the runner could poll the page's own clock instead of guessing a Node-side duration —
-there is no faster signal to poll for a `Page.captureScreenshot` reply. Chrome's compositing and
-PNG-encoding cost under real CPU starvation is not a fixed quantity to wait out; it scales with how
-starved it is. Three shapes were visible and none is obviously the narrow, safe fix `github#57`
-found: raising `cdp.mjs`'s global 10 s timeout affects every CDP call in the runner, including the
-one case a genuinely hung browser should still be caught by; a per-check retry changes what "the
-check ran once and reported" means everywhere else in the file; and cutting this check's own
-`captureScreenshot` count is a rewrite of `paintedAbove()`'s design, not a fix to it. **Left for
-whoever picks this up next to choose, with this measurement in hand** — see `github#69`'s comment
-thread for the full run log. No code, threshold, or timeout was changed to make this land.
+**The fix: retry the whole check once, on this one error code alone.** Unlike `settleRoom`'s 60 ms
+timer — a known, bounded wait where the runner could poll the page's own clock instead of guessing
+a Node-side duration — there is no faster signal to poll for a `Page.captureScreenshot` reply.
+Chrome's compositing and PNG-encoding cost under real CPU starvation is not a fixed quantity to
+wait out; it scales with how starved it is. Three shapes were on the table: raise `cdp.mjs`'s
+global 10 s timeout (touches every CDP call in the runner, including the one case a genuinely hung
+browser should still be caught by), cut `paintedAbove()`'s own `captureScreenshot` count (a rewrite
+of the check's design, not a fix to it), or retry once on this specific failure. The third is what
+shipped, and it is narrow in the way `github#57`'s fix was: `cdp.mjs`'s `send()` now tags its
+timeout error `CDP_TIMEOUT` (a transport stall, distinguishable from anything a check itself
+asserts), and the runner's check loop retries the whole check exactly once when it sees that code
+— never on any other thrown error, and never twice. A CDP timeout is not a measurement the way a
+wrong pixel is; it is the harness failing to observe anything at all, so retrying it doesn't risk
+hiding a real defect the way retrying a failed assertion would.
 
-**1/8 does not establish a rate**, only that the check is not clean at this load level the way the
-29-run streak suggested. `github#69` stays open on that basis.
+**Guarded by its own check**, matching this record's own pattern: `"a CDP timeout is retried once,
+and nothing else is"` manufactures a `CDP_TIMEOUT` on its first attempt and expects to pass on the
+retry. Verified both ways — green with the retry branch in, and red with the words `threw:
+simulated -- Page.captureScreenshot got no reply in 10s` with it temporarily removed.
+
+**1/8 does not establish a rate**, only that the check was not clean at this load level the way the
+29-run streak suggested — and the fix addresses the mechanism actually observed, not a guess at
+one. `github#69` stays open until a human decides whether this closes it or a larger sample is
+still owed.
