@@ -5,8 +5,11 @@ exists so an agent that looks for `AGENTS.md` by convention finds its way there 
 guessing, and it deliberately does not restate the laws: two copies of a rule become two
 different rules.
 
-**Read `CLAUDE.md` for the orchestrator/worker split** — this file doesn't restate it. Pushing
-and merging are each a separate ask, every time, no matter who is asking or how the last one went.
+**The orchestrator/worker split isn't in this repo.** It lives in `~/.claude/CLAUDE.md` (the
+rails) and the `orchestrator-brief` skill (the mechanics) — both machine-local, so a reader
+without them knows the rules exist elsewhere rather than hunting `CLAUDE.md` for a section that
+was moved out. Pushing and merging are each a separate ask, every time, no matter who is asking
+or how the last one went.
 
 Five things are worth knowing before you touch anything, all expanded in `CLAUDE.md`:
 
