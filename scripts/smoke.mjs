@@ -273,6 +273,8 @@ const POINTER_DRIVEN = [
   "any shelf arranged by hand",
   /* github#38 -- it overrides the viewport and reads every box in the rail. */
   "scrolls sideways",
+  /* github#41 -- it drives two widths and reads the list's box */
+  "as wide as what it offers",
   /* github#32, design/0034 -- they drive the window to two heights, open forty books and read
    * every cut's box. "tabs" above caught every check that did this while they were all named
    * for tabs; these are named for cuts, so they say so here instead. */
@@ -6319,6 +6321,64 @@ check("the suggestion list is a combobox the keyboard can drive", async (p) => {
              : bad.length
                ? `${bad.join(", ")} -- not what a combobox does`
                : `role=${r.role}, list role=${r.listRole}, aria-autocomplete=${r.autocomplete}` };
+});
+
+/* github#41, design/0026 -- as wide as what it offers */
+check("the suggestion list is as wide as what it offers, and never wider than the room", async (p) => {
+  const wasView = await p.j("({width:innerWidth,height:innerHeight})");
+  const at = async (width) => {
+    /* design/0009, github#57 -- CDP resizes without telling the page; viewport() waits */
+    await viewport(p, width, 1000);
+    return p.j(`(function(){
+      var list = document.getElementById("vs-suggest");
+      var box = document.getElementById("vs-q");
+      var room = document.querySelector(".vault-shelf");
+      var probes = ["a", "e", "the", "2026", "note", "o", "s", "i", "n", "r", "garden", "Aug"];
+      var rows = 0, cut = 0, past = 0, under = 0, widest = 0, worst = "";
+      probes.forEach(function (term) {
+        __vs.typeQuery(term);
+        var lr = list.getBoundingClientRect(), hr = room.getBoundingClientRect();
+        /* THE ROOM IS THE CEILING -- nothing scrolls sideways, at either width. */
+        if (lr.right > hr.right + 1 || lr.left < hr.left - 1) past++;
+        /* THE BOX IS THE FLOOR, as page.css was given it when the list opened. */
+        var floor = parseFloat(list.style.getPropertyValue("--vs-sug-min")) || 0;
+        if (floor && lr.width + 1 < floor) under++;
+        if (lr.width > widest) widest = Math.round(lr.width);
+        [].slice.call(list.querySelectorAll(".vs-sugtext")).forEach(function (t) {
+          rows++;
+          if (t.scrollWidth > t.clientWidth + 1) { cut++; worst = t.textContent; }
+        });
+      });
+      __vs.setQuery("");
+      __vs.closeSuggest();
+      return { width: ${width}, rows: rows, cut: cut, past: past, under: under, widest: widest,
+               worst: worst, box: Math.round(box.getBoundingClientRect().width),
+               room: Math.round(room.getBoundingClientRect().width) };
+    })()`);
+  };
+
+  const wide = await at(1600);
+  const narrow = await at(400);
+  await unviewport(p, wasView);
+
+  /* github#41 -- 400px cannot fit it; the room is the law there */
+  const ok = wide.rows > 0 && narrow.rows > 0 && wide.cut === 0 &&
+             wide.widest > wide.box && wide.past === 0 && narrow.past === 0 &&
+             wide.under === 0 && narrow.under === 0;
+  return { ok,
+           detail: ok
+             ? `${wide.widest}px for a ${wide.box}px box in a ${wide.room}px room: ` +
+               `0 of ${wide.rows} offered rows clipped. At 400px the ceiling binds instead -- ` +
+               `${narrow.widest}px wide, ${narrow.cut} of ${narrow.rows} clipped, nothing past ` +
+               `the room at either width`
+             : wide.past || narrow.past
+               ? `the list reached past the room ${wide.past + narrow.past} time(s)`
+               : wide.under || narrow.under
+                 ? `the list fell under its own floor ${wide.under + narrow.under} time(s)`
+                 : wide.cut
+                   ? `${wide.cut} of ${wide.rows} rows still clipped at ${wide.widest}px, ` +
+                     `worst "${wide.worst}"`
+                   : `the list stayed at ${wide.widest}px for a ${wide.box}px box` };
 });
 
 /* github#41, design/0026 -- not everything is Latin, and toLowerCase is a no-op on CJK. */

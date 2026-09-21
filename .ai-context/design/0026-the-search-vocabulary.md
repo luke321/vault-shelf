@@ -184,6 +184,41 @@ and 19.9 ms across three runs of code that never changed. The list is placed whe
 resize, never per keystroke — measuring the box forces a reflow of a room `applyQuery` has just
 dirtied, and paying that on every key is what made an early reading say 29.5 ms.
 
+**The list is as wide as what it offers.** It was pinned to the search box — `232px`, the box's
+own width — which is the combobox convention and, measured, wrong here: **16 of 90 offered rows
+ended in an ellipsis**, the worst of them `area/personal-knowledge-management` wanting 227px of a
+117px slot and reading as `area/personal-knowl…`. A suggestion you cannot read has not told you
+what it would spell, which is the whole job.
+
+So it sizes to its content **between a floor and a ceiling**: never narrower than the box, never
+wider than what is left of the room to the right of it, and never past a fixed `440px`.
+
+| over the same 13 probes | before | after |
+|---|---|---|
+| rows clipped, 1,584px room | **16 / 90** | **0 / 90** |
+| rows clipped, 400px room | **31 / 90** | **10 / 90** |
+| list narrower than its own box | 8 / 13 | 2 / 13 |
+| list reaching past the room | 0 | 0 |
+
+**At 400px the ceiling is what binds, and that is the law rather than a shortfall.** The room there
+is 400px with the box 142px into it, so the list can be 250px and the longest folder this vault
+spells needs 342px. *Nothing scrolls sideways* — so the check asserts **the room** at that width and
+**reports** the clipping instead of asserting it away.
+
+**None of it is measured per keystroke**, which is the constraint that chose the mechanism.
+`page.css` does the sizing (`width: max-content` between `min-width` and `max-width`) and JS hands
+it the two bounds once per opening, exactly as it already handed it `left` and `top`. A JS pass over
+the rows would have been correct and would have bought back the 14.5 → 29.5 ms that moving
+`placeSuggest` to once-per-opening had just paid off. The ceiling lives in `page.css` because
+geometry is `page.css`'s (`design/0016`, `design/0021`); JS passes only the room arithmetic it was
+already doing, through `--vs-sug-min` and `--vs-sug-room`.
+
+**The list can still be narrower than its own box, and it was before too.** The box itself grows and
+shrinks as `#vs-hits` changes length, and the bounds are the ones measured when the list opened — so
+a box that widens mid-word leaves the list behind it by a few pixels. Re-placing on every keystroke
+would fix five pixels for the reflow cost above, so it is recorded rather than chased; sizing to
+content halved it (8 of 13 probes to 2) as a side effect.
+
 **A vault with nothing to suggest** offers nothing and says so, in one non-pickable row: *Nothing in
 this vault spells that.* That is also what a typo gets, which is the case the whole feature exists
 for — an empty list would say the same thing as a vault that genuinely has no gardening in it, which

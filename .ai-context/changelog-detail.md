@@ -1,5 +1,44 @@
 # Changelog detail
 
+## 2026-09-21 — A suggestion you could not read (`github#41`, `design/0026`)
+
+`github#41` shipped with `Refs #41` rather than `Closes`, naming four open calls. Three settled
+themselves: `github#58` put **covers** back in the vocabulary and the haystack, so date books are
+offered by name again (9 month books — `Aug 2026`, `Apr 2026`, …) and the contradictory empty row
+went with the body scans; and the esbuild `allowScripts` entry is on `develop`. `Week 37, 2026` is
+absent because **the Weeks shelf is hidden by default** (schema 4) and book terms come from visible
+shelves only — the law working, not a gap.
+
+The fourth was the list's width. It was pinned to the search box at **232px**, so a folder wanting
+227px of a 117px slot read as `area/personal-knowl…`. **A suggestion you cannot read has not told
+you what it would spell**, which is the whole job of the feature.
+
+It sizes to its content now, between a floor and a ceiling: never narrower than the box, never
+wider than what is left of the room to the right of it, never past **440px**.
+
+| over the same 13 probes, the one vault | before | after |
+|---|---|---|
+| rows clipped, 1,584px room | **16 / 90** | **0 / 90** |
+| rows clipped, 400px room | **31 / 90** | **10 / 90** |
+| list narrower than its own box | 8 / 13 | **2 / 13** |
+| list reaching past the room | 0 | **0** |
+| list width, 1,584px room | 232px | **342px** |
+| list width, 400px room | 204px | **250px** |
+
+**At 400px the ceiling binds and that is the law**, not a shortfall: the room holds 250px with the
+box 142px into it, the longest folder wants 342px, and *nothing scrolls sideways*. The check asserts
+the room at both widths and **reports** the 10 clipped rows rather than asserting them away.
+
+**The mechanism was chosen by the cost, not by taste.** `page.css` sizes it (`width: max-content`
+between `min-width` and `max-width`) and JS hands it the two bounds **once per opening**, as it
+already handed it `left` and `top`. A JS pass over the rows would have been correct and would have
+bought back the **14.5 → 29.5 ms** that moving `placeSuggest` off the keystroke path had just paid
+off. Per-keystroke cost is therefore unchanged.
+
+Residual, measured rather than chased: the box grows and shrinks as `#vs-hits` changes length, so a
+list opened against a narrower box can sit a few pixels under it. Pre-existing — sizing to content
+took it from 8 of 13 probes to 2.
+
 ## 2026-09-20 — The trail was what the deep levels were paying for (`github#88`, `design/0034`)
 
 `github#87` left a floor it had proved it could not cross: five alphabetical tag books settled at

@@ -1940,6 +1940,24 @@ while the list is walked. Then that Enter completes the box, marks, shuts the li
 focus in the box**, and that Escape shuts the list, keeps the focus, and leaves the reader
 **untouched** — the list's Escape stops there rather than reaching the overlay behind it.
 
+`"the suggestion list is as wide as what it offers, and never wider than the room"` drives the
+window to **1600px** and **400px** and reads the list's box at each, over 12 probes. The list sizes
+to its content between a floor and a ceiling — never narrower than the box it hangs from, never
+wider than what is left of the room to the right of it, never past **440px**. Measured: **342px**
+for a **232px** box in a **1,584px** room, and **0 of 87** offered rows clipped where the pinned
+232px list clipped **16 of 90**. At **400px** the ceiling is what binds — the room holds **250px**
+and the longest folder this vault spells wants **342px** — so the check asserts **the room** there
+(`past === 0`, at both widths) and **reports** the 10 clipped rows rather than asserting them away:
+*nothing scrolls sideways* outranks reading a folder in full.
+
+The floor and the ceiling are set **once per opening**, as `left` and `top` already were, and
+`page.css` does the sizing (`width: max-content` between `min-width` and `max-width`). Nothing is
+measured per row or per keystroke — a JS pass over the rows would buy back exactly the 14.5 → 29.5 ms
+that moving `placeSuggest` off the keystroke path had just paid off. Consequence, measured and
+recorded rather than chased: the box itself changes width as `#vs-hits` changes length, so a list
+opened against a narrower box can end up a few pixels under it — **2 of 13** probes at 400px, down
+from **8 of 13** before, because sizing to content covers most of the drift.
+
 `"a vocabulary that is not Latin is still offered"` takes the first term whose **first** character
 is outside Latin-1, types that one character, and asserts the term is offered and marks notes.
 Measured: `学` offers `学び` (135 notes). `toLowerCase()` is a no-op on CJK, which is why a term is
