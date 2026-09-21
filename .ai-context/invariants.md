@@ -1251,7 +1251,7 @@ was sliced flat.
 | 2px | `--spine-lift-worn-more` | a worn spine **at rest**, `[data-wear="3"]` |
 | 5px | `--spine-lift-worn-hover` | a worn spine hovered — **6px under `data-look="cyber"`** |
 | 6px | `--spine-lift-hover` | `:hover` / `:focus-visible` |
-| **7px** | `--spine-lift-max`, read by `--spine-lift-match` | a search match, **every one, while a query is live** |
+| **7px** | `--spine-lift-max`, read by `--spine-lift-match` | a search match **at rung 4**; rungs 1 to 3 lift 1, 3 and 5px (`github#42`, below) |
 
 **But a lift is not the only thing that leaves a spine.** A look paints outside a spine's own
 border box too, and the same clip was cutting that: cyber's neon on a match is `0 0 22px` and on
@@ -1797,6 +1797,92 @@ to ghosts, and that the room came back exactly. It takes its search term from th
 running against: hard-coding one passed on one fixture and, on another, asserted
 that a query finding nothing still drew something forward. Measured: **227** spines before,
 during and after, **193** drawn forward and **34** thinned to ghosts, none removed.
+
+## How much of a book answers
+
+`design/0008`, `github#42`. **A book draws forward by the share of it that answers, in four
+rungs: a half, a fifth, a twentieth.** `core.matchStrength(book)` is `book.matches / notes.length`
+bucketed — `>= 1/2` rung 4, `>= 1/5` rung 3, `>= 1/20` rung 2, anything else that matches at all
+rung 1 — and it is the whole rule, sitting beside `core.wearLevel()` for the same reason.
+
+**Two states was the law as written, and on a vault of 5,000 notes two states is none.**
+`core.markMatches` had always counted; `applyQuery()` threw the number away on the way to the
+attribute, so `people/-unfiled` at **2 of 2,481** lifted 7px and took an accent edge exactly as
+loudly as `people/Sanne de Vries` at **320 of 320**. `sanne de vries` drew **159 of 231 books**
+forward, which is the same as none of them drawing forward.
+
+**Four rungs and not a continuum**, for the reason `design/0008` already gave for wear: a
+continuous scale is a bar chart of your own library wearing a book's clothes.
+
+**THE STRENGTH IS CARRIED THREE WAYS, BECAUSE ONE OF THEM IS ALREADY TAKEN AWAY.**
+`prefers-reduced-motion` flattens the lift (`page.css`, `leather.css`), so a strength living in
+the transform alone is four rungs for everybody except the reader who asked for the motion to
+stop — and every assertion in the suite would have stayed green:
+
+| carrier | owned by | rung 1 → 4 | survives reduced motion |
+|---|---|---|---|
+| lift | `page.css` — geometry, one ladder for every look | 1 / 3 / 5 / 7px | no |
+| air — the margin the room opens either side | `page.css` — geometry | 3 / 5 / 7 / 9px | **yes** |
+| accent — edge and shadow | each look's own sheet — paint | its own ramp | **yes** |
+
+**The ceiling does not move, and that is what leaves every CSS-floor invariant standing.**
+`--spine-lift-match` is still declared as `var(--spine-lift-max)` = **7px** on `.vault-shelf`;
+rungs 1 to 3 override it **on the spine**. `"the room above a spine is the largest lift plus the
+look's halo"` reads the token off the **track**, so it still reads `match 7`, `--spine-room` stays
+**7 / 8 / 25px** in modern / leather / cyber, and the clip is untouched.
+
+**`data-match` stays binary.** It answers the law's own question — *does this book answer at all* —
+and `__vs.magic()`, the reader's contents rows and four checks read it. The rung rides beside it as
+`data-strength="1".."4"`, on matched spines only, removed with the query.
+
+**A book the query NAMES by its own cover is marked, never promoted** — `data-named="1"` when the
+folded needle *is* the cover. It needs no promotion: a cover is in the search index of every note
+behind it (`github#58`), so a named book is already at or near 100% share and a promotion rule
+would never fire. What it needs is to be told apart from a book that merely co-occurs heavily,
+which is the People tell — a person's name lights **16 of 26** people books because a note names
+several people, the first law working correctly and still reading as broken.
+
+**`#vs-hits` keeps both halves and qualifies the second**: `621 notes in 188 books (28 strongly)`,
+counting rungs 3 and 4. The note count stays first because four checks `parseInt` that string.
+
+`"a book draws forward by how much of it answers, not merely that it does"` measures every lit
+book's share off the books themselves and asserts each rung's band holds — no book at a rung falls
+below its floor or reaches the next one — that the lift and the air both climb with the rung, that
+no rung passes the 7px ceiling, and that clearing the box leaves **0** spines carrying a rung.
+Measured on `vault-3ea58174`, needle `mira vance`, **188 of 231** books lit:
+
+| rung | books | band measured | lift | air |
+|---|---|---|---|---|
+| 1 | 11 | 0.0–4.5% | 1px | 3px |
+| 2 | 149 | 5.0–19.5% | 3px | 5px |
+| 3 | 19 | 20.0–36.4% | 5px | 7px |
+| 4 | **9** | 50.0–100% | 7px | 9px |
+
+The thinnest lit book is `people/-unfiled` at **1 of 2,452** (rung 1) and the fullest
+`people/Mira Vance` at **620 of 620** (rung 4).
+
+`"a book the query names by its own cover says so, and its neighbours do not"` queries a visible
+book's cover exactly and asserts that spine is `data-named` at rung 4, that books lit by the same
+query without the name are not marked, and that clearing the box leaves **0** named.
+
+`"the strength survives reduced motion, where the lift does not"` emulates
+`prefers-reduced-motion: reduce`, asserts **0 of 188** lit spines carry a transform, and that the
+air and the accent still separate all four rungs. This is the carrier the issue named as the trap
+and the one a transform-only answer would have failed in silence.
+
+**A SPINE TRANSITIONS ITS MARGIN over 160ms**, so a read taken in the same turn as `setQuery`
+measures the air the room is *leaving*: every rung first came back at **0px** while its own
+`--spine-air-match` token read 3/5/7/9, because a custom property does not transition and a margin
+does. `restedRungs()` waits on the **condition** — the air has arrived when it equals the token it
+is animating towards — never on a duration (`decisions/0016`).
+
+**AND A TRIMMED SPINE UNDERSTATES ITS OWN LIFT.** A binding that trims (`design/0033`) sits its
+trim lower in its own track, so `trackTop - top` is short by exactly that trim and the head it can
+paint is short by it too. Pointing `"a lifted spine is painted whole, in every look"` at a rung-4
+spine found one immediately: **lifted 1px, painted 0px**, which looks exactly like the clip biting
+and was nothing of the kind. `pick(sel, flush)` takes an untrimmed candidate, which is the same
+trap the sibling room check already dodged by hand. That check now prefers rung 4, then rung 3,
+then any match, and **names the rung it measured** — the room it is proving is the tallest rung's.
 
 ## What the search reads
 

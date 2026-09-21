@@ -579,6 +579,54 @@
   color: var(--vs-neon-hot);
 }
 
+/* github#42, design/0008 -- the four rungs as power down the line. PAINT ONLY: lift and air
+ * are page.css's. NOTHING REACHES FURTHER than the 22px the match already paints -- the room
+ * is 25px on a --spine-halo of 18px, and a rung that glowed wider would be sliced. */
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-strength="3"] {
+  box-shadow:
+    inset 0 -8px 14px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(53, 240, 208, 0.7),
+    0 0 16px rgba(53, 240, 208, 0.34),
+    0 8px 18px rgba(0, 0, 0, 0.7);
+}
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-strength="2"] {
+  box-shadow:
+    inset 0 -8px 14px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(53, 240, 208, 0.42),
+    0 0 10px rgba(53, 240, 208, 0.2),
+    0 6px 14px rgba(0, 0, 0, 0.7);
+}
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-strength="1"] {
+  box-shadow:
+    inset 0 -8px 14px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(53, 240, 208, 0.18),
+    0 4px 10px rgba(0, 0, 0, 0.7);
+}
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-strength="3"] .vs-n { color: var(--vs-neon); }
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-strength="2"] .vs-n {
+  color: rgba(53, 240, 208, 0.75);
+}
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-strength="1"] .vs-n {
+  color: rgba(53, 240, 208, 0.45);
+}
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-strength="2"] .vs-title,
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-strength="1"] .vs-title {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* github#42 -- the book you typed: the sign it is named, inside its own frame. */
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-named="1"] {
+  box-shadow:
+    inset 0 0 0 1px var(--vs-neon-hot),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.3),
+    0 0 0 1px var(--vs-neon),
+    0 0 22px rgba(53, 240, 208, 0.5),
+    0 10px 22px rgba(0, 0, 0, 0.7);
+}
+.vault-shelf[data-look="cyber"][data-query="1"] .vs-spine[data-named="1"] .vs-title {
+  color: var(--vs-neon-hot);
+}
+
 /* ---- the reader ----------------------------------------------------------
  * design/0012 -- the spread was already an open book made of geometry, and geometry is what
  * this look keeps. What it adds is that the book is a LIT PANEL: two sheets of dark glass in
