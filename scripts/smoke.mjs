@@ -6008,6 +6008,8 @@ async function restedRungs(p) {
     last = await p.j(RUNGS);
     const live = [1, 2, 3, 4].filter((k) => last[k]);
     if (live.length && live.every((k) => last[k].air === last[k].want)) return last;
+    /* github#42 -- an empty box carries no rung, so nothing is coming */
+    if (!live.length && wait >= 4) return last;
     await sleep(50);
   }
   return last;
@@ -6073,8 +6075,11 @@ check("a book draws forward by how much of it answers, not merely that it does",
     __vs.setQuery("");
     var after = __vs.counts().spines;
     var quiet = document.querySelectorAll("#vs-shelves .vs-spine[data-strength]").length;
+    /* github#42, design/0021 -- the ceiling is declared, never a number written twice */
+    var ceiling = parseFloat(getComputedStyle(document.getElementById("vs-app"))
+                               .getPropertyValue("--spine-lift-max")) || 0;
     return { before: before, after: after, quiet: quiet, needle: needle, lit: lit,
-             strengths: m.strengths, strong: m.strong, forward: m.forward,
+             strengths: m.strengths, strong: m.strong, forward: m.forward, ceiling: ceiling,
              bands: bands, thinnest: thinnest, fullest: fullest, hits: hits };
   })()`);
   r.rungs = rested;
@@ -6092,7 +6097,7 @@ check("a book draws forward by how much of it answers, not merely that it does",
     if (!(hi.lift > lo.lift)) flat.push(`lift ${live[i - 1]}->${live[i]}`);
     if (!(hi.air > lo.air)) flat.push(`air ${live[i - 1]}->${live[i]}`);
   }
-  const tall = live.filter((k) => r.rungs[k] && r.rungs[k].lift > 7);
+  const tall = live.filter((k) => r.rungs[k] && r.rungs[k].lift > r.ceiling);
   /* github#42 -- and the air arrived, rather than being mid-transition */
   const moving = live.filter((k) => r.rungs[k] && r.rungs[k].air !== r.rungs[k].want);
   const ok = r.before === r.after && r.quiet === 0 && live.length >= 3 &&
@@ -6116,7 +6121,62 @@ check("a book draws forward by how much of it answers, not merely that it does",
             (flat.length ? ` -- NOT CLIMBING: ${flat.join(", ")}` : "") +
             (moving.length ? ` -- STILL MOVING: rung ${moving.map((k) =>
               `${k} at ${r.rungs[k].air}px of ${r.rungs[k].want}px`).join(", ")}` : "") +
-            (tall.length ? ` -- PAST THE CEILING: rung ${tall.join(", ")} lifts over 7px` : "")
+            (tall.length ? ` -- PAST THE CEILING: rung ${tall.join(", ")} lifts over ${r.ceiling}px` : "")
+  };
+});
+
+/* github#42, design/0014 -- the air is width, so it can break the law */
+check("the air a query opens still fits the room, and a run too long wraps", async (p) => {
+  const read = () => p.j(`(function(){
+    var app = document.getElementById("vs-app");
+    var measure = parseInt(getComputedStyle(app).getPropertyValue("--measure"), 10);
+    var tracks = [].slice.call(document.querySelectorAll("#vs-shelves .vs-track"));
+    var worst = 0, who = null, rows = {};
+    tracks.forEach(function (t) {
+      var over = t.scrollWidth - t.clientWidth;
+      if (over > worst) { worst = over; who = t.closest("[data-shelf]").getAttribute("data-shelf"); }
+      var id = t.closest("[data-shelf]").getAttribute("data-shelf");
+      rows[id] = (rows[id] || 0) + 1;
+    });
+    var wide = tracks.filter(function (t) {
+      return Math.round(t.getBoundingClientRect().width) > measure + 2;
+    }).length;
+    return { measure: measure, tracks: tracks.length, overflow: worst, who: who,
+             rows: rows, wide: wide,
+             lit: document.querySelectorAll('#vs-shelves .vs-spine[data-match="1"]').length };
+  })()`);
+
+  await p.j(`(__vs.setQuery(""), 1)`);
+  /* github#42 -- the air leaves on a transition too, so wait it out */
+  await restedRungs(p);
+  const quiet = await read();
+  await p.j(`(function(){ __vs.setQuery(${PERSON_NEEDLE}); return 1; })()`);
+  await restedRungs(p);
+  const live = await read();
+  await p.j(`(__vs.setQuery(""), 1)`);
+  await restedRungs(p);
+  const back = await read();
+
+  /* github#90 -- a budget, not a zero; develop measures 493px here */
+  const BUDGET = 352;
+  const grew = Object.keys(live.rows).filter((k) => live.rows[k] > quiet.rows[k]);
+  const same = Object.keys(quiet.rows).every((k) => back.rows[k] === quiet.rows[k]);
+  const ok = live.overflow <= BUDGET && quiet.overflow <= 1 && back.overflow <= 1 &&
+             live.wide === 0 && back.wide === 0 && same && live.lit > 0;
+  return {
+    ok,
+    detail: `${live.lit} books lit into ${live.measure}px of room: worst overflow ` +
+            `${live.overflow}px of a ${BUDGET}px budget on ${live.who}, against 493px on ` +
+            `develop (quiet ${quiet.overflow}px, back ${back.overflow}px); ${live.wide} ` +
+            `track(s) wider than the room; ` +
+            (grew.length
+              ? `${grew.map((k) => `${k} ${quiet.rows[k]}→${live.rows[k]} rows`).join(", ")}`
+              : "no shelf needed another row") +
+            `; clearing the box puts every row back (${same})` +
+            (live.overflow > BUDGET
+              ? ` -- OVER BUDGET: ${live.who} runs ${live.overflow - BUDGET}px past it, and a ` +
+                `clipped book is a book that left the room (github#90)`
+              : "")
   };
 });
 
@@ -9978,7 +10038,8 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
   /* github#20, decisions/0019 -- a floor raised must answer for itself in the run.
    * github#20 -- the spine is 30px up in BOTH shots; only the clip moves
    * github#20 -- a real slice is 30px of a 44px spine; must read > 0 */
-  const LIFT = " #vs-app [data-probe51b] { transform: translateY(-30px) !important; }";
+  /* github#42 -- past the widest room, which the top rung raised to 32px */
+  const LIFT = " #vs-app [data-probe51b] { transform: translateY(-48px) !important; }";
   let control = -2;
   {
     await p.j(`(__vs.setLook("cyber"), 1)`);
@@ -10043,7 +10104,7 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
               ? ` -- STILL MOVING WHEN MEASURED: ` + restless.join(", ")
               : "") +
             /* github#20, decisions/0019 -- what makes the width floor mean anything */
-            `; a cyber spine held 30px over a track shut to no room reads ${control}px sliced` +
+            `; a cyber spine held 48px over a track shut to no room reads ${control}px sliced` +
             (blind ? `, which is nothing -- the reading has stopped seeing a slice` : "")
   };
 });

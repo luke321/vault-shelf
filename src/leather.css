@@ -282,7 +282,7 @@
  * against a 7px lift, and was allowed 7. --spine-room is the sum, written out. */
 .vault-shelf[data-look="leather"] {
   --spine-halo: 1px;
-  --spine-room: 8px;
+  --spine-room: 15px;
 }
 
 .vault-shelf[data-look="leather"][data-query="1"] .vs-spine[data-match="1"] {
@@ -311,7 +311,7 @@
 .vault-shelf[data-look="leather"][data-query="1"] .vs-spine[data-strength="1"] .vs-n { color: #d0b681a6; }
 
 /* github#42 -- the book you typed, in the one thing a leather spine has: its gilt cover.
- * NOTHING NEW LEAVES THE BOX: --spine-halo is 1px here and the room is 8px, so the ring
+ * NOTHING NEW LEAVES THE BOX: --spine-halo is 1px here and the room is 15px, so the ring
  * stays the 1px ring the match already paints and the mark goes inside. */
 .vault-shelf[data-look="leather"][data-query="1"] .vs-spine[data-named="1"] {
   border-color: var(--vs-gilt-hi);

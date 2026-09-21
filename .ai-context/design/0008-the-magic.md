@@ -150,12 +150,18 @@ ladder is `core.matchStrength(book)`, one rule in one place, sitting beside `cor
 **Three carriers, because one of them is already taken away.** `prefers-reduced-motion` flattens
 the lift, so a strength living in the transform alone would be four rungs for everybody except the
 reader who asked for the motion to stop — silently, and invisibly to every assertion in the suite.
-The lift is geometry (1/3/5/7px), the **air** either side is geometry that reduced motion does not
-touch (3/5/7/9px), and the accent is paint, which each look ramps its own way.
+The lift is geometry (2/6/10/14px), the **air** either side is geometry that reduced motion does
+not touch (2/4/14/24px), and the accent is paint, which each look ramps its own way.
 
-**The ceiling does not move.** Rung 4 *is* the 7px `--spine-lift-match` the room was already sized
-for, and rungs 1 to 3 override that token **on the spine**, never on the track the room is read
-from. So `--spine-room` stays 7 / 8 / 25px and the whole `design/0021` floor stands unchanged.
+**The ceiling IS the room, so raising one raises the other.** Rung 4 is `--spine-lift-match`, and
+`design/0021` declares the room as that rung plus the look's halo. Topping out at 14px therefore
+re-declares `--spine-room` as 14 / 15 / 32px in modern / leather / cyber. Rungs 1 to 3 override the
+token **on the spine**, never on the track, so the arithmetic the floor checks is unchanged in
+shape — only in value.
+
+**The air, though, is width the row was never packed for** (`github#90`). It is top-heavy for that
+reason: rung 2 holds 149 of the 188 books a name lights, so 4px there buys 24px at rung 4 and still
+overflows 141px less than the flat 9 on `develop`.
 
 **A fill up the spine like a level was the other candidate**, and it is the most literal gauge
 there is. Rejected because every look repaints the board heavily — leather's grain and gilt,

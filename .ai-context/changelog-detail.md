@@ -20,8 +20,8 @@ assertion in the suite:
 
 | carrier | owned by | rung 1 → 4 | survives reduced motion |
 |---|---|---|---|
-| lift | `page.css` (geometry, one ladder for every look) | 1 / 3 / 5 / 7px | no |
-| air | `page.css` (geometry) | 3 / 5 / 7 / 9px | **yes** |
+| lift | `page.css` (geometry, one ladder for every look) | 2 / 6 / 10 / 14px | no |
+| air | `page.css` (geometry) | 2 / 4 / 14 / 24px | **yes** |
 | accent | each look's own sheet (paint) | its own ramp | **yes** |
 
 | measured on `vault-3ea58174`, needle `mira vance` | before | after |
@@ -35,13 +35,31 @@ assertion in the suite:
 | the thinnest lit book, `people/-unfiled` | 1 of 2,452, lifted 7px | 1 of 2,452, **lifted 1px** |
 | the fullest, `people/Mira Vance` | 620 of 620, lifted 7px | 620 of 620, lifted 7px |
 | `#vs-hits` | `621 notes in 188 books` | `621 notes in 188 books (28 strongly)` |
-| checks | 150 → **153** |
+| checks | 150 → **154** |
 
-**The ceiling does not move, and that is what keeps every CSS-floor invariant still true.**
-`--spine-lift-match` stays declared as `var(--spine-lift-max)` = 7px on `.vault-shelf`; rungs 1–3
-override it **on the spine**, and `"the room above a spine is the largest lift plus the look's
-halo"` reads the token off the **track**. So it still reads `match 7`, `--spine-room` stays
-7 / 8 / 25px in modern / leather / cyber, and nothing about the clip changes.
+**The ceiling MOVED, deliberately, and the floor moved with it.** The first cut topped out at the
+7px `--spine-lift-max` already declared, which kept `--spine-room` untouched. Asked for more
+elevation, the top rung is **14px**, so the room it *is* was re-declared with it: `--spine-room`
+**7 → 14px** modern, **8 → 15px** leather, **25 → 32px** cyber, each still the tallest rung plus
+that look's halo, written out because the property takes no math (`design/0021`). Rungs 1–3
+override `--spine-lift-match` **on the spine**, never on the track the room is read from, so the
+arithmetic check still reads `match 14` and the clip still takes nothing off any of the five
+states in any of the three looks — measured, not assumed.
+
+**And the air is top-heavy, which is `github#90`.** The air is *width*, the packer packed the row
+before the query existed, and `design/0008` forbids rebuilding — so every pixel of air is a pixel
+a long run can overflow by. Rung 2 holds 149 of 188 lit books, so the total is nearly all rung 2:
+
+| air ladder | worst overflow, Encyclopedia |
+|---|---|
+| `9 / 9 / 9 / 9` — what `develop` ships today | **493px** |
+| `3 / 5 / 7 / 9` — the first cut | 277px |
+| `3 / 8 / 14 / 20` — evenly widened | 467px |
+| **`2 / 4 / 14 / 24`** — shipped | **352px** |
+
+4px at rung 2 buys 24px at rung 4 and still costs 141px less than develop's flat 9. The
+overflow itself is not this change's doing and not its to fix: `github#90` holds that choice,
+and `"the air a query opens still fits the room"` holds the budget meanwhile.
 
 **`data-match` stays binary.** It answers the law's own question — does this book answer at all —
 and `__vs.magic()`, the reader's contents rows and four checks read it. The rung is

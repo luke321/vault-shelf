@@ -1251,7 +1251,7 @@ was sliced flat.
 | 2px | `--spine-lift-worn-more` | a worn spine **at rest**, `[data-wear="3"]` |
 | 5px | `--spine-lift-worn-hover` | a worn spine hovered — **6px under `data-look="cyber"`** |
 | 6px | `--spine-lift-hover` | `:hover` / `:focus-visible` |
-| **7px** | `--spine-lift-max`, read by `--spine-lift-match` | a search match **at rung 4**; rungs 1 to 3 lift 1, 3 and 5px (`github#42`, below) |
+| **14px** | `--spine-lift-max`, read by `--spine-lift-match` | a search match **at rung 4**; rungs 1 to 3 lift 2, 6 and 10px (`github#42`, below) |
 
 **But a lift is not the only thing that leaves a spine.** A look paints outside a spine's own
 border box too, and the same clip was cutting that: cyber's neon on a match is `0 0 22px` and on
@@ -1260,9 +1260,9 @@ rung plus the look's halo**, declared as two tokens and a sum:
 
 | token | modern | leather | cyber |
 |---|---|---|---|
-| `--spine-lift-max` — the top rung | 7px | 7px | 7px |
+| `--spine-lift-max` — the top rung | 14px | 14px | 14px |
 | `--spine-halo` — what the look paints past a spine's box | 0px | 1px | **18px** |
-| `--spine-room` — the sum, read by `.vs-track` | **7px** | **8px** | **25px** |
+| `--spine-room` — the sum, read by `.vs-track` | **14px** | **15px** | **32px** |
 
 **The sum is written out, never computed**, because `overflow-clip-margin` takes a bare
 `<length>` and rejects every math function. Two different failures, and the second is the one
@@ -1821,8 +1821,8 @@ stop — and every assertion in the suite would have stayed green:
 
 | carrier | owned by | rung 1 → 4 | survives reduced motion |
 |---|---|---|---|
-| lift | `page.css` — geometry, one ladder for every look | 1 / 3 / 5 / 7px | no |
-| air — the margin the room opens either side | `page.css` — geometry | 3 / 5 / 7 / 9px | **yes** |
+| lift | `page.css` — geometry, one ladder for every look | 2 / 6 / 10 / 14px | no |
+| air — the margin the room opens either side | `page.css` — geometry | 2 / 4 / 14 / 24px | **yes** |
 | accent — edge and shadow | each look's own sheet — paint | its own ramp | **yes** |
 
 **The ceiling does not move, and that is what leaves every CSS-floor invariant standing.**
@@ -1853,10 +1853,23 @@ Measured on `vault-3ea58174`, needle `mira vance`, **188 of 231** books lit:
 
 | rung | books | band measured | lift | air |
 |---|---|---|---|---|
-| 1 | 11 | 0.0–4.5% | 1px | 3px |
-| 2 | 149 | 5.0–19.5% | 3px | 5px |
-| 3 | 19 | 20.0–36.4% | 5px | 7px |
-| 4 | **9** | 50.0–100% | 7px | 9px |
+| 1 | 11 | 0.0–4.5% | 2px | 2px |
+| 2 | 149 | 5.0–19.5% | 6px | 4px |
+| 3 | 19 | 20.0–36.4% | 10px | 14px |
+| 4 | **9** | 50.0–100% | **14px** | **24px** |
+
+**The ladder is top-heavy on purpose, and the reason is `github#90`.** The air is *width*, and rung
+2 holds **149 of the 188** books a person's name lights, so the total width a query adds is very
+nearly all rung 2. Measured worst overflow on the Encyclopedia run, the widest shelf on the vault:
+
+| air ladder | worst overflow |
+|---|---|
+| `9 / 9 / 9 / 9` — what `develop` ships | **493px** |
+| `3 / 5 / 7 / 9` — the first cut of this change | 277px |
+| `3 / 8 / 14 / 20` — evenly widened | 467px |
+| **`2 / 4 / 14 / 24`** — shipped | **352px** |
+
+4px at rung 2 buys 24px at rung 4 and still costs 141px less than the flat 9 on `develop`.
 
 The thinnest lit book is `people/-unfiled` at **1 of 2,452** (rung 1) and the fullest
 `people/Mira Vance` at **620 of 620** (rung 4).
@@ -1869,6 +1882,27 @@ query without the name are not marked, and that clearing the box leaves **0** na
 `prefers-reduced-motion: reduce`, asserts **0 of 188** lit spines carry a transform, and that the
 air and the accent still separate all four rungs. This is the carrier the issue named as the trap
 and the one a transform-only answer would have failed in silence.
+
+## A query's air can push a packed run past the room
+
+`github#90`, `design/0014`. **The packer packs a row before the query exists, and `design/0008`
+forbids rebuilding** — *nothing is rebuilt and nothing is removed*, which is what makes the room
+part rather than be replaced. So the margin a match opens is width the row was never packed for,
+and a long run overflows its track. On the Encyclopedia shelf, 35 books into 1180px of room, that
+is **493px on `develop` today** — the books past `V` are simply not drawn while a query is live.
+
+**Every check missed it, and the reason is the one this repo names.** `"the shelf parts as you type,
+and no book leaves the room"` counts **spines in the DOM**, where all 231 are present and correct;
+`"the room has a width"` and `"a narrower window grows rows"` measure the room **with an empty
+box**, which is the one state the air does not exist in. Numbers cannot see, and a clipped book is a
+book that left the room.
+
+`"the air a query opens still fits the room, and a run too long wraps"` measures it: no track wider
+than the room, every row restored when the box clears, and the worst overflow **at or under a
+declared budget of 352px**, printed against `develop`'s 493px so the direction is legible. A
+budget and not a zero, because the fix is not this change's to make — re-packing on every keystroke
+is the magic `design/0008` exists to protect, and reserving worst-case air at rest loosens every
+shelf in the library whether anybody is searching or not. `github#90` holds the choice.
 
 **A SPINE TRANSITIONS ITS MARGIN over 160ms**, so a read taken in the same turn as `setQuery`
 measures the air the room is *leaving*: every rung first came back at **0px** while its own
