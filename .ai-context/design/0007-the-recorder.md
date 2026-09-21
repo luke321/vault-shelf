@@ -306,9 +306,10 @@ rather than dropping into nothing when neither resolves.
 
 **The review window is the act's own timing.** `favourite` and `rearrange` share their beats:
 rest at `neutral` to 1.8s, glide, lift at 3s, carry to 7s, drop, and the next step's glide at
-7.8s. `--hero-clip 1.8,7.7` is therefore rest → lift → carry → drop → rest without a frame of
-guessing. It runs past the six-second review guideline on purpose: cutting at 6s ends the take
-with a peek card lying across the library, because the act does not dismiss it until 9s.
+7.8s. `--hero-clip` takes `<start>,<duration>`, not a start and an end — `--hero-clip 1.8,7.7`
+is the window **1.8s → 9.5s**, rest → lift → carry → drop → rest without a frame of guessing.
+It runs past the six-second review guideline on purpose: cutting at 6s ends the take with a
+peek card lying across the library, because the act does not dismiss it until 9s.
 
 **Taking a favourite off still has no act**, by choice. An act in the film owes a
 `docs/features/<act>.md` page and clip, and those are the maintainer's to authorise — nothing
