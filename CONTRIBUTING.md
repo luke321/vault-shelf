@@ -46,33 +46,39 @@ choices look arbitrary and are not: the `0-9` volume, the `-undated` and `-unfil
 and the recurring failure mode in this repo is reasoning about the code instead of measuring
 it.
 
-Six commands, and all six are gates rather than suggestions:
+Thirteen commands, and all of them are gates rather than suggestions:
 
 ```bash
-npm run lint                                  # tsc --noEmit on src/core under strict, then typescript-eslint on our own code; every finding held at zero
-node scripts/smoke.mjs                        # the invariant suite, over the generated vault
+node scripts/check-pii.mjs                    # no name or identifier reaches this public repo
 node scripts/check-scope.mjs                  # the page cannot style, or be styled by, its host -- and nothing shipped carries an invisible character
 node scripts/check-network.mjs                # nothing shipped can make a network request
 node scripts/check-comments.mjs               # comments are pointers; the count of prose lines only goes down
 node scripts/check-generator-determinism.mjs  # a fixture is the same vault on any day
 node scripts/check-build-order-determinism.mjs # note order never depends on the filesystem
+node scripts/check-data-escape.mjs            # a note's own words can't break out of the page's data block
+node scripts/refresh-check.mjs --wiring-only  # the plugin still follows the vault, and coalesces a burst into one rebuild
 node scripts/update-note-selftest.mjs         # the update strip decides the way design/0023 says it does
+node scripts/lock.mjs --selftest              # the shared mutex can tell a dead holder from a live one
+node scripts/code-map.mjs --check             # the generated code map and index are still current
+npm run lint                                  # tsc --noEmit on src/core under strict, then typescript-eslint on our own code; every finding held at zero
+node scripts/smoke.mjs                        # the invariant suite, over the generated vault
 ```
 
-One more needs Obsidian itself, for the things the exporter cannot stand in for — the metadata
-cache, the view lifecycle, the ribbon icon, the settings tab:
+One more launches a real Obsidian, for the one thing headless Chrome cannot answer: whether the
+CSS the sheets rely on is actually supported by the Electron/Chromium build Obsidian itself
+ships (`github#61`, `design/0036`):
 
 ```bash
 node scripts/build-plugin.mjs
-node scripts/smoke.mjs --only "settings"           # one check by substring
-node scripts/smoke.mjs --only "the room" --shot out.png   # and a picture of it
+node scripts/check-css-support.mjs
 ```
 
-It copies a store fixture into a throwaway vault under `%TEMP%`, installs the three built
-plugin files into it exactly as a release installs them, launches a **separate** Obsidian with
-its own user-data directory and a remote-debugging port (the Obsidian you have open is not
-touched and not reused), drives it over CDP, and prints the number behind every check. It is
-opt-in and not in the pre-push hook: it needs Obsidian installed and takes minutes.
+It installs the three built plugin files into a throwaway copy of the fixture vault exactly as
+a release installs them, launches a **separate** Obsidian with its own user-data directory and a
+remote-debugging port (the Obsidian you have open is not touched and not reused), asks it
+whether each CSS feature the sheets depend on actually resolves, and prints the number behind
+every probe. It is opt-in and not in the pre-push hook: it needs Obsidian installed and takes a
+couple of minutes.
 
 Since Obsidian 1.7.2 a tab restored in the background is **deferred**: the leaf is real and
 `getLeavesOfType` finds it, but `leaf.view` is a placeholder until something reveals it. The
