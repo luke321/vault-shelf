@@ -5940,6 +5940,9 @@ check("a ribbon hangs from every book that holds a marked note", async (p) => {
     var reading = document.querySelectorAll('#vs-shelves [data-shelf="-reading"] .vs-spine').length;
     var noteId = __vs.reader().note;
     __vs.closeReader();
+    /* github#42 -- the ribbon this check hung is not the suite's to keep */
+    __vs.settings().reading.length = 0;
+    __vs.setFilters({});
     return { before: before, ribbons: after.ribbons, ribbonSpines: after.ribbonSpines,
              reading: reading, noteId: noteId };
   })()`);
@@ -6148,16 +6151,26 @@ check("the air a query opens still fits the room, and a run too long wraps", asy
              lit: document.querySelectorAll('#vs-shelves .vs-spine[data-match="1"]').length };
   })()`);
 
+  /* github#42 -- ten unchanged reads, not two; a plateau precedes the move */
+  const settleAir = async () => {
+    let prev = null, streak = 0;
+    for (let wait = 0; wait < 150; wait++) {
+      const now = await read();
+      streak = prev && now.overflow === prev.overflow ? streak + 1 : 0;
+      if (streak >= 10) return now;
+      prev = now;
+      await sleep(50);
+    }
+    return prev;
+  };
+
   await p.j(`(__vs.setQuery(""), 1)`);
-  /* github#42 -- the air leaves on a transition too, so wait it out */
-  await restedRungs(p);
-  const quiet = await read();
+  const quiet = await settleAir();
   await p.j(`(function(){ __vs.setQuery(${PERSON_NEEDLE}); return 1; })()`);
   await restedRungs(p);
   const live = await read();
   await p.j(`(__vs.setQuery(""), 1)`);
-  await restedRungs(p);
-  const back = await read();
+  const back = await settleAir();
 
   /* github#90 -- a budget, not a zero; develop measures 493px here */
   const BUDGET = 352;
