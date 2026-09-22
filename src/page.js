@@ -1224,7 +1224,9 @@ function mountVaultShelf(root, data, options) {
       me.preventDefault();
       openDye([book], book.label, me.clientX, me.clientY);
     });
-    b.setAttribute("data-match", book.matches > 0 ? "1" : "0");
+    /* github#42, design/0008 -- a spine built mid-query carries its rung from birth */
+    var born = core.matchStrength(book);
+    markSpine(b, born, born > 0 && core.namesBook(book, query.trim().toLowerCase()));
 
     var peek = book.label + " -- " + book.notes.length +
       (book.notes.length === 1 ? " note" : " notes");
@@ -2404,6 +2406,25 @@ function mountVaultShelf(root, data, options) {
     return n;
   }
 
+  /**
+   * github#42, design/0008 -- the three a query writes, read before written
+   * @param {Element} spine @param {number} rung @param {boolean} named
+   */
+  function markSpine(spine, rung, named) {
+    var want = rung > 0 ? "1" : "0";
+    if (spine.getAttribute("data-match") !== want) spine.setAttribute("data-match", want);
+    var level = rung > 0 ? String(rung) : null;
+    if (spine.getAttribute("data-strength") !== level) {
+      if (level) spine.setAttribute("data-strength", level);
+      else spine.removeAttribute("data-strength");
+    }
+    var badge = named ? "1" : null;
+    if (spine.getAttribute("data-named") !== badge) {
+      if (badge) spine.setAttribute("data-named", badge);
+      else spine.removeAttribute("data-named");
+    }
+  }
+
   /* ---- the shelf parts as you type ---------------------------------------
    * design/0008 -- nothing is rebuilt and nothing is removed. Every spine already knows how
    * many of its notes answer the query; this walks them and says so, so the books move where
@@ -2430,12 +2451,16 @@ function mountVaultShelf(root, data, options) {
               }).length : 0;
         }
       }
-      spines[i].setAttribute("data-match", book && book.matches > 0 ? "1" : "0");
+      /* github#42, design/0008 -- how much of it answers, not merely whether */
+      var rung = book ? core.matchStrength(book) : 0;
+      markSpine(spines[i], rung, !!book && rung > 0 && core.namesBook(book, needle));
     }
 
     $("hits").textContent = live
       ? totals.notes + (totals.notes === 1 ? " note" : " notes") + " in " +
-        totals.books + (totals.books === 1 ? " book" : " books")
+        totals.books + (totals.books === 1 ? " book" : " books") +
+        /* github#42 -- the second half of the sentence, qualified */
+        (totals.strong ? " (" + totals.strong + " strongly)" : "")
       : "";
 
     /* github#13, design/0026, design/0027 -- an open book follows a CHANGED query */
@@ -5638,12 +5663,21 @@ function mountVaultShelf(root, data, options) {
         });
       });
       var spines = root.querySelectorAll("#" + ID + "shelves .vs-spine");
+      /* github#42, design/0008 -- how far forward, per rung, and which book was named */
+      var strengths = { 1: 0, 2: 0, 3: 0, 4: 0 };
+      var named = 0;
       for (var i = 0; i < spines.length; i++) {
         if (spines[i].getAttribute("data-match") === "1") forward++; else ghosts++;
+        var rung = spines[i].getAttribute("data-strength");
+        if (rung && strengths[rung] !== undefined) strengths[rung]++;
+        if (spines[i].getAttribute("data-named") === "1") named++;
       }
       return {
         query: query,
         parting: root.getAttribute("data-query") === "1",
+        strengths: strengths,
+        named: named,
+        strong: strengths[3] + strengths[4],
         worn: Object.keys(worn).length,
         wornSpines: root.querySelectorAll("#" + ID + "shelves .vs-spine[data-wear]").length,
         ribbons: withRibbon,

@@ -1,5 +1,86 @@
 # Changelog detail
 
+## 2026-09-21 — Two states was the law, and on 5,000 notes two states is none (`github#42`, `design/0008`)
+
+`core.markMatches` has always counted, per book, how many of its notes answer — `Book.matches` —
+and `applyQuery()` reduced it to `data-match="1" | "0"` on the way to the attribute. So
+`people/-unfiled` at **2 of 2,481** lifted the same 7px and took the same accent edge as
+`people/Sanne de Vries` at **320 of 320**. On the one vault, `sanne de vries` drew **159 of 231
+books** forward; the room with a query live was very nearly the room with an empty box.
+
+**The rung is the share, in four steps: a half, a fifth, a twentieth.** Four and not a continuum
+for the reason `design/0008` already gave for wear — a continuous scale is a bar chart of your own
+library wearing a book's clothes. `core.matchStrength(book)` is the whole rule, beside
+`core.wearLevel()`, so the page and anything after it cannot disagree about it.
+
+**Three carriers, because one of them is already taken away.** `prefers-reduced-motion` flattens
+the lift (`page.css`, `leather.css`), so a strength living in the transform alone would be four
+rungs for everybody except the reader who asked for it to stop — silently, and invisibly to every
+assertion in the suite:
+
+| carrier | owned by | rung 1 → 4 | survives reduced motion |
+|---|---|---|---|
+| lift | `page.css` (geometry, one ladder for every look) | 2 / 6 / 10 / 14px | no |
+| air | `page.css` (geometry) | 2 / 4 / 14 / 24px | **yes** |
+| accent | each look's own sheet (paint) | its own ramp | **yes** |
+
+| measured on `vault-3ea58174`, needle `mira vance` | before | after |
+|---|---|---|
+| books lit, of 231 spines | 188 | **188** — a filter narrows, a query marks |
+| books at full strength | **188** | **9** |
+| rung 1 (0–4.5% of the book) | — | 11 books |
+| rung 2 (5.0–19.5%) | — | 149 books |
+| rung 3 (20.0–36.4%) | — | 19 books |
+| rung 4 (50.0–100%) | — | **9 books** |
+| the thinnest lit book, `people/-unfiled` | 1 of 2,452, lifted 7px | 1 of 2,452, **lifted 1px** |
+| the fullest, `people/Mira Vance` | 620 of 620, lifted 7px | 620 of 620, lifted 7px |
+| `#vs-hits` | `621 notes in 188 books` | `621 notes in 188 books (28 strongly)` |
+| checks | 150 → **154** |
+
+**The ceiling MOVED, deliberately, and the floor moved with it.** The first cut topped out at the
+7px `--spine-lift-max` already declared, which kept `--spine-room` untouched. Asked for more
+elevation, the top rung is **14px**, so the room it *is* was re-declared with it: `--spine-room`
+**7 → 14px** modern, **8 → 15px** leather, **25 → 32px** cyber, each still the tallest rung plus
+that look's halo, written out because the property takes no math (`design/0021`). Rungs 1–3
+override `--spine-lift-match` **on the spine**, never on the track the room is read from, so the
+arithmetic check still reads `match 14` and the clip still takes nothing off any of the five
+states in any of the three looks — measured, not assumed.
+
+**And the air is top-heavy, which is `github#90`.** The air is *width*, the packer packed the row
+before the query existed, and `design/0008` forbids rebuilding — so every pixel of air is a pixel
+a long run can overflow by. Rung 2 holds 149 of 188 lit books, so the total is nearly all rung 2:
+
+| air ladder | worst overflow, Encyclopedia |
+|---|---|
+| `9 / 9 / 9 / 9` — what `develop` ships today | **493px** |
+| `3 / 5 / 7 / 9` — the first cut | 277px |
+| `3 / 8 / 14 / 20` — evenly widened | 467px |
+| **`2 / 4 / 14 / 24`** — shipped | **352px** |
+
+4px at rung 2 buys 24px at rung 4 and still costs 141px less than develop's flat 9. The
+overflow itself is not this change's doing and not its to fix: `github#90` holds that choice,
+and `"the air a query opens still fits the room"` holds the budget meanwhile.
+
+**`data-match` stays binary.** It answers the law's own question — does this book answer at all —
+and `__vs.magic()`, the reader's contents rows and four checks read it. The rung is
+`data-strength="1".."4"` beside it, on matched spines only, removed with the query.
+
+**A book the query NAMES is marked, not promoted** (`data-named="1"`). The People shelf is the
+tell the issue raised: a note names several people, so a person's name lights sixteen of
+twenty-six people books, which is the first law working correctly and still reads as broken. It
+needs no promotion — a cover is in the search index of every note behind it (`github#58`), so a
+named book is already at or near 100% share. What it needs is to be told apart from a book that
+merely co-occurs heavily, and that is what the mark does.
+
+**Two measurement traps, both hit here first.** A spine **transitions its margin** over 160ms, so a
+read taken in the same turn as `setQuery` measures the air the room is *leaving* — every rung came
+back `0px` while its own token read 3/5/7/9. Waited on as a condition now (`restedRungs`), never
+as a duration: the air has arrived when it equals the token it is animating towards. And a spine a
+**binding has trimmed** (`design/0033`) sits its trim lower in its own track, so `trackTop - top`
+understates its lift by exactly that trim — a rung-4 spine read as lifting 1px and painting 0, which
+looks exactly like the clip biting. `pick(sel, flush)` takes an untrimmed candidate, the way the
+sibling room check already did by hand.
+
 ## 2026-09-21 — A suggestion you could not read (`github#41`, `design/0026`)
 
 `github#41` shipped with `Refs #41` rather than `Closes`, naming four open calls. Three settled

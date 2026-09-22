@@ -127,14 +127,29 @@
   --spine-lift-worn-more: 2px;
   --spine-lift-worn-hover: 5px;
   --spine-lift-hover: 6px;
-  --spine-lift-max: 7px;
+  --spine-lift-max: 14px;
   --spine-lift-match: var(--spine-lift-max);
+  /* github#42, design/0008 -- HOW MUCH OF A BOOK ANSWERS, in four rungs. Rung 4 IS the
+   * ceiling above, so --spine-room does not move; rungs 1 to 3 override --spine-lift-match on
+   * the spine itself, never on the track, which is where the room is read from. */
+  --spine-lift-match-3: 10px;
+  --spine-lift-match-2: 6px;
+  --spine-lift-match-1: 2px;
+  /* github#42, github#90 -- the air the room opens on both sides, which reduced motion does
+   * NOT take. TOP-HEAVY ON PURPOSE: the air is WIDTH, and the packer packed this row before
+   * the query existed, so every pixel of it is pixels the run can run past the room by. Rung 2
+   * holds 149 of the 188 books a name lights, so the total is nearly all rung 2 -- 4px there
+   * buys 24px at rung 4 and still overflows 141px LESS than develop's flat 9. github#90. */
+  --spine-air-match: 24px;
+  --spine-air-match-3: 14px;
+  --spine-air-match-2: 4px;
+  --spine-air-match-1: 2px;
   /* github#51, design/0021 -- AND HOW FAR ITS PAINT SPILLS PAST ITS OWN BOX, which is the
    * look's: a lift is not the only thing that leaves a spine. The room is the two added up,
    * and it is a BARE LENGTH because the property takes no math -- a literal calc() never
    * applies and a var() holding one computes to 0px, which is the clip back to biting. */
   --spine-halo: 0px;
-  --spine-room: 7px;
+  --spine-room: 14px;
   /* github#0 -- THICKER, because it is a handle now: at 3px the floor was a hairline to paint
    * and an impossible thing to grab.
    * github#14, design/0021 -- and ONE PLANK, in every look: each sheet used to declare its own
@@ -1009,8 +1024,8 @@
 }
 
 .vault-shelf[data-query="1"] .vs-spine[data-match="1"] {
-  margin-left: 9px;
-  margin-right: 9px;
+  margin-left: var(--spine-air-match);
+  margin-right: var(--spine-air-match);
   transform: translateY(calc(-1 * var(--spine-lift-match)));
   border-color: var(--accent);
   box-shadow: 0 2px 0 0 var(--accent);
@@ -1018,7 +1033,58 @@
   z-index: 1;
 }
 
+/* ---- how much of it answers ---------------------------------------------
+ * github#42, design/0008 -- two states was the law, and on a vault of 5,000 notes two states
+ * is none: "sanne de vries" drew 159 of 231 books forward, every one of them as loudly as the
+ * book that WAS the answer. core.markMatches already counted; the page used to throw the
+ * number away on the way to the attribute. Four rungs, the share of the book that answered.
+ *
+ * THREE CARRIERS, because reduced motion takes the transform and a look owns the paint:
+ * the lift (geometry, here, identical in every look), the air (geometry, here, and reduced
+ * motion does not touch a margin), and the accent (paint, which each look ramps its own way).
+ * A strength that lived in the lift alone would vanish for the reader who needs it flattened.
+ */
+.vault-shelf[data-query="1"] .vs-spine[data-strength="3"] {
+  --spine-lift-match: var(--spine-lift-match-3);
+  --spine-air-match: var(--spine-air-match-3);
+  box-shadow: 0 2px 0 0 color-mix(in srgb, var(--accent) 72%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 80%, var(--border));
+}
+.vault-shelf[data-query="1"] .vs-spine[data-strength="2"] {
+  --spine-lift-match: var(--spine-lift-match-2);
+  --spine-air-match: var(--spine-air-match-2);
+  box-shadow: 0 2px 0 0 color-mix(in srgb, var(--accent) 44%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+}
+/* A whisper: 2 notes of 2,481 is still a match and still says so, at the volume it earned.
+ * NOT AN OPACITY STEP. A ghost is 0.16, a dragged spine 0.35, one on its way off 0.28 and an
+ * empty book 0.45 -- all four say something else, and all four are outranked by an attribute
+ * this specific, so a rung-1 book mid-drag would have stopped looking dragged. The three
+ * carriers above do the work; a fourth channel on one rung only would not have been a ladder. */
+.vault-shelf[data-query="1"] .vs-spine[data-strength="1"] {
+  --spine-lift-match: var(--spine-lift-match-1);
+  --spine-air-match: var(--spine-air-match-1);
+  box-shadow: 0 2px 0 0 color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+}
+
 .vault-shelf[data-query="1"] .vs-spine[data-match="1"] .vs-n { color: var(--accent); font-weight: 600; }
+.vault-shelf[data-query="1"] .vs-spine[data-strength="2"] .vs-n,
+.vault-shelf[data-query="1"] .vs-spine[data-strength="1"] .vs-n {
+  color: color-mix(in srgb, var(--accent) 60%, var(--text-2));
+  font-weight: 400;
+}
+
+/* github#42 -- THE BOOK YOU TYPED. A note names several people, so a person's name lights
+ * sixteen people books and most of them are rung 4 honestly; only one of them is the book
+ * whose cover is what you spelled. It says so in the cover, never in the geometry. */
+.vault-shelf[data-query="1"] .vs-spine[data-named="1"] {
+  box-shadow: 0 2px 0 0 var(--accent), inset 0 0 0 1px var(--accent);
+}
+.vault-shelf[data-query="1"] .vs-spine[data-named="1"] .vs-title {
+  color: var(--accent);
+  font-weight: 600;
+}
 
 .vault-shelf .vs-endcard {
   border: 1px dashed var(--border);
@@ -2151,6 +2217,8 @@
   .vault-shelf .vs-shelf { transition: none; }
   .vault-shelf .vs-spine { transition: none; }
   .vault-shelf .vs-spine:hover, .vault-shelf .vs-spine:focus-visible { transform: none; }
+  /* github#42 -- the lift goes and the strength does not: the air is a margin, not motion,
+   * and the accent ramp is paint. Every rung is still four rungs apart here. */
   .vault-shelf[data-query="1"] .vs-spine[data-match="1"] { transform: none; }
   /* github#40 -- no spring; the offset stays, or nothing shows the push at all */
   .vault-shelf .vs-page[data-settling] .vs-leaf { transition: none; }

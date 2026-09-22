@@ -5981,6 +5981,291 @@ check("the shelf parts as you type, and no book leaves the room", async (p) => {
                    `(hits read "${r.hits}")` };
 });
 
+/* github#42, design/0008 -- the rung is the share, and a share has bands */
+const RUNGS = `(function(){
+  var out = { 1: null, 2: null, 3: null, 4: null };
+  var spines = document.querySelectorAll("#vs-shelves .vs-spine[data-strength]");
+  for (var i = 0; i < spines.length; i++) {
+    var k = spines[i].getAttribute("data-strength");
+    if (!out[k]) {
+      var cs = getComputedStyle(spines[i]);
+      out[k] = { air: parseFloat(cs.marginLeft) || 0,
+                 /* github#42 -- what the air is ON ITS WAY TO, which does not transition */
+                 want: parseFloat(cs.getPropertyValue("--spine-air-match")) || 0,
+                 lift: parseFloat(cs.getPropertyValue("--spine-lift-match")) || 0,
+                 edge: cs.borderTopColor,
+                 moved: cs.transform };
+    }
+  }
+  return out;
+})()`;
+
+/**
+ * github#42, decisions/0016 -- a margin transitions; wait for it to arrive
+ * @param {{j:(e:string)=>Promise<any>}} p @returns {Promise<any>}
+ */
+async function restedRungs(p) {
+  let last = null;
+  for (let wait = 0; wait < 40; wait++) {
+    last = await p.j(RUNGS);
+    const live = [1, 2, 3, 4].filter((k) => last[k]);
+    if (live.length && live.every((k) => last[k].air === last[k].want)) return last;
+    /* github#42 -- an empty box carries no rung, so nothing is coming */
+    if (!live.length && wait >= 4) return last;
+    await sleep(50);
+  }
+  return last;
+}
+
+/* github#42 -- a person's name is what reported this, and grades widest */
+const PERSON_NEEDLE = `(function(){
+  var who = {};
+  __vs.data().notes.forEach(function (n) {
+    (n.people || []).forEach(function (p) { who[p] = (who[p] || 0) + 1; });
+  });
+  var top = Object.keys(who).sort(function (a, b) { return who[b] - who[a]; })[0];
+  if (top) return top.toLowerCase();
+  var tags = {};
+  __vs.data().notes.forEach(function (n) {
+    n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+  });
+  return Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] ||
+         __vs.data().notes[0].title.slice(0, 4);
+})()`;
+
+check("a book draws forward by how much of it answers, not merely that it does", async (p) => {
+  /* github#44 -- the air is a margin, so the packing has to have landed */
+  for (let wait = 0; wait < 20; wait++) {
+    const up = await p.j(`(function(){
+      var one = document.querySelector("#vs-shelves .vs-spine");
+      return one ? Math.round(one.getBoundingClientRect().width) : 0;
+    })()`);
+    if (up > 0) break;
+    await sleep(150);
+  }
+  const before = await p.j(`(function(){
+    __vs.setQuery("");
+    var n = __vs.counts().spines;
+    __vs.setQuery(${PERSON_NEEDLE});
+    return n;
+  })()`);
+  const rested = await restedRungs(p);
+  const r = await p.j(`(function(){
+    var before = ${before};
+    var needle = __vs.magic().query;
+    var m = __vs.magic();
+    /* github#42 -- the bands, measured off the books rather than read off the ladder */
+    var bands = { 1: [2, -1], 2: [2, -1], 3: [2, -1], 4: [2, -1] };
+    var lit = 0, thinnest = null, fullest = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) {
+        if (!b.matches || !b.notes.length) return;
+        lit++;
+        var share = b.matches / b.notes.length;
+        var rung = VaultShelfCore.matchStrength(b);
+        if (share < bands[rung][0]) bands[rung][0] = share;
+        if (share > bands[rung][1]) bands[rung][1] = share;
+        if (!thinnest || share < thinnest.share) {
+          thinnest = { id: b.id, share: share, of: b.notes.length, hit: b.matches, rung: rung };
+        }
+        if (!fullest || share > fullest.share) {
+          fullest = { id: b.id, share: share, of: b.notes.length, hit: b.matches, rung: rung };
+        }
+      });
+    });
+    var hits = document.getElementById("vs-hits").textContent;
+    __vs.setQuery("");
+    var after = __vs.counts().spines;
+    var quiet = document.querySelectorAll("#vs-shelves .vs-spine[data-strength]").length;
+    /* github#42, design/0021 -- the ceiling is declared, never a number written twice */
+    var ceiling = parseFloat(getComputedStyle(document.getElementById("vs-app"))
+                               .getPropertyValue("--spine-lift-max")) || 0;
+    return { before: before, after: after, quiet: quiet, needle: needle, lit: lit,
+             strengths: m.strengths, strong: m.strong, forward: m.forward, ceiling: ceiling,
+             bands: bands, thinnest: thinnest, fullest: fullest, hits: hits };
+  })()`);
+  r.rungs = rested;
+
+  const FLOOR = { 1: 0, 2: 1 / 20, 3: 1 / 5, 4: 1 / 2 };
+  const CEIL = { 1: 1 / 20, 2: 1 / 5, 3: 1 / 2, 4: 1.0000001 };
+  const live = [1, 2, 3, 4].filter((k) => r.strengths[k] > 0);
+  /* github#42 -- every book at a rung is inside that rung's band */
+  const spilled = live.filter((k) => r.bands[k][0] < FLOOR[k] || r.bands[k][1] >= CEIL[k]);
+  /* github#42 -- and the paint climbs with the rung, in both carriers */
+  const flat = [];
+  for (let i = 1; i < live.length; i++) {
+    const lo = r.rungs[live[i - 1]], hi = r.rungs[live[i]];
+    if (!lo || !hi) continue;
+    if (!(hi.lift > lo.lift)) flat.push(`lift ${live[i - 1]}->${live[i]}`);
+    if (!(hi.air > lo.air)) flat.push(`air ${live[i - 1]}->${live[i]}`);
+  }
+  const tall = live.filter((k) => r.rungs[k] && r.rungs[k].lift > r.ceiling);
+  /* github#42 -- and the air arrived, rather than being mid-transition */
+  const moving = live.filter((k) => r.rungs[k] && r.rungs[k].air !== r.rungs[k].want);
+  const ok = r.before === r.after && r.quiet === 0 && live.length >= 3 &&
+             spilled.length === 0 && flat.length === 0 && tall.length === 0 &&
+             moving.length === 0 && live.every((k) => r.rungs[k]) &&
+             r.fullest && r.fullest.rung === 4 && r.thinnest && r.thinnest.rung === 1 &&
+             r.strong > 0 && r.strong < r.forward && r.forward === r.lit;
+  const ladder = live.map((k) => `${k}: ${r.strengths[k]} book(s), ` +
+    `${(r.bands[k][0] * 100).toFixed(1)}-${(r.bands[k][1] * 100).toFixed(1)}%, ` +
+    `lift ${r.rungs[k] ? r.rungs[k].lift : "?"}px air ${r.rungs[k] ? r.rungs[k].air : "?"}px`);
+  return {
+    ok,
+    detail: `"${r.needle}" lit ${r.lit} of ${r.before} books across ${live.length} rungs -- ` +
+            ladder.join("; ") + `; the fullest is ${r.fullest && r.fullest.id} at ` +
+            `${r.fullest && r.fullest.hit}/${r.fullest && r.fullest.of} (rung ` +
+            `${r.fullest && r.fullest.rung}) and the thinnest ${r.thinnest && r.thinnest.id} at ` +
+            `${r.thinnest && r.thinnest.hit}/${r.thinnest && r.thinnest.of} (rung ` +
+            `${r.thinnest && r.thinnest.rung}); it reads "${r.hits}"; clearing the box leaves ` +
+            `${r.quiet} spines carrying a rung` +
+            (spilled.length ? ` -- OUT OF BAND: rung ${spilled.join(", ")}` : "") +
+            (flat.length ? ` -- NOT CLIMBING: ${flat.join(", ")}` : "") +
+            (moving.length ? ` -- STILL MOVING: rung ${moving.map((k) =>
+              `${k} at ${r.rungs[k].air}px of ${r.rungs[k].want}px`).join(", ")}` : "") +
+            (tall.length ? ` -- PAST THE CEILING: rung ${tall.join(", ")} lifts over ${r.ceiling}px` : "")
+  };
+});
+
+/* github#42, design/0014 -- the air is width, so it can break the law */
+check("the air a query opens still fits the room, and a run too long wraps", async (p) => {
+  const read = () => p.j(`(function(){
+    var app = document.getElementById("vs-app");
+    var measure = parseInt(getComputedStyle(app).getPropertyValue("--measure"), 10);
+    var tracks = [].slice.call(document.querySelectorAll("#vs-shelves .vs-track"));
+    var worst = 0, who = null, rows = {};
+    tracks.forEach(function (t) {
+      var over = t.scrollWidth - t.clientWidth;
+      if (over > worst) { worst = over; who = t.closest("[data-shelf]").getAttribute("data-shelf"); }
+      var id = t.closest("[data-shelf]").getAttribute("data-shelf");
+      rows[id] = (rows[id] || 0) + 1;
+    });
+    var wide = tracks.filter(function (t) {
+      return Math.round(t.getBoundingClientRect().width) > measure + 2;
+    }).length;
+    return { measure: measure, tracks: tracks.length, overflow: worst, who: who,
+             rows: rows, wide: wide,
+             lit: document.querySelectorAll('#vs-shelves .vs-spine[data-match="1"]').length };
+  })()`);
+
+  await p.j(`(__vs.setQuery(""), 1)`);
+  /* github#42 -- the air leaves on a transition too, so wait it out */
+  await restedRungs(p);
+  const quiet = await read();
+  await p.j(`(function(){ __vs.setQuery(${PERSON_NEEDLE}); return 1; })()`);
+  await restedRungs(p);
+  const live = await read();
+  await p.j(`(__vs.setQuery(""), 1)`);
+  await restedRungs(p);
+  const back = await read();
+
+  /* github#90 -- a budget, not a zero; develop measures 493px here */
+  const BUDGET = 352;
+  const grew = Object.keys(live.rows).filter((k) => live.rows[k] > quiet.rows[k]);
+  const same = Object.keys(quiet.rows).every((k) => back.rows[k] === quiet.rows[k]);
+  const ok = live.overflow <= BUDGET && quiet.overflow <= 1 && back.overflow <= 1 &&
+             live.wide === 0 && back.wide === 0 && same && live.lit > 0;
+  return {
+    ok,
+    detail: `${live.lit} books lit into ${live.measure}px of room: worst overflow ` +
+            `${live.overflow}px of a ${BUDGET}px budget on ${live.who}, against 493px on ` +
+            `develop (quiet ${quiet.overflow}px, back ${back.overflow}px); ${live.wide} ` +
+            `track(s) wider than the room; ` +
+            (grew.length
+              ? `${grew.map((k) => `${k} ${quiet.rows[k]}→${live.rows[k]} rows`).join(", ")}`
+              : "no shelf needed another row") +
+            `; clearing the box puts every row back (${same})` +
+            (live.overflow > BUDGET
+              ? ` -- OVER BUDGET: ${live.who} runs ${live.overflow - BUDGET}px past it, and a ` +
+                `clipped book is a book that left the room (github#90)`
+              : "")
+  };
+});
+
+/* github#42, design/0008 -- many books answer; one of them is the one named */
+check("a book the query names by its own cover says so, and its neighbours do not", async (p) => {
+  const r = await p.j(`(function(){
+    __vs.setQuery("");
+    /* github#42 -- a cover with more than one note behind it, so "named" is not "tiny" */
+    var target = null;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.hidden || target) return;
+      v.books.forEach(function (b) {
+        if (target || b.notes.length < 2) return;
+        var cover = (b.cover || "").trim();
+        if (cover.length < 4) return;
+        if (!document.querySelector('#vs-shelves [data-book="' + CSS.escape(b.id) + '"]')) return;
+        target = { id: b.id, cover: cover, of: b.notes.length };
+      });
+    });
+    if (!target) return { target: null };
+    __vs.setQuery(target.cover);
+    var spine = document.querySelector('#vs-shelves [data-book="' + CSS.escape(target.id) + '"]');
+    var m = __vs.magic();
+    var litNotNamed = 0;
+    var spines = document.querySelectorAll('#vs-shelves .vs-spine[data-match="1"]');
+    for (var i = 0; i < spines.length; i++) {
+      if (spines[i].getAttribute("data-named") !== "1") litNotNamed++;
+    }
+    var out = { target: target, named: m.named, litNotNamed: litNotNamed, forward: m.forward,
+                mine: spine ? spine.getAttribute("data-named") : null,
+                rung: spine ? spine.getAttribute("data-strength") : null };
+    __vs.setQuery("");
+    out.quiet = document.querySelectorAll("#vs-shelves .vs-spine[data-named]").length;
+    return out;
+  })()`);
+  if (!r.target) return { ok: false, detail: "no visible book on this vault has a cover to name" };
+  const ok = r.mine === "1" && r.rung === "4" && r.named >= 1 && r.litNotNamed > 0 &&
+             r.named < r.forward && r.quiet === 0;
+  return {
+    ok,
+    detail: `"${r.target.cover}" names ${r.target.id} (${r.target.of} notes): marked ` +
+            `${r.mine === "1" ? "named" : "NOT named"} at rung ${r.rung}, with ${r.named} named ` +
+            `spine(s) against ${r.litNotNamed} lit but unnamed of ${r.forward} forward; ` +
+            `clearing the box leaves ${r.quiet} named`
+  };
+});
+
+/* github#42 -- a strength in the transform alone is one rung, flattened */
+check("the strength survives reduced motion, where the lift does not", async (p) => {
+  await p.send("Emulation.setEmulatedMedia",
+               { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+  let r;
+  try {
+    await p.j(`(function(){ __vs.setQuery(""); __vs.setQuery(${PERSON_NEEDLE}); return 1; })()`);
+    const rested = await restedRungs(p);
+    r = await p.j(`(function(){
+      var moving = 0;
+      var spines = document.querySelectorAll('#vs-shelves .vs-spine[data-match="1"]');
+      for (var i = 0; i < spines.length; i++) {
+        var t = getComputedStyle(spines[i]).transform;
+        if (t && t !== "none") moving++;
+      }
+      var needle = __vs.magic().query;
+      __vs.setQuery("");
+      return { needle: needle, moving: moving, lit: spines.length };
+    })()`);
+    r.rungs = rested;
+  } finally {
+    await p.send("Emulation.setEmulatedMedia", { features: [] });
+  }
+  const live = [1, 2, 3, 4].filter((k) => r.rungs[k]);
+  const flat = [];
+  for (let i = 1; i < live.length; i++) {
+    if (!(r.rungs[live[i]].air > r.rungs[live[i - 1]].air)) flat.push(`air ${live[i - 1]}->${live[i]}`);
+    if (r.rungs[live[i]].edge === r.rungs[live[i - 1]].edge) flat.push(`edge ${live[i - 1]}->${live[i]}`);
+  }
+  const ok = r.moving === 0 && live.length >= 3 && flat.length === 0 && r.lit > 0;
+  return {
+    ok,
+    detail: `with motion reduced, "${r.needle}" lifts ${r.moving} of ${r.lit} lit spines and ` +
+            `still separates ${live.length} rungs -- ` +
+            live.map((k) => `${k}: air ${r.rungs[k].air}px edge ${r.rungs[k].edge}`).join("; ") +
+            (r.moving ? ` -- STILL MOVING: ${r.moving} spine(s) carry a transform` : "") +
+            (flat.length ? ` -- NOT SEPARATED: ${flat.join(", ")}` : "")
+  };
+});
+
 /* github#13, design/0027 -- THE OTHER HALF OF design/0008: what the lit book says. */
 check("a book the search drew forward says which of its notes matched", async (p) => {
   const r = await p.j(`(function(){
@@ -9401,12 +9686,20 @@ check("a lifted spine is painted whole, in every look", async (p) => {
   };
 
   /* github#51 -- never the first shelf: the top bar is above it. */
-  const pick = (sel) => p.j(`(function(){
+  /* github#42, design/0033 -- flush: a trimmed spine understates its own lift */
+  const pick = (sel, flush) => p.j(`(function(){
     [].slice.call(document.querySelectorAll("#vs-app [data-probe51]"))
       .forEach(function (el) { el.removeAttribute("data-probe51"); });
     var shelves = document.querySelectorAll("#vs-shelves .vs-shelf");
+    var trim = function (el) {
+      return parseFloat(getComputedStyle(el).getPropertyValue("--spine-trim")) || 0;
+    };
     var sp = null;
-    for (var i = 1; i < shelves.length && !sp; i++) sp = shelves[i].querySelector(${JSON.stringify(sel)});
+    for (var i = 1; i < shelves.length && !sp; i++) {
+      if (!${flush ? "1" : "0"}) { sp = shelves[i].querySelector(${JSON.stringify(sel)}); continue; }
+      sp = [].slice.call(shelves[i].querySelectorAll(${JSON.stringify(sel)}))
+             .filter(function (el) { return trim(el) === 0; })[0] || null;
+    }
     if (!sp) return null;
     sp.setAttribute("data-probe51", "1");
     var track = sp.closest(".vs-track");
@@ -9485,13 +9778,20 @@ check("a lifted spine is painted whole, in every look", async (p) => {
       return n;
     })()`);
     await sleep(260);
-    const m = await pick('.vs-spine[data-match="1"]');
+    /* github#42 -- the top rung asks for the room; whichever is first does not */
+    const m = await pick('.vs-spine[data-strength="4"]', true) ||
+              await pick('.vs-spine[data-strength="3"]', true) ||
+              await pick('.vs-spine[data-match="1"]', true);
     if (m) {
+      const rung = await p.j(`(function(){
+        var el = document.querySelector("#vs-app [data-probe51]");
+        return el ? el.getAttribute("data-strength") : null;
+      })()`);
       const lift = +(m.trackTop - m.top).toFixed(1);
       const mr = await paintedAbove(m);
-      matched.push({ look: name, needle, lift, painted: mr.above, moves: mr.moves });
+      matched.push({ look: name, needle, lift, painted: mr.above, moves: mr.moves, rung });
     } else {
-      matched.push({ look: name, needle, lift: null, painted: null, moves: "" });
+      matched.push({ look: name, needle, lift: null, painted: null, moves: "", rung: null });
     }
     await p.j(`(__vs.setQuery(""), 1)`);
     await sleep(220);
@@ -9525,8 +9825,8 @@ check("a lifted spine is painted whole, in every look", async (p) => {
               ((x.contain || "").indexOf("paint") < 0 ? " (CONTAINMENT OFF)" : "")).join(", ") +
             `; and a real search match, lifted by the query rather than the pointer, is painted ` +
             `to its own top edge -- ` +
-            matched.map((x) => `${x.look} "${x.needle}" lifted ${x.lift}px, painted ${x.painted}px`)
-              .join(", ") +
+            matched.map((x) => `${x.look} "${x.needle}" at rung ${x.rung} lifted ${x.lift}px, ` +
+              `painted ${x.painted}px`).join(", ") +
             (wrongRoom.length
               ? ` -- ROOM NOT GRANTED: ` + wrongRoom.map((x) =>
                   `${x.look} declares ${x.declared}px and paints ${x.got}px ` +
@@ -9763,6 +10063,21 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
         await sleep(220);
       }
       const g = await mark(st.sel);
+      /* github#42, decisions/0016 -- a rung is still ramping; quiet is two agreeing reads */
+      if (g) {
+        let was = null;
+        for (let quiet = 0, tries = 0; quiet < 2 && tries < 40; tries++) {
+          const now = await p.j(`(function(){
+            var el = document.querySelector("#vs-app [data-probe51b]");
+            if (!el) return "";
+            var cs = getComputedStyle(el);
+            return cs.marginLeft + "|" + cs.boxShadow + "|" + cs.transform + "|" + cs.borderTopColor;
+          })()`);
+          quiet = now && now === was ? quiet + 1 : 0;
+          was = now;
+          if (quiet < 2) await sleep(50);
+        }
+      }
       let node = 0;
       if (g && st.hover) {
         node = await nodeOf("#vs-app [data-probe51b]");
@@ -9785,7 +10100,8 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
   /* github#20, decisions/0019 -- a floor raised must answer for itself in the run.
    * github#20 -- the spine is 30px up in BOTH shots; only the clip moves
    * github#20 -- a real slice is 30px of a 44px spine; must read > 0 */
-  const LIFT = " #vs-app [data-probe51b] { transform: translateY(-30px) !important; }";
+  /* github#42 -- past the widest room, which the top rung raised to 32px */
+  const LIFT = " #vs-app [data-probe51b] { transform: translateY(-48px) !important; }";
   let control = -2;
   {
     await p.j(`(__vs.setLook("cyber"), 1)`);
@@ -9850,7 +10166,7 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
               ? ` -- STILL MOVING WHEN MEASURED: ` + restless.join(", ")
               : "") +
             /* github#20, decisions/0019 -- what makes the width floor mean anything */
-            `; a cyber spine held 30px over a track shut to no room reads ${control}px sliced` +
+            `; a cyber spine held 48px over a track shut to no room reads ${control}px sliced` +
             (blind ? `, which is nothing -- the reading has stopped seeing a slice` : "")
   };
 });

@@ -710,7 +710,8 @@ export function matchReasons(note: Note, needle: string,
  * back exactly as it was rather than rebuilding it.
  */
 export function markMatches(views: ShelfView[], query: string,
-                            index?: SearchIndex | null): { books: number; notes: number } {
+                            index?: SearchIndex | null):
+                            { books: number; notes: number; strong: number } {
   const needle = fold(query.trim());
   const seen = new Set<string>();
   /* github#58 -- a note in 7.6 books is read once, not 7.6 times. */
@@ -723,6 +724,8 @@ export function markMatches(views: ShelfView[], query: string,
     return ok;
   };
   let books = 0;
+  /* github#42 -- counted where the books are, so it counts the same books */
+  let strong = 0;
   for (const view of views) {
     for (const book of view.books) {
       let n = 0;
@@ -734,9 +737,38 @@ export function markMatches(views: ShelfView[], query: string,
       }
       book.matches = n;
       if (n > 0) books++;
+      if (matchStrength(book) >= 3) strong++;
     }
   }
-  return { books, notes: seen.size };
+  return { books, notes: seen.size, strong };
+}
+
+/* ---- how much of a book answers ------------------------------------------
+ * github#42, design/0008
+ */
+
+/**
+ * github#42, design/0008 -- four rungs, like wear: a half, a fifth, a twentieth.
+ * @param {Book} book @returns {0 | 1 | 2 | 3 | 4}
+ */
+export function matchStrength(book: Book): 0 | 1 | 2 | 3 | 4 {
+  const of = book.notes.length;
+  if (!book.matches || of <= 0) return 0;
+  const share = book.matches / of;
+  if (share >= 1 / 2) return 4;
+  if (share >= 1 / 5) return 3;
+  if (share >= 1 / 20) return 2;
+  return 1;
+}
+
+/**
+ * github#42, design/0008 -- the needle IS this book's cover, not merely inside it.
+ * @param {Book} book @param {string} needle @returns {boolean}
+ */
+export function namesBook(book: Book, needle: string): boolean {
+  if (!needle) return false;
+  const cover = (book.cover || "").trim();
+  return cover.length > 0 && fold(cover) === needle;
 }
 
 /* ---- also shelved in -----------------------------------------------------
