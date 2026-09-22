@@ -9759,6 +9759,8 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
           return n;
         })()`);
         await rest(`${name} ${st.id} setQuery`);
+        /* github#78 -- the match lift transitions too; the hover state's own margin */
+        await sleep(220);
       }
       const g = await mark(st.sel);
       let node = 0;
