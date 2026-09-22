@@ -310,18 +310,18 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 5437 | `offBook` |
 | 5471 | `typing` |
 
-## `scripts/smoke.mjs` — 11021 lines, 6 sections, 200 functions, 154 checks
+## `scripts/smoke.mjs` — 11023 lines, 6 sections, 200 functions, 154 checks
 
 ### Sections
 
 | lines | section |
 |---|---|
 | 158–386 | the checks |
-| 387–10134 | the invariants |
-| 10135–10283 | which vault, and why |
-| 10284–10389 | at rest, or |
-| 10390–10842 | one run |
-| 10843–11021 | main |
+| 387–10136 | the invariants |
+| 10137–10285 | which vault, and why |
+| 10286–10391 | at rest, or |
+| 10392–10844 | one run |
+| 10845–11023 | main |
 
 ### Functions
 
@@ -510,23 +510,23 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 8929 | · `press` |
 | 8938 | · `nameOf` |
 | 9556 | · `px` |
-| 9864 | · `faceOnto` |
-| 9878 | · `faceOf` |
-| 9893 | · `read` |
-| 10160 | `resolveVaults` |
-| 10270 | `buildFor` |
-| 10297 | `settled` |
-| 10313 | `viewport` |
-| 10326 | `unviewport` |
-| 10336 | `atRest` |
-| 10364 | `settlePage` |
-| 10396 | `press` |
-| 10408 | `runOne` |
-| 10640 | `tagged` |
-| 10646 | `capture` |
-| 10692 | · · `pick` |
-| 10801 | `killBrowser` |
-| 10845 | `main` |
+| 9866 | · `faceOnto` |
+| 9880 | · `faceOf` |
+| 9895 | · `read` |
+| 10162 | `resolveVaults` |
+| 10272 | `buildFor` |
+| 10299 | `settled` |
+| 10315 | `viewport` |
+| 10328 | `unviewport` |
+| 10338 | `atRest` |
+| 10366 | `settlePage` |
+| 10398 | `press` |
+| 10410 | `runOne` |
+| 10642 | `tagged` |
+| 10648 | `capture` |
+| 10694 | · · `pick` |
+| 10803 | `killBrowser` |
+| 10847 | `main` |
 
 ### Checks
 
@@ -682,7 +682,7 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 9359 | a lifted spine is painted whole, in every look |
 | 9550 | the room above a spine is the largest lift plus the look's halo, in every look |
 | 9625 | nothing a look paints outside a spine is cut off, in every look |
-| 9857 | a short cover is stood upright by one face, not the look's |
-| 10010 | a tag book's cover carries no hash, and every other place it is named keeps it |
-| 10060 | a spine lifts on hover and holds its size |
-| 10084 | the shelves are packed the way the golden snapshot says |
+| 9859 | a short cover is stood upright by one face, not the look's |
+| 10012 | a tag book's cover carries no hash, and every other place it is named keeps it |
+| 10062 | a spine lifts on hover and holds its size |
+| 10086 | the shelves are packed the way the golden snapshot says |
