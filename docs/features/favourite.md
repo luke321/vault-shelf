@@ -2,7 +2,7 @@
 
 Drag a book onto Favourites, then arrange it among the books already there. A favourite follows its source book as notes change; dragging it off removes only the reference. Create more collection shelves in the builder.
 
-![Collect your favourites](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/favourite.webp)
+![Collect your favourites](https://raw.githubusercontent.com/luke321/vault-shelf/1.2.0/docs/features/favourite.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.1.0 - 2026-09-16` |
+| Last re-recorded | `1.2.0 - 2026-09-23` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 11 seconds |
 | WebP | 62 frames; 241,226 bytes |

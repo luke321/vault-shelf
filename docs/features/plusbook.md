@@ -2,7 +2,7 @@
 
 The quiet plus after the last book opens the same creation sheet and adds the new book at the end. It appears on shelves arranged by hand, including Favourites.
 
-![A place for another book](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/plusbook.webp)
+![A place for another book](https://raw.githubusercontent.com/luke321/vault-shelf/1.2.0/docs/features/plusbook.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.1.0 - 2026-09-16` |
+| Last re-recorded | `1.2.0 - 2026-09-23` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 13 seconds |
 | WebP | 74 frames; 287,592 bytes |

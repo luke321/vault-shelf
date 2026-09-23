@@ -42,16 +42,8 @@ the feature, not in the take.
 
 | Field | Value |
 |---|---|
-| Introduced in | `unreleased — github#19` |
-| Last re-recorded | `unreleased — 2026-09-17` |
-| Review | Recording requested 2026-09-17; the clip itself is not yet reviewed |
+| Introduced in | `1.2.0` |
+| Last re-recorded | `1.2.0 - 2026-09-23` |
+| Review | Recording requested 2026-09-17; re-recorded and added to the gallery for 1.2.0 |
 | Duration | 13 seconds |
-| WebP | 71 frames; 477,914 bytes |
 | Frame | 1000 × 1000 |
-
-## Not yet in the gallery
-
-`docs/features.md` pins every image URL to a released tag, and this clip exists at no tag yet, so
-adding an entry now would publish a 404. The release that ships `github#19` owes this feature one
-entry there, with its URLs pinned to that version and the feature count re-measured
-(`.ai-context/releasing.md`).
