@@ -332,6 +332,21 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* github#91 -- a plate like every other button here (design/0019), just small: a sibling of
+ * #vs-q inside .vs-railsearch, never an overlay on the field itself. */
+.vault-shelf #vs-clearquery {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ---- buttons ------------------------------------------------------------- */
 
 /* design/0016 -- THE GEOMETRY OF A CONTROL IS SET HERE, ONCE. A look may repaint a button

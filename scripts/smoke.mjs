@@ -6544,6 +6544,39 @@ check("a typo that spells nothing says so, and offers nothing to pick", async (p
              : "a query that spells nothing showed no row saying so" };
 });
 
+/* github#91 -- the clear button empties query, not filters */
+check("the clear-search button empties the query, restores focus, and leaves filters alone",
+      async (p) => {
+  const r = await p.j(`(function(){
+    var box = document.getElementById("vs-q");
+    var btn = document.getElementById("vs-clearquery");
+    var out = {};
+    out.hiddenAtRest = btn.hidden;
+
+    __vs.setFilters({ folders: ["__smoke-untouched__"] });
+    var before = JSON.stringify(__vs.filters());
+
+    box.focus();
+    __vs.typeQuery("zzqclear");
+    out.shownWhileTyped = !btn.hidden;
+
+    btn.click();
+    out.valueCleared = box.value === "";
+    out.hitsCleared = document.getElementById("vs-hits").textContent === "";
+    out.hiddenAfter = btn.hidden;
+    out.focusReturned = document.activeElement === box;
+    out.suggestShut = document.getElementById("vs-suggest").hidden;
+    out.filtersUntouched = JSON.stringify(__vs.filters()) === before;
+
+    __vs.setFilters({ folders: [] });
+    __vs.closeSuggest();
+    return out;
+  })()`);
+  return { ok: r.hiddenAtRest && r.shownWhileTyped && r.valueCleared && r.hitsCleared &&
+               r.hiddenAfter && r.focusReturned && r.suggestShut && r.filtersUntouched,
+           detail: JSON.stringify(r) };
+});
+
 /* github#41, design/0026 -- a combobox, or it is an accessibility bug */
 check("the suggestion list is a combobox the keyboard can drive", async (p) => {
   const r = await p.j(`(function(){
