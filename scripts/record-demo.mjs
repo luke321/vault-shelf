@@ -306,7 +306,17 @@ function storyboard(P) {
   };
   const favouriteSetup = async (state) => {
     state.fav=await favId();
-    state.book=await j(`__vs.views().find(function(v){return v.shelf.id==='encyclopedia';}).books.find(function(b){return b.key==='S';}).id`);
+    /* github#34, github#42 -- hero may favourite "S" first; fall back a letter. */
+    state.book=await j(`(function(){
+      var fav=__vs.picks()[0];
+      var view=__vs.views().find(function(v){return v.shelf.id==='encyclopedia';});
+      var preferred=view.books.find(function(b){return b.key==='S' && fav.picks.indexOf(b.id)<0;});
+      if (preferred) return preferred.id;
+      var books=view.books.filter(function(b){return /^[A-Z]$/.test(b.key) && fav.picks.indexOf(b.id)<0;});
+      books.sort(function(a,b){return b.notes.length-a.notes.length;});
+      return books.length ? books[0].id : null;
+    })()`);
+    if (!state.book) throw new Error('favourite: no Encyclopedia book left to favourite');
     state.shelf='encyclopedia'; state.before=await j(`__vs.picks()[0].picks.length`);
     await scrollTo(0);
   };
@@ -323,6 +333,38 @@ function storyboard(P) {
     await scrollTo(0);
   };
   const visibleNote = () => j(`(function(){var box=document.querySelector('#vs-reader .vs-left').getBoundingClientRect();return Array.from(document.querySelectorAll('#vs-contents button[data-note]')).find(function(e){var b=e.getBoundingClientRect();return b.top>box.top+80 && b.bottom<box.bottom;}).getAttribute('data-note');})()`);
+
+  /* github#42, design/0008 -- their own name grades widest, at rung 4. */
+  const matchweightSetup = async (state) => {
+    state.shelf='people';
+    state.word=await j(`(function(){
+      var who={};
+      __vs.data().notes.forEach(function(n){(n.people||[]).forEach(function(p){who[p]=(who[p]||0)+1;});});
+      var top=Object.keys(who).sort(function(a,b){return who[b]-who[a];})[0];
+      return (top||__vs.data().notes[0].title.slice(0,4)).toLowerCase();
+    })()`);
+    await settleOn('people'); await pointer(neutral);
+  };
+  /* github#42, design/0008 -- wait for the transition, like restedRungs() in smoke.mjs. */
+  const matchweightRested = async () => {
+    for (let wait=0; wait<20; wait++) {
+      const r=await j(`(function(){
+        var spines=document.querySelectorAll('[data-shelf="people"] .vs-spine[data-strength]');
+        var lift={}, rested=true;
+        for (var i=0;i<spines.length;i++){
+          var k=spines[i].getAttribute('data-strength');
+          var cs=getComputedStyle(spines[i]);
+          var air=parseFloat(cs.marginLeft)||0, want=parseFloat(cs.getPropertyValue('--spine-air-match'))||0;
+          if (Math.abs(air-want)>0.5) rested=false;
+          lift[k]=parseFloat(cs.getPropertyValue('--spine-lift-match'))||0;
+        }
+        return { live:Object.keys(lift), lift:lift, rested:rested };
+      })()`);
+      if (r.rested && r.live.length) return r;
+      await sleep(50);
+    }
+    throw new Error('matchweight: the ladder never settled');
+  };
 
   return [
     {
@@ -459,6 +501,12 @@ function storyboard(P) {
         }
         if (sec >= 29 && sec < 30) await carry(P.state.heroDragTo);
         await once("hero-drag-drop", 30 / 68, t, async () => {
+          /* github#34 -- edge-scroll can move the rail mid-carry; re-settle first. */
+          const fresh = await centreOf(`[data-shelf="${fav}"] .vs-plusbook`, 90, 0);
+          if (fresh && (fresh.x !== P.state.heroDragTo.x || fresh.y !== P.state.heroDragTo.y)) {
+            P.state.heroDragTo = fresh;
+            await carry(fresh);
+          }
           const lit = await j(`document.querySelector('[data-shelf="${fav}"] .vs-shelfrail').getAttribute('data-drop')`);
           if (lit !== '1' && !await j(`!!document.querySelector('[data-shelf="${fav}"] .vs-drop')`)) throw new Error("hero: Favourites did not accept the dragged book");
           await drop(P.state.heroDragTo);
@@ -492,6 +540,8 @@ function storyboard(P) {
           await go(`var val=document.getElementById('vs-mbsourceval'); val.value=${JSON.stringify(folder)}; val.dispatchEvent(new Event('change',{bubbles:true})); void 0`);
         });
         await once("hero-save", 42 / 68, t, async () => {
+          /* design/0029 -- the sheet can grow past the view; scroll Save into view. */
+          await go(`(function(){var sheet=document.getElementById('vs-madebook');if(sheet)sheet.scrollTop=sheet.scrollHeight;})(); void 0`);
           await pressAt(await centreOf('#vs-mbsave'));
           if (!await centreOf(made)) throw new Error("hero: new favourites book was not created");
           await pointer(P.pointerPosition());
@@ -519,7 +569,11 @@ function storyboard(P) {
       setup:favouriteSetup, frame:dragFrame(3,7), steps:[
         /* github#23 -- an empty rail has a landing to aim at, not a plus. */
         {at:3,target:bookTarget,action:'hover',run:async s=>{s.dragFrom=await lift(bookTarget(s));s.dragTo=await centreOf(`[data-shelf="${s.fav}"] .vs-dropzone`)||await centreOf(`[data-shelf="${s.fav}"] .vs-plusbook`,90,0);if(!s.dragFrom)throw new Error('favourite: lift failed');if(!s.dragTo)throw new Error('favourite: no landing to drop on');}},
-        {at:7,action:'hover',run:async s=>{await drop(s.dragTo);await prove(`__vs.picks()[0].picks.length===${s.before+1} && __vs.picks()[0].picks.includes(${JSON.stringify(s.book)})`,'favourite: drop failed');}},
+        {at:7,action:'hover',run:async s=>{
+          /* github#34 -- edge-scroll can move the rail mid-carry; re-settle first. */
+          const fresh=await centreOf(`[data-shelf="${s.fav}"] .vs-dropzone`)||await centreOf(`[data-shelf="${s.fav}"] .vs-plusbook`,90,0);
+          if (fresh && (fresh.x!==s.dragTo.x || fresh.y!==s.dragTo.y)) { s.dragTo=fresh; await carry(fresh); }
+          await drop(s.dragTo);await prove(`__vs.picks()[0].picks.length===${s.before+1} && __vs.picks()[0].picks.includes(${JSON.stringify(s.book)})`,'favourite: drop failed');}},
         {at:9,target:{x:650,y:235},run:async()=>{await prove(`document.getElementById('vs-peek').hidden`,'favourite: peek remained');}}
       ] }),
     scene({ name: "ribbon", seconds: 18, title: 'Leave a <b>ribbon</b>. Pick up where you stopped.', sub: 'Reading gathers the books holding your marked notes.',
@@ -594,7 +648,12 @@ function storyboard(P) {
         await prove(`__vs.settings().wear[${JSON.stringify(s.book)}]===1 && __vs.settings().lastOpened[${JSON.stringify(s.book)}]==='never' && __vs.views().find(function(v){return v.shelf.id==='tags';}).books.find(function(b){return b.id===${JSON.stringify(s.book)};}).notes.length===1 && !document.querySelector(${JSON.stringify(bookTarget(s))}).hasAttribute('data-wear')`,'wear: one-note book must begin with one entry and no visits');
         if(s.notes.length!==1)throw new Error('wear: one-note book has unexpected entry history');
         s.from=await j(`document.getElementById('vs-library').scrollTop`);s.to=await shelfTop('tags');
-        s.assertCount=async count=>{await prove(`__vs.settings().wear[${JSON.stringify(s.book)}]===${count} && JSON.stringify(__vs.settings().bookNotes[${JSON.stringify(s.book)}])===${JSON.stringify(JSON.stringify(s.notes))} && __vs.settings().lastOpened[${JSON.stringify(s.book)}]!=='never'`,'wear: visits must increment the real counter without inventing notes');};
+        /* github#92 -- poll for the wear write, not right after the press. */
+        s.assertCount=async count=>{
+          const expr=`__vs.settings().wear[${JSON.stringify(s.book)}]===${count} && JSON.stringify(__vs.settings().bookNotes[${JSON.stringify(s.book)}])===${JSON.stringify(JSON.stringify(s.notes))} && __vs.settings().lastOpened[${JSON.stringify(s.book)}]!=='never'`;
+          for (let wait=0; wait<20; wait++) { if (await j(expr)) return; await sleep(50); }
+          await prove(expr,'wear: visits must increment the real counter without inventing notes');
+        };
       },frame:async(sec,s)=>{if(sec>=3.6 && sec<5.4)await scrollTo(lerp(s.from,s.to,easeInOut((sec-3.6)/1.8)));},steps:[
         {at:2,target:'[data-shelf="years"] .vs-spine[data-book="years/2015"]',action:'hover'},
         {at:3.5,start:2.6,target:neutral,action:'hover'},
@@ -665,6 +724,18 @@ function storyboard(P) {
         {at:2,target:'#vs-q'},
         {at:7,target:async state=>{const row=await j(`__vs.suggest().rows.findIndex(function(row){return row.text===${JSON.stringify(state.word)} && row.kinds.includes('book');})`);if(row<0)throw new Error('autocomplete: real cover was not suggested');return '#vs-suggest .vs-sugrow[data-row="'+row+'"]';},action:'hover'},
         {at:9,target:async state=>{const row=await j(`__vs.suggest().rows.findIndex(function(row){return row.text===${JSON.stringify(state.word)};})`);return '#vs-suggest .vs-sugrow[data-row="'+row+'"]';},run:async()=>{await prove(`document.querySelectorAll('.vs-spine[data-match="1"]').length>0 && !__vs.suggest().open`,'autocomplete: cover suggestion was not accepted');}}
+      ] }),
+    /* github#42, design/0008 -- how much of it answers, not merely whether */
+    scene({ name: "matchweight", seconds: 14, title: sec=>sec<7?'A book draws forward by <b>how much of it answers</b>.':'Not everything that matches <b>shouts the same</b>.', sub: 'The stronger the match, the higher it lifts and the more room it takes.', setup:matchweightSetup,
+      frame:async(sec,state)=>{if(sec>=2 && sec<4.5)await typeInto('vs-q',state.word,sec,2,4.5);},steps:[
+        {at:1.5,target:'#vs-q'},
+        {at:7,target:{x:700,y:220},run:async()=>{
+          const r=await matchweightRested();
+          if (r.live.length<2) throw new Error('matchweight: the People shelf did not draw a spread of rungs');
+          say('match-weight ladder: rungs '+r.live.join(',')+' at lift '+r.live.map(k=>r.lift[k]).join('/')+'px');
+        }},
+        {at:10,target:'[data-shelf="people"] .vs-spine[data-strength="4"]',action:'hover',run:async()=>{await prove(`document.querySelector('[data-shelf="people"] .vs-spine[data-strength="4"]')!==null`,'matchweight: no rung-4 book on the People shelf for the top person');}},
+        {at:12.5,target:'#vs-clearquery',run:async()=>{await prove(`document.getElementById('vs-clearquery').hidden && document.querySelectorAll('#vs-shelves .vs-spine[data-strength]').length===0`,'matchweight: clearing the query did not reset the ladder');}}
       ] }),
     scene({ name: "rearrange", seconds: 11, title: 'Put books <b>in your own order</b>.', sub: 'Drag into the gap. The book keeps its notes.', setup:async s=>{s.fav=await favId();s.before=await j(`__vs.picks()[0].picks.slice()`);s.book=s.fav+'/'+s.before[s.before.length-1];s.shelf=s.fav;await scrollTo(0);},frame:dragFrame(3,7),steps:[
         {at:3,target:bookTarget,action:'hover',run:async s=>{s.dragFrom=await lift(bookTarget(s));s.dragTo=await centreOf(`[data-shelf="${s.fav}"] .vs-spine`, -18,0);}},
