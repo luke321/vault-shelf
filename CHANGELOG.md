@@ -12,6 +12,46 @@ The measurements behind each entry are in
 
 ---
 
+## 1.2.0 — "Search Update" — 2026-09-23
+
+**Search Update. The search box now offers the words your vault actually has, a book draws forward by how much of it answers rather than merely whether it does, and a tag book flags exactly where its subject is written.**
+
+### The search box suggests what you can actually read
+
+![The search box suggests what you can actually read](https://raw.githubusercontent.com/luke321/vault-shelf/1.2.0/docs/features/autocomplete.webp)
+
+- As you type, suggestions offer the people, tags, folders, book covers and note titles your vault actually has — spelled out in full. The list now sizes to what it holds instead of clipping at a fixed 232px: a folder name that used to read `area/personal-knowl…` reads whole.
+- A small **×** now sits beside the search box to clear it in one press — focus stays in the box, filters are untouched, and the suggestion list closes with it.
+
+### A book draws forward by how much of it answers
+
+![A book draws forward by how much of it answers](https://raw.githubusercontent.com/luke321/vault-shelf/1.2.0/docs/features/matchweight.webp)
+
+- A matching book used to stand the same height whether one note in it matched or every one did. It now lifts and opens air across four rungs — a half or more of its notes, a fifth, a twentieth, or a bare match — so the book that is the actual answer stands clearly proud of the ones that merely mention it.
+- The hit count says so too: *"621 notes in 188 books (28 strongly)"*.
+
+### Find the tag where it actually is
+
+![Find the tag where it actually is](https://raw.githubusercontent.com/luke321/vault-shelf/1.2.0/docs/features/sticky.webp)
+
+- Open a tag, person or property book and small flags stand on the fore-edge of the right-hand page, one per place the subject is written. Press one and the note scrolls there with that occurrence marked.
+- A subject that is only declared in the frontmatter gets a hollow flag on the note's details line, which is where it actually is; a subject written nowhere gets no flag at all.
+
+If Vault Shelf is useful to you:
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/luke321)
+
+### For the record
+
+- Scrolling the library is measured by real input now, not a scripted sweep that never left the first viewport and a half — the containment unit is a row rather than a whole shelf, and the sweep runs one way down. Missed vsyncs dropped from the old measurement's blind spot to a budget the suite can actually fail.
+- Five alphabetical tag books that settled a level too deep at narrow widths (1180×480) now fold the middle of their trail instead, keeping every level inside the room it has.
+- The edge-index fit that could clip a cut on every re-cut of the fixture now gathers top-down into the room the rail actually has.
+- `--empty-picks` clears every pick shelf it touches rather than just the first, and still skips a made book instead of deleting it.
+- A CDP transport timeout at `--jobs 1` is retried once instead of failing the check outright.
+- CONTRIBUTING.md, AGENTS.md and `design/0007`'s `--hero-clip` docs were corrected to match what the tooling actually does.
+- Filed `github#90` (not fixed here): a long run's query-air can still overflow the room the packer measured with an empty box. Three candidate fixes are named on the issue; none is picked, because each trades against something `design/0008` or the packer's own per-query immutability protects.
+- The suite grew from 144 checks to 159 over the one vault shape.
+
 ## 1.1.0 — "Indices" — 2026-09-16
 
 **Indices. A volume of numbers reads by number, the edge index opens a digits volume into its months and days, and the shelves you arrange by hand stay where you put them.**

@@ -126,6 +126,62 @@ the only thing that moves, nothing is rebuilt and nothing is removed. What chang
 notes answer — and, because the old rule folded 33,871 titles and 33,871 bodies on every key, a
 keystroke costs **11.8 ms → 1.2 ms**.
 
+### How much of it answers (2026-09-21, github#42)
+
+> "search seems broken looking for sanne de vries in the new one vault highlights almost every book"
+
+The matching was not what was broken. Of the 322 notes that answered, 320 answered on the
+`people:` property — the search found the right notes. What the page did with them was the
+problem: `applyQuery()` wrote `data-match="1"` or `"0"` and nothing else, and `core.markMatches`
+had **already counted**. `book.matches` sat in memory and the page threw it away on the way to the
+attribute.
+
+So `people/-unfiled` — **2 notes of 2,481** — lifted 7px, gilded its number and cast a shadow on
+that evidence, and looked exactly as found as `people/Sanne de Vries` at **320 of 320**. On the one
+vault `sanne de vries` drew **159 of 231 books** forward. Nearly the whole room drawing forward is
+the same as nothing drawing forward.
+
+> **A book draws forward by how much of it answers**, in four rungs: a half, a fifth, a twentieth.
+
+**Four rungs and not a continuum, for the reason wear gives above.** A continuous scale would make
+the shelf a bar chart of your own library, which is a dashboard wearing a book's clothes. The
+ladder is `core.matchStrength(book)`, one rule in one place, sitting beside `core.wearLevel()`.
+
+**Three carriers, because one of them is already taken away.** `prefers-reduced-motion` flattens
+the lift, so a strength living in the transform alone would be four rungs for everybody except the
+reader who asked for the motion to stop — silently, and invisibly to every assertion in the suite.
+The lift is geometry (2/6/10/14px), the **air** either side is geometry that reduced motion does
+not touch (2/4/14/24px), and the accent is paint, which each look ramps its own way.
+
+**The ceiling IS the room, so raising one raises the other.** Rung 4 is `--spine-lift-match`, and
+`design/0021` declares the room as that rung plus the look's halo. Topping out at 14px therefore
+re-declares `--spine-room` as 14 / 15 / 32px in modern / leather / cyber. Rungs 1 to 3 override the
+token **on the spine**, never on the track, so the arithmetic the floor checks is unchanged in
+shape — only in value.
+
+**The air, though, is width the row was never packed for** (`github#90`). It is top-heavy for that
+reason: rung 2 holds 149 of the 188 books a name lights, so 4px there buys 24px at rung 4 and still
+overflows 141px less than the flat 9 on `develop`.
+
+**A fill up the spine like a level was the other candidate**, and it is the most literal gauge
+there is. Rejected because every look repaints the board heavily — leather's grain and gilt,
+cyber's lit panel — so a gauge needs three implementations and fights all of them, for a reading
+the three carriers already give.
+
+**`data-match` stays binary and the rung rides beside it.** *Does this book answer at all* is the
+law as written, and four checks, `__vs.magic()` and the reader's contents rows all read it.
+
+**A book the query NAMES is marked, not promoted.** A note names several people, so a person's
+name lights 16 of 26 people books — the first law working correctly, and it still reads as broken:
+a person who types a name expects one spine. `data-named="1"` is that one spine. It changes no
+rung, because it cannot: a cover is in the search index of every note behind it (`github#58`), so
+a named book is already at or near 100% share.
+
+**`#vs-hits` keeps both halves and qualifies the second** — `621 notes in 188 books (28 strongly)`.
+Dropping the book count was the other option; it was never wrong, only unqualified.
+
+---
+
 ---
 
 ## What was considered and not built

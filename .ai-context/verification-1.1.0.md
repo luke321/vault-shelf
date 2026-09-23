@@ -85,3 +85,36 @@ wants teaching this repo's layout before the next release leans on it.
 | 11 — merge into `develop` | `3ec2a54`, `--no-ff`. Pre-push gate ran the full suite on the merge result: **144/144 in 118s**. |
 | 11 — the stamp did not carry | The branch dry run measured tree `e6bbda6`; regenerating the code index changed the tree to `a9d1329`, so that 1/2 green no longer applied and the count restarted. `a9d1329` is now 1/2 green. A stamp keys on the tree, which is the point — a doc commit is still a different tree. |
 | 12 — pull request to `main` | [#86](https://github.com/luke321/vault-shelf/pull/86). Checks: `main accepts develop or hotfix` pass, `close the issues this push fixes` pass. |
+| 12 — merged | `ec81392`, *Merge pull request #86 from luke321/develop*. `main`'s manifest went 1.0.1 → 1.1.0. |
+| 13 — `release.ps1 1.1.0` on `main` | Ran the suite once more on tree `55147fa` — **144/144 in 111s** — which was that tree's second consecutive green, so it stamped: `stamped tree 55147fa as passed 2 times in a row`. Then tagged and pushed the tag alone. |
+| 14 — the workflow published | Run [`35086834442`](https://github.com/luke321/vault-shelf/actions/runs/35086834442), all 20 steps green including the ancestry guard this time, since the tag is on `main`. |
+
+## Published assets and attestation
+
+Downloaded from the release, hashed locally, and compared against the release API's own digests —
+all three match byte for byte.
+
+| Asset | Bytes | SHA-256 | `gh attestation verify` |
+|---|---|---|---|
+| `main.js` | 227,197 | `c7c436a7aec9afc2e5876f8f34bad97b4a82eca1064521d86d058aeab2522aa8` | exit 0 |
+| `manifest.json` | 483 | `841eb942cac8c2db474d679cab844fde6e7bb3ca2025bcd0e862191a2e894d85` | exit 0 |
+| `styles.css` | 159,229 | `723da760caad59268677ef7ec8148ec2b035b796e4edd21d37a05ce3bfbc6571` | exit 0 |
+
+Each carries a Sigstore/SLSA provenance statement built from `refs/tags/1.1.0`. These are the three
+files Obsidian installs.
+
+## What this release cost in gates it did not expect
+
+Two CI failures on the way, and both were the repository catching something rather than breaking.
+
+**`PII_NAMES` was never set.** `github#82` shipped in this very release and its first real run
+refused the build: on a PUBLIC repo with no name list fed in, `check-pii` would have degraded to
+patterns-only and exited 0 — a green step that checked no names at all, about other people. The
+secret now holds the 6 names from the untracked `.pii-names`.
+
+**The generated index was stale and the local dry run could not see it.** `release.ps1 -DryRun`
+runs lint, the pre-flight build and the suite; it does **not** run `code-map --check`, which only
+the pre-push hook and CI do. Adding one pointer comment to `record-demo.mjs` after the dry run was
+enough to make `code-index.md` stale, and nothing local said so. Worth an issue: the release
+script's gate set is a subset of the hook's, which makes a green dry run weaker evidence than it
+reads as.

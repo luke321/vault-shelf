@@ -278,6 +278,24 @@ function storyboard(P) {
     await go(`__vs.openBook(${JSON.stringify(state.book)},null); void 0`);
     state.index=await j(`__vs.reader().index`);
   };
+  /* github#19, design/0037 -- the one book whose note says its own tag out loud */
+  const inGarden = async (state) => {
+    state.shelf='tags';
+    state.book=await j(`(function(){
+      var v=__vs.views().filter(function(v){return v.shelf.id==='tags';})[0];
+      var b=v&&v.books.filter(function(b){return b.key==='garden';})[0];
+      return b?b.id:null;
+    })()`);
+    state.note=await j(`(function(){
+      var n=__vs.data().notes.filter(function(n){
+        return n.title==='A season in the same bed, start to finish';})[0];
+      return n?n.id:null;
+    })()`);
+    if (!state.book||!state.note) throw new Error('sticky: this vault has no garden book whose note writes its own tag');
+    await settleOn('tags'); await pointer(neutral);
+    await go(`__vs.openBook(${JSON.stringify(state.book)},${JSON.stringify(state.note)}); void 0`);
+    await prove(`__vs.stickies().flags.length===4 && !__vs.stickies().hidden`,'sticky: the fore-edge did not draw four flags');
+  };
   const bookTarget = (state) => spineOf(state.book,state.shelf);
   const madeTarget = (state) => `[data-shelf="${state.fav}"] .vs-spine[data-book$="-made-my-journal"]`;
   const madeSetup = async (state) => {
@@ -288,7 +306,17 @@ function storyboard(P) {
   };
   const favouriteSetup = async (state) => {
     state.fav=await favId();
-    state.book=await j(`__vs.views().find(function(v){return v.shelf.id==='encyclopedia';}).books.find(function(b){return b.key==='S';}).id`);
+    /* github#34, github#42 -- hero may favourite "S" first; fall back a letter. */
+    state.book=await j(`(function(){
+      var fav=__vs.picks()[0];
+      var view=__vs.views().find(function(v){return v.shelf.id==='encyclopedia';});
+      var preferred=view.books.find(function(b){return b.key==='S' && fav.picks.indexOf(b.id)<0;});
+      if (preferred) return preferred.id;
+      var books=view.books.filter(function(b){return /^[A-Z]$/.test(b.key) && fav.picks.indexOf(b.id)<0;});
+      books.sort(function(a,b){return b.notes.length-a.notes.length;});
+      return books.length ? books[0].id : null;
+    })()`);
+    if (!state.book) throw new Error('favourite: no Encyclopedia book left to favourite');
     state.shelf='encyclopedia'; state.before=await j(`__vs.picks()[0].picks.length`);
     await scrollTo(0);
   };
@@ -306,13 +334,45 @@ function storyboard(P) {
   };
   const visibleNote = () => j(`(function(){var box=document.querySelector('#vs-reader .vs-left').getBoundingClientRect();return Array.from(document.querySelectorAll('#vs-contents button[data-note]')).find(function(e){var b=e.getBoundingClientRect();return b.top>box.top+80 && b.bottom<box.bottom;}).getAttribute('data-note');})()`);
 
+  /* github#42, design/0008 -- their own name grades widest, at rung 4. */
+  const matchweightSetup = async (state) => {
+    state.shelf='people';
+    state.word=await j(`(function(){
+      var who={};
+      __vs.data().notes.forEach(function(n){(n.people||[]).forEach(function(p){who[p]=(who[p]||0)+1;});});
+      var top=Object.keys(who).sort(function(a,b){return who[b]-who[a];})[0];
+      return (top||__vs.data().notes[0].title.slice(0,4)).toLowerCase();
+    })()`);
+    await settleOn('people'); await pointer(neutral);
+  };
+  /* github#42, design/0008 -- wait for the transition, like restedRungs() in smoke.mjs. */
+  const matchweightRested = async () => {
+    for (let wait=0; wait<20; wait++) {
+      const r=await j(`(function(){
+        var spines=document.querySelectorAll('[data-shelf="people"] .vs-spine[data-strength]');
+        var lift={}, rested=true;
+        for (var i=0;i<spines.length;i++){
+          var k=spines[i].getAttribute('data-strength');
+          var cs=getComputedStyle(spines[i]);
+          var air=parseFloat(cs.marginLeft)||0, want=parseFloat(cs.getPropertyValue('--spine-air-match'))||0;
+          if (Math.abs(air-want)>0.5) rested=false;
+          lift[k]=parseFloat(cs.getPropertyValue('--spine-lift-match'))||0;
+        }
+        return { live:Object.keys(lift), lift:lift, rested:rested };
+      })()`);
+      if (r.rested && r.live.length) return r;
+      await sleep(50);
+    }
+    throw new Error('matchweight: the ladder never settled');
+  };
+
   return [
     {
       /* design/0007 -- the release hero follows the user's complete product gesture. */
       name: "hero",
-      seconds: 68,
+      seconds: 74,
       async at(t, first) {
-        const sec = t * 68;
+        const sec = t * 74;
         const fav = await favId();
         const made = `[data-shelf="${fav}"] .vs-spine[data-book$="-made-my-journal"]`;
         const plate = '[data-shelf="months"] .vs-plaque';
@@ -337,16 +397,30 @@ function storyboard(P) {
           await scrollTo(0);
           await pointer({ x: W + 32, y: 82 });
           P.state.heroStart = await j(`document.getElementById('vs-library').scrollTop`);
-          P.state.heroEnd = await shelfTop("years", -70);
-          P.state.heroBook = await thickest("years");
-          if (!P.state.heroBook) throw new Error("hero: no populated book");
+          P.state.heroEnd = await shelfTop("people", -70);
+          /* github#41, github#42 -- search finds their own rung-4 book, and opens it. */
+          const heroPerson = await j(`(function(){
+            var who={};
+            __vs.data().notes.forEach(function(n){(n.people||[]).forEach(function(p){who[p]=(who[p]||0)+1;});});
+            return Object.keys(who).sort(function(a,b){return who[b]-who[a];})[0]||null;
+          })()`);
+          if (!heroPerson) throw new Error("hero: no person in this vault to search for");
+          P.state.heroSearchWord = heroPerson.toLowerCase();
+          P.state.heroBook = await j(`(function(){
+            var view=__vs.views().find(function(v){return v.shelf.id==='people';});
+            var b=view && view.books.find(function(b){return b.cover===${JSON.stringify(heroPerson)};});
+            return b?b.id:null;
+          })()`);
+          if (!P.state.heroBook) throw new Error("hero: the searched person has no book of their own on People");
         }
-        const title = sec < 7 ? "<b>Vault Shelf</b>" : sec < 12 ? "Open a book. <b>Follow your curiosity.</b>" :
-          sec < 19 ? "Find your page. <b>Leave a ribbon.</b>" : sec < 24.5 ? "A library that feels <b>yours</b>." :
-          sec < 33 ? "Drag a book onto <b>Favourites</b>." :
-          sec < 44 ? "Make a book for <b>what matters.</b>" : sec < 54 ? "Choose its <b>binding and colour</b>." :
-          sec < 65 ? "Give a whole collection <b>its own character</b>." : "<b>Vault Shelf</b>";
-        await caption(0.5, 0, 1, title, sec < 7 || sec >= 65 ? "Your notes. A library worth coming back to." : "");
+        const title = sec < 6 ? "<b>Vault Shelf</b>" :
+          sec < 11.5 ? "Search, and <b>the right book stands tallest</b>." :
+          sec < 16.5 ? "Open a book. <b>Follow your curiosity.</b>" :
+          sec < 23.5 ? "Find your page. <b>Leave a ribbon.</b>" : sec < 30.5 ? "A library that feels <b>yours</b>." :
+          sec < 39 ? "Drag a book onto <b>Favourites</b>." :
+          sec < 50 ? "Make a book for <b>what matters.</b>" : sec < 60 ? "Choose its <b>binding and colour</b>." :
+          sec < 71 ? "Give a whole collection <b>its own character</b>." : "<b>Vault Shelf</b>";
+        await caption(0.5, 0, 1, title, sec < 6 || sec >= 71 ? "Your notes. A library worth coming back to." : "");
         if (sec < 6.15) await prove(`document.getElementById('vs-peek').hidden`,'hero: a peek appeared during the offscreen-pointer introduction');
         /* design/0007 -- movement is sampled in every captured frame, never awaited off camera. */
         const move = async (key, start, end, until, target) => {
@@ -363,57 +437,70 @@ function storyboard(P) {
           }
           return P.state.heroNoteSelector ? centreOf(P.state.heroNoteSelector) : null;
         };
-        await move('open', 6.15, 6.8, 7.02, () => centreOf(spineOf(P.state.heroBook, 'years')));
-        await move('index', 9.5, 10.7, 11.02, () => centreOf('#vs-tabs button', 0, 0, 4));
-        await move('note', 12.2, 13.7, 14.02, noteTarget);
-        await move('ribbon', 15.4, 16.7, 17.02, () => centreOf('#vs-marks .vs-markstub'));
-        await move('back', 18.5, 19.7, 20.02, () => centreOf('#vs-back'));
-        await move('after-drop', 30.1, 30.9, 31.3, async () => ({ x: 600, y: P.state.heroDragTo.y }));
-        await move('create', 31.5, 32.7, 33.02, () => centreOf(`[data-shelf="${fav}"] .vs-plusbook`));
-        await move('name', 34, 34.8, 35.02, () => centreOf('#vs-mbname'));
-        await move('source', 37.1, 37.8, 38.02, () => centreOf('#vs-mbsource'));
-        await move('folder', 38.4, 39.2, 39.52, () => centreOf('#vs-mbsourceval'));
-        await move('save', 40.5, 41.7, 42.02, () => centreOf('#vs-mbsave'));
-        await move('book-menu', 42.4, 43.7, 44.02, () => centreOf(made));
-        await move('book-binding', 44.5, 45.7, 46.02, () => centreOf(menu + ' .vs-bindingchoice', 0, 0, 4));
-        await move('book-colour-menu', 48.15, 48.85, 49.02, () => centreOf(made));
-        await move('book-colour', 49.15, 49.8, 50.02, () => centreOf(menu + ' .vs-swatch', 0, 0, 8));
-        await move('plate', 55.3, 55.85, 56.02, () => centreOf(plate));
-        await move('plate-binding', 56.25, 57.25, 57.52, () => centreOf(menu + ' .vs-bindingchoice', 0, 0, 2));
-        await move('plate-colour-menu', 59.65, 60.3, 60.52, () => centreOf(plate));
-        await move('plate-colour', 60.7, 61.75, 62.02, () => centreOf(menu + ' .vs-swatch', 0, 0, 3));
+        await move('search', 6.15, 6.8, 7.02, () => centreOf('#vs-q'));
+        await move('found', 10.3, 11.3, 11.52, () => centreOf(spineOf(P.state.heroBook, 'people')));
+        await move('index', 14.0, 15.2, 15.52, () => centreOf('#vs-tabs button', 0, 0, 4));
+        await move('note', 16.7, 18.2, 18.52, noteTarget);
+        await move('ribbon', 19.9, 21.2, 21.52, () => centreOf('#vs-marks .vs-markstub'));
+        await move('back', 23.0, 24.2, 24.52, () => centreOf('#vs-back'));
+        await move('clear', 24.7, 25.5, 25.72, () => centreOf('#vs-clearquery'));
+        await move('after-drop', 36.1, 36.9, 37.3, async () => ({ x: 600, y: P.state.heroDragTo.y }));
+        await move('create', 37.5, 38.7, 39.02, () => centreOf(`[data-shelf="${fav}"] .vs-plusbook`));
+        await move('name', 40, 40.8, 41.02, () => centreOf('#vs-mbname'));
+        await move('source', 43.1, 43.8, 44.02, () => centreOf('#vs-mbsource'));
+        await move('folder', 44.4, 45.2, 45.52, () => centreOf('#vs-mbsourceval'));
+        await move('save', 46.5, 47.7, 48.02, () => centreOf('#vs-mbsave'));
+        await move('book-menu', 48.4, 49.7, 50.02, () => centreOf(made));
+        await move('book-binding', 50.5, 51.7, 52.02, () => centreOf(menu + ' .vs-bindingchoice', 0, 0, 4));
+        await move('book-colour-menu', 54.15, 54.85, 55.02, () => centreOf(made));
+        await move('book-colour', 55.15, 55.8, 56.02, () => centreOf(menu + ' .vs-swatch', 0, 0, 8));
+        await move('plate', 61.3, 61.85, 62.02, () => centreOf(plate));
+        await move('plate-binding', 62.25, 63.25, 63.52, () => centreOf(menu + ' .vs-bindingchoice', 0, 0, 2));
+        await move('plate-colour-menu', 65.65, 66.3, 66.52, () => centreOf(plate));
+        await move('plate-colour', 66.7, 67.75, 68.02, () => centreOf(menu + ' .vs-swatch', 0, 0, 3));
         if (sec >= 2 && sec < 6) await scrollTo(lerp(P.state.heroStart, P.state.heroEnd, easeInOut((sec - 2) / 4)));
-        await once("hero-settle", 6 / 68, t, async () => { await settleOn("years"); });
-        await once("hero-open", 7 / 68, t, async () => {
-          const p = await centreOf(spineOf(P.state.heroBook, "years"));
+        await once("hero-settle", 6 / 74, t, async () => { await settleOn("people"); });
+        if (sec >= 7 && sec < 9.5) await typeInto('vs-q', P.state.heroSearchWord, sec, 7, 9.5);
+        await once("hero-search-check", 10 / 74, t, async () => {
+          await prove(`document.querySelectorAll('.vs-spine[data-match="1"]').length>0 && document.querySelectorAll('.vs-spine[data-match="0"]').length>0`,'hero: the search did not distinguish books');
+          await prove(`(function(){var el=document.querySelector('[data-shelf="people"] .vs-spine[data-book="${P.state.heroBook}"]');return el && el.getAttribute('data-named')==='1' && el.getAttribute('data-strength')==='4';})()`, 'hero: the searched person was not found at full strength');
+        });
+        await once("hero-open", 11.5 / 74, t, async () => {
+          const p = await centreOf(spineOf(P.state.heroBook, "people"));
           await pointer(p, true);
           if (!await click(p) || !await j(`!document.getElementById('vs-reader').hidden`)) throw new Error("hero: book did not open");
+          if (!await j(`__vs.reader() && __vs.reader().book === ${JSON.stringify(P.state.heroBook)}`)) throw new Error("hero: search opened the wrong book");
           await pointer(P.pointerPosition());
         });
-        await once("hero-index", 11 / 68, t, async () => {
+        await once("hero-index", 15.5 / 74, t, async () => {
           const count = await j(`document.querySelectorAll('#vs-tabs button').length`);
           if (count < 2) throw new Error("hero: book has no useful index");
           await pressAt(await centreOf('#vs-tabs button', 0, 0, Math.min(4, count - 1)));
         });
-        await once("hero-note", 14 / 68, t, async () => {
+        await once("hero-note", 18.5 / 74, t, async () => {
           const p = await noteTarget();
           if (!p) throw new Error("hero: no note visible in contents");
           await pressAt(p);
           await pointer(P.pointerPosition());
         });
-        await once("hero-mark", 17 / 68, t, async () => {
+        await once("hero-mark", 21.5 / 74, t, async () => {
           await pressAt(await centreOf('#vs-marks .vs-markstub'));
           if (!await j(`!!document.querySelector('#vs-marks .vs-mark[aria-current="true"]')`)) throw new Error("hero: ribbon was not saved");
           await pointer(P.pointerPosition());
         });
-        await once("hero-back", 20 / 68, t, async () => {
+        await once("hero-back", 24.5 / 74, t, async () => {
           await pressAt(await centreOf('#vs-back'));
           P.state.heroBack = await j(`document.getElementById('vs-library').scrollTop`);
           await pointer(P.pointerPosition());
         });
-        if (sec >= 21 && sec < 24) await scrollTo(lerp(P.state.heroBack, 0, easeInOut((sec - 21) / 3)));
-        await once("hero-top", 24 / 68, t, async () => { await scrollTo(0); });
-        await once("hero-drag-setup", 24.5 / 68, t, async () => {
+        await once("hero-search-clear", 26 / 74, t, async () => {
+          await pressAt(await centreOf('#vs-clearquery'));
+          if (!await j(`document.getElementById('vs-clearquery').hidden && document.querySelectorAll('.vs-spine[data-match="1"]').length===0`)) throw new Error('hero: clearing the search did not reset the shelf');
+          await pointer(P.pointerPosition());
+        });
+        if (sec >= 27 && sec < 30) await scrollTo(lerp(P.state.heroBack, 0, easeInOut((sec - 27) / 3)));
+        await once("hero-top", 30 / 74, t, async () => { await scrollTo(0); });
+        await once("hero-drag-setup", 30.5 / 74, t, async () => {
           P.state.heroDrag = await j(`(function(){
             var fav = __vs.picks()[0];
             var view = __vs.views().filter(function(v){return v.shelf.id === 'encyclopedia';})[0];
@@ -428,19 +515,25 @@ function storyboard(P) {
           P.state.heroDragTo = await centreOf(`[data-shelf="${fav}"] .vs-plusbook`, 90, 0);
           if (!P.state.heroDragFrom || !P.state.heroDragTo) throw new Error("hero: source or Favourites landing is missing");
         });
-        if (sec >= 24.5 && sec < 25.5) {
+        if (sec >= 30.5 && sec < 31.5) {
           const p = P.state.heroDragFrom;
-          await glide(P.state.heroDragApproach, p, easeInOut((sec - 24.5)));
+          await glide(P.state.heroDragApproach, p, easeInOut((sec - 30.5)));
         }
-        await once("hero-drag-lift", 25.5 / 68, t, async () => {
+        await once("hero-drag-lift", 31.5 / 74, t, async () => {
           if (!await lift(spineOf(P.state.heroDrag.id, 'encyclopedia'))) throw new Error("hero: dragstart lifted no book");
         });
-        if (sec >= 25.5 && sec < 29) {
+        if (sec >= 31.5 && sec < 35) {
           const from = P.state.heroDragFrom, to = P.state.heroDragTo;
-          await carry(arc(from, to, { x:from.x + 120, y:to.y - 55 }, easeInOut((sec - 25.5) / 3.5)));
+          await carry(arc(from, to, { x:from.x + 120, y:to.y - 55 }, easeInOut((sec - 31.5) / 3.5)));
         }
-        if (sec >= 29 && sec < 30) await carry(P.state.heroDragTo);
-        await once("hero-drag-drop", 30 / 68, t, async () => {
+        if (sec >= 35 && sec < 36) await carry(P.state.heroDragTo);
+        await once("hero-drag-drop", 36 / 74, t, async () => {
+          /* github#34 -- edge-scroll can move the rail mid-carry; re-settle first. */
+          const fresh = await centreOf(`[data-shelf="${fav}"] .vs-plusbook`, 90, 0);
+          if (fresh && (fresh.x !== P.state.heroDragTo.x || fresh.y !== P.state.heroDragTo.y)) {
+            P.state.heroDragTo = fresh;
+            await carry(fresh);
+          }
           const lit = await j(`document.querySelector('[data-shelf="${fav}"] .vs-shelfrail').getAttribute('data-drop')`);
           if (lit !== '1' && !await j(`!!document.querySelector('[data-shelf="${fav}"] .vs-drop')`)) throw new Error("hero: Favourites did not accept the dragged book");
           await drop(P.state.heroDragTo);
@@ -457,42 +550,44 @@ function storyboard(P) {
           }
           say(`hero drag verified: ${before.id}; Favourites ${before.picks.length} -> ${result.picks.length}; source ${result.sourceBooks} books, ${result.sourceNotes} notes unchanged`);
         });
-        await once("hero-drag-rest", 31.1 / 68, t, async () => {
+        await once("hero-drag-rest", 37.1 / 74, t, async () => {
           await pressAt(P.pointerPosition());
           if (!await j(`document.getElementById('vs-peek').hidden`)) throw new Error("hero: the post-drop peek did not close after clicking empty rail");
         });
-        await once("hero-create", 33 / 68, t, async () => {
+        await once("hero-create", 39 / 74, t, async () => {
           await pressAt(await centreOf(`[data-shelf="${fav}"] .vs-plusbook`));
           if (!await j(`!document.getElementById('vs-madebook').hidden`)) throw new Error("hero: book builder did not open");
         });
-        if (sec >= 35 && sec < 37) await typeInto('vs-mbname', 'My Journal', t, 35 / 68, 37 / 68);
-        await once("hero-source", 38 / 68, t, async () => {
+        if (sec >= 41 && sec < 43) await typeInto('vs-mbname', 'My Journal', t, 41 / 74, 43 / 74);
+        await once("hero-source", 44 / 74, t, async () => {
           await go(`var kind = document.getElementById('vs-mbsource'); kind.value='folder'; kind.dispatchEvent(new Event('change',{bubbles:true})); void 0`);
         });
-        await once("hero-folder", 39.5 / 68, t, async () => {
+        await once("hero-folder", 45.5 / 74, t, async () => {
           const folder = await dailiesFolder();
           await go(`var val=document.getElementById('vs-mbsourceval'); val.value=${JSON.stringify(folder)}; val.dispatchEvent(new Event('change',{bubbles:true})); void 0`);
         });
-        await once("hero-save", 42 / 68, t, async () => {
+        await once("hero-save", 48 / 74, t, async () => {
+          /* design/0029 -- the sheet can grow past the view; scroll Save into view. */
+          await go(`(function(){var sheet=document.getElementById('vs-madebook');if(sheet)sheet.scrollTop=sheet.scrollHeight;})(); void 0`);
           await pressAt(await centreOf('#vs-mbsave'));
           if (!await centreOf(made)) throw new Error("hero: new favourites book was not created");
           await pointer(P.pointerPosition());
         });
-        await once("hero-book-menu", 44 / 68, t, () => openMenu(made));
-        await once("hero-book-preview", 46 / 68, t, async () => { await pointer(await centreOf(menu + ' .vs-bindingchoice', 0, 0, 4)); });
-        await once("hero-book-binding", 48 / 68, t, () => binding(4));
-        await once("hero-book-colour-menu", 49 / 68, t, () => openMenu(made));
-        await once("hero-book-colour-preview", 50 / 68, t, async () => { await pointer(await centreOf(menu + ' .vs-swatch', 0, 0, 8)); });
-        await once("hero-book-colour", 52 / 68, t, () => colour(8));
-        await once("hero-plate-scroll", 54 / 68, t, async () => { P.state.heroPlateEnd = await shelfTop('months', -70); });
-        if (sec >= 54 && sec < 55.2) await scrollTo(lerp(0, P.state.heroPlateEnd, easeInOut((sec - 54) / 1.2)));
-        await once('hero-plate-settle', 55.2 / 68, t, async () => { await settleOn('months'); });
-        await once("hero-plate-menu", 56 / 68, t, async () => { await settleOn('months'); await openMenu(plate); });
-        await once("hero-plate-preview", 57.5 / 68, t, async () => { await pointer(await centreOf(menu + ' .vs-bindingchoice', 0, 0, 2)); });
-        await once("hero-plate-binding", 59.5 / 68, t, () => binding(2));
-        await once("hero-plate-colour-menu", 60.5 / 68, t, () => openMenu(plate));
-        await once("hero-plate-colour-preview", 62 / 68, t, async () => { await pointer(await centreOf(menu + ' .vs-swatch', 0, 0, 3)); });
-        await once("hero-plate-colour", 64 / 68, t, () => colour(3));
+        await once("hero-book-menu", 50 / 74, t, () => openMenu(made));
+        await once("hero-book-preview", 52 / 74, t, async () => { await pointer(await centreOf(menu + ' .vs-bindingchoice', 0, 0, 4)); });
+        await once("hero-book-binding", 54 / 74, t, () => binding(4));
+        await once("hero-book-colour-menu", 55 / 74, t, () => openMenu(made));
+        await once("hero-book-colour-preview", 56 / 74, t, async () => { await pointer(await centreOf(menu + ' .vs-swatch', 0, 0, 8)); });
+        await once("hero-book-colour", 58 / 74, t, () => colour(8));
+        await once("hero-plate-scroll", 60 / 74, t, async () => { P.state.heroPlateEnd = await shelfTop('months', -70); });
+        if (sec >= 60 && sec < 61.2) await scrollTo(lerp(0, P.state.heroPlateEnd, easeInOut((sec - 60) / 1.2)));
+        await once('hero-plate-settle', 61.2 / 74, t, async () => { await settleOn('months'); });
+        await once("hero-plate-menu", 62 / 74, t, async () => { await settleOn('months'); await openMenu(plate); });
+        await once("hero-plate-preview", 63.5 / 74, t, async () => { await pointer(await centreOf(menu + ' .vs-bindingchoice', 0, 0, 2)); });
+        await once("hero-plate-binding", 65.5 / 74, t, () => binding(2));
+        await once("hero-plate-colour-menu", 66.5 / 74, t, () => openMenu(plate));
+        await once("hero-plate-colour-preview", 68 / 74, t, async () => { await pointer(await centreOf(menu + ' .vs-swatch', 0, 0, 3)); });
+        await once("hero-plate-colour", 70 / 74, t, () => colour(3));
       },
     },
     scene({ name: "open", seconds: 5, title: '<b>Vault Shelf</b>', sub: 'Your notes. A library worth coming back to.',
@@ -501,7 +596,11 @@ function storyboard(P) {
       setup:favouriteSetup, frame:dragFrame(3,7), steps:[
         /* github#23 -- an empty rail has a landing to aim at, not a plus. */
         {at:3,target:bookTarget,action:'hover',run:async s=>{s.dragFrom=await lift(bookTarget(s));s.dragTo=await centreOf(`[data-shelf="${s.fav}"] .vs-dropzone`)||await centreOf(`[data-shelf="${s.fav}"] .vs-plusbook`,90,0);if(!s.dragFrom)throw new Error('favourite: lift failed');if(!s.dragTo)throw new Error('favourite: no landing to drop on');}},
-        {at:7,action:'hover',run:async s=>{await drop(s.dragTo);await prove(`__vs.picks()[0].picks.length===${s.before+1} && __vs.picks()[0].picks.includes(${JSON.stringify(s.book)})`,'favourite: drop failed');}},
+        {at:7,action:'hover',run:async s=>{
+          /* github#34 -- edge-scroll can move the rail mid-carry; re-settle first. */
+          const fresh=await centreOf(`[data-shelf="${s.fav}"] .vs-dropzone`)||await centreOf(`[data-shelf="${s.fav}"] .vs-plusbook`,90,0);
+          if (fresh && (fresh.x!==s.dragTo.x || fresh.y!==s.dragTo.y)) { s.dragTo=fresh; await carry(fresh); }
+          await drop(s.dragTo);await prove(`__vs.picks()[0].picks.length===${s.before+1} && __vs.picks()[0].picks.includes(${JSON.stringify(s.book)})`,'favourite: drop failed');}},
         {at:9,target:{x:650,y:235},run:async()=>{await prove(`document.getElementById('vs-peek').hidden`,'favourite: peek remained');}}
       ] }),
     scene({ name: "ribbon", seconds: 18, title: 'Leave a <b>ribbon</b>. Pick up where you stopped.', sub: 'Reading gathers the books holding your marked notes.',
@@ -557,6 +656,12 @@ function storyboard(P) {
         {at:6,target:'#vs-tabs .vs-indextab:nth-of-type(8)'},
         {at:9,target:'#vs-tabs .vs-findtab',run:async()=>{await prove(`document.activeElement.id==='vs-within'`,'index: find tab did not focus search');}}
       ] }),
+    /* github#19, design/0037 */
+    scene({ name: "sticky", seconds: 13, title: 'Find the tag <b>where it actually is</b>.', sub: 'Flags on the fore-edge; press one and the note comes to it.', setup:inGarden,steps:[
+        {at:3.5,target:'#vs-stickies .vs-sticky[data-at="1"]',run:async s=>{s.first=await j(`__vs.stickies().scrollTop`);await prove(`__vs.stickies().here===1 && __vs.stickies().scrollTop>0`,'sticky: the first flag did not move the page');}},
+        {at:7,target:'#vs-stickies .vs-sticky[data-at="2"]',run:async s=>{await prove(`__vs.stickies().here===1 && __vs.stickies().scrollTop>${s.first}`,'sticky: the second flag did not go further down the note');}},
+        {at:10.5,target:'#vs-stickies .vs-sticky[data-at="0"]',run:async()=>{await prove(`__vs.stickies().here===1 && __vs.stickies().inMeta===1 && __vs.stickies().scrollTop===0`,'sticky: the declared flag did not return to the details line');}}
+      ] }),
     scene({ name: "alsoin", seconds: 10, title: 'One note. <b>Every place it belongs.</b>', sub: 'Step into another book without losing the note.', setup:async s=>{await inBook()(s);await go(`document.querySelector('.vs-page.vs-right').scrollTop=99999;void 0`);s.note=await j(`__vs.reader().note`);},steps:[
         {at:3,target:'#vs-alsoin button',run:async s=>{await prove(`__vs.reader().note===${JSON.stringify(s.note)}`,'alsoin: note was lost');}},
         {at:7,target:'#vs-prevcollection',run:async s=>{await prove(`__vs.reader().book===${JSON.stringify(s.book)}`,'alsoin: previous collection did not return');}}
@@ -570,7 +675,12 @@ function storyboard(P) {
         await prove(`__vs.settings().wear[${JSON.stringify(s.book)}]===1 && __vs.settings().lastOpened[${JSON.stringify(s.book)}]==='never' && __vs.views().find(function(v){return v.shelf.id==='tags';}).books.find(function(b){return b.id===${JSON.stringify(s.book)};}).notes.length===1 && !document.querySelector(${JSON.stringify(bookTarget(s))}).hasAttribute('data-wear')`,'wear: one-note book must begin with one entry and no visits');
         if(s.notes.length!==1)throw new Error('wear: one-note book has unexpected entry history');
         s.from=await j(`document.getElementById('vs-library').scrollTop`);s.to=await shelfTop('tags');
-        s.assertCount=async count=>{await prove(`__vs.settings().wear[${JSON.stringify(s.book)}]===${count} && JSON.stringify(__vs.settings().bookNotes[${JSON.stringify(s.book)}])===${JSON.stringify(JSON.stringify(s.notes))} && __vs.settings().lastOpened[${JSON.stringify(s.book)}]!=='never'`,'wear: visits must increment the real counter without inventing notes');};
+        /* github#92 -- poll for the wear write, not right after the press. */
+        s.assertCount=async count=>{
+          const expr=`__vs.settings().wear[${JSON.stringify(s.book)}]===${count} && JSON.stringify(__vs.settings().bookNotes[${JSON.stringify(s.book)}])===${JSON.stringify(JSON.stringify(s.notes))} && __vs.settings().lastOpened[${JSON.stringify(s.book)}]!=='never'`;
+          for (let wait=0; wait<20; wait++) { if (await j(expr)) return; await sleep(50); }
+          await prove(expr,'wear: visits must increment the real counter without inventing notes');
+        };
       },frame:async(sec,s)=>{if(sec>=3.6 && sec<5.4)await scrollTo(lerp(s.from,s.to,easeInOut((sec-3.6)/1.8)));},steps:[
         {at:2,target:'[data-shelf="years"] .vs-spine[data-book="years/2015"]',action:'hover'},
         {at:3.5,start:2.6,target:neutral,action:'hover'},
@@ -641,6 +751,18 @@ function storyboard(P) {
         {at:2,target:'#vs-q'},
         {at:7,target:async state=>{const row=await j(`__vs.suggest().rows.findIndex(function(row){return row.text===${JSON.stringify(state.word)} && row.kinds.includes('book');})`);if(row<0)throw new Error('autocomplete: real cover was not suggested');return '#vs-suggest .vs-sugrow[data-row="'+row+'"]';},action:'hover'},
         {at:9,target:async state=>{const row=await j(`__vs.suggest().rows.findIndex(function(row){return row.text===${JSON.stringify(state.word)};})`);return '#vs-suggest .vs-sugrow[data-row="'+row+'"]';},run:async()=>{await prove(`document.querySelectorAll('.vs-spine[data-match="1"]').length>0 && !__vs.suggest().open`,'autocomplete: cover suggestion was not accepted');}}
+      ] }),
+    /* github#42, design/0008 -- how much of it answers, not merely whether */
+    scene({ name: "matchweight", seconds: 14, title: sec=>sec<7?'A book draws forward by <b>how much of it answers</b>.':'Not everything that matches <b>shouts the same</b>.', sub: 'The stronger the match, the higher it lifts and the more room it takes.', setup:matchweightSetup,
+      frame:async(sec,state)=>{if(sec>=2 && sec<4.5)await typeInto('vs-q',state.word,sec,2,4.5);},steps:[
+        {at:1.5,target:'#vs-q'},
+        {at:7,target:{x:700,y:220},run:async()=>{
+          const r=await matchweightRested();
+          if (r.live.length<2) throw new Error('matchweight: the People shelf did not draw a spread of rungs');
+          say('match-weight ladder: rungs '+r.live.join(',')+' at lift '+r.live.map(k=>r.lift[k]).join('/')+'px');
+        }},
+        {at:10,target:'[data-shelf="people"] .vs-spine[data-strength="4"]',action:'hover',run:async()=>{await prove(`document.querySelector('[data-shelf="people"] .vs-spine[data-strength="4"]')!==null`,'matchweight: no rung-4 book on the People shelf for the top person');}},
+        {at:12.5,target:'#vs-clearquery',run:async()=>{await prove(`document.getElementById('vs-clearquery').hidden && document.querySelectorAll('#vs-shelves .vs-spine[data-strength]').length===0`,'matchweight: clearing the query did not reset the ladder');}}
       ] }),
     scene({ name: "rearrange", seconds: 11, title: 'Put books <b>in your own order</b>.', sub: 'Drag into the gap. The book keeps its notes.', setup:async s=>{s.fav=await favId();s.before=await j(`__vs.picks()[0].picks.slice()`);s.book=s.fav+'/'+s.before[s.before.length-1];s.shelf=s.fav;await scrollTo(0);},frame:dragFrame(3,7),steps:[
         {at:3,target:bookTarget,action:'hover',run:async s=>{s.dragFrom=await lift(bookTarget(s));s.dragTo=await centreOf(`[data-shelf="${s.fav}"] .vs-spine`, -18,0);}},
@@ -757,21 +879,27 @@ try {
   }
 
   /* github#23, design/0007 -- the demo build seeds picks; this takes them off.
-   * github#71, design/0020 -- off is delete for a made book; skip it, not unpick it. */
+   * github#71, design/0020 -- off is delete for a made book; skip it, not unpick it.
+   * github#72, design/0019 -- clears every shelf __vs.picks() returns, not just the first. */
   if (EMPTY_PICKS) {
     const left = await j(`(function(){
-      var shelf = __vs.picks()[0];
-      if (!shelf) return null;
-      var made = __vs.made(shelf.id);
-      shelf.picks.forEach(function (id) {
-        if (made[id]) return;
-        __vs.unpick(id, shelf.id);
+      var shelves = __vs.picks();
+      if (!shelves.length) return null;
+      shelves.forEach(function (shelf) {
+        var made = __vs.made(shelf.id);
+        shelf.picks.forEach(function (id) {
+          if (made[id]) return;
+          __vs.unpick(id, shelf.id);
+        });
       });
-      return __vs.picks()[0].picks.length;
+      return __vs.picks().map(function (s) { return { name: s.name, left: s.picks.length }; });
     })()`);
     if (left === null) throw new Error("--empty-picks: this library has no pick shelf");
-    if (left !== 0) throw new Error(`--empty-picks: the pick shelf still holds ${left}`);
-    say("picks: cleared");
+    const stuck = left.filter((s) => s.left !== 0);
+    if (stuck.length) {
+      throw new Error("--empty-picks: " + stuck.map((s) => `"${s.name}" still holds ${s.left}`).join(", "));
+    }
+    say(`picks: cleared (${left.length} shelf${left.length === 1 ? "" : "s"})`);
   }
 
   await go(`(function(){

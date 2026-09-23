@@ -6,6 +6,7 @@
       <input type="search" id="vs-q" placeholder="Search the library..."
              role="combobox" aria-expanded="false" aria-controls="vs-suggest"
              aria-autocomplete="list" autocomplete="off">
+      <button id="vs-clearquery" type="button" aria-label="Clear search" hidden>&times;</button>
       <span id="vs-hits" role="status"></span>
       </div>
       <span id="vs-vname" class="vs-railname">Vault Shelf</span>
@@ -71,6 +72,9 @@
         </div>
       </div>
       <nav id="vs-tabs" class="vs-tabs" aria-label="Index"></nav>
+      <!-- github#19, design/0037 -->
+      <nav id="vs-stickies" class="vs-stickies" hidden
+           aria-label="Where this book is named in the note"></nav>
     </div>
 
     <!-- github#36, design/0025 -->

@@ -5,10 +5,13 @@ export const VIEWPORT = { width: 1180, height: 900 };
 // github#5 -- a plaque's box is text metrics, its packing is not
 export const BOX_TOLERANCE = 2;
 
-/* github#5 -- a skipped shelf measures nothing, so scroll it in */
+/* github#5, design/0014 -- a skipped row's placeholder is short; unskip to read it true */
 export const MEASURE = `(function(){
   __vs.closeReader();
   var lib = document.getElementById("vs-library");
+  var unskip = document.createElement("style");
+  unskip.textContent = ".vault-shelf .vs-track { content-visibility: visible !important; }";
+  document.head.appendChild(unskip);
   var out = { room: __vs.room().width, shelves: [] };
   var shelves = [].slice.call(document.querySelectorAll("#vs-shelves > [data-shelf]"));
   shelves.forEach(function (sh) {
@@ -34,6 +37,7 @@ export const MEASURE = `(function(){
       last: spines.length ? named(spines[spines.length - 1], "data-book") : null
     });
   });
+  unskip.remove();
   lib.scrollTop = 0;
   return out;
 })()`;

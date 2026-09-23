@@ -135,6 +135,7 @@ export interface Book {
    * design/0008 -- how many of this book's notes answer the current query. A search MARKS,
    * it does not filter: every book stays on the shelf and this is what decides whether it
    * draws forward or thins to a ghost.
+   * github#42, design/0008 -- and how far: matchStrength reads it over notes.length
    */
   matches: number;
 }

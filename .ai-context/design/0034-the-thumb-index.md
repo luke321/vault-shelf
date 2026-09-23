@@ -268,6 +268,138 @@ cut cannot be addressed by where it stands — not by the page, and not by a che
 into it; on a book of thousands of notes a press re-renders the contents, and that becomes the
 whole cost of the check rather than the thing being measured.
 
+## The fit never converged, and the rail hid it — `github#87`
+
+The loop above is the fourth answer to this question, and the third one was wrong in a way none of
+its checks could see. *While the level that draws the most rows does not fit, gather it one step*
+**did not terminate**. It was never observed to, because the rail it left fitted when it was shut.
+
+The issue guessed that `gathered` returned `null` and the loop stopped early. Traced per step on
+`people/Otto Brandt` at 1180×480, it does the opposite — `gathered` never returns `null`, and the
+loop spends all twenty-four steps:
+
+| step | depth chosen | rows | `gathered` |
+|---|---|---|---|
+| 0 | 2 | 20 | 11 cuts |
+| 3 | 0 | 11 | 6 cuts |
+| 4 | 3 | 10 | 6 cuts |
+| 5 | 4 | **12** | 6 cuts |
+| 23 | **24** | **26** | 6 cuts |
+
+**A gather adds a level, and the trail charges it to everything below.** A level at depth *d* draws
+`d + its cuts` rows, because the rail stands the trail above it. So gathering the fattest level
+makes every deeper level one row worse, `widestOf` moves to one of those, and the two chase each
+other down: step 4 went from 10 rows to 12. The 24-step cap then left `people/Otto Brandt`, 486
+notes, a tree whose deepest level stands at **depth 25**.
+
+**The shut rail fitted, which is why one book went red and six did not.** The top level of those
+runaway trees is small — six or seven spans — so nothing is clipped until a fold is opened onto one
+of the over-full levels underneath. *No index cut is clipped* opens the three widest folds, and on
+`Otto Brandt` the third landed on one. Measured over the fourteen fattest books at 1180×480,
+**seven of them** were fitted to a tree that had not converged.
+
+**The test was right; the chooser was not.** `--vs-tab-step: clamp(20px, (100cqh − 67px)/n, 28px)`
+means the rail fits exactly when the row count is under `(height − 67px) / 20` — monotonic in the
+count, so *the fattest level fits* really does imply *every level fits*. What it cannot do is say
+which level to gather.
+
+**So the room is measured once and each depth is fitted in turn, shallowest first.** A gather is
+paid for by everything under it, so the payment is made before the levels that owe it are read. At
+depth *d* the level is gathered into `room − d` spans, which leaves its own trail the rows it
+wants; the pass ends where `room − d` falls under two and a gather has nothing left to give. The
+depth therefore stays **under the room** by construction, which is the property the search it
+replaced could not have.
+
+**And a level is gathered into as many spans as the rail has room for, never into halves.** Halving
+is one arity chosen in advance: a level of twenty-six needs four gathers to get under nine, and
+each one is a level of depth the trail then bills to everything below. One gather into the room
+that is actually there costs one. Three chooser-only fixes were built and measured first, and all
+three failed on the same tree: *gather the deepest over-full level* fixed three books and broke
+four; *gather whichever depth most reduces the maximum* stalled in a local minimum at 15 rows;
+*keep the best tree seen* left four books at 13. Halving is too coarse to reach a fitting tree
+inside the depth the trail leaves.
+
+**Measured, 2026-09-17**, over the fourteen fattest books, no cut lost on any of them:
+
+| | before | after |
+|---|---|---|
+| deepest level, 1180×480 | **depth 25** | **depth 8** |
+| books whose fit had not converged | **7 of 14** | **0** |
+| cuts clipped, 1180×480 | 1 | **0** |
+| most cuts on show, 1180×480 | 10 (in a room of 9) | **9** |
+| 1180×1000 | room 37, nothing gathers | unchanged |
+
+**Known and left, and since closed by the section below.** ***Four alphabetical tag books are one
+row over, at the bottom of the rail.***
+`website-migration`, `garden`, `sleep`, `reading` and `idea` are 26-ish letters over four raw
+levels, and at 1180×480 they settle at depth 8 with 10 rows against a room of 9 — 94 levels over,
+every one of them eight presses down. This is **not the chooser giving up**: a beam search over
+every grouping sequence there is — all depths × all group counts — proves 10 is the floor. Grouping
+adjacent cuts cannot do better, because it only ever *adds* levels and each one costs a row.
+Closing it needs a new operator, and the two candidates both break something this record already
+settled: collapsing a raw layer throws a cut away, and bounding the trail the way the staircase
+bounds its notches makes the rail stop saying how you got there. It is filed rather than guessed
+at, which is what the three wrong answers above earn it.
+
+**Rejected: widening the check to every level.** It would turn the suite red on that known floor,
+and a check that is red for a reason nobody intends to act on stops being read. *The fitted index
+converges* asserts what was actually violated — the depth stays under the room, and every level the
+pass can reach is inside it — and **prints** the floor's count so the number is on screen rather
+than in a record.
+
+## The trail was what the deep levels were paying for — `github#88`
+
+The floor above is real and the beam search is right: **no chooser closes it**, because grouping
+adjacent cuts only ever adds levels and a level at depth *d* costs `d + its cuts` rows. What the
+search cannot question is the cost model. At depth 8 those ten rows are **eight of breadcrumb over
+two of content** — the rail spending four fifths of a short window saying how you got somewhere
+rather than showing you what is there.
+
+So the trail is bounded, the way the staircase already bounds its notches at two: **past three
+steps the ones between the first and the last stand as one fold**. A level then costs
+`min(d, 3) + its cuts`.
+
+**The fold is a trail step, not a gap.** It carries `‹`, it stands where the second step stands,
+and pressing it returns to the shallowest step it hides — so there is still one way out and one
+state, which is the rule this record settled. It is **the operator `spanned` already applies to
+the cut list, one axis over**: one row standing for a run of them. And the objection the issue
+raised against bounding — that the rail stops saying how you got there — is answered the same way
+a span answers it: what the fold covers is **on** the fold (`2 steps folded: 2015 › Oct`), and on
+the last shown step for a reader who is hearing the rail rather than seeing it.
+
+**Both halves are needed, and the second is the one that closes the floor.** Folding the drawing
+alone would leave every level below `room − 2` un-gathered, because `fitTabs` gathered depth *d*
+into `room − d` spans and that budget ran out. With the trail bounded the budget is
+`room − min(d, 3)`, it **stops shrinking**, and the pass runs to the bottom of the tree — so
+**every level draws at most `room` rows by construction**, which is strictly stronger than the
+depth bound it replaces. The depth is free to exceed the room now, and does.
+
+What bounds the loop instead: `depth <= deepestLevel(cuts)`, recomputed as the tree grows. A
+gather fires only on a level over its budget and each one adds a single layer, so there are
+finitely many. A fuse at 64 stands where `depth + 2 <= room` used to, because a fit that does not
+terminate is the bug this record was reopened for — and it is a *visible* fuse: if it ever binds,
+levels below it go un-gathered and the converge check goes red, rather than a 24-step cap quietly
+leaving a tree at depth 25.
+
+**Measured 2026-09-20**, fourteen fattest books at 1180×480, room 9 rows:
+
+| | before | after |
+|---|---|---|
+| levels over the room | **94** | **0** |
+| deepest level | 8 | 7 |
+| cuts kept | 6,025 | **6,025** |
+| 1180×1000 | room 37, deepest 3, 0 over | unchanged |
+
+**Rejected: collapsing a raw layer when the one below it separates little.** It buys the row
+directly and throws a cut away. This record exists because three answers to one question each
+ended in something the reader cannot use — a cut clipped, a cut dropped, a cut too small to read —
+and that is the dropped one wearing a fourth hat.
+
+**And the check widens.** *Rejected: widening the check to every level* above was right while the
+floor was unactionable; closing it removes the reason. *The fitted index converges* counts a
+level's rows through the cap and asserts every one of them, and *a deep trail folds to three rows
+and says what it hides* holds the fold itself.
+
 ## One thumb
 
 `aria-current` was set on **every** cut at or before the page, so a book read to its end lit the

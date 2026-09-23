@@ -251,6 +251,11 @@ const POINTER_DRIVEN = [
   "the room parts",
   /* github#14, design/0021 -- it walks every box on the page, four times, in every look. */
   "moves nothing",
+  /* github#19, design/0037 -- they press a flag and read where the mark landed. */
+  "sticky note takes",
+  "details line",
+  "alias the note",
+  "own subject and no other",
   /* github#44, design/0022 -- it reads every spine's box, before and after a hover. */
   "hovered swatch",
   "leather bindings",
@@ -268,6 +273,8 @@ const POINTER_DRIVEN = [
   "any shelf arranged by hand",
   /* github#38 -- it overrides the viewport and reads every box in the rail. */
   "scrolls sideways",
+  /* github#41 -- it drives two widths and reads the list's box */
+  "as wide as what it offers",
   /* github#32, design/0034 -- they drive the window to two heights, open forty books and read
    * every cut's box. "tabs" above caught every check that did this while they were all named
    * for tabs; these are named for cuts, so they say so here instead. */
@@ -310,6 +317,25 @@ const FRAME_HELPERS = `(function(){
           el.scrollTop = (leg % 2) ? span - into : into;
           if (now - start < ms) requestAnimationFrame(step);
           else { el.scrollTop = 0; done({ ts: ts, span: Math.round(span) }); }
+        }
+        requestAnimationFrame(step);
+      });
+    },
+    /* github#20 -- ONE WAY DOWN: a turned-round sweep re-crosses what it rasterised
+     * github#20 -- it stops at the FLOOR; a still scroller paints nothing
+     * github#20 -- and re-reads the span, which firms up as rows are reached */
+    descend: function (el, ms, pxPerSec) {
+      return new Promise(function (done) {
+        el.scrollTop = 0;
+        var span0 = Math.max(1, el.scrollHeight - el.clientHeight);
+        var ts = [], start = performance.now();
+        function step(now) {
+          ts.push(now);
+          var span = Math.max(1, el.scrollHeight - el.clientHeight);
+          var want = (now - start) / 1000 * pxPerSec;
+          el.scrollTop = Math.min(span, want);
+          if (now - start < ms && want < span) requestAnimationFrame(step);
+          else { el.scrollTop = 0; done({ ts: ts, span: Math.round(span0) }); }
         }
         requestAnimationFrame(step);
       });
@@ -5914,6 +5940,9 @@ check("a ribbon hangs from every book that holds a marked note", async (p) => {
     var reading = document.querySelectorAll('#vs-shelves [data-shelf="-reading"] .vs-spine').length;
     var noteId = __vs.reader().note;
     __vs.closeReader();
+    /* github#42 -- the ribbon this check hung is not the suite's to keep */
+    __vs.settings().reading.length = 0;
+    __vs.setFilters({});
     return { before: before, ribbons: after.ribbons, ribbonSpines: after.ribbonSpines,
              reading: reading, noteId: noteId };
   })()`);
@@ -5953,6 +5982,301 @@ check("the shelf parts as you type, and no book leaves the room", async (p) => {
            detail: `${r.before} spines before, during and after; "${r.needle}" drew ${r.forward} ` +
                    `forward and thinned ${r.ghosts} to ghosts without removing one ` +
                    `(hits read "${r.hits}")` };
+});
+
+/* github#42, design/0008 -- the rung is the share, and a share has bands */
+const RUNGS = `(function(){
+  var out = { 1: null, 2: null, 3: null, 4: null };
+  var spines = document.querySelectorAll("#vs-shelves .vs-spine[data-strength]");
+  for (var i = 0; i < spines.length; i++) {
+    var k = spines[i].getAttribute("data-strength");
+    if (!out[k]) {
+      var cs = getComputedStyle(spines[i]);
+      out[k] = { air: parseFloat(cs.marginLeft) || 0,
+                 /* github#42 -- what the air is ON ITS WAY TO, which does not transition */
+                 want: parseFloat(cs.getPropertyValue("--spine-air-match")) || 0,
+                 lift: parseFloat(cs.getPropertyValue("--spine-lift-match")) || 0,
+                 edge: cs.borderTopColor,
+                 moved: cs.transform };
+    }
+  }
+  return out;
+})()`;
+
+/**
+ * github#42, decisions/0016 -- a margin transitions; wait for it to arrive
+ * @param {{j:(e:string)=>Promise<any>}} p @returns {Promise<any>}
+ */
+async function restedRungs(p) {
+  let last = null;
+  for (let wait = 0; wait < 40; wait++) {
+    last = await p.j(RUNGS);
+    const live = [1, 2, 3, 4].filter((k) => last[k]);
+    if (live.length && live.every((k) => last[k].air === last[k].want)) return last;
+    /* github#42 -- an empty box carries no rung, so nothing is coming */
+    if (!live.length && wait >= 4) return last;
+    await sleep(50);
+  }
+  return last;
+}
+
+/* github#42 -- a person's name is what reported this, and grades widest */
+const PERSON_NEEDLE = `(function(){
+  var who = {};
+  __vs.data().notes.forEach(function (n) {
+    (n.people || []).forEach(function (p) { who[p] = (who[p] || 0) + 1; });
+  });
+  var top = Object.keys(who).sort(function (a, b) { return who[b] - who[a]; })[0];
+  if (top) return top.toLowerCase();
+  var tags = {};
+  __vs.data().notes.forEach(function (n) {
+    n.tags.forEach(function (t) { tags[t] = (tags[t] || 0) + 1; });
+  });
+  return Object.keys(tags).sort(function (a, b) { return tags[b] - tags[a]; })[0] ||
+         __vs.data().notes[0].title.slice(0, 4);
+})()`;
+
+check("a book draws forward by how much of it answers, not merely that it does", async (p) => {
+  /* github#44 -- the air is a margin, so the packing has to have landed */
+  for (let wait = 0; wait < 20; wait++) {
+    const up = await p.j(`(function(){
+      var one = document.querySelector("#vs-shelves .vs-spine");
+      return one ? Math.round(one.getBoundingClientRect().width) : 0;
+    })()`);
+    if (up > 0) break;
+    await sleep(150);
+  }
+  const before = await p.j(`(function(){
+    __vs.setQuery("");
+    var n = __vs.counts().spines;
+    __vs.setQuery(${PERSON_NEEDLE});
+    return n;
+  })()`);
+  const rested = await restedRungs(p);
+  const r = await p.j(`(function(){
+    var before = ${before};
+    var needle = __vs.magic().query;
+    var m = __vs.magic();
+    /* github#42 -- the bands, measured off the books rather than read off the ladder */
+    var bands = { 1: [2, -1], 2: [2, -1], 3: [2, -1], 4: [2, -1] };
+    var lit = 0, thinnest = null, fullest = null;
+    __vs.views().forEach(function (v) {
+      v.books.forEach(function (b) {
+        if (!b.matches || !b.notes.length) return;
+        lit++;
+        var share = b.matches / b.notes.length;
+        var rung = VaultShelfCore.matchStrength(b);
+        if (share < bands[rung][0]) bands[rung][0] = share;
+        if (share > bands[rung][1]) bands[rung][1] = share;
+        if (!thinnest || share < thinnest.share) {
+          thinnest = { id: b.id, share: share, of: b.notes.length, hit: b.matches, rung: rung };
+        }
+        if (!fullest || share > fullest.share) {
+          fullest = { id: b.id, share: share, of: b.notes.length, hit: b.matches, rung: rung };
+        }
+      });
+    });
+    var hits = document.getElementById("vs-hits").textContent;
+    __vs.setQuery("");
+    var after = __vs.counts().spines;
+    var quiet = document.querySelectorAll("#vs-shelves .vs-spine[data-strength]").length;
+    /* github#42, design/0021 -- the ceiling is declared, never a number written twice */
+    var ceiling = parseFloat(getComputedStyle(document.getElementById("vs-app"))
+                               .getPropertyValue("--spine-lift-max")) || 0;
+    return { before: before, after: after, quiet: quiet, needle: needle, lit: lit,
+             strengths: m.strengths, strong: m.strong, forward: m.forward, ceiling: ceiling,
+             bands: bands, thinnest: thinnest, fullest: fullest, hits: hits };
+  })()`);
+  r.rungs = rested;
+
+  const FLOOR = { 1: 0, 2: 1 / 20, 3: 1 / 5, 4: 1 / 2 };
+  const CEIL = { 1: 1 / 20, 2: 1 / 5, 3: 1 / 2, 4: 1.0000001 };
+  const live = [1, 2, 3, 4].filter((k) => r.strengths[k] > 0);
+  /* github#42 -- every book at a rung is inside that rung's band */
+  const spilled = live.filter((k) => r.bands[k][0] < FLOOR[k] || r.bands[k][1] >= CEIL[k]);
+  /* github#42 -- and the paint climbs with the rung, in both carriers */
+  const flat = [];
+  for (let i = 1; i < live.length; i++) {
+    const lo = r.rungs[live[i - 1]], hi = r.rungs[live[i]];
+    if (!lo || !hi) continue;
+    if (!(hi.lift > lo.lift)) flat.push(`lift ${live[i - 1]}->${live[i]}`);
+    if (!(hi.air > lo.air)) flat.push(`air ${live[i - 1]}->${live[i]}`);
+  }
+  const tall = live.filter((k) => r.rungs[k] && r.rungs[k].lift > r.ceiling);
+  /* github#42 -- and the air arrived, rather than being mid-transition */
+  const moving = live.filter((k) => r.rungs[k] && r.rungs[k].air !== r.rungs[k].want);
+  const ok = r.before === r.after && r.quiet === 0 && live.length >= 3 &&
+             spilled.length === 0 && flat.length === 0 && tall.length === 0 &&
+             moving.length === 0 && live.every((k) => r.rungs[k]) &&
+             r.fullest && r.fullest.rung === 4 && r.thinnest && r.thinnest.rung === 1 &&
+             r.strong > 0 && r.strong < r.forward && r.forward === r.lit;
+  const ladder = live.map((k) => `${k}: ${r.strengths[k]} book(s), ` +
+    `${(r.bands[k][0] * 100).toFixed(1)}-${(r.bands[k][1] * 100).toFixed(1)}%, ` +
+    `lift ${r.rungs[k] ? r.rungs[k].lift : "?"}px air ${r.rungs[k] ? r.rungs[k].air : "?"}px`);
+  return {
+    ok,
+    detail: `"${r.needle}" lit ${r.lit} of ${r.before} books across ${live.length} rungs -- ` +
+            ladder.join("; ") + `; the fullest is ${r.fullest && r.fullest.id} at ` +
+            `${r.fullest && r.fullest.hit}/${r.fullest && r.fullest.of} (rung ` +
+            `${r.fullest && r.fullest.rung}) and the thinnest ${r.thinnest && r.thinnest.id} at ` +
+            `${r.thinnest && r.thinnest.hit}/${r.thinnest && r.thinnest.of} (rung ` +
+            `${r.thinnest && r.thinnest.rung}); it reads "${r.hits}"; clearing the box leaves ` +
+            `${r.quiet} spines carrying a rung` +
+            (spilled.length ? ` -- OUT OF BAND: rung ${spilled.join(", ")}` : "") +
+            (flat.length ? ` -- NOT CLIMBING: ${flat.join(", ")}` : "") +
+            (moving.length ? ` -- STILL MOVING: rung ${moving.map((k) =>
+              `${k} at ${r.rungs[k].air}px of ${r.rungs[k].want}px`).join(", ")}` : "") +
+            (tall.length ? ` -- PAST THE CEILING: rung ${tall.join(", ")} lifts over ${r.ceiling}px` : "")
+  };
+});
+
+/* github#42, design/0014 -- the air is width, so it can break the law */
+check("the air a query opens still fits the room, and a run too long wraps", async (p) => {
+  const read = () => p.j(`(function(){
+    var app = document.getElementById("vs-app");
+    var measure = parseInt(getComputedStyle(app).getPropertyValue("--measure"), 10);
+    var tracks = [].slice.call(document.querySelectorAll("#vs-shelves .vs-track"));
+    var worst = 0, who = null, rows = {};
+    tracks.forEach(function (t) {
+      var over = t.scrollWidth - t.clientWidth;
+      if (over > worst) { worst = over; who = t.closest("[data-shelf]").getAttribute("data-shelf"); }
+      var id = t.closest("[data-shelf]").getAttribute("data-shelf");
+      rows[id] = (rows[id] || 0) + 1;
+    });
+    var wide = tracks.filter(function (t) {
+      return Math.round(t.getBoundingClientRect().width) > measure + 2;
+    }).length;
+    return { measure: measure, tracks: tracks.length, overflow: worst, who: who,
+             rows: rows, wide: wide,
+             lit: document.querySelectorAll('#vs-shelves .vs-spine[data-match="1"]').length };
+  })()`);
+
+  /* github#42 -- ten unchanged reads, not two; a plateau precedes the move */
+  const settleAir = async () => {
+    let prev = null, streak = 0;
+    for (let wait = 0; wait < 150; wait++) {
+      const now = await read();
+      streak = prev && now.overflow === prev.overflow ? streak + 1 : 0;
+      if (streak >= 10) return now;
+      prev = now;
+      await sleep(50);
+    }
+    return prev;
+  };
+
+  await p.j(`(__vs.setQuery(""), 1)`);
+  const quiet = await settleAir();
+  await p.j(`(function(){ __vs.setQuery(${PERSON_NEEDLE}); return 1; })()`);
+  await restedRungs(p);
+  const live = await read();
+  await p.j(`(__vs.setQuery(""), 1)`);
+  const back = await settleAir();
+
+  /* github#90 -- a budget, not a zero; develop measures 493px here */
+  const BUDGET = 352;
+  const grew = Object.keys(live.rows).filter((k) => live.rows[k] > quiet.rows[k]);
+  const same = Object.keys(quiet.rows).every((k) => back.rows[k] === quiet.rows[k]);
+  const ok = live.overflow <= BUDGET && quiet.overflow <= 1 && back.overflow <= 1 &&
+             live.wide === 0 && back.wide === 0 && same && live.lit > 0;
+  return {
+    ok,
+    detail: `${live.lit} books lit into ${live.measure}px of room: worst overflow ` +
+            `${live.overflow}px of a ${BUDGET}px budget on ${live.who}, against 493px on ` +
+            `develop (quiet ${quiet.overflow}px, back ${back.overflow}px); ${live.wide} ` +
+            `track(s) wider than the room; ` +
+            (grew.length
+              ? `${grew.map((k) => `${k} ${quiet.rows[k]}→${live.rows[k]} rows`).join(", ")}`
+              : "no shelf needed another row") +
+            `; clearing the box puts every row back (${same})` +
+            (live.overflow > BUDGET
+              ? ` -- OVER BUDGET: ${live.who} runs ${live.overflow - BUDGET}px past it, and a ` +
+                `clipped book is a book that left the room (github#90)`
+              : "")
+  };
+});
+
+/* github#42, design/0008 -- many books answer; one of them is the one named */
+check("a book the query names by its own cover says so, and its neighbours do not", async (p) => {
+  const r = await p.j(`(function(){
+    __vs.setQuery("");
+    /* github#42 -- a cover with more than one note behind it, so "named" is not "tiny" */
+    var target = null;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.hidden || target) return;
+      v.books.forEach(function (b) {
+        if (target || b.notes.length < 2) return;
+        var cover = (b.cover || "").trim();
+        if (cover.length < 4) return;
+        if (!document.querySelector('#vs-shelves [data-book="' + CSS.escape(b.id) + '"]')) return;
+        target = { id: b.id, cover: cover, of: b.notes.length };
+      });
+    });
+    if (!target) return { target: null };
+    __vs.setQuery(target.cover);
+    var spine = document.querySelector('#vs-shelves [data-book="' + CSS.escape(target.id) + '"]');
+    var m = __vs.magic();
+    var litNotNamed = 0;
+    var spines = document.querySelectorAll('#vs-shelves .vs-spine[data-match="1"]');
+    for (var i = 0; i < spines.length; i++) {
+      if (spines[i].getAttribute("data-named") !== "1") litNotNamed++;
+    }
+    var out = { target: target, named: m.named, litNotNamed: litNotNamed, forward: m.forward,
+                mine: spine ? spine.getAttribute("data-named") : null,
+                rung: spine ? spine.getAttribute("data-strength") : null };
+    __vs.setQuery("");
+    out.quiet = document.querySelectorAll("#vs-shelves .vs-spine[data-named]").length;
+    return out;
+  })()`);
+  if (!r.target) return { ok: false, detail: "no visible book on this vault has a cover to name" };
+  const ok = r.mine === "1" && r.rung === "4" && r.named >= 1 && r.litNotNamed > 0 &&
+             r.named < r.forward && r.quiet === 0;
+  return {
+    ok,
+    detail: `"${r.target.cover}" names ${r.target.id} (${r.target.of} notes): marked ` +
+            `${r.mine === "1" ? "named" : "NOT named"} at rung ${r.rung}, with ${r.named} named ` +
+            `spine(s) against ${r.litNotNamed} lit but unnamed of ${r.forward} forward; ` +
+            `clearing the box leaves ${r.quiet} named`
+  };
+});
+
+/* github#42 -- a strength in the transform alone is one rung, flattened */
+check("the strength survives reduced motion, where the lift does not", async (p) => {
+  await p.send("Emulation.setEmulatedMedia",
+               { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+  let r;
+  try {
+    await p.j(`(function(){ __vs.setQuery(""); __vs.setQuery(${PERSON_NEEDLE}); return 1; })()`);
+    const rested = await restedRungs(p);
+    r = await p.j(`(function(){
+      var moving = 0;
+      var spines = document.querySelectorAll('#vs-shelves .vs-spine[data-match="1"]');
+      for (var i = 0; i < spines.length; i++) {
+        var t = getComputedStyle(spines[i]).transform;
+        if (t && t !== "none") moving++;
+      }
+      var needle = __vs.magic().query;
+      __vs.setQuery("");
+      return { needle: needle, moving: moving, lit: spines.length };
+    })()`);
+    r.rungs = rested;
+  } finally {
+    await p.send("Emulation.setEmulatedMedia", { features: [] });
+  }
+  const live = [1, 2, 3, 4].filter((k) => r.rungs[k]);
+  const flat = [];
+  for (let i = 1; i < live.length; i++) {
+    if (!(r.rungs[live[i]].air > r.rungs[live[i - 1]].air)) flat.push(`air ${live[i - 1]}->${live[i]}`);
+    if (r.rungs[live[i]].edge === r.rungs[live[i - 1]].edge) flat.push(`edge ${live[i - 1]}->${live[i]}`);
+  }
+  const ok = r.moving === 0 && live.length >= 3 && flat.length === 0 && r.lit > 0;
+  return {
+    ok,
+    detail: `with motion reduced, "${r.needle}" lifts ${r.moving} of ${r.lit} lit spines and ` +
+            `still separates ${live.length} rungs -- ` +
+            live.map((k) => `${k}: air ${r.rungs[k].air}px edge ${r.rungs[k].edge}`).join("; ") +
+            (r.moving ? ` -- STILL MOVING: ${r.moving} spine(s) carry a transform` : "") +
+            (flat.length ? ` -- NOT SEPARATED: ${flat.join(", ")}` : "")
+  };
 });
 
 /* github#13, design/0027 -- THE OTHER HALF OF design/0008: what the lit book says. */
@@ -6220,6 +6544,39 @@ check("a typo that spells nothing says so, and offers nothing to pick", async (p
              : "a query that spells nothing showed no row saying so" };
 });
 
+/* github#91 -- the clear button empties query, not filters */
+check("the clear-search button empties the query, restores focus, and leaves filters alone",
+      async (p) => {
+  const r = await p.j(`(function(){
+    var box = document.getElementById("vs-q");
+    var btn = document.getElementById("vs-clearquery");
+    var out = {};
+    out.hiddenAtRest = btn.hidden;
+
+    __vs.setFilters({ folders: ["__smoke-untouched__"] });
+    var before = JSON.stringify(__vs.filters());
+
+    box.focus();
+    __vs.typeQuery("zzqclear");
+    out.shownWhileTyped = !btn.hidden;
+
+    btn.click();
+    out.valueCleared = box.value === "";
+    out.hitsCleared = document.getElementById("vs-hits").textContent === "";
+    out.hiddenAfter = btn.hidden;
+    out.focusReturned = document.activeElement === box;
+    out.suggestShut = document.getElementById("vs-suggest").hidden;
+    out.filtersUntouched = JSON.stringify(__vs.filters()) === before;
+
+    __vs.setFilters({ folders: [] });
+    __vs.closeSuggest();
+    return out;
+  })()`);
+  return { ok: r.hiddenAtRest && r.shownWhileTyped && r.valueCleared && r.hitsCleared &&
+               r.hiddenAfter && r.focusReturned && r.suggestShut && r.filtersUntouched,
+           detail: JSON.stringify(r) };
+});
+
 /* github#41, design/0026 -- a combobox, or it is an accessibility bug */
 check("the suggestion list is a combobox the keyboard can drive", async (p) => {
   const r = await p.j(`(function(){
@@ -6295,6 +6652,64 @@ check("the suggestion list is a combobox the keyboard can drive", async (p) => {
              : bad.length
                ? `${bad.join(", ")} -- not what a combobox does`
                : `role=${r.role}, list role=${r.listRole}, aria-autocomplete=${r.autocomplete}` };
+});
+
+/* github#41, design/0026 -- as wide as what it offers */
+check("the suggestion list is as wide as what it offers, and never wider than the room", async (p) => {
+  const wasView = await p.j("({width:innerWidth,height:innerHeight})");
+  const at = async (width) => {
+    /* design/0009, github#57 -- CDP resizes without telling the page; viewport() waits */
+    await viewport(p, width, 1000);
+    return p.j(`(function(){
+      var list = document.getElementById("vs-suggest");
+      var box = document.getElementById("vs-q");
+      var room = document.querySelector(".vault-shelf");
+      var probes = ["a", "e", "the", "2026", "note", "o", "s", "i", "n", "r", "garden", "Aug"];
+      var rows = 0, cut = 0, past = 0, under = 0, widest = 0, worst = "";
+      probes.forEach(function (term) {
+        __vs.typeQuery(term);
+        var lr = list.getBoundingClientRect(), hr = room.getBoundingClientRect();
+        /* THE ROOM IS THE CEILING -- nothing scrolls sideways, at either width. */
+        if (lr.right > hr.right + 1 || lr.left < hr.left - 1) past++;
+        /* THE BOX IS THE FLOOR, as page.css was given it when the list opened. */
+        var floor = parseFloat(list.style.getPropertyValue("--vs-sug-min")) || 0;
+        if (floor && lr.width + 1 < floor) under++;
+        if (lr.width > widest) widest = Math.round(lr.width);
+        [].slice.call(list.querySelectorAll(".vs-sugtext")).forEach(function (t) {
+          rows++;
+          if (t.scrollWidth > t.clientWidth + 1) { cut++; worst = t.textContent; }
+        });
+      });
+      __vs.setQuery("");
+      __vs.closeSuggest();
+      return { width: ${width}, rows: rows, cut: cut, past: past, under: under, widest: widest,
+               worst: worst, box: Math.round(box.getBoundingClientRect().width),
+               room: Math.round(room.getBoundingClientRect().width) };
+    })()`);
+  };
+
+  const wide = await at(1600);
+  const narrow = await at(400);
+  await unviewport(p, wasView);
+
+  /* github#41 -- 400px cannot fit it; the room is the law there */
+  const ok = wide.rows > 0 && narrow.rows > 0 && wide.cut === 0 &&
+             wide.widest > wide.box && wide.past === 0 && narrow.past === 0 &&
+             wide.under === 0 && narrow.under === 0;
+  return { ok,
+           detail: ok
+             ? `${wide.widest}px for a ${wide.box}px box in a ${wide.room}px room: ` +
+               `0 of ${wide.rows} offered rows clipped. At 400px the ceiling binds instead -- ` +
+               `${narrow.widest}px wide, ${narrow.cut} of ${narrow.rows} clipped, nothing past ` +
+               `the room at either width`
+             : wide.past || narrow.past
+               ? `the list reached past the room ${wide.past + narrow.past} time(s)`
+               : wide.under || narrow.under
+                 ? `the list fell under its own floor ${wide.under + narrow.under} time(s)`
+                 : wide.cut
+                   ? `${wide.cut} of ${wide.rows} rows still clipped at ${wide.widest}px, ` +
+                     `worst "${wide.worst}"`
+                   : `the list stayed at ${wide.widest}px for a ${wide.box}px box` };
 });
 
 /* github#41, design/0026 -- not everything is Latin, and toLowerCase is a no-op on CJK. */
@@ -6562,85 +6977,134 @@ check("scrolling the library stays smooth in every look", async (p) => {
    * and a median of the intervals between the ones that did cannot see them at all. */
   await p.eval(FRAME_HELPERS);
   /* p.eval, not p.j: this one is a promise, and eval awaits it while j would stringify it. */
-  const r = await p.eval(`(async function(){
-    var lib = document.getElementById("vs-library");
-    var looks = window.VaultShelfCore.LOOKS.map(function (l) { return l.value; });
-    var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  /* github#20 -- ONE CALL PER LEG: cdp.mjs allows 10s, this walk is 20
+   * github#20 -- no sample crosses a boundary, so the split is free */
+  const run = (body) => p.eval(
+    `(async function(){ var lib = document.getElementById("vs-library");` +
+    ` var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };` +
+    body + ` })()`);
 
-    /* the throwaway pass is what gets frames flowing at all, and __fr.calibrate says why it
-     * has to come first */
+  /* github#20 -- A ROOM WITH SOMETHING OFF SCREEN IN IT
+   * github#20 -- six shelves are 1.5 viewports; every look scored 0
+   * github#20 -- Weeks takes it past 4,000px. Put back at the end. */
+  const room = await run(`
+    var settings = __vs.settings();
+    window.__smoothHad = settings.shelves.map(function (s) { return s.id; });
+    settings.shelves.push({ id: "-smoothweeks", name: "Weeks", source: { kind: "all" },
+      classifier: "week", direction: "chronological", hidden: false,
+      position: settings.shelves.length, plaques: true, spineSeries: "year" });
+    __vs.setFilters({});
+    await wait(500);
+    return Math.round(lib.scrollHeight - lib.clientHeight);
+  `);
+
+  /* github#20 -- the room is put back even when a leg throws; the old check
+   * github#20 -- could not leak it, being one call, and this one can */
+  let idle, out, slowed, spines;
+  try {
+
+  /* decisions/0017 -- the throwaway pass gets frames flowing before calibrate */
+  idle = await run(`
     __vs.setLook("");
     await wait(120);
     await __fr.sweep(lib, 240, 800);
-    var idle = await __fr.calibrate(lib, 500);
+    return await __fr.calibrate(lib, 500);
+  `);
 
-    var out = {};
-    for (var i = 0; i < looks.length; i++) {
-      __vs.setLook(looks[i]);
+  /* github#20 -- 2000px/s one way: harsher than 800 and 2.5x cheaper
+   * github#20 -- THE LEG IS THE ROOM; descend() stops at the floor */
+  const DOWN = 2000;
+  const LEGMS = Math.round(room / DOWN * 1000) + 400;
+  const looks = JSON.parse(await p.eval(
+    `JSON.stringify(window.VaultShelfCore.LOOKS.map(function (l) { return l.value; }))`));
+  out = {};
+  for (const one of looks) {
+    out[one || "modern"] = await run(`
+      __vs.setLook(${JSON.stringify(one)});
       await wait(120);
       /* one discarded pass, so the look's stylesheet has painted before anything is timed */
       await __fr.sweep(lib, 240, 800);
-      out[looks[i] || "modern"] = await __fr.sweep(lib, 1400, 800);
-    }
+      lib.scrollTop = 0;
+      await wait(250);
+      return await __fr.descend(lib, ${LEGMS}, ${DOWN});
+    `);
+  }
 
-    /* github#77 -- AND THE SAME ROOM WITH design/0014 TAKEN BACK OFF IT. A budget nothing can
-     * push past is decorative, which is what github#77 suspected this one of being, so the run
-     * that asserts the budget also proves the number can still see THE REGRESSION IT EXISTS TO
-     * CATCH rather than some cost invented for the occasion. Containment off and the compositor
-     * layer gone is the state design/0014 measured at leather 117ms and cyber 400ms at the 95th
-     * percentile. Three cheaper slowdowns were tried first and not one of them cost a frame --
-     * a filter over every spine, a blur over the whole library, a 20px shadow spread on 231
-     * spines -- because a scroll composites tiles that are already rasterised, and per-spine
-     * paint does not enter a frame until containment is what changes. That is worth knowing on
-     * its own: it is why github#77's own A/B looked insensitive.
-     * design/0017 -- on leather, the one look the selector offers. */
+  /* github#77 -- THE SAME ROOM WITH design/0014 TAKEN BACK OFF IT
+   * github#77 -- a budget nothing can push past has stopped seeing cost
+   * github#20 -- the probe takes off what design/0014 IS NOW
+   * design/0017 -- on leather, the one look the selector offers. */
+  slowed = await run(`
     __vs.setLook("leather");
     await wait(120);
     var probe = document.createElement("style");
     probe.id = "vs-smoothprobe";
     probe.textContent =
-      ".vault-shelf .vs-shelf{content-visibility:visible!important;contain-intrinsic-size:auto!important}" +
-      ".vault-shelf .vs-track{contain:none!important}" +
+      ".vault-shelf .vs-shelf{content-visibility:auto!important;contain-intrinsic-size:auto 240px!important}" +
+      ".vault-shelf .vs-track{contain:none!important;content-visibility:visible!important;" +
+        "contain-intrinsic-size:auto!important}" +
       ".vault-shelf .vs-shelfrail{contain:none!important}" +
       ".vault-shelf #vs-shelves{will-change:auto!important}";
     document.head.appendChild(probe);
-    var slowed;
     try {
       await wait(200);
       await __fr.sweep(lib, 240, 800);
-      slowed = await __fr.sweep(lib, 1400, 800);
+      lib.scrollTop = 0;
+      await wait(250);
+      return await __fr.descend(lib, ${LEGMS}, ${DOWN});
     } finally {
       probe.parentNode.removeChild(probe);
     }
-    __vs.setLook(looks[0]);
-    await wait(120);
+  `);
 
-    return { looks: out, slowed: slowed, idle: idle,
-             spines: document.querySelectorAll("#vs-shelves .vs-spine").length };
-  })()`);
+  spines = await run(`
+    __vs.setLook(window.VaultShelfCore.LOOKS[0].value);
+    await wait(120);
+    return document.querySelectorAll("#vs-shelves .vs-spine").length;
+  `);
+
+  } finally {
+    /* github#20 -- the room goes back to the one every other check expects */
+    await run(`
+      var settings = __vs.settings();
+      var had = window.__smoothHad;
+      settings.shelves = settings.shelves.filter(function (s) {
+        return had ? had.indexOf(s.id) >= 0 : s.id !== "-smoothweeks";
+      });
+      delete window.__smoothHad;
+      __vs.setFilters({});
+      await wait(250);
+      lib.scrollTop = 0;
+      return settings.shelves.length;
+    `).catch(function () {});
+  }
+
+  const r = { looks: out, idle: idle, room: room, spines: spines };
 
   const VSYNC = framePeriod(r.idle);
   const names = Object.keys(r.looks);
   const look = {};
   for (const n of names) look[n] = frameStats(r.looks[n], VSYNC);
-  const slowed = frameStats(r.slowed, VSYNC);
+  const probed = frameStats(slowed, VSYNC);
 
-  /* github#77, decisions/0017 -- missed vsyncs of the ~80 a 1.4s sweep offers */
-  const BUDGET = 14;
+  /* github#20, decisions/0017 -- 0-17 shipped, 41-55 for the regression, 89-115 probed
+   * github#20, decisions/0017 -- 30 is the empty gap, and below what it must catch */
+  const BUDGET = 30;
   const over = names.filter((n) => look[n].missed > BUDGET);
   /* github#77, decisions/0017 -- a budget nothing can fail has stopped seeing cost */
-  const blind = slowed.missed <= BUDGET;
+  const blind = probed.missed <= BUDGET;
 
   return {
     ok: over.length === 0 && !blind && frameSteady(VSYNC),
-    detail: `${r.spines} spines swept at 800px/s through ${look[names[0]].span}px; missed ` +
-            `vsyncs of the ${look[names[0]].painted + look[names[0]].missed} on offer, and ` +
+    detail: `${r.spines} spines, ${r.room}px of room with a Weeks shelf in it, taken ONE WAY ` +
+            `DOWN at 2000px/s; missed vsyncs of the ` +
+            `${look[names[0]].painted + look[names[0]].missed} on offer, and ` +
             `p50/p95/worst frame in ms -- ` + names.map((n) =>
               `${n} ${look[n].missed} (${look[n].p50.toFixed(1)}/${look[n].p95.toFixed(1)}/` +
               `${look[n].worst.toFixed(0)})`).join(", ") +
             ` (budget: ${BUDGET} missed${over.length ? "; over in " + over.join(", ") : ""})` +
-            `; the same room with design/0014 off it missed ${slowed.missed} of ` +
-            `${slowed.painted + slowed.missed}` +
+            `; the same room with design/0014 off it missed ${probed.missed} of ` +
+            `${probed.painted + probed.missed}` +
             (blind ? `, inside the budget -- the number has stopped seeing cost` : "") +
             `; vsync calibrated at ${VSYNC.toFixed(1)}ms` +
             (frameSteady(VSYNC) ? "" : ", which is no frame this machine can paint")
@@ -6674,6 +7138,23 @@ check("a draining room measure is waited out, and nothing else is", async (p) =>
             `(${shut.join("; ") || "nothing"}); returning with settleRoom's timer pending ` +
             `(${pending}) is waited out by the runner rather than blamed on the check -- ` +
             `this check going red with LEFT THE PAGE BUSY is that guarantee breaking`
+  };
+});
+
+/* github#69, decisions/0016 */
+let cdpRetryProbeAttempt = 0;
+check("a CDP timeout is retried once, and nothing else is", async () => {
+  cdpRetryProbeAttempt++;
+  if (cdpRetryProbeAttempt === 1) {
+    const err = new Error("simulated -- Page.captureScreenshot got no reply in 10s");
+    err.code = "CDP_TIMEOUT";
+    throw err;
+  }
+  return {
+    ok: true,
+    detail: `threw a CDP_TIMEOUT on attempt 1 and the runner retried the whole check, recovering ` +
+            `on attempt ${cdpRetryProbeAttempt} -- a throw with no CDP_TIMEOUT code is never ` +
+            `retried, only reported (github#69)`
   };
 });
 
@@ -6797,6 +7278,272 @@ check("a wide table scrolls inside the page and never widens the book", async (p
             `${r.widest} characters; the spread stays ${r.spread}px inside the ${r.measure}px ` +
             `measure, the page does not scroll sideways (${r.pageScrolls}px), and the article ` +
             `${r.proseScrolls > 0 ? "scrolls " + r.proseScrolls + "px within itself" : "fits"}`
+  };
+});
+
+/* github#19, design/0037 -- the fore-edge flags, and the one note that earns them */
+const STICKY_NOTE_TITLE = "A season in the same bed, start to finish";
+
+/* github#19, design/0037 -- press a flag, and let the page stop before reading it */
+const STICKY_PRESS = `async function (at) {
+  __vs.pressSticky(at);
+  var page = document.querySelector("#vs-reader .vs-page.vs-right");
+  var last = -1, quiet = 0;
+  for (var i = 0; i < 80; i++) {
+    if (page && page.scrollTop === last) { quiet++; if (quiet >= 3) break; }
+    else { quiet = 0; last = page ? page.scrollTop : 0; }
+    await new Promise(function (r) { setTimeout(r, 20); });
+  }
+  return __vs.stickies();
+}`;
+
+check("a sticky note takes the reader to where the book's subject is written", async (p) => {
+  const r = await p.eval(`(async function(){
+    var press = ${STICKY_PRESS};
+    var note = __vs.data().notes.filter(function (n) {
+      return n.title === ${JSON.stringify(STICKY_NOTE_TITLE)}; })[0];
+    if (!note) return { found: false };
+    __vs.openBook("tags/garden", note.id);
+    var before = __vs.stickies();
+    var steps = [];
+    for (var i = 0; i < before.flags.length; i++) {
+      var now = await press(i);
+      steps.push({ at: i, declared: before.flags[i].declared, goingTo: now.goingTo,
+                   scrollTop: now.scrollTop, here: now.here, marked: now.marked,
+                   onScreen: now.onScreen, inMeta: now.inMeta, span: now.span,
+                   leaf: now.leaf });
+    }
+    var after = __vs.stickies();
+    __vs.closeReader();
+    return { found: true, subject: before.subject, kind: before.kind, book: before.book,
+             hidden: before.hidden, tops: before.flags.map(function (f) { return f.top; }),
+             declared: before.flags.filter(function (f) { return f.declared; }).length,
+             steps: steps, sameText: before.text === after.text, chars: before.text.length };
+  })()`);
+  if (!r.found) {
+    return { ok: false, detail: `this vault has no "${STICKY_NOTE_TITLE}"; the generator's own ` +
+                                `guard should have refused to write it` };
+  }
+  const written = r.steps.filter((s) => !s.declared);
+  const offsets = written.map((s) => s.scrollTop);
+  const rising = r.tops.every((t, i) => i === 0 || t > r.tops[i - 1]);
+  const oneMark = r.steps.every((s) => s.here === 1);
+  const allSeen = r.steps.every((s) => s.onScreen);
+  const rightText = r.steps.every((s) => s.marked === "#garden");
+  const distinct = new Set(offsets).size;
+  const ok = r.subject === "#garden" && r.kind === "tag" && !r.hidden &&
+             r.declared === 1 && written.length === 3 && rising &&
+             oneMark && allSeen && rightText && distinct >= 2 && r.sameText;
+  return {
+    ok,
+    detail: `${r.book} is about ${r.subject}: ${r.tops.length} flags down the fore-edge at ` +
+            `${r.tops.join(", ")}px, ${r.declared} of them on the details line and ` +
+            `${written.length} in the text. Pressing each one leaves ${oneMark ? "exactly one" :
+            "not one"} mark, always on "${r.steps[0] && r.steps[0].marked}", ` +
+            `${allSeen ? "on screen every time" : "off screen somewhere"}; the written three ` +
+            `aim at ${written.map((s) => s.goingTo).join(", ")} and ` +
+            `scroll the page to ${offsets.join(", ")} (${distinct} distinct) of a ` +
+            `${r.steps[0] && r.steps[0].span}px span under a ${r.steps[0] && r.steps[0].leaf}px ` +
+            `leaf. The note's ${r.chars} characters are ` +
+            `${r.sameText ? "identical" : "NOT identical"} afterwards`
+  };
+});
+
+check("a subject that is only declared is flagged on the details line", async (p) => {
+  const r = await p.eval(`(async function(){
+    var press = ${STICKY_PRESS};
+    var skip = ${JSON.stringify(STICKY_NOTE_TITLE)};
+    var book = null;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.id !== "tags") return;
+      v.books.forEach(function (b) {
+        if (book || b.key !== "garden") return;
+        book = b;
+      });
+    });
+    if (!book) return { found: false };
+    var note = book.notes.filter(function (n) { return n.title !== skip; })[0];
+    if (!note) { __vs.closeReader(); return { found: false }; }
+    __vs.openBook(book.id, note.id);
+    var shown = __vs.stickies();
+    var after = await press(0);
+    __vs.closeReader();
+    return { found: true, subject: shown.subject, flags: shown.flags.length,
+             declared: shown.flags.filter(function (f) { return f.declared; }).length,
+             label: shown.flags[0] && shown.flags[0].label,
+             scrollTop: after.scrollTop, here: after.here, inMeta: after.inMeta,
+             marked: after.marked, title: note.title };
+  })()`);
+  if (!r.found) return { ok: false, detail: "no garden book, or nothing in it but the sentinel" };
+  const ok = r.subject === "#garden" && r.flags === 1 && r.declared === 1 &&
+             r.here === 1 && r.inMeta === 1 && r.marked === "#garden" && r.scrollTop === 0;
+  return {
+    ok,
+    detail: `a note whose tag is declared and never written draws ${r.flags} flag, ` +
+            `${r.declared} of them on the details line ("${r.label}"). Pressing it marks ` +
+            `${r.inMeta} occurrence in the details line and ${r.here - r.inMeta} in the text, ` +
+            `and lands the page at ${r.scrollTop}`
+  };
+});
+
+check("a person is found through the alias the note actually wrote", async (p) => {
+  const r = await p.eval(`(async function(){
+    var press = ${STICKY_PRESS};
+    var book = null;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.id !== "people") return;
+      v.books.forEach(function (b) { if (b.key === "Halvor Estrin") book = b; });
+    });
+    if (!book) { __vs.closeReader(); return { found: false }; }
+    /* the alias is what the body wrote; the full name is never in the prose */
+    var note = null, plain = null;
+    book.notes.forEach(function (n) {
+      if (note) return;
+      if (n.body.indexOf("[[Halvor Estrin|Halvor]]") >= 0) note = n;
+      else if (!plain && n.body.indexOf("[[Halvor Estrin]]") >= 0) plain = n;
+    });
+    if (!note) return { found: false };
+    __vs.openBook(book.id, note.id);
+    var shown = __vs.stickies();
+    var written = shown.flags.filter(function (f) { return !f.declared; }).length;
+    var at = shown.flags.length - 1;
+    var after = await press(at);
+    var out = { found: true, subject: shown.subject, kind: shown.kind,
+                flags: shown.flags.length, written: written, marked: after.marked,
+                here: after.here, onScreen: after.onScreen, title: note.title,
+                inBody: note.body.indexOf("Halvor Estrin|Halvor") >= 0 };
+    __vs.closeReader();
+    return out;
+  })()`);
+  if (!r.found) return { ok: false, detail: "no Halvor Estrin book, or no aliased mention in it" };
+  const ok = r.subject === "Halvor Estrin" && r.kind === "person" && r.written === 1 &&
+             r.marked === "Halvor" && r.here === 1 && r.onScreen && r.inBody;
+  return {
+    ok,
+    detail: `the note writes "[[Halvor Estrin|Halvor]]" and nothing else names them, so the ` +
+            `book draws ${r.flags} flags, ${r.written} of them in the text. Pressing the last ` +
+            `marks "${r.marked}" -- the alias the reader can see, not the target -- ` +
+            `${r.onScreen ? "on screen" : "off screen"}, and it is the only mark on the page`
+  };
+});
+
+check("a book flags its own subject and no other", async (p) => {
+  const r = await p.eval(`(async function(){
+    var title = ${JSON.stringify(STICKY_NOTE_TITLE)};
+    var note = __vs.data().notes.filter(function (n) { return n.title === title; })[0];
+    if (!note) return { found: false };
+    var read = function (bookId) {
+      __vs.openBook(bookId, note.id);
+      var s = __vs.stickies();
+      return { subject: s.subject, hidden: s.hidden, flags: s.flags.length,
+               declared: s.flags.filter(function (f) { return f.declared; }).length };
+    };
+    var parent = read("tags/garden");
+    var child = read("tags/garden/seeds");
+    __vs.closeReader();
+    /* a property book: the value is in the frontmatter and in no body anywhere */
+    __vs.addShelf({ id: "vs19-status", name: "Status", source: { kind: "all" },
+                    classifier: "property", property: "status", direction: "alphabetical",
+                    hidden: false, position: 9, plaques: false });
+    var prop = null, propNote = null;
+    __vs.views().forEach(function (v) {
+      if (v.shelf.id !== "vs19-status") return;
+      v.books.forEach(function (b) { if (b.key === "Evergreen") prop = b; });
+    });
+    if (prop) {
+      propNote = prop.notes[0];
+      __vs.openBook(prop.id, propNote.id);
+    }
+    var property = prop ? __vs.stickies() : null;
+    var bodyHas = propNote ? propNote.body.toLowerCase().indexOf("evergreen") >= 0 : true;
+    __vs.closeReader();
+    __vs.deleteShelf("vs19-status");
+    return { found: true, parent: parent, child: child,
+             property: property ? { subject: property.subject, hidden: property.hidden,
+                                    flags: property.flags.length } : null,
+             notes: prop ? prop.notes.length : 0, bodyHas: bodyHas };
+  })()`);
+  if (!r.found) return { ok: false, detail: `this vault has no "${STICKY_NOTE_TITLE}"` };
+  const ok = r.parent.flags === 4 && r.parent.declared === 1 &&
+             r.child.flags === 2 && r.child.declared === 1 &&
+             !!r.property && r.property.flags === 0 && r.property.hidden && !r.bodyHas;
+  return {
+    ok,
+    detail: `the same note in two books: ${r.parent.subject} draws ${r.parent.flags} flags ` +
+            `(${r.parent.declared} declared, wanted 1 + 3 written and never the child tag), ` +
+            `${r.child.subject} draws ${r.child.flags} ` +
+            `(${r.child.declared} declared, wanted 1 + 1 written and never the parent). ` +
+            `A property book of ` +
+            `${r.notes} notes whose value is ${r.bodyHas ? "IN" : "in no"} body draws ` +
+            `${r.property ? r.property.flags : "no"} flags and ` +
+            `${r.property && r.property.hidden ? "stays hidden" : "shows an empty column"}`
+  };
+});
+
+check("a search that highlights the details line never changes which flags a book draws",
+      async (p) => {
+  const r = await p.eval(`(async function(){
+    var title = ${JSON.stringify(STICKY_NOTE_TITLE)};
+    var note = __vs.data().notes.filter(function (n) { return n.title === title; })[0];
+    if (!note) return { found: false };
+    __vs.setQuery("");
+    __vs.openBook("tags/garden", note.id);
+    var read = function () {
+      var s = __vs.stickies();
+      return { flags: s.flags.length,
+               declared: s.flags.filter(function (f) { return f.declared; }).length };
+    };
+    var plain = read();
+    /* "#garden" also opens "#garden/seeds" -- the highlight span it wraps around its own
+     * substring must not make that neighbour look like a plain #garden of its own */
+    __vs.setQuery("#garden");
+    var hashQuery = read();
+    /* "garden" (no #) highlights INSIDE the declared #garden itself, splitting the "#" off
+     * on one side of the span and "garden" on the other */
+    __vs.setQuery("garden");
+    var bareQuery = read();
+    __vs.setQuery("");
+    __vs.closeReader();
+    return { found: true, plain: plain, hashQuery: hashQuery, bareQuery: bareQuery };
+  })()`);
+  if (!r.found) return { ok: false, detail: `this vault has no "${STICKY_NOTE_TITLE}"` };
+  const same = (a, b) => a.flags === b.flags && a.declared === b.declared;
+  const ok = r.plain.flags === 4 && r.plain.declared === 1 &&
+             same(r.hashQuery, r.plain) && same(r.bareQuery, r.plain);
+  return {
+    ok,
+    detail: `no query: ${r.plain.flags} flags (${r.plain.declared} declared); searching ` +
+            `"#garden" (its own highlight also lands inside the neighbouring #garden/seeds): ` +
+            `${r.hashQuery.flags} flags (${r.hashQuery.declared} declared); searching ` +
+            `"garden" (its highlight splits the declared #garden's own "#"): ` +
+            `${r.bareQuery.flags} flags (${r.bareQuery.declared} declared) -- all three must ` +
+            `match`
+  };
+});
+
+check("a crowd of mentions never stacks two flags on the same pixel", async (p) => {
+  const r = await p.eval(`(function(){
+    var room = 200;
+    /* the declared flag near the top, one early mention just under it, then twenty crammed
+     * against the bottom -- the shape design/0037 calls out: shifting every flag by the same
+     * amount to fit the crowd back inside room used to carry both early ones down to 0 */
+    var fractions = [0.02, 0.05];
+    for (var i = 0; i < 20; i++) fractions.push(0.9 + i * 0.005);
+    var tops = __vs.spaceStickies(fractions, room);
+    var distinct = new Set(tops).size;
+    var inRoom = tops.every(function (t) { return t >= 0 && t <= room; });
+    var rising = tops.every(function (t, i) { return i === 0 || t >= tops[i - 1]; });
+    var firstTop = tops[0];
+    return { tops: tops, distinct: distinct, inRoom: inRoom, rising: rising,
+             firstTop: firstTop, n: fractions.length };
+  })()`);
+  const ok = r.distinct === r.n && r.inRoom && r.rising && r.firstTop < r.tops[r.tops.length - 1];
+  return {
+    ok,
+    detail: `${r.n} flags packed into a ${200}px column: ${r.distinct} distinct pixel(s), ` +
+            `${r.inRoom ? "all inside" : "some outside"} the room, ` +
+            `${r.rising ? "monotonic" : "NOT monotonic"}, the early flag at ${r.firstTop}px ` +
+            `(last at ${r.tops[r.tops.length - 1]}px)`
   };
 });
 
@@ -6988,6 +7735,76 @@ check("no index cut is clipped, and none is shrunk past reading", async (p) => {
   return { ok: clean(tall) && clean(short), detail: say("1180x1000", tall) + "; " + say("1180x480", short) };
 });
 
+/* github#87, design/0034 -- the check above sees three folds down; this reads the whole tree.
+ * github#88 -- the ROWS are bounded now, not the depth. */
+check("the fitted index converges: no level draws more rows than the rail's room", async (p) => {
+  const original = await p.j("({width:innerWidth,height:innerHeight})");
+  const putWearBack = await holdWear(p);
+  const read = () => p.j(`(function(){
+    var books = [];
+    __vs.views().forEach(function (v) { v.books.forEach(function (b) { books.push(b); }); });
+    books = books.filter(function (b) { return b.id.indexOf("favourites/") !== 0; });
+    books.sort(function (a, b) { return b.notes.length - a.notes.length; });
+    /* github#88 -- a level's rows: min(depth, cap) trail plus its cuts */
+    var levels = function (cuts, depth, cap, out) {
+      out.push({ depth: depth, rows: Math.min(depth, cap) + cuts.length });
+      cuts.forEach(function (c) { if (c.kids.length) levels(c.kids, depth + 1, cap, out); });
+      return out;
+    };
+    var leaves = function (cuts) {
+      var n = 0;
+      cuts.forEach(function (c) { n += c.kids.length ? leaves(c.kids) : 1; });
+      return n;
+    };
+    var worst = { deepest: 0, room: 0, cap: 0, noRoom: 0, over: 0, worstRows: 0,
+                  checked: 0, book: null, notes: 0, leaves: 0, at: null };
+    books.slice(0, 14).forEach(function (b) {
+      __vs.openBook(b.id, null);
+      var t = __vs.indexTabs();
+      var cap = typeof t.trailCap === "number" ? t.trailCap : 1e9;
+      var ls = levels(t.cuts, 0, cap, []);
+      var deep = 0;
+      ls.forEach(function (l) { if (l.depth > deep) deep = l.depth; });
+      worst.checked++;
+      worst.cap = cap;
+      worst.leaves += leaves(t.cuts);
+      if (deep > worst.deepest) { worst.deepest = deep; worst.book = b.id; worst.notes = b.notes.length; }
+      /* github#87 -- the room is what the levels below are judged against, so a rail that does
+       * not report one says so here rather than comparing against NaN. The depth above is read
+       * either way: it is the measurement that names the fault. */
+      if (!(typeof t.room === "number" && t.room > 0)) { worst.noRoom++; __vs.closeReader(); return; }
+      if (t.room > worst.room) worst.room = t.room;
+      /* github#88 -- EVERY level now: the floor is closed */
+      ls.forEach(function (l) {
+        if (l.rows <= t.room) return;
+        worst.over++;
+        if (l.rows > worst.worstRows) {
+          worst.worstRows = l.rows;
+          worst.at = b.id + " at depth " + l.depth;
+        }
+      });
+      __vs.closeReader();
+    });
+    return worst;
+  })()`);
+  let tall, short;
+  try {
+    await viewport(p, 1180, 1000); tall = await read();
+    await viewport(p, 1180, 480);  short = await read();
+  } finally {
+    await p.eval("__vs.closeReader();");
+    await unviewport(p, original);
+    await putWearBack();
+  }
+  const ok = (r) => !r.noRoom && !r.over;
+  const say = (n, r) => `${n}: ${r.checked} books, room ${r.room} rows, trail folds at ${r.cap}, ` +
+    `deepest tree ${r.deepest}${r.book ? " (" + r.book + ", " + r.notes + " notes)" : ""}, ` +
+    `${r.noRoom} with no room reported, ${r.over} level(s) over the room` +
+    `${r.at ? " -- worst " + r.worstRows + " rows, " + r.at : ""}, ${r.leaves} cuts kept`;
+  return { ok: ok(tall) && ok(short),
+           detail: say("1180x1000", tall) + "; " + say("1180x480", short) };
+});
+
 /* github#32, design/0034 */
 check("one cut is lit, and it is the deepest the page has reached", async (p) => {
   const putWearBack = await holdWear(p);
@@ -7091,6 +7908,86 @@ check("the rail lists one level under the trail it came through", async (p) => {
                    `shows ${r.level} of them (went to its note: ${r.wentThere}) under ${r.trail} ` +
                    `trail step marked back (${r.trailIsBack}) and stepped in (${r.staircase}), keeping the focus (${r.kept}); ` +
                    `pressing it comes back (${r.cameBack})` };
+});
+
+/* github#88, design/0034 -- the trail is bounded, and nothing is dropped to bound it */
+check("a deep trail folds to three rows and says what it hides", async (p) => {
+  const original = await p.j("({width:innerWidth,height:innerHeight})");
+  const putWearBack = await holdWear(p);
+  let r;
+  try {
+    await viewport(p, 1180, 480);
+    r = await p.j(`(function(){
+      var books = [];
+      __vs.views().forEach(function (v) { v.books.forEach(function (b) { books.push(b); }); });
+      books = books.filter(function (b) { return b.id.indexOf("favourites/") !== 0; });
+      books.sort(function (a, b) { return b.notes.length - a.notes.length; });
+      var rows = function () {
+        return [].slice.call(document.querySelectorAll("#vs-tabs .vs-indextab")).map(function (t) {
+          return { at: Number(t.getAttribute("data-at")),
+                   trail: t.classList.contains("vs-trailstep"),
+                   fold: t.classList.contains("vs-trailfold"),
+                   folded: Number(t.getAttribute("data-fold") || 0),
+                   back: t.getAttribute("data-back") === "1",
+                   title: t.title, right: Math.round(t.getBoundingClientRect().right) };
+        });
+      };
+      var found = null;
+      for (var i = 0; i < books.length && !found; i++) {
+        __vs.openBook(books[i].id, null);
+        var cap = __vs.indexTabs().trailCap, room = __vs.indexTabs().room;
+        /* github#88 -- press in until the trail is deeper than the cap */
+        for (var step = 0; step < cap + 6; step++) {
+          var opens = [].slice.call(document.querySelectorAll('#vs-tabs .vs-indextab[data-opens="1"]'));
+          if (!opens.length || __vs.indexTabs().depth > cap) break;
+          opens[0].click();
+        }
+        var depth = __vs.indexTabs().depth;
+        if (depth <= cap) { __vs.closeReader(); continue; }
+        var drawn = rows();
+        var trail = drawn.filter(function (x) { return x.trail; });
+        var folds = drawn.filter(function (x) { return x.fold; });
+        var level = drawn.filter(function (x) { return !x.trail; });
+        var fold = folds[0] || null;
+        /* the run it stands for is named on it, one label per step */
+        var named = fold ? fold.title.split("\\u203A").length : 0;
+        /* design/0034 -- a trail step moves the depth, never the page */
+        var landed = null;
+        if (fold) {
+          var press = [].slice.call(document.querySelectorAll("#vs-tabs .vs-trailfold"))[0];
+          press.click();
+          var after = rows();
+          landed = { depth: __vs.indexTabs().depth,
+                     shows: after.some(function (x) { return !x.trail && x.at === fold.at; }),
+                     folds: after.filter(function (x) { return x.fold; }).length };
+        }
+        found = {
+          book: books[i].id, depth: depth, room: room, cap: cap,
+          trailRows: trail.length, folds: folds.length,
+          folded: fold ? fold.folded : 0, named: named,
+          back: !!fold && fold.back,
+          /* it stands in from the fore-edge with the rest of the trail */
+          staircase: !!level.length && trail.every(function (x) { return x.right < level[0].right; }),
+          rowsDrawn: drawn.length,
+          wentBack: !!landed && landed.depth === 1 && landed.shows && !landed.folds
+        };
+        __vs.closeReader();
+      }
+      return found;
+    })()`);
+  } finally {
+    await p.eval("__vs.closeReader();");
+    await unviewport(p, original);
+    await putWearBack();
+  }
+  if (!r) return { ok: false, detail: "no book here draws a trail deeper than the fold's cap" };
+  const ok = r.trailRows === r.cap && r.folds === 1 && r.folded === r.depth - (r.cap - 1) &&
+             r.named === r.folded && r.back && r.staircase && r.wentBack &&
+             r.rowsDrawn <= r.room;
+  return { ok, detail: `${r.book}: pressed to depth ${r.depth} in a room of ${r.room}, drawing ` +
+    `${r.rowsDrawn} rows -- ${r.trailRows} of trail (cap ${r.cap}) with ${r.folds} fold standing ` +
+    `for ${r.folded} steps, naming ${r.named} of them, marked back (${r.back}) and stepped in ` +
+    `(${r.staircase}); pressing it goes back to the shallowest of them (${r.wentBack})` };
 });
 
 /* github#32, design/0034 -- it asserts the FOLD, not the cuts: 15 cuts was already true and
@@ -8791,7 +9688,10 @@ check("a hovered spine shows one peek, big enough to read, and short labels stan
 
 /* github#51, design/0021 -- pixels: a clipped spine's rect reads whole. */
 check("a lifted spine is painted whole, in every look", async (p) => {
+  /* github#69 -- idempotent: this check can now run twice on one page */
   await p.j(`(function(){
+    var old = document.getElementById("vs-probe-51");
+    if (old) old.remove();
     var s = document.createElement("style");
     s.id = "vs-probe-51";
     document.head.appendChild(s);
@@ -8832,12 +9732,20 @@ check("a lifted spine is painted whole, in every look", async (p) => {
   };
 
   /* github#51 -- never the first shelf: the top bar is above it. */
-  const pick = (sel) => p.j(`(function(){
+  /* github#42, design/0033 -- flush: a trimmed spine understates its own lift */
+  const pick = (sel, flush) => p.j(`(function(){
     [].slice.call(document.querySelectorAll("#vs-app [data-probe51]"))
       .forEach(function (el) { el.removeAttribute("data-probe51"); });
     var shelves = document.querySelectorAll("#vs-shelves .vs-shelf");
+    var trim = function (el) {
+      return parseFloat(getComputedStyle(el).getPropertyValue("--spine-trim")) || 0;
+    };
     var sp = null;
-    for (var i = 1; i < shelves.length && !sp; i++) sp = shelves[i].querySelector(${JSON.stringify(sel)});
+    for (var i = 1; i < shelves.length && !sp; i++) {
+      if (!${flush ? "1" : "0"}) { sp = shelves[i].querySelector(${JSON.stringify(sel)}); continue; }
+      sp = [].slice.call(shelves[i].querySelectorAll(${JSON.stringify(sel)}))
+             .filter(function (el) { return trim(el) === 0; })[0] || null;
+    }
     if (!sp) return null;
     sp.setAttribute("data-probe51", "1");
     var track = sp.closest(".vs-track");
@@ -8916,13 +9824,20 @@ check("a lifted spine is painted whole, in every look", async (p) => {
       return n;
     })()`);
     await sleep(260);
-    const m = await pick('.vs-spine[data-match="1"]');
+    /* github#42 -- the top rung asks for the room; whichever is first does not */
+    const m = await pick('.vs-spine[data-strength="4"]', true) ||
+              await pick('.vs-spine[data-strength="3"]', true) ||
+              await pick('.vs-spine[data-match="1"]', true);
     if (m) {
+      const rung = await p.j(`(function(){
+        var el = document.querySelector("#vs-app [data-probe51]");
+        return el ? el.getAttribute("data-strength") : null;
+      })()`);
       const lift = +(m.trackTop - m.top).toFixed(1);
       const mr = await paintedAbove(m);
-      matched.push({ look: name, needle, lift, painted: mr.above, moves: mr.moves });
+      matched.push({ look: name, needle, lift, painted: mr.above, moves: mr.moves, rung });
     } else {
-      matched.push({ look: name, needle, lift: null, painted: null, moves: "" });
+      matched.push({ look: name, needle, lift: null, painted: null, moves: "", rung: null });
     }
     await p.j(`(__vs.setQuery(""), 1)`);
     await sleep(220);
@@ -8956,8 +9871,8 @@ check("a lifted spine is painted whole, in every look", async (p) => {
               ((x.contain || "").indexOf("paint") < 0 ? " (CONTAINMENT OFF)" : "")).join(", ") +
             `; and a real search match, lifted by the query rather than the pointer, is painted ` +
             `to its own top edge -- ` +
-            matched.map((x) => `${x.look} "${x.needle}" lifted ${x.lift}px, painted ${x.painted}px`)
-              .join(", ") +
+            matched.map((x) => `${x.look} "${x.needle}" at rung ${x.rung} lifted ${x.lift}px, ` +
+              `painted ${x.painted}px`).join(", ") +
             (wrongRoom.length
               ? ` -- ROOM NOT GRANTED: ` + wrongRoom.map((x) =>
                   `${x.look} declares ${x.declared}px and paints ${x.got}px ` +
@@ -9073,8 +9988,13 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
   const MOVED = 6;   /* github#51 -- dither is a unit; an arriving edge moves one by tens */
   const REACH = 60;  /* github#51 -- past the widest room a look could ask for */
   const SIDE = 24;   /* github#51 -- a glow spills sideways too, so read wider than the spine */
+  /* github#20 -- HOW MANY pixels moved, not just how far one did
+   * github#20 -- an edge arrives 44px wide; a glow moves 2 or 3 */
+  const WIDE = 8;
   /* github#78 -- this spine's own track, not every track */
   const OPEN = " #vs-app .vs-track:has([data-probe51b]) { overflow-clip-margin: 90px !important; }";
+  /* github#20 -- the control's baseline: no room at all */
+  const SHUT = " #vs-app .vs-track:has([data-probe51b]) { overflow-clip-margin: 0 !important; }";
 
   /* github#51, design/0021 -- the band stays in the page; only the answer crosses. */
   const grab = async (slot, x, y, w, rows) => {
@@ -9095,30 +10015,33 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
     })()`);
   };
 
+  /* github#20 -- a row moves when WIDE pixels are past MOVED */
   const reachOf = (a, b) => p.j(`(function(){
     var A = window.__vs51b[${JSON.stringify(a)}], B = window.__vs51b[${JSON.stringify(b)}];
     if (!A || !B || A.w !== B.w || A.h !== B.h) return -1;
     for (var y = 0; y < A.h; y++) {
-      var most = 0;
+      var n = 0;
       for (var x = 0; x < A.w; x++) {
         var i = (y * A.w + x) * 4;
-        most = Math.max(most, Math.abs(A.d[i] - B.d[i]),
-                        Math.abs(A.d[i + 1] - B.d[i + 1]), Math.abs(A.d[i + 2] - B.d[i + 2]));
+        var d = Math.max(Math.abs(A.d[i] - B.d[i]),
+                         Math.abs(A.d[i + 1] - B.d[i + 1]), Math.abs(A.d[i + 2] - B.d[i + 2]));
+        if (d > ${MOVED}) n++;
       }
-      if (most > ${MOVED}) return A.h - y;
+      if (n >= ${WIDE}) return A.h - y;
     }
     return 0;
   })()`);
 
-  /* github#78, design/0021 -- what the clip takes, not what paint wants */
-  const slicedAbove = async (g) => {
+  /* github#78, design/0021 -- what the clip takes, not what paint wants
+   * github#20 -- `also` is in BOTH shots, so it never differs */
+  const slicedAbove = async (g, baseline, also) => {
     const x = Math.max(0, Math.round(g.left) - SIDE);
     const w = Math.max(2, Math.round(g.w) + SIDE * 2);
     const y = Math.floor(g.trackTop) - REACH;
     if (y < 0) return -1;
-    await sheet("");
+    await sheet((also || "") + (baseline || ""));
     await grab("shipped", x, y, w, REACH);
-    await sheet(OPEN);
+    await sheet((also || "") + OPEN);
     await grab("open", x, y, w, REACH);
     await sheet("");
     return reachOf("shipped", "open");
@@ -9182,8 +10105,25 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
           return n;
         })()`);
         await rest(`${name} ${st.id} setQuery`);
+        /* github#78 -- the match lift transitions too; the hover state's own margin */
+        await sleep(220);
       }
       const g = await mark(st.sel);
+      /* github#42, decisions/0016 -- a rung is still ramping; quiet is two agreeing reads */
+      if (g) {
+        let was = null;
+        for (let quiet = 0, tries = 0; quiet < 2 && tries < 40; tries++) {
+          const now = await p.j(`(function(){
+            var el = document.querySelector("#vs-app [data-probe51b]");
+            if (!el) return "";
+            var cs = getComputedStyle(el);
+            return cs.marginLeft + "|" + cs.boxShadow + "|" + cs.transform + "|" + cs.borderTopColor;
+          })()`);
+          quiet = now && now === was ? quiet + 1 : 0;
+          was = now;
+          if (quiet < 2) await sleep(50);
+        }
+      }
       let node = 0;
       if (g && st.hover) {
         node = await nodeOf("#vs-app [data-probe51b]");
@@ -9203,6 +10143,19 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
     }
   }
 
+  /* github#20, decisions/0019 -- a floor raised must answer for itself in the run.
+   * github#20 -- the spine is 30px up in BOTH shots; only the clip moves
+   * github#20 -- a real slice is 30px of a 44px spine; must read > 0 */
+  /* github#42 -- past the widest room, which the top rung raised to 32px */
+  const LIFT = " #vs-app [data-probe51b] { transform: translateY(-48px) !important; }";
+  let control = -2;
+  {
+    await p.j(`(__vs.setLook("cyber"), 1)`);
+    await rest("control setLook");
+    const g = await mark(WORN);
+    if (g) control = await slicedAbove(g, SHUT, LIFT);
+  }
+
   await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
   await sleep(160);
   await p.j(`(function(){
@@ -9217,8 +10170,11 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
   const missing = rows.filter((x) => x.missing);
   const cut = rows.filter((x) => x.cut > 0);
   const unread = rows.filter((x) => !x.missing && x.sliced < 0);
+  /* github#20, decisions/0019 -- a reading that cannot go positive is not a reading */
+  const blind = control <= 0;
   const ok = missing.length === 0 && cut.length === 0 && unread.length === 0 &&
-             restless.length === 0 && rows.length === looks.length * states.length;
+             restless.length === 0 && !blind &&
+             rows.length === looks.length * states.length;
   /* github#78 -- the room and the states held; the reach is gone */
   const held = new Map();
   for (const x of rows) {
@@ -9254,7 +10210,10 @@ check("nothing a look paints outside a spine is cut off, in every look", async (
               : "") +
             (restless.length
               ? ` -- STILL MOVING WHEN MEASURED: ` + restless.join(", ")
-              : "")
+              : "") +
+            /* github#20, decisions/0019 -- what makes the width floor mean anything */
+            `; a cyber spine held 48px over a track shut to no room reads ${control}px sliced` +
+            (blind ? `, which is nothing -- the reading has stopped seeing a slice` : "")
   };
 });
 
@@ -9965,7 +10924,19 @@ async function runOne(vault, work) {
       let r;
       const t0 = Date.now();
       try { r = await c.fn(page, ctx); }
-      catch (e) { r = { ok: false, detail: "threw: " + e.message }; }
+      catch (e) {
+        /* github#69, decisions/0016 */
+        if (e.code === "CDP_TIMEOUT") {
+          try {
+            r = await c.fn(page, ctx);
+            r.detail = `(after one CDP-timeout retry: ${e.message}) ${r.detail || ""}`;
+          } catch (e2) {
+            r = { ok: false, detail: `threw twice -- first: ${e.message}; retry: ${e2.message}` };
+          }
+        } else {
+          r = { ok: false, detail: "threw: " + e.message };
+        }
+      }
       /* github#57, decisions/0016 -- past the coalescing timer before judging */
       const drained = await settled(page).catch(() => true);
       /* github#57, decisions/0016 -- a check that threw mid-resize leaves the override on */
@@ -10111,8 +11082,11 @@ async function capture(page, out) {
         var want = ${JSON.stringify(SHOT_NOTE)};
         var note = __vs.data().notes.filter(function (n) { return n.title === want; })[0];
         if (!note) return false;
+        /* github#19 -- --shot-book beside it says WHICH of the books holding it to open */
+        var inBook = ${JSON.stringify(SHOT_BOOK)};
         var home = null;
         __vs.views().forEach(function (v) { v.books.forEach(function (b) {
+          if (inBook && b.id !== inBook) return;
           if (!home && b.notes.some(function (n) { return n.id === note.id; })) home = b.id;
         }); });
         return home ? __vs.openBook(home, note.id) : false;

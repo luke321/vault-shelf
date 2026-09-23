@@ -101,3 +101,32 @@ you could not see the end of, which is not shorter, only smaller.
 The floor runs the full width of the room even where the books stop, because a shelf does. A
 half-empty last row with a board ending in mid-air reads as a broken rule rather than as a
 shelf with room on it.
+
+## And the unit of containment is a row — `github#20`
+
+This record's own answer to what a bookcase costs to paint was `content-visibility: auto` on a
+**shelf**, and the section above is why that was the wrong element: *a shelf is as many rows as it
+takes*. Eleven years of weeks is 25 rows and **2,664px of spines**, so a shelf materialising paints
+all of it inside one frame. Taken one way down at 2000px/s, leather missed **45 of the 121** vsyncs
+on offer with a worst frame of **123ms**; with the row as the unit instead, **2–7** and **36ms**.
+Cyber **41–55 → 5–9**. Modern was **2** either way, which is the same thing this record already
+said: it is a look's paint, and the look that paints least never pays it.
+
+**Keeping both is worse than either** — 65 missed, against 54 for the shelf alone and 8 for the
+row alone. A skipped shelf cannot have its own rows assessed for visibility, so when it
+materialises every row is evaluated, laid out and painted at once and its height jumps from the
+intrinsic guess to the truth, which moves everything below it. **The shelf has to stop being a
+unit for the row to become one**, and it stops being one entirely: `contain: paint` alone puts
+leather back to **43**, because one paint box is one rasterisation unit however its rows are
+skipped, and `contain: layout paint` also stops `margin-bottom` collapsing, which moves the
+packing the golden asserts.
+
+A row's intrinsic size is **its own `min-height`**, spelled the same way — `calc(var(--spine-h) +
+var(--board) + 24px)`. A second number for the same height is a number that drifts: a flat 214px
+put the cold scroll height 541px past the truth. It is exact for a plain row and 6px short for one
+under a plaque, and `auto` replaces it with the measured height the first time a row renders.
+
+**None of this was visible from the check that was supposed to see it.** Its sweep crossed 1,120px
+of a 4,427px room and turned round, so it scored 2 missed of 81 on a room dropping 43 of 302 going
+down. A real wheel dispatched over CDP agreed with the descent, not with the turn. `invariants.md`
+carries the table and `github#20` the reasoning.

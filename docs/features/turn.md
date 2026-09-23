@@ -2,7 +2,7 @@
 
 Use Previous and Next in the footer, or the arrow keys. With the wheel, push past the end of a note to turn forward; push back at its start to return. The gesture has resistance and works on short notes too. A continued flick turns once until you pause.
 
-![Turn the page](https://raw.githubusercontent.com/luke321/vault-shelf/1.1.0/docs/features/turn.webp)
+![Turn the page](https://raw.githubusercontent.com/luke321/vault-shelf/1.2.0/docs/features/turn.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.1.0 - 2026-09-16` |
+| Last re-recorded | `1.2.0 - 2026-09-23` |
 | Review | Approved on 2026-09-13; retained by user instruction after the counter update |
 | Duration | 14 seconds |
 | WebP | 60 frames; 383,284 bytes |

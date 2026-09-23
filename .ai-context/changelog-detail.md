@@ -1,5 +1,415 @@
 # Changelog detail
 
+## 2026-09-21 — Two states was the law, and on 5,000 notes two states is none (`github#42`, `design/0008`)
+
+`core.markMatches` has always counted, per book, how many of its notes answer — `Book.matches` —
+and `applyQuery()` reduced it to `data-match="1" | "0"` on the way to the attribute. So
+`people/-unfiled` at **2 of 2,481** lifted the same 7px and took the same accent edge as
+`people/Sanne de Vries` at **320 of 320**. On the one vault, `sanne de vries` drew **159 of 231
+books** forward; the room with a query live was very nearly the room with an empty box.
+
+**The rung is the share, in four steps: a half, a fifth, a twentieth.** Four and not a continuum
+for the reason `design/0008` already gave for wear — a continuous scale is a bar chart of your own
+library wearing a book's clothes. `core.matchStrength(book)` is the whole rule, beside
+`core.wearLevel()`, so the page and anything after it cannot disagree about it.
+
+**Three carriers, because one of them is already taken away.** `prefers-reduced-motion` flattens
+the lift (`page.css`, `leather.css`), so a strength living in the transform alone would be four
+rungs for everybody except the reader who asked for it to stop — silently, and invisibly to every
+assertion in the suite:
+
+| carrier | owned by | rung 1 → 4 | survives reduced motion |
+|---|---|---|---|
+| lift | `page.css` (geometry, one ladder for every look) | 2 / 6 / 10 / 14px | no |
+| air | `page.css` (geometry) | 2 / 4 / 14 / 24px | **yes** |
+| accent | each look's own sheet (paint) | its own ramp | **yes** |
+
+| measured on `vault-3ea58174`, needle `mira vance` | before | after |
+|---|---|---|
+| books lit, of 231 spines | 188 | **188** — a filter narrows, a query marks |
+| books at full strength | **188** | **9** |
+| rung 1 (0–4.5% of the book) | — | 11 books |
+| rung 2 (5.0–19.5%) | — | 149 books |
+| rung 3 (20.0–36.4%) | — | 19 books |
+| rung 4 (50.0–100%) | — | **9 books** |
+| the thinnest lit book, `people/-unfiled` | 1 of 2,452, lifted 7px | 1 of 2,452, **lifted 1px** |
+| the fullest, `people/Mira Vance` | 620 of 620, lifted 7px | 620 of 620, lifted 7px |
+| `#vs-hits` | `621 notes in 188 books` | `621 notes in 188 books (28 strongly)` |
+| checks | 150 → **154** |
+
+**The ceiling MOVED, deliberately, and the floor moved with it.** The first cut topped out at the
+7px `--spine-lift-max` already declared, which kept `--spine-room` untouched. Asked for more
+elevation, the top rung is **14px**, so the room it *is* was re-declared with it: `--spine-room`
+**7 → 14px** modern, **8 → 15px** leather, **25 → 32px** cyber, each still the tallest rung plus
+that look's halo, written out because the property takes no math (`design/0021`). Rungs 1–3
+override `--spine-lift-match` **on the spine**, never on the track the room is read from, so the
+arithmetic check still reads `match 14` and the clip still takes nothing off any of the five
+states in any of the three looks — measured, not assumed.
+
+**And the air is top-heavy, which is `github#90`.** The air is *width*, the packer packed the row
+before the query existed, and `design/0008` forbids rebuilding — so every pixel of air is a pixel
+a long run can overflow by. Rung 2 holds 149 of 188 lit books, so the total is nearly all rung 2:
+
+| air ladder | worst overflow, Encyclopedia |
+|---|---|
+| `9 / 9 / 9 / 9` — what `develop` ships today | **493px** |
+| `3 / 5 / 7 / 9` — the first cut | 277px |
+| `3 / 8 / 14 / 20` — evenly widened | 467px |
+| **`2 / 4 / 14 / 24`** — shipped | **352px** |
+
+4px at rung 2 buys 24px at rung 4 and still costs 141px less than develop's flat 9. The
+overflow itself is not this change's doing and not its to fix: `github#90` holds that choice,
+and `"the air a query opens still fits the room"` holds the budget meanwhile.
+
+**`data-match` stays binary.** It answers the law's own question — does this book answer at all —
+and `__vs.magic()`, the reader's contents rows and four checks read it. The rung is
+`data-strength="1".."4"` beside it, on matched spines only, removed with the query.
+
+**A book the query NAMES is marked, not promoted** (`data-named="1"`). The People shelf is the
+tell the issue raised: a note names several people, so a person's name lights sixteen of
+twenty-six people books, which is the first law working correctly and still reads as broken. It
+needs no promotion — a cover is in the search index of every note behind it (`github#58`), so a
+named book is already at or near 100% share. What it needs is to be told apart from a book that
+merely co-occurs heavily, and that is what the mark does.
+
+**Two measurement traps, both hit here first.** A spine **transitions its margin** over 160ms, so a
+read taken in the same turn as `setQuery` measures the air the room is *leaving* — every rung came
+back `0px` while its own token read 3/5/7/9. Waited on as a condition now (`restedRungs`), never
+as a duration: the air has arrived when it equals the token it is animating towards. And a spine a
+**binding has trimmed** (`design/0033`) sits its trim lower in its own track, so `trackTop - top`
+understates its lift by exactly that trim — a rung-4 spine read as lifting 1px and painting 0, which
+looks exactly like the clip biting. `pick(sel, flush)` takes an untrimmed candidate, the way the
+sibling room check already did by hand.
+
+## 2026-09-21 — A suggestion you could not read (`github#41`, `design/0026`)
+
+`github#41` shipped with `Refs #41` rather than `Closes`, naming four open calls. Three settled
+themselves: `github#58` put **covers** back in the vocabulary and the haystack, so date books are
+offered by name again (9 month books — `Aug 2026`, `Apr 2026`, …) and the contradictory empty row
+went with the body scans; and the esbuild `allowScripts` entry is on `develop`. `Week 37, 2026` is
+absent because **the Weeks shelf is hidden by default** (schema 4) and book terms come from visible
+shelves only — the law working, not a gap.
+
+The fourth was the list's width. It was pinned to the search box at **232px**, so a folder wanting
+227px of a 117px slot read as `area/personal-knowl…`. **A suggestion you cannot read has not told
+you what it would spell**, which is the whole job of the feature.
+
+It sizes to its content now, between a floor and a ceiling: never narrower than the box, never
+wider than what is left of the room to the right of it, never past **440px**.
+
+| over the same 13 probes, the one vault | before | after |
+|---|---|---|
+| rows clipped, 1,584px room | **16 / 90** | **0 / 90** |
+| rows clipped, 400px room | **31 / 90** | **10 / 90** |
+| list narrower than its own box | 8 / 13 | **2 / 13** |
+| list reaching past the room | 0 | **0** |
+| list width, 1,584px room | 232px | **342px** |
+| list width, 400px room | 204px | **250px** |
+
+**At 400px the ceiling binds and that is the law**, not a shortfall: the room holds 250px with the
+box 142px into it, the longest folder wants 342px, and *nothing scrolls sideways*. The check asserts
+the room at both widths and **reports** the 10 clipped rows rather than asserting them away.
+
+**The mechanism was chosen by the cost, not by taste.** `page.css` sizes it (`width: max-content`
+between `min-width` and `max-width`) and JS hands it the two bounds **once per opening**, as it
+already handed it `left` and `top`. A JS pass over the rows would have been correct and would have
+bought back the **14.5 → 29.5 ms** that moving `placeSuggest` off the keystroke path had just paid
+off. Per-keystroke cost is therefore unchanged.
+
+Residual, measured rather than chased: the box grows and shrinks as `#vs-hits` changes length, so a
+list opened against a narrower box can sit a few pixels under it. Pre-existing — sizing to content
+took it from 8 of 13 probes to 2.
+
+## 2026-09-20 — The trail was what the deep levels were paying for (`github#88`, `design/0034`)
+
+`github#87` left a floor it had proved it could not cross: five alphabetical tag books settled at
+**depth 8 with 10 rows against a room of 9** at 1180×480 — *94 levels over* across the fourteen
+fattest books — and a beam search over every grouping sequence there is (all depths × all group
+counts, 600 wide, 14 steps) showed 10 was the best any chooser could do. Grouping adjacent cuts
+only ever *adds* levels, and a level at depth *d* costs `d + its cuts` rows.
+
+**What the search could not question is the cost model.** Eight of those ten rows are trail. The
+rail was spending four fifths of a short window saying how you got somewhere rather than showing
+what is there — so the trail is bounded at **three rows**, the way the staircase already bounds
+its notches at two: past three steps the ones between the first and the last stand as one **fold**,
+and a level costs `min(d, 3) + its cuts`.
+
+**Both halves are needed, and the second closes the floor.** Folding the drawing alone would leave
+every level below `room − 2` un-gathered, because `fitTabs` gathered depth *d* into `room − d`
+spans and that budget ran out. With the trail bounded the budget is `room − min(d, 3)`, it stops
+shrinking, and the pass runs to the bottom of the tree — so **every level draws at most `room`
+rows by construction**, which is stronger than the depth bound it replaces. The depth is free to
+exceed the room now, and does.
+
+| measured over the fourteen fattest books, 1180×480 | before | after |
+|---|---|---|
+| levels over the room | **94** | **0** |
+| deepest level | 8 | **7** |
+| room | 9 rows | 9 rows |
+| cuts kept (nothing dropped) | 6,025 | **6,025** |
+| trail rows at depth 8 | **8** | **3** |
+| 1180×1000 | room 37, deepest 3, 0 over | **unchanged** |
+| checks | 149 → **150** |
+
+**The fold is a trail step, not a gap.** It carries `‹`, stands where the second step stands, and
+pressing it returns to the shallowest step it hides — one way out, one state. What it covers is
+named on it (`2 steps folded: 2015 › Oct`) and on the last shown step, so the rail still says how
+you got there; it stops *drawing* every step, not saying them. It is the operator `spanned`
+already applies to the cut list, one axis over.
+
+**Rejected: collapsing a raw layer**, the issue's other candidate. It buys the row directly and
+throws a cut away — `design/0034` exists because three answers to one question each ended in a cut
+the reader cannot use, clipped, dropped or too small, and that is the dropped one again.
+
+**The loop is bounded by the tree now**, `depth <= deepestLevel(cuts)`: a gather fires only on a
+level over its budget and each adds a single layer, so there are finitely many. A **visible** fuse
+at 64 stands where `depth + 2 <= room` used to — if it ever binds, levels go un-gathered and the
+converge check goes red, rather than a cap quietly leaving a tree at depth 25.
+
+*The fitted index converges* counts a level's rows through the cap and now **asserts** the count
+it used to print; `design/0034` rejected widening it only because the floor was unactionable.
+*A deep trail folds to three rows and says what it hides* is new and holds the fold itself.
+
+## 2026-09-20 — A stamp names the instrument that earned it (`github#77`, `decisions/0010`)
+
+The measurement half of #77 landed on 2026-09-15 (`decisions/0017`, `decisions/0019`): the
+smoothness budget counts missed vsyncs instead of sampling a frame interval against a threshold
+sitting inside a vsync cluster, and it re-runs the same room with `design/0014` off to prove it
+can still fail. **The stamps the old check earned stayed where they were.**
+
+The old check was red **four full runs in five** on `a2de7fa`. Under `decisions/0010` two greens
+in a row stamp a tree and both local gates then skip the suite, so a check that is green about
+half the time converts into a permanent pass by being retried — which is what happened to tree
+`0989b3e`, `develop` at the time, stamped 2/2.
+
+| the stamp store on this machine | before | after |
+|---|---|---|
+| stamps held | 79 | **79** — demoted, not deleted |
+| at the full two-green streak | **17** | 17, and none of them trusted |
+| that `lookup()` would hit | **0** | **0** |
+| why they miss | the fixture in the store is `3ea58174` of 2026-09-16 and no stamp names it | `stamped under epoch none and the suite is at epoch 2` |
+| does the miss depend on what the store holds | **yes** — a digest is a function of the generator sources and returns whenever those do | no |
+| `--selftest` cases | 30 | **36** |
+| cost of the bump | — | 45 s per tree still in use, **0 s today** |
+
+**0 of 79 hitting is the number that matters, and it is a reprieve rather than a defence.** The
+fixture check was carrying the whole load by coincidence; `.githooks/pre-push` looks up every
+commit being pushed rather than the tip alone, so a `develop` push carrying a range of older
+commits is exactly the shape that collects dormant stamps.
+
+`STAMP_EPOCH` is now written into every stamp. `lookup()` misses on any other epoch **before** it
+reads the fixtures or the streak, `record()` restarts the streak across an epoch change exactly as
+it does across a regenerated fixture, and `list` prints each stamp's epoch. Both halves were
+proved by disabling them: without the `lookup()` gate two of the six new cases go red, without
+`record()`'s reset three do.
+
+The line is drawn bluntly at the frame-counting merge, so `55147fa` (2/2, 2026-09-16) is demoted
+although it was honestly earned — a per-stamp ancestry test would need each recorded commit to
+exist in whatever checkout does the lookup, which a store shared across worktrees and machines
+cannot promise.
+
+## 2026-09-17 — The index fit never converged (`github#87`, `design/0034`)
+
+*No index cut is clipped* went red on `people/Otto Brandt` at 1180×480 the week the fixture
+re-cut itself. The issue read it as `fitTabs` stopping early — `gathered` returning `null` and
+the loop breaking with the tenth cut still hanging off the bottom. Traced per step, it is the
+opposite: **`gathered` never returns `null` and the loop never terminates.**
+
+A level at depth *d* draws `d + its cuts` rows, because the rail stands the trail it came through
+above it. A gather **adds a level**, so gathering the fattest level makes every deeper level one
+row worse; `widestOf` moves to one of those, and the two chase each other down until the 24-step
+cap stops them. On `Otto Brandt` the chosen depth went 2 → 0 → 3 → 4 → 7 → … → **24**, and the
+rows the fit was trying to shrink went **10 → 12**.
+
+**The shut rail fitted, which is why one book went red and six did not.** The top of a runaway
+tree is six or seven spans, so nothing clips until a fold is opened onto an over-full level
+underneath. The check opens the three widest folds; on `Otto Brandt` the third landed on one.
+
+| measured over the fourteen fattest books | before | after |
+|---|---|---|
+| deepest level, 1180×480 | **depth 25** (`Otto Brandt`, 486 notes) | **depth 8** |
+| books whose fit had not converged | **7 of 14** | **0** |
+| cuts clipped, 1180×480 | **1** | **0** |
+| most cuts on show, 1180×480 | **10** in a room of 9 | **9** |
+| cuts kept (nothing dropped) | 6,025 | **6,025** |
+| room, 1180×1000 / 1180×480 | — | **37** / **9** rows, measured |
+| 1180×1000 | room 37, nothing gathers | **unchanged** |
+| checks | 148 → **149** |
+
+**Two changes, and the second is the one that mattered.** The room is measured once — the CSS
+clamp makes the fit monotonic in the row count, so a binary search settles it in six draws rather
+than the twenty-four the old loop spent — and each depth is then fitted in turn, shallowest
+first, into `room − depth` spans. A gather is paid for by everything under it, so the payment is
+made before the levels that owe it are read; the pass ends where `room − depth` falls under two,
+so the depth stays under the room by construction.
+
+**Three chooser-only fixes were built and measured first, and all three failed.** *Gather the
+deepest over-full level* fixed three books and broke four (25 → 26, 27 → 28). *Gather whichever
+depth most reduces the maximum* stalled in a local minimum at 15 rows. *Keep the best tree seen*
+left four books at 13. Halving is one arity chosen in advance and is too coarse to reach a
+fitting tree inside the depth the trail leaves — which is why the operator changed too.
+
+**Known and left:** `website-migration`, `garden`, `sleep`, `reading` and `idea` are ~26 letters
+over four raw levels and settle at depth 8 with **10 rows against a room of 9** — 94 levels over,
+each eight presses down. A beam search over every grouping sequence there is proves **10 is the
+floor**: grouping adjacent cuts only ever adds levels, and each one costs a row. Filed rather
+than guessed at; the two candidate operators both break something `design/0034` already settled.
+
+## 2026-09-17 — A sticky note on the fore-edge (`github#19`, `design/0037`)
+
+A tag, person or property book is *about* something the note contains, so the reading spread
+grows a column of flags on the fore-edge of the right-hand page: one per place the subject is
+written, pressed to scroll there and mark that occurrence. It stands in the 16px of air
+`design/0034` already reserved inside the thumb index, so the rail keeps its 60px and the prose
+keeps its column — **0 moved, 0 resized** in *a look moves nothing on the page*, and the golden
+snapshot is unchanged by the code.
+
+Measured on the vault shape, `tags/garden` open on the planted sentinel, at the suite's viewport:
+
+| | |
+|---|---|
+| flags on the fore-edge | **4** — 1 on the details line, 3 in the text |
+| where they stand | 8, 134, 343, **701**px down a 713px column |
+| what the three written ones press to | **314, 1182, 2342** of a 2342px span, under a 3049px leaf |
+| `.vs-here` marks on the page at once | **1**, always |
+| the note's text before and after | 4,482 characters, **identical** |
+| the same note in `tags/garden/seeds` | **2** flags — and never the parent's mention |
+| a `status` property book of 543 notes | **0** flags, column hidden |
+| checks | 144 → **148** |
+
+**The first cut scrolled smoothly and went nowhere.** The targets were computed exactly right —
+314, 1182, 2342 — and the page stayed at **0, 0, 0**, because a smooth scroll is an animation and
+an animation does not advance in a window the compositor is throttling. It sets `scrollTop`
+directly now, like `landOn`; `design/0012` had already rejected an animated page turn as *"a
+delay between a person and their note"*, so the harness only found what the design record already
+said.
+
+**The hollow flag drew a dark blob on a cream leaf.** `var(--surface-1)` from a rule at
+`.vault-shelf` scope is the *room's* value; leather redefines the surface tokens inside the
+spread. It is `transparent` now. Found by looking at it — every assertion about it was green.
+
+### The fixture had to learn to say its own tag, and that cost a re-cut
+
+**0 of 4,939** notes in the vault shape wrote a tag in a body; every tag was declared in
+frontmatter (808 notes declare `garden`, 404 `garden/seeds`). So the ticket's own check could not
+have been earned, and would have gone quiet rather than red. `make-vault.mjs` plants one long
+note that says `#garden` three times in its prose and `#garden/seeds` once, guarded like every
+other sentinel.
+
+| | before | after |
+|---|---|---|
+| notes in the fixture | 4,939 | **4,940** |
+| fixture digest | `c1f3a5ca` | **`3ea58174`** |
+| `layout-snapshots/vault.json` | — | rewritten, **16 rows moved** |
+| suite stamps on this machine | — | all miss |
+
+**And the re-cut turned an older check red, which is `github#87` and not this work.** *no index
+cut is clipped* fails at 1180x480 on `people/Otto Brandt` with **1 clipped, 10 cuts on show**.
+Isolated: `origin/develop`'s `src/` passes on the old fixture (0 clipped, 9 cuts) and fails on the
+new one with the same numbers as this branch, so nothing in `src/` is implicated. The fixture is
+unpinned and re-cuts weekly by design, so this was one month boundary away from red at any time;
+`#19` drew the card rather than printing it.
+
+## 2026-09-17 — The containment unit is a row, and the sweep goes one way down (`github#20`)
+
+`github#20` asked whether scrolling could still be better, said the worst frame was a shelf's
+first paint, and set one condition on changing the check: drive a **real input**, and if the
+numbers differ from the scripted scroll then the scripted scroll is the wrong measurement. They
+differ by everything.
+
+**The check could not reach its own subject.** Its sweep crossed **1,120px** in 1.4 seconds at
+800px/s and turned round at either end; a room with a Weeks shelf in it is **4,427px**. It never
+left the first viewport and a half, so every pixel after the first leg was ground it had already
+rasterised. Leather, same room, same browser, same minute:
+
+| route | shelf is the unit (shipped) | row is the unit (now) |
+|---|---|---|
+| turned round, 1.4s @ 800px/s — **what the check did** | **2 of 81** | 1 of 80 |
+| one way down @ 800px/s | **43 of 302** | 15 of 303 |
+| one way down @ 2000px/s — **what it does now** | **50 of 124** | 6 of 122 |
+| a real wheel over CDP, 60Hz | **25 of 320** | 16 of 319 |
+
+**The wheel agrees with the descent, not with the turn.** So the driver was never the problem and
+the route was: the check still moves `scrollTop` and simply stops turning round. That is
+`github#20`'s fourth line answered with a measurement rather than retired by assertion.
+
+**A shelf is as many rows as it takes**, and eleven years of weeks is **25 rows and 2,664px of
+spines**, so a shelf materialising paints all of it inside one frame. `design/0014` put
+`content-visibility: auto` on the shelf; it moves to the row. One way down at 2000px/s, missed
+vsyncs of the ~121 on offer, three runs each:
+
+| | leather | modern | cyber |
+|---|---|---|---|
+| the shelf is the unit (before) | **45–46** | 2 | **41–55** |
+| the row is the unit (now) | **2–7** | 2–3 | **5–9** |
+| `design/0014` off altogether | 93–97 | 2–3 | 90–91 |
+
+p95 **89.2 → 18.5ms** on leather and **105.7 → 18.4ms** on cyber; worst frame **123 → 36ms** and
+**124 → 69ms**. **Modern is 2 in every row of that table** and always was — this is a look's
+paint, which is what `design/0014` said it was.
+
+**Keeping both units is worse than either: 65 missed, against 54 for the shelf alone and 8 for
+the row alone.** A skipped shelf cannot have its own rows assessed for visibility, so when it
+materialises every row is evaluated, laid out and painted at once and its height jumps from the
+intrinsic guess to the truth, which moves everything below it.
+
+**The shelf keeps no containment at all, and that was not free.** `contain: paint` on it puts the
+win straight back where it was — leather **43** — because one paint box is one rasterisation unit
+however its rows are skipped; and `contain: layout paint` additionally stops `margin-bottom: 26px`
+collapsing, which moves the golden packing. Both were measured before the shelf was left bare.
+
+**What a spine costs to paint is not what a scroll pays**, which is `github#20`'s second line
+answered and closed. Priced against the same descent, leather: **47** with the grain's
+`soft-light` blend off, **61** with the grain gone altogether, **38** with the spine's
+`box-shadow` gone — against **54** shipped and **8** for containment. Not one of them is near the
+win, two are inside run-to-run spread, and pre-rasterising a look's texture would have changed
+the look for a fraction of what containment gives for nothing. **No look's paint was touched.**
+
+**A row's intrinsic size is its own `min-height` expression** — `calc(var(--spine-h) +
+var(--board) + 24px)` — and never a second number for the same height. A flat **214px** put the
+cold scroll height **541px** past the truth; **192px** put it **32px** past. The expression is
+exact for a plain row (**170px**), 6px short for one carrying a plaque (**176px**), and `auto`
+replaces it with the measured height the first time a row renders. A skipped row still reports
+**1180px** wide, unchanged, because `width: 100%` comes from the containing block.
+
+**The check's room is its own.** The six default shelves are **1,494px**, a viewport and a half,
+where nothing is ever deferred and every look scored a flat **0**; the check adds a Weeks shelf
+for its own duration (**3,746–4,109px**, 24 rows, ~691 spines) and removes it before returning —
+in a `finally`, because a split eval can leak a shelf where the old single call could not, and a
+deliberately faulted run was used to confirm the goldens still read 6 shelves and 227 spines after
+it. Budget **30 missed** of the ~110 a descent offers: above a loaded shipped ceiling of **17**,
+below the **41–55** that putting the unit back on the shelf measures, and far below the probe's
+**89–115**.
+The check costs **13.7s** against 8.9s, and is split across one `Runtime.evaluate` per leg
+because cdp.mjs allows any single call ten seconds and the walk is about twenty.
+
+### What the clip check had to learn (`github#78`, `decisions/0019`)
+
+Taking containment off the shelf made `nothing a look paints outside a spine is cut off, in every
+look` go red, deterministically, in the two shelved looks: modern **1px**, cyber **8px** and
+**9px** above their tracks, each of them **inside** the room that look already allows, where a
+clip cannot reach. The check says so itself, and it was right to.
+
+**It was the same paint, rasterised against a different layer.** With no paint box at the shelf,
+opening one track's clip re-rasterises that row: measured, cyber's worn-and-hovered spine moved
+**2 pixels of a 92px band at 8px above the track, 2 at 7px and 3 at 6px, by 12–14 of 255**. The
+delta is exactly what an arriving edge has, so depth cannot separate them — but an arriving edge
+arrives a **spine wide**, 44px of one. The two captures were saved and **looked at side by side**
+and are indistinguishable. `MOVED = 6` per pixel now needs **`WIDE = 8`** pixels in the row with
+it, and all three looks slice nothing again.
+
+**And the floor answers for itself in the same run.** A threshold raised to make a red check green
+is worth nothing without proof it still bites, so the check carries a negative control: the probed
+spine is held **30px above its own track in both captures** and only the clip changes — shut to
+nothing, against opened to 90px. It must read positive and reads **31px**. The first form of the
+control shut the clip with **no** lift and read **0**, because what cyber paints above a hovered
+spine is narrower than the floor; that is recorded rather than replaced, because it is the limit
+of what the floor claims — not that nothing is up there, only that three pixels are not an edge.
+
+Two sibling checks are unmoved throughout and are the independent word that no paint was lost: `a
+lifted spine is painted whole, in every look` (leather 8 of 8, modern 7 of 7, cyber 25 of 25) and
+`the room above a spine is the largest lift plus the look's halo, in every look`.
+
 ## 2026-09-16 — The comment baseline is a merge-result number (`github#79`, `github#80`, `github#81`, `github#82`)
 
 Four branches merged into `develop` in one pass, and the comment baseline landed **2 under**

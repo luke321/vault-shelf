@@ -127,14 +127,29 @@
   --spine-lift-worn-more: 2px;
   --spine-lift-worn-hover: 5px;
   --spine-lift-hover: 6px;
-  --spine-lift-max: 7px;
+  --spine-lift-max: 14px;
   --spine-lift-match: var(--spine-lift-max);
+  /* github#42, design/0008 -- HOW MUCH OF A BOOK ANSWERS, in four rungs. Rung 4 IS the
+   * ceiling above, so --spine-room does not move; rungs 1 to 3 override --spine-lift-match on
+   * the spine itself, never on the track, which is where the room is read from. */
+  --spine-lift-match-3: 10px;
+  --spine-lift-match-2: 6px;
+  --spine-lift-match-1: 2px;
+  /* github#42, github#90 -- the air the room opens on both sides, which reduced motion does
+   * NOT take. TOP-HEAVY ON PURPOSE: the air is WIDTH, and the packer packed this row before
+   * the query existed, so every pixel of it is pixels the run can run past the room by. Rung 2
+   * holds 149 of the 188 books a name lights, so the total is nearly all rung 2 -- 4px there
+   * buys 24px at rung 4 and still overflows 141px LESS than develop's flat 9. github#90. */
+  --spine-air-match: 24px;
+  --spine-air-match-3: 14px;
+  --spine-air-match-2: 4px;
+  --spine-air-match-1: 2px;
   /* github#51, design/0021 -- AND HOW FAR ITS PAINT SPILLS PAST ITS OWN BOX, which is the
    * look's: a lift is not the only thing that leaves a spine. The room is the two added up,
    * and it is a BARE LENGTH because the property takes no math -- a literal calc() never
    * applies and a var() holding one computes to 0px, which is the clip back to biting. */
   --spine-halo: 0px;
-  --spine-room: 7px;
+  --spine-room: 14px;
   /* github#0 -- THICKER, because it is a handle now: at 3px the floor was a hairline to paint
    * and an impossible thing to grab.
    * github#14, design/0021 -- and ONE PLANK, in every look: each sheet used to declare its own
@@ -270,6 +285,10 @@
 
 .vault-shelf #vs-q:focus { border-color: var(--accent); outline: none; }
 
+/* github#91 -- #vs-clearquery is the one clear affordance now; the browser's own would
+ * otherwise sit right beside it, in Obsidian too (Chromium), saying the same thing twice. */
+.vault-shelf #vs-q::-webkit-search-cancel-button { display: none; }
+
 /* design/0016 -- THE LOOK SELECTOR IS A CONTROL, NOT A COLUMN. A bare `<select>` in a flex row
  * takes whatever is going, and under the leather look -- which zooms the page 20% -- it grew
  * wide enough to squeeze the vault's name down to an ellipsis and push half the shelf jumps
@@ -315,6 +334,21 @@
   color: var(--text-3);
   min-width: 96px;
   font-variant-numeric: tabular-nums;
+}
+
+/* github#91 -- a plate like every other button here (design/0019), just small: a sibling of
+ * #vs-q inside .vs-railsearch, never an overlay on the field itself. */
+.vault-shelf #vs-clearquery {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ---- buttons ------------------------------------------------------------- */
@@ -502,17 +536,34 @@
  * library: the modern look at a flat 16.7ms a frame, leather at 117ms at the 95th percentile,
  * cyber at 400ms -- a look paints a spine as several layers of gradient and texture, and
  * without containment every one of them, on every shelf, is rasterised again on every scroll
- * step. `content-visibility` skips the shelves that are not in view, `contain` keeps a row's
- * paint from invalidating its neighbours, and the intrinsic size is a row of books plus its
- * head and plaques so the scrollbar does not jump as shelves come into view. */
+ * step. `content-visibility` skips what is not in view, `contain` keeps a row's paint from
+ * invalidating its neighbours, and the intrinsic size holds the scrollbar still while the
+ * skipped parts of the room are still a guess.
+ *
+ * github#20, design/0014 -- AND THE UNIT IS A ROW, NOT A SHELF. A shelf is as many rows as it
+ * takes, and on eleven years of weeks that is 25 rows and 2,664px of spines, so a shelf
+ * materialising paints all of it inside ONE frame. Going one way down that room, leather
+ * missed 54 vsyncs of the 375 on offer with a worst frame of 167ms; on a flick, 68 of 175 and
+ * 200ms. With the row as the unit: 8 and 3, worst frame 50ms.
+ *
+ * KEEPING BOTH IS WORSE THAN EITHER -- 65 missed, against 54 shipped and 8 for the row alone.
+ * A skipped shelf cannot have its own rows assessed for visibility, so when it materialises
+ * every row is evaluated, laid out and painted at once and its height jumps from the intrinsic
+ * guess to the truth, which moves everything below it. The shelf has to stop being a unit for
+ * the row to become one. */
 .vault-shelf .vs-shelf {
   margin-bottom: 26px;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 240px;
 }
-/* github#51, design/0021 -- AND SAY WHERE THE CLIP EDGE IS. Not padding, so no golden moves. */
+/* github#51, design/0021 -- AND SAY WHERE THE CLIP EDGE IS. Not padding, so no golden moves.
+ * github#20 -- THE INTRINSIC SIZE IS THE ROW'S OWN MIN-HEIGHT, spelled the same way it is
+ * spelled below, because a second number for the same height is a number that drifts: a flat
+ * 214px put the cold scroll height 541px past the truth and 192px put it 32px past. This
+ * expression is exact for a plain row and 6px short for one carrying a plaque, and `auto`
+ * replaces it with the measured height the first time a row renders. */
 .vault-shelf .vs-track {
   contain: layout paint;
+  content-visibility: auto;
+  contain-intrinsic-size: auto calc(var(--spine-h) + var(--board) + 24px);
   overflow-clip-margin: var(--spine-room);
 }
 .vault-shelf .vs-shelfrail { contain: layout; }
@@ -992,8 +1043,8 @@
 }
 
 .vault-shelf[data-query="1"] .vs-spine[data-match="1"] {
-  margin-left: 9px;
-  margin-right: 9px;
+  margin-left: var(--spine-air-match);
+  margin-right: var(--spine-air-match);
   transform: translateY(calc(-1 * var(--spine-lift-match)));
   border-color: var(--accent);
   box-shadow: 0 2px 0 0 var(--accent);
@@ -1001,7 +1052,58 @@
   z-index: 1;
 }
 
+/* ---- how much of it answers ---------------------------------------------
+ * github#42, design/0008 -- two states was the law, and on a vault of 5,000 notes two states
+ * is none: "sanne de vries" drew 159 of 231 books forward, every one of them as loudly as the
+ * book that WAS the answer. core.markMatches already counted; the page used to throw the
+ * number away on the way to the attribute. Four rungs, the share of the book that answered.
+ *
+ * THREE CARRIERS, because reduced motion takes the transform and a look owns the paint:
+ * the lift (geometry, here, identical in every look), the air (geometry, here, and reduced
+ * motion does not touch a margin), and the accent (paint, which each look ramps its own way).
+ * A strength that lived in the lift alone would vanish for the reader who needs it flattened.
+ */
+.vault-shelf[data-query="1"] .vs-spine[data-strength="3"] {
+  --spine-lift-match: var(--spine-lift-match-3);
+  --spine-air-match: var(--spine-air-match-3);
+  box-shadow: 0 2px 0 0 color-mix(in srgb, var(--accent) 72%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 80%, var(--border));
+}
+.vault-shelf[data-query="1"] .vs-spine[data-strength="2"] {
+  --spine-lift-match: var(--spine-lift-match-2);
+  --spine-air-match: var(--spine-air-match-2);
+  box-shadow: 0 2px 0 0 color-mix(in srgb, var(--accent) 44%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+}
+/* A whisper: 2 notes of 2,481 is still a match and still says so, at the volume it earned.
+ * NOT AN OPACITY STEP. A ghost is 0.16, a dragged spine 0.35, one on its way off 0.28 and an
+ * empty book 0.45 -- all four say something else, and all four are outranked by an attribute
+ * this specific, so a rung-1 book mid-drag would have stopped looking dragged. The three
+ * carriers above do the work; a fourth channel on one rung only would not have been a ladder. */
+.vault-shelf[data-query="1"] .vs-spine[data-strength="1"] {
+  --spine-lift-match: var(--spine-lift-match-1);
+  --spine-air-match: var(--spine-air-match-1);
+  box-shadow: 0 2px 0 0 color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+}
+
 .vault-shelf[data-query="1"] .vs-spine[data-match="1"] .vs-n { color: var(--accent); font-weight: 600; }
+.vault-shelf[data-query="1"] .vs-spine[data-strength="2"] .vs-n,
+.vault-shelf[data-query="1"] .vs-spine[data-strength="1"] .vs-n {
+  color: color-mix(in srgb, var(--accent) 60%, var(--text-2));
+  font-weight: 400;
+}
+
+/* github#42 -- THE BOOK YOU TYPED. A note names several people, so a person's name lights
+ * sixteen people books and most of them are rung 4 honestly; only one of them is the book
+ * whose cover is what you spelled. It says so in the cover, never in the geometry. */
+.vault-shelf[data-query="1"] .vs-spine[data-named="1"] {
+  box-shadow: 0 2px 0 0 var(--accent), inset 0 0 0 1px var(--accent);
+}
+.vault-shelf[data-query="1"] .vs-spine[data-named="1"] .vs-title {
+  color: var(--accent);
+  font-weight: 600;
+}
 
 .vault-shelf .vs-endcard {
   border: 1px dashed var(--border);
@@ -1222,6 +1324,68 @@
 .vault-shelf .vs-contents button[data-match="1"] .vs-t { color: var(--accent); font-weight: 600; }
 .vault-shelf .vs-contents button[data-match="1"] .vs-when { color: var(--text-2); }
 
+/* github#19, design/0037 -- the flags stand inside the cuts, on the fore-edge of the page.
+ * design/0034 reserves the outer 60px for the thumb index and 16px of air inside it; the
+ * flags take the air, so the rail keeps its width and the prose keeps its column. */
+.vault-shelf .vs-stickies {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  right: 60px;
+  width: 16px;
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* github#19, design/0037 -- a cut is a notch, square outside and arced within; a flag is its
+ * mirror -- square where it leaves the page and arced where it points out past it, with the
+ * shadow that goes with a plate rather than the one that goes with a knife. */
+.vault-shelf .vs-sticky {
+  position: absolute;
+  right: 0;
+  width: 16px;
+  height: 12px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, #000);
+  border-left: 0;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  box-shadow: 1px 1px 2px color-mix(in srgb, #000 30%, transparent);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.vault-shelf .vs-sticky:hover,
+.vault-shelf .vs-sticky:focus-visible {
+  background: color-mix(in srgb, var(--accent) 80%, var(--text-1));
+}
+
+/* github#19, design/0037 -- declared, not written: no paper of its own, and a dashed edge.
+ * It cannot take a surface token: the pages redefine those, and a rule out here reads the
+ * room's values instead of the page's, which drew a dark blob on a cream leaf. */
+.vault-shelf .vs-sticky[data-declared="1"] {
+  background: transparent;
+  border-style: dashed;
+  border-left: 0;
+  box-shadow: none;
+}
+
+.vault-shelf .vs-sticky[aria-current="true"] {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  background: var(--accent);
+}
+
+/* github#19, design/0037 -- the mark the flag takes you to, and the search's stays its own */
+.vault-shelf .vs-here {
+  background: color-mix(in srgb, var(--accent) 46%, transparent);
+  color: var(--text-1);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
 /* github#13, design/0027 -- the needle where it sits, and the reason in words */
 .vault-shelf .vs-hit {
   background: color-mix(in srgb, var(--accent) 34%, transparent);
@@ -1419,6 +1583,11 @@
   padding-left: 6px;
   padding-right: 3px;
 }
+/* github#88 -- THE FOLD. Past three steps the middle of the trail stands as one mark, so a level
+ * eight presses down owes three rows rather than eight and keeps the room for its own cuts. The
+ * glyph is centred and mid-height, which is what a placeholder looks like (design/0035) -- it is
+ * not a label, and the run it stands for is on its title. */
+.vault-shelf .vs-tabs .vs-trailfold { text-align: center; letter-spacing: 0; }
 .vault-shelf .vs-tabs button[data-step="1"] { margin-right: var(--vs-stepin); }
 /* Two notches is a staircase; a third would only cost the label its room, so anything deeper
  * stands where the second stands. */
@@ -1932,6 +2101,11 @@
 .vault-shelf .vs-suggest {
   position: absolute;
   z-index: 46;
+  /* github#41 -- as wide as what it offers, floored at the box and capped by the room.
+   * --vs-sug-min and --vs-sug-room are set once per opening, never per keystroke. */
+  width: max-content;
+  min-width: var(--vs-sug-min, 232px);
+  max-width: min(440px, var(--vs-sug-room, 440px));
   max-height: 260px;
   overflow-y: auto;
   padding: 4px;
@@ -2042,6 +2216,8 @@
   .vault-shelf .vs-tabs .vs-indextab,
   .vault-shelf .vs-tabs .vs-indextab + .vs-indextab { margin: 0; }
   .vault-shelf .vs-tabs button[data-step] { margin-right: 0; }
+  /* github#19, design/0037 -- the pages stack, so the right page has no fore-edge to flag */
+  .vault-shelf .vs-stickies { display: none; }
   .vault-shelf button { min-height: 34px; }
 }
 
@@ -2060,6 +2236,8 @@
   .vault-shelf .vs-shelf { transition: none; }
   .vault-shelf .vs-spine { transition: none; }
   .vault-shelf .vs-spine:hover, .vault-shelf .vs-spine:focus-visible { transform: none; }
+  /* github#42 -- the lift goes and the strength does not: the air is a margin, not motion,
+   * and the accent ramp is paint. Every rung is still four rungs apart here. */
   .vault-shelf[data-query="1"] .vs-spine[data-match="1"] { transform: none; }
   /* github#40 -- no spring; the offset stays, or nothing shows the push at all */
   .vault-shelf .vs-page[data-settling] .vs-leaf { transition: none; }

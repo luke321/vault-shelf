@@ -133,3 +133,50 @@ when it returns. Whether that was *its* mechanism is unproven. If it recurs, the
 look is the compositor read inside `paintedAbove()` — `Page.captureScreenshot` returning a frame
 that predates the style change despite the double `requestAnimationFrame` — and **not** a
 tolerance. That check's pixel logic, thresholds and assertions are deliberately untouched here.
+
+## Amendment, 2026-09-21 — it recurred once, and not as the frame-staleness theory guessed
+
+Re-attempted under `github#69` itself, same method: `--jobs 1`, 24 cores under synthetic load,
+this check run both mid-suite (immediately after its neighbour) and in isolation. **1 failure in 8
+runs** — not the 29-clean streak this record closed on, and not a stale-frame pixel mismatch
+either:
+
+```
+FAIL  a lifted spine is painted whole, in every look 12.4s
+         threw: Page.captureScreenshot got no reply in 10s
+```
+
+**The mechanism is a fixed CDP reply timeout, not a stale compositor read.** `scripts/cdp.mjs`'s
+`send()` gives every CDP call a flat 10 s Node-side timer (`... got no reply in 10s`) regardless of
+system load. This check calls `Page.captureScreenshot` roughly a dozen times per run — two per
+`paintedAbove()` call (`there` and `bare`), across three looks and two states (hover-lift and
+query-match) — far more than most checks in the suite. Its neighbour in the same failing run,
+which takes no screenshots, passed in 0.2 s under identical load. That contrast is the evidence
+this is about this check's CDP *volume*, not generic contention: twelve independent 10 s windows
+for the browser to keep up, any one of which can miss under sustained saturation, versus zero for
+a check that never asks the browser to paint and encode anything.
+
+**The fix: retry the whole check once, on this one error code alone.** Unlike `settleRoom`'s 60 ms
+timer — a known, bounded wait where the runner could poll the page's own clock instead of guessing
+a Node-side duration — there is no faster signal to poll for a `Page.captureScreenshot` reply.
+Chrome's compositing and PNG-encoding cost under real CPU starvation is not a fixed quantity to
+wait out; it scales with how starved it is. Three shapes were on the table: raise `cdp.mjs`'s
+global 10 s timeout (touches every CDP call in the runner, including the one case a genuinely hung
+browser should still be caught by), cut `paintedAbove()`'s own `captureScreenshot` count (a rewrite
+of the check's design, not a fix to it), or retry once on this specific failure. The third is what
+shipped, and it is narrow in the way `github#57`'s fix was: `cdp.mjs`'s `send()` now tags its
+timeout error `CDP_TIMEOUT` (a transport stall, distinguishable from anything a check itself
+asserts), and the runner's check loop retries the whole check exactly once when it sees that code
+— never on any other thrown error, and never twice. A CDP timeout is not a measurement the way a
+wrong pixel is; it is the harness failing to observe anything at all, so retrying it doesn't risk
+hiding a real defect the way retrying a failed assertion would.
+
+**Guarded by its own check**, matching this record's own pattern: `"a CDP timeout is retried once,
+and nothing else is"` manufactures a `CDP_TIMEOUT` on its first attempt and expects to pass on the
+retry. Verified both ways — green with the retry branch in, and red with the words `threw:
+simulated -- Page.captureScreenshot got no reply in 10s` with it temporarily removed.
+
+**1/8 does not establish a rate**, only that the check was not clean at this load level the way the
+29-run streak suggested — and the fix addresses the mechanism actually observed, not a guess at
+one. `github#69` stays open until a human decides whether this closes it or a larger sample is
+still owed.

@@ -18,9 +18,9 @@
   1.0.0 carries no "> " line on purpose: that line names what a release ADDED, and on the
   first release that is the whole page. See design/0023.
 -->
-# 1.1.0
-- Order a book or a shelf by Number as well as A-Z and Date, so 2, 10 and 100 read in the order you would say them.
-- A volume of digits opens into its months and days in the edge index, instead of overflowing the rail.
-- Shelves you rearrange by hand stay rearranged after a reload, in the plugin and in an exported library.
-- Notes that share a date now read A-Z within that date, in both directions, instead of running the alphabet backwards.
-- A spine that lifts on hover is painted in full, and every binding has room to paint into at the edge of its book.
+# 1.2.0
+- The search box suggests the people, tags, folders, book covers and note titles your vault actually has, sized so you can read every suggestion in full.
+- A small clear button empties the search box in one press, without touching an active filter.
+- A matching book now lifts and opens air by how much of it answers, so the book that is the actual answer stands out from the ones that merely mention it.
+- Open a tag, person or property book and flags on the page's edge mark exactly where the subject is written; press one and the note scrolls there.
+> vs-clearquery
