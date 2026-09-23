@@ -2435,6 +2435,7 @@ function mountVaultShelf(root, data, options) {
     var live = query.trim().length > 0;
     if (live) root.setAttribute("data-query", "1");
     else root.removeAttribute("data-query");
+    node("clearquery").hidden = !live;
 
     var spines = root.querySelectorAll("#" + ID + "shelves .vs-spine");
     var needle = query.trim().toLowerCase();
@@ -5133,13 +5134,25 @@ function mountVaultShelf(root, data, options) {
       : "";
   }
 
-  function clearFilters() {
-    filters = { folders: [], from: null, to: null };
+  /* github#91 -- the part clearFilters() and clearQuery() both need */
+  function resetQueryText() {
     query = "";
     field("q").value = "";
     /* github#41 */
     closeSuggest();
+  }
+
+  function clearFilters() {
+    filters = { folders: [], from: null, to: null };
+    resetQueryText();
     refresh();
+  }
+
+  /* github#91 -- clears the query only; filters stay filters. */
+  function clearQuery() {
+    resetQueryText();
+    applyQuery();
+    field("q").focus();
   }
 
   /* ================================================================= refresh == */
@@ -5359,6 +5372,9 @@ function mountVaultShelf(root, data, options) {
     }
   });
   on($("q"), "blur", function () { closeSuggest(); });
+  /* github#91 -- no blur before the click, so focus never leaves the box. */
+  on($("clearquery"), "mousedown", function (e) { e.preventDefault(); });
+  on($("clearquery"), "click", clearQuery);
   /* github#41, design/0026 -- one delegated reader, not a listener per row */
   on($("suggest"), "mousedown", function (e) { e.preventDefault(); });
   on($("suggest"), "click", function (e) {
