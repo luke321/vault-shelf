@@ -409,7 +409,7 @@ function storyboard(P) {
           })()`);
         }
         const title = sec < 6 ? "<b>Vault Shelf</b>" :
-          sec < 15 ? "Search, and books <b>answer by how much</b>." :
+          sec < 15 ? "Search, and <b>the right book stands tallest</b>." :
           sec < 20 ? "Open a book. <b>Follow your curiosity.</b>" :
           sec < 27 ? "Find your page. <b>Leave a ribbon.</b>" : sec < 32.5 ? "A library that feels <b>yours</b>." :
           sec < 41 ? "Drag a book onto <b>Favourites</b>." :
