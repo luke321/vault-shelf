@@ -231,6 +231,8 @@ function storyboard(P) {
     return { name: spec.name, seconds: spec.seconds, async at(t, first) {
       const sec = t * spec.seconds;
       if (first) {
+        /* github#92 -- every act opens on the shelf, as --exact-act does */
+        await go(`__vs.closeReader(); void 0`);
         await pointer(neutral);
         if (spec.setup) await spec.setup(state);
       }
@@ -675,12 +677,7 @@ function storyboard(P) {
         await prove(`__vs.settings().wear[${JSON.stringify(s.book)}]===1 && __vs.settings().lastOpened[${JSON.stringify(s.book)}]==='never' && __vs.views().find(function(v){return v.shelf.id==='tags';}).books.find(function(b){return b.id===${JSON.stringify(s.book)};}).notes.length===1 && !document.querySelector(${JSON.stringify(bookTarget(s))}).hasAttribute('data-wear')`,'wear: one-note book must begin with one entry and no visits');
         if(s.notes.length!==1)throw new Error('wear: one-note book has unexpected entry history');
         s.from=await j(`document.getElementById('vs-library').scrollTop`);s.to=await shelfTop('tags');
-        /* github#92 -- poll for the wear write, not right after the press. */
-        s.assertCount=async count=>{
-          const expr=`__vs.settings().wear[${JSON.stringify(s.book)}]===${count} && JSON.stringify(__vs.settings().bookNotes[${JSON.stringify(s.book)}])===${JSON.stringify(JSON.stringify(s.notes))} && __vs.settings().lastOpened[${JSON.stringify(s.book)}]!=='never'`;
-          for (let wait=0; wait<20; wait++) { if (await j(expr)) return; await sleep(50); }
-          await prove(expr,'wear: visits must increment the real counter without inventing notes');
-        };
+        s.assertCount=count=>prove(`__vs.settings().wear[${JSON.stringify(s.book)}]===${count} && JSON.stringify(__vs.settings().bookNotes[${JSON.stringify(s.book)}])===${JSON.stringify(JSON.stringify(s.notes))} && __vs.settings().lastOpened[${JSON.stringify(s.book)}]!=='never'`,'wear: visits must increment the real counter without inventing notes');
       },frame:async(sec,s)=>{if(sec>=3.6 && sec<5.4)await scrollTo(lerp(s.from,s.to,easeInOut((sec-3.6)/1.8)));},steps:[
         {at:2,target:'[data-shelf="years"] .vs-spine[data-book="years/2015"]',action:'hover'},
         {at:3.5,start:2.6,target:neutral,action:'hover'},
