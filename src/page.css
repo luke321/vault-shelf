@@ -285,6 +285,10 @@
 
 .vault-shelf #vs-q:focus { border-color: var(--accent); outline: none; }
 
+/* github#91 -- #vs-clearquery is the one clear affordance now; the browser's own would
+ * otherwise sit right beside it, in Obsidian too (Chromium), saying the same thing twice. */
+.vault-shelf #vs-q::-webkit-search-cancel-button { display: none; }
+
 /* design/0016 -- THE LOOK SELECTOR IS A CONTROL, NOT A COLUMN. A bare `<select>` in a flex row
  * takes whatever is going, and under the leather look -- which zooms the page 20% -- it grew
  * wide enough to squeeze the vault's name down to an ellipsis and push half the shelf jumps
