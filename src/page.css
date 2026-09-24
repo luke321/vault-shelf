@@ -135,15 +135,14 @@
   --spine-lift-match-3: 10px;
   --spine-lift-match-2: 6px;
   --spine-lift-match-1: 2px;
-  /* github#42, github#90 -- the air the room opens on both sides, which reduced motion does
-   * NOT take. TOP-HEAVY ON PURPOSE: the air is WIDTH, and the packer packed this row before
-   * the query existed, so every pixel of it is pixels the run can run past the room by. Rung 2
-   * holds 149 of the 188 books a name lights, so the total is nearly all rung 2 -- 4px there
-   * buys 24px at rung 4 and still overflows 141px LESS than develop's flat 9. github#90. */
+  /* github#42, github#90 -- the air, strong half only */
   --spine-air-match: 24px;
   --spine-air-match-3: 14px;
-  --spine-air-match-2: 4px;
-  --spine-air-match-1: 2px;
+  --spine-air-match-2: 0px;
+  --spine-air-match-1: 0px;
+  /* github#90 -- the weak half dims */
+  --spine-dim-match-2: 0.72;
+  --spine-dim-match-1: 0.55;
   /* github#51, design/0021 -- AND HOW FAR ITS PAINT SPILLS PAST ITS OWN BOX, which is the
    * look's: a lift is not the only thing that leaves a spine. The room is the two added up,
    * and it is a BARE LENGTH because the property takes no math -- a literal calc() never
@@ -1042,9 +1041,10 @@
   filter: saturate(0.2);
 }
 
+/* github#90 -- --air-k is the row's ration, set by rationAir() */
 .vault-shelf[data-query="1"] .vs-spine[data-match="1"] {
-  margin-left: var(--spine-air-match);
-  margin-right: var(--spine-air-match);
+  margin-left: calc(var(--spine-air-match) * var(--air-k, 1));
+  margin-right: calc(var(--spine-air-match) * var(--air-k, 1));
   transform: translateY(calc(-1 * var(--spine-lift-match)));
   border-color: var(--accent);
   box-shadow: 0 2px 0 0 var(--accent);
@@ -1075,16 +1075,19 @@
   box-shadow: 0 2px 0 0 color-mix(in srgb, var(--accent) 44%, transparent);
   border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
 }
-/* A whisper: 2 notes of 2,481 is still a match and still says so, at the volume it earned.
- * NOT AN OPACITY STEP. A ghost is 0.16, a dragged spine 0.35, one on its way off 0.28 and an
- * empty book 0.45 -- all four say something else, and all four are outranked by an attribute
- * this specific, so a rung-1 book mid-drag would have stopped looking dragged. The three
- * carriers above do the work; a fourth channel on one rung only would not have been a ladder. */
+/* github#42 -- a whisper */
 .vault-shelf[data-query="1"] .vs-spine[data-strength="1"] {
   --spine-lift-match: var(--spine-lift-match-1);
   --spine-air-match: var(--spine-air-match-1);
   box-shadow: 0 2px 0 0 color-mix(in srgb, var(--accent) 20%, transparent);
   border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+}
+/* github#90, design/0008 -- a drag still outranks the dim */
+.vault-shelf[data-query="1"] .vs-spine[data-strength="2"]:not([data-dragging="1"]):not([data-leaving="1"]) {
+  opacity: var(--spine-dim-match-2);
+}
+.vault-shelf[data-query="1"] .vs-spine[data-strength="1"]:not([data-dragging="1"]):not([data-leaving="1"]) {
+  opacity: var(--spine-dim-match-1);
 }
 
 .vault-shelf[data-query="1"] .vs-spine[data-match="1"] .vs-n { color: var(--accent); font-weight: 600; }
