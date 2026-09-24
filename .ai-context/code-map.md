@@ -313,18 +313,18 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 5482 | `offBook` |
 | 5516 | `typing` |
 
-## `scripts/smoke.mjs` — 11418 lines, 6 sections, 202 functions, 160 checks
+## `scripts/smoke.mjs` — 11429 lines, 6 sections, 202 functions, 160 checks
 
 ### Sections
 
 | lines | section |
 |---|---|
 | 158–386 | the checks |
-| 387–10531 | the invariants |
-| 10532–10680 | which vault, and why |
-| 10681–10786 | at rest, or |
-| 10787–11239 | one run |
-| 11240–11418 | main |
+| 387–10542 | the invariants |
+| 10543–10691 | which vault, and why |
+| 10692–10797 | at rest, or |
+| 10798–11250 | one run |
+| 11251–11429 | main |
 
 ### Functions
 
@@ -514,24 +514,24 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 9260 | · `press` |
 | 9269 | · `nameOf` |
 | 9773 | · `trim` |
-| 9935 | · `px` |
-| 10261 | · `faceOnto` |
-| 10275 | · `faceOf` |
-| 10290 | · `read` |
-| 10557 | `resolveVaults` |
-| 10667 | `buildFor` |
-| 10694 | `settled` |
-| 10710 | `viewport` |
-| 10723 | `unviewport` |
-| 10733 | `atRest` |
-| 10761 | `settlePage` |
-| 10793 | `press` |
-| 10805 | `runOne` |
-| 11037 | `tagged` |
-| 11043 | `capture` |
-| 11089 | · · `pick` |
-| 11198 | `killBrowser` |
-| 11242 | `main` |
+| 9946 | · `px` |
+| 10272 | · `faceOnto` |
+| 10286 | · `faceOf` |
+| 10301 | · `read` |
+| 10568 | `resolveVaults` |
+| 10678 | `buildFor` |
+| 10705 | `settled` |
+| 10721 | `viewport` |
+| 10734 | `unviewport` |
+| 10744 | `atRest` |
+| 10772 | `settlePage` |
+| 10804 | `press` |
+| 10816 | `runOne` |
+| 11048 | `tagged` |
+| 11054 | `capture` |
+| 11100 | · · `pick` |
+| 11209 | `killBrowser` |
+| 11253 | `main` |
 
 ### Checks
 
@@ -691,9 +691,9 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 9653 | nothing on the page reaches the network |
 | 9663 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
 | 9723 | a lifted spine is painted whole, in every look |
-| 9929 | the room above a spine is the largest lift plus the look's halo, in every look |
-| 10004 | nothing a look paints outside a spine is cut off, in every look |
-| 10254 | a short cover is stood upright by one face, not the look's |
-| 10407 | a tag book's cover carries no hash, and every other place it is named keeps it |
-| 10457 | a spine lifts on hover and holds its size |
-| 10481 | the shelves are packed the way the golden snapshot says |
+| 9940 | the room above a spine is the largest lift plus the look's halo, in every look |
+| 10015 | nothing a look paints outside a spine is cut off, in every look |
+| 10265 | a short cover is stood upright by one face, not the look's |
+| 10418 | a tag book's cover carries no hash, and every other place it is named keeps it |
+| 10468 | a spine lifts on hover and holds its size |
+| 10492 | the shelves are packed the way the golden snapshot says |

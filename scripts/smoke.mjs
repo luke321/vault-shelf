@@ -9781,6 +9781,13 @@ check("a lifted spine is painted whole, in every look", async (p) => {
     }
     if (!sp) return null;
     sp.setAttribute("data-probe51", "1");
+    /* github#68 -- a band is read off the screen, so the spine has to be on it */
+    var seen = sp.getBoundingClientRect();
+    if (seen.top < 80 || seen.bottom > innerHeight - 20) {
+      var lib = document.getElementById("vs-library");
+      if (window.__vsProbe51Scroll === undefined) window.__vsProbe51Scroll = lib.scrollTop;
+      sp.scrollIntoView({ block: "center" });
+    }
     var track = sp.closest(".vs-track");
     var r = sp.getBoundingClientRect(), t = track.getBoundingClientRect();
     var cs = getComputedStyle(track);
@@ -9883,6 +9890,10 @@ check("a lifted spine is painted whole, in every look", async (p) => {
       .forEach(function (el) { el.removeAttribute("data-probe51"); });
     var s = document.getElementById("vs-probe-51");
     if (s) s.remove();
+    if (window.__vsProbe51Scroll !== undefined) {
+      document.getElementById("vs-library").scrollTop = window.__vsProbe51Scroll;
+      delete window.__vsProbe51Scroll;
+    }
     return 1;
   })()`);
 
