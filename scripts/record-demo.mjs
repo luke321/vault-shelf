@@ -764,7 +764,7 @@ function storyboard(P) {
         {at:10,target:'[data-shelf="people"] .vs-spine[data-strength="4"]',action:'hover',run:async()=>{await prove(`document.querySelector('[data-shelf="people"] .vs-spine[data-strength="4"]')!==null`,'matchweight: no rung-4 book on the People shelf for the top person');}},
         {at:12.5,target:'#vs-clearquery',run:async()=>{await prove(`document.getElementById('vs-clearquery').hidden && document.querySelectorAll('#vs-shelves .vs-spine[data-strength]').length===0`,'matchweight: clearing the query did not reset the ladder');}}
       ] }),
-    scene({ name: "rearrange", seconds: 11, title: 'Put books <b>in your own order</b>.', sub: 'Drag into the gap. The book keeps its notes.', setup:async s=>{s.fav=await favId();s.before=await j(`__vs.picks()[0].picks.slice()`);s.book=s.fav+'/'+s.before[s.before.length-1];s.shelf=s.fav;await scrollTo(0);},frame:dragFrame(3,7),steps:[
+    scene({ name: "rearrange", seconds: 11, title: 'Put books <b>in your own order</b>.', sub: 'Drag into the gap. The book keeps its notes.', setup:async s=>{s.fav=await favId();s.before=await j(`__vs.picks()[0].picks.slice()`);s.book=s.fav+'/'+s.before[s.before.length-1];s.shelf=s.fav;await settleOn(s.fav);},frame:dragFrame(3,7),steps:[
         {at:3,target:bookTarget,action:'hover',run:async s=>{s.dragFrom=await lift(bookTarget(s));s.dragTo=await centreOf(`[data-shelf="${s.fav}"] .vs-spine`, -18,0);}},
         {at:7,action:'hover',run:async s=>{await drop(s.dragTo);await prove(`__vs.picks()[0].picks[0]===${JSON.stringify(s.before[s.before.length-1])}`,'rearrange: sequence did not change');}},
         {at:9,target:neutral}
