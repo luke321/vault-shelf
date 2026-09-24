@@ -1042,9 +1042,10 @@
   filter: saturate(0.2);
 }
 
+/* github#90 -- --air-k is the row's ration, set by rationAir() */
 .vault-shelf[data-query="1"] .vs-spine[data-match="1"] {
-  margin-left: var(--spine-air-match);
-  margin-right: var(--spine-air-match);
+  margin-left: calc(var(--spine-air-match) * var(--air-k, 1));
+  margin-right: calc(var(--spine-air-match) * var(--air-k, 1));
   transform: translateY(calc(-1 * var(--spine-lift-match)));
   border-color: var(--accent);
   box-shadow: 0 2px 0 0 var(--accent);

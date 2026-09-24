@@ -163,6 +163,14 @@ shape — only in value.
 reason: rung 2 holds 149 of the 188 books a name lights, so 4px there buys 24px at rung 4 and still
 overflows 141px less than the flat 9 on `develop`.
 
+**So a row spends only the slack its packing left** (`github#90`). The packer knows every row's
+width by arithmetic; a row whose lit books want more air than that gets `--air-k`, one factor for
+every margin on it, so the ladder keeps its ratios and nothing is re-packed. A crowded row parts
+less than a sparse one — the room still parts where you are looking, and nothing leaves it.
+Re-packing on a query was rejected because it *is* the room being replaced under you; reserving
+the worst-case air at rest was rejected because it loosens every shelf whether or not anybody is
+searching.
+
 **A fill up the spine like a level was the other candidate**, and it is the most literal gauge
 there is. Rejected because every look repaints the board heavily — leather's grain and gilt,
 cyber's lit panel — so a gauge needs three implementations and fights all of them, for a reading

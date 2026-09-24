@@ -1,5 +1,33 @@
 # Changelog detail
 
+## 2026-09-24 — A row spends only the air its packing left (`github#90`, `design/0008`)
+
+The air a match opens is width, the packer packed every row before the query existed, and
+`design/0008` forbids re-packing — so a long run overflowed its track and the books past the edge
+were clipped while a query was live. `github#42` held it at a declared budget; this closes it.
+
+**The row is rationed, not re-packed.** `rowsOf()` already knows each row's packed width by
+arithmetic, so each track carries `data-slack` — the room it has left, never a layout read. On a
+query `rationAir()` sums the air every lit spine on a row wants (`2 × --spine-air-match` at its
+rung) and, when that is more than the slack, sets `--air-k` on the track: every margin in the row
+scales alike, so the ladder keeps its ratios, and a row with room keeps `github#42`'s ladder whole.
+The lift and the accent take no width and are not touched. Nothing moves at rest, so no golden
+changes. Rejected: re-packing per keystroke (the magic itself), and reserving worst-case air at
+rest (loosens every shelf whether or not anybody is searching).
+
+| measured on the one vault, needle `mira vance`, 188 of 231 books lit | before | after |
+|---|---|---|
+| worst overflow, Encyclopedia | **352px** (budget) | **0px** (budget 1px) |
+| rows rationing their air | — | **6 of 10**, the tightest to 2% |
+| rows the query adds | 0 | 0 |
+| air, rung 1 / 2 / 3 / 4, on the first whole row | 2 / 4 / 14 / 24px | 0.04* / 4 / 14 / 24px |
+
+\* rung 1's only spines stand on rationed rows, so its air reads rationed; it still sits below
+rung 2 and the accent separates it, which both rung checks assert.
+
+**The plus is charged where it is drawn.** A hand-arranged shelf whose plus did not fit its last
+row still drew it there; the row's width now counts it, so the slack is never overstated.
+
 ## 2026-09-21 — Two states was the law, and on 5,000 notes two states is none (`github#42`, `design/0008`)
 
 `core.markMatches` has always counted, per book, how many of its notes answer — `Book.matches` —

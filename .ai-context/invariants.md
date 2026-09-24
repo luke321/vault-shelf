@@ -1897,12 +1897,24 @@ and no book leaves the room"` counts **spines in the DOM**, where all 231 are pr
 box**, which is the one state the air does not exist in. Numbers cannot see, and a clipped book is a
 book that left the room.
 
+**THE FIX IS A RATION, NOT A RE-PACK.** Each track carries `data-slack`, the room its packing left
+(`rowsOf()`'s own arithmetic, the plus on a hand-arranged shelf's last row counted wherever it is
+drawn). `rationAir()` — run by `applyQuery()` and by `drawLibrary()`, because a spine born
+mid-query carries its rung — sets `--air-k = floor(slack / wanted air, 2 dp)` on a track that
+wants more than it has, and clears it otherwise; the lit margins are
+`--spine-air-match × --air-k`. A row keeps its ladder's ratios, and a row with room keeps the
+whole ladder. The lift and the accent take no width and are never rationed.
+
 `"the air a query opens still fits the room, and a run too long wraps"` measures it: no track wider
-than the room, every row restored when the box clears, and the worst overflow **at or under a
-declared budget of 352px**, printed against `develop`'s 493px so the direction is legible. A
-budget and not a zero, because the fix is not this change's to make — re-packing on every keystroke
-is the magic `design/0008` exists to protect, and reserving worst-case air at rest loosens every
-shelf in the library whether anybody is searching or not. `github#90` holds the choice.
+than the room, every row restored when the box clears, **no track still rationed once cleared**,
+and the worst overflow **at or under 1px** — rounding, not a budget. Measured on the one vault,
+`mira vance`, 188 of 231 lit: **0px** (352px before, 493px before `github#42`), **6 of 10** rows
+rationed, the tightest to **2%**.
+
+**A rationed rung reads rationed.** `RUNGS` takes the want as the token × the row's `--air-k`,
+prefers a spine on a whole row for each rung so the "air climbs" comparison compares like with
+like, and treats a margin within 0.05px of its want as arrived — a product of two lengths is not
+bit-equal to the JS product.
 
 **A SPINE TRANSITIONS ITS MARGIN over 160ms**, so a read taken in the same turn as `setQuery`
 measures the air the room is *leaving*: every rung first came back at **0px** while its own
