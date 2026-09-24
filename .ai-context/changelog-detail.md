@@ -57,6 +57,37 @@ rows still ration, the tightest now to **6%** (was 2%), because only rungs 3–4
 **The plus is charged where it is drawn.** A hand-arranged shelf whose plus did not fit its last
 row still drew it there; the row's width now counts it, so the slack is never overstated.
 
+## 2026-09-24 — The made-book acts pressed Save where the stage had already ended (`github#94`)
+
+Stale acts, not a regressed product. The issue read the rail menu as the fault: Favourites is
+`manual` in every settings file (`pickedBy` forces it), its menu's first button is
+*New book here…*, and the sheet opens. Probed at the press:
+
+| `makebook`, fixture `vault-3ea58174`, 1440×900 | measured |
+|---|---|
+| `#vs-mbsave` | y **810–838** |
+| the stage (`#vs-madebook`, the library above the caption bar) | y 0–**772** |
+| `elementFromPoint` at Save's centre | **`BODY`** |
+| after the press | sheet still open, `made` undefined |
+
+The sheet grew the appearance and contents-order block in `3234da8` (`design/0030`) and scrolls
+(`overflow-y: auto`); only the recorder never did. `makebook`, `editbook` and `plusbook` now
+scroll it as `build` scrolls the builder (`sheetTo`), and prove it closed before looking for the
+book, so a missed press names itself instead of surfacing two steps later as `context menu did
+not open`.
+
+The full take then failed at `makebook` frame 41 and, once that was fixed, `rearrange` frame
+142 — both `pointer hidden`. After `hero` and `build`, **Reading** and **Garden notes** stand
+above Favourites, whose head sat at y **793**, below the stage; the three acts scrolled to 0.
+They `settleOn` Favourites now, which clamps to 0 when it is first, so the solo clips film as
+before.
+
+| run | before | after |
+|---|---|---|
+| `--exact-act` makebook / editbook / plusbook | fail at 312 / 264 / 264 | 384/384 · 384/384 · 312/312, pointer visible every frame |
+| `--exact-act` rearrange | 264/264 | 264/264 |
+| full take, `--hero` | stopped at 6,336 + 41 | **10,128 of 10,128** frames, 27 acts, in 525s |
+
 ## 2026-09-21 — Two states was the law, and on 5,000 notes two states is none (`github#42`, `design/0008`)
 
 `core.markMatches` has always counted, per book, how many of its notes answer — `Book.matches` —
