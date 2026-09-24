@@ -420,6 +420,8 @@ function mountVaultShelf(root, data, options) {
       anyVisible = true;
       box.appendChild(renderShelf(view));
     });
+    /* github#90 */
+    rationAir();
 
     var card = $("endcard");
     card.hidden = anyVisible;
@@ -459,8 +461,11 @@ function mountVaultShelf(root, data, options) {
     /* It packs into rows like any other shelf (design/0014): one ribbon can put a book on it
      * from each of six shelves, so it is not as short as it sounds. */
     /* github#48 -- it draws no plates, so it is not charged for any */
-    rowsOf(books, 0, null, false).forEach(function (row) {
+    /** @type {number[]} */
+    var widths = [];
+    rowsOf(books, 0, null, false, widths).forEach(function (row, i) {
       var track = el("div", "vs-track");
+      slackOf(track, widths[i]);
       /* github#48 -- a line is laid out INSIDE a group, so it gets one */
       var group = el("div", "vs-group");
       var line = el("div", "vs-books");
@@ -511,10 +516,14 @@ function mountVaultShelf(root, data, options) {
     /* design/0020 -- a hand-arranged shelf ends in a plus. */
     var makes = view.shelf.direction === "manual";
     var rail = el("div", "vs-shelfrail");
-    var rows = rowsOf(view.books, makes ? SPINE_MIN + SPINE_GAP : 0, view.shelf, true);
+    /** @type {number[]} */
+    var widths = [];
+    var rows = rowsOf(view.books, makes ? SPINE_MIN + SPINE_GAP : 0, view.shelf, true, widths);
     rows.forEach(function (row, i) {
       var last = i === rows.length - 1;
-      rail.appendChild(renderTrack(row, view.shelf, true, makes && last ? plusOf(view.shelf) : null));
+      var track = renderTrack(row, view.shelf, true, makes && last ? plusOf(view.shelf) : null);
+      slackOf(track, widths[i]);
+      rail.appendChild(track);
     });
     if (isPick(view.shelf)) landingOf(rail, view);
     offersBook(rail, view);
@@ -623,9 +632,9 @@ function mountVaultShelf(root, data, options) {
    * `thicknessOf` is arithmetic on the note count -- so the packing needs no layout pass.
    *
    * @param {Book[]} books @param {number} [tail] @param {Shelf|null} [shelf]
-   * @param {boolean} [plaques] @returns {Book[][]}
+   * @param {boolean} [plaques] @param {number[]} [widths] github#90 @returns {Book[][]}
    */
-  function rowsOf(books, tail, shelf, plaques) {
+  function rowsOf(books, tail, shelf, plaques, widths) {
     var avail = room();
     squeezeIndex(shelf, books, avail - (tail || 0));
     /** @type {Book[][]} */
@@ -650,9 +659,16 @@ function mountVaultShelf(root, data, options) {
       label = null;
       plaque = false;
     }
+    /** @param {number} w */
+    function push(w) {
+      rows.push(row);
+      if (widths) widths.push(w);
+      row = [];
+      used = 0;
+    }
     function flush() {
       closeRun();
-      if (row.length) { rows.push(row); row = []; used = 0; }
+      if (row.length) push(used);
       runStart = 0;
     }
 
@@ -677,8 +693,9 @@ function mountVaultShelf(root, data, options) {
     });
     closeRun();
     /* design/0020 -- the plus at the end needs its own room, or its own row. */
-    if (tail && row.length && used + tail > avail) { rows.push(row); row = []; }
-    if (row.length || !rows.length) rows.push(row);
+    /* github#90 -- the plus is charged where it is drawn */
+    if (tail && row.length && used + tail > avail) push(used + tail);
+    if (row.length || !rows.length) push(used + (tail || 0));
     return rows;
   }
 
@@ -2464,8 +2481,41 @@ function mountVaultShelf(root, data, options) {
         (totals.strong ? " (" + totals.strong + " strongly)" : "")
       : "";
 
+    rationAir();
+
     /* github#13, design/0026, design/0027 -- an open book follows a CHANGED query */
     if (reader && reader.lit !== needle) renderReader();
+  }
+
+  /** github#90 -- @param {HTMLElement} track @param {number} used */
+  function slackOf(track, used) {
+    track.setAttribute("data-slack", String(Math.max(0, Math.floor(room() - used))));
+  }
+
+  /* github#90, design/0008 -- a row spends only the air its packing left */
+  function rationAir() {
+    var tracks = root.querySelectorAll("#" + ID + "shelves .vs-track[data-slack]");
+    var live = query.trim().length > 0;
+    var cs = live ? WIN.getComputedStyle(root) : null;
+    /** @param {string} name @returns {number} */
+    var token = function (name) {
+      return cs ? parseFloat(cs.getPropertyValue("--spine-air-match" + name)) || 0 : 0;
+    };
+    var ladder = { 1: token("-1"), 2: token("-2"), 3: token("-3"), 4: token("") };
+    for (var i = 0; i < tracks.length; i++) {
+      var track = /** @type {HTMLElement} */ (tracks[i]);
+      var want = 0;
+      if (live) {
+        var lit = track.querySelectorAll(".vs-spine[data-strength]");
+        for (var j = 0; j < lit.length; j++) {
+          want += 2 * (ladder[/** @type {1|2|3|4} */ (Number(lit[j].getAttribute("data-strength")))] || 0);
+        }
+      }
+      var slack = Number(track.getAttribute("data-slack")) || 0;
+      var k = want > slack ? Math.floor((slack / want) * 100) / 100 : 1;
+      if (k < 1) track.style.setProperty("--air-k", String(k));
+      else track.style.removeProperty("--air-k");
+    }
   }
 
   /* ---- what the vault spells ---------------------------------------------
