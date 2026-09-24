@@ -196,6 +196,8 @@ function storyboard(P) {
       f.dispatchEvent(new Event("input", { bubbles: true }));
     })(); void 0`);
   };
+  /* github#94 -- a sheet taller than the stage is scrolled, as a hand would */
+  const sheetTo = (id, k) => go(`var sheet=document.getElementById(${JSON.stringify(id)});sheet.scrollTop=(sheet.scrollHeight-sheet.clientHeight)*${easeInOut(Math.max(0, Math.min(1, k)))};void 0`);
 
   /* github#21 -- the thickest book in shot, so only the book moves. */
   const thickest = (shelfId) => j(`(function(){
@@ -304,7 +306,8 @@ function storyboard(P) {
     state.fav=await favId();
     const folder=await dailiesFolder();
     await go(`__vs.makeBook(${JSON.stringify(state.fav)},{name:'My Journal',source:{kind:'folder',value:${JSON.stringify(folder)}}},null); void 0`);
-    await scrollTo(0);
+    /* github#94 -- Reading and a built shelf can stand above Favourites */
+    await settleOn(state.fav);
   };
   const favouriteSetup = async (state) => {
     state.fav=await favId();
@@ -689,37 +692,37 @@ function storyboard(P) {
         {at:17,target:bookTarget,action:'hover',run:async s=>{await prove(`document.getElementById('vs-peek').textContent.includes('3 entries and visits')`,'wear: the peek did not show the real entry and visit total');say('wear counter verified: '+s.book+'; 1 entry -> 2 -> 3 through two real opens; note IDs unchanged');}}
       ] }),
     scene({ name: "build", seconds: 17, title: 'Make a shelf <b>around your own ideas</b>.', sub: 'Choose what belongs, then how the books are made.', setup:async()=>{await scrollTo(0);},
-      frame:async(sec)=>{if(sec>=4 && sec<6)await typeInto('vs-bname','Garden notes',sec,4,5.8);if(sec>=8 && sec<10)await go(`var sheet=document.getElementById('vs-builder');sheet.scrollTop=(sheet.scrollHeight-sheet.clientHeight)*${easeInOut((sec-8)/2)};void 0`);},steps:[
+      frame:async(sec)=>{if(sec>=4 && sec<6)await typeInto('vs-bname','Garden notes',sec,4,5.8);if(sec>=8 && sec<10)await sheetTo('vs-builder',(sec-8)/2);},steps:[
         {at:2,target:'#vs-newshelf'},
         {at:3.5,target:'#vs-bname'},
         {at:7,target:'#vs-bclassifier',action:'hover',run:async()=>{await change('vs-bclassifier','tag');}},
         {at:12,target:'#vs-bsave',run:async()=>{await prove(`__vs.settings().shelves.some(function(s){return s.name==='Garden notes';})`,'build: shelf was not saved');}},
         {at:15,target:neutral}
       ] }),
-    scene({ name: "makebook", seconds: 16, title: 'Make a book for <b>what matters</b>.', sub: 'A name and a source, right on Favourites.', setup:async s=>{s.fav=await favId();await scrollTo(0);},
-      frame:async(sec)=>{if(sec>=6 && sec<8)await typeInto('vs-mbname','My Journal',sec,6,7.8);},steps:[
+    scene({ name: "makebook", seconds: 16, title: 'Make a book for <b>what matters</b>.', sub: 'A name and a source, right on Favourites.', setup:async s=>{s.fav=await favId();await settleOn(s.fav);},
+      frame:async(sec)=>{if(sec>=6 && sec<8)await typeInto('vs-mbname','My Journal',sec,6,7.8);if(sec>=11.1 && sec<11.8)await sheetTo('vs-madebook',(sec-11.1)/0.6);},steps:[
         {at:2,target:s=>centreOf(`[data-shelf="${s.fav}"] .vs-plusbook`,90,0),action:'right'},
         {at:4,target:'#vs-railmenu button'},
         {at:5.5,target:'#vs-mbname'},
         {at:9,target:'#vs-mbsource',action:'hover',run:async()=>{await change('vs-mbsource','folder');}},
         {at:11,target:'#vs-mbsourceval',action:'hover',run:async()=>{await change('vs-mbsourceval',await dailiesFolder());}},
-        {at:13,target:'#vs-mbsave',run:async s=>{await prove(`!!document.querySelector(${JSON.stringify(madeTarget(s))})`,'makebook: saved book missing');}},
+        {at:13,target:'#vs-mbsave',run:async s=>{await prove(`document.getElementById('vs-madebook').hidden`,'makebook: the sheet did not close on Save');await prove(`!!document.querySelector(${JSON.stringify(madeTarget(s))})`,'makebook: saved book missing');}},
         {at:15,target:neutral}
       ] }),
     scene({ name: "editbook", seconds: 16, title: 'Change a book. <b>Keep its place.</b>', sub: 'Rename it or remove the view; the notes stay in the vault.', setup:madeSetup,
-      frame:async(sec)=>{if(sec>=6 && sec<8)await typeInto('vs-mbname','Daily Journal',sec,6,7.8);},steps:[
+      frame:async(sec)=>{if(sec>=6 && sec<7.5)await typeInto('vs-mbname','Daily Journal',sec,6,7.4);if(sec>=7.5 && sec<8.3)await sheetTo('vs-madebook',(sec-7.5)/0.7);},steps:[
         {at:2,target:madeTarget,action:'right'},{at:4,target:'#vs-dye .vs-dyepick'},
-        {at:5.5,target:'#vs-mbname'},{at:9,target:'#vs-mbsave'},
+        {at:5.5,target:'#vs-mbname'},{at:9,start:8.3,target:'#vs-mbsave',run:async()=>{await prove(`document.getElementById('vs-madebook').hidden`,'editbook: the sheet did not close on Save');}},
         {at:11,target:madeTarget,action:'right'},
         {at:13,target:'#vs-dye .vs-dyepick:nth-last-child(1)',run:async s=>{await prove(`!document.querySelector(${JSON.stringify(madeTarget(s))})`,'editbook: delete did not remove made book');}},
         {at:15,target:neutral}
       ] }),
     scene({ name: "plusbook", seconds: 13, title: 'A quiet <b>plus</b>, wherever you arrange by hand.', sub: 'Create a book at the end of a manual shelf.', setup:async s=>{await go(`var y=__vs.settings().shelves.find(function(s){return s.id==='years';});y.direction='manual';y.order=__vs.sequence('years');__vs.setFilters({folders:[]});void 0`);await settleOn('years');s.fav='years';},
-      frame:async(sec)=>{if(sec>=4 && sec<6)await typeInto('vs-mbname','My Journal',sec,4,5.8);},steps:[
+      frame:async(sec)=>{if(sec>=4 && sec<6)await typeInto('vs-mbname','My Journal',sec,4,5.8);if(sec>=9.1 && sec<9.8)await sheetTo('vs-madebook',(sec-9.1)/0.6);},steps:[
         {at:2,target:'[data-shelf="years"] .vs-plusbook'}, {at:3.5,target:'#vs-mbname'},
         {at:7,target:'#vs-mbsource',action:'hover',run:async()=>{await change('vs-mbsource','folder');}},
         {at:9,target:'#vs-mbsourceval',action:'hover',run:async()=>{await change('vs-mbsourceval',await dailiesFolder());}},
-        {at:11,target:'#vs-mbsave',run:async s=>{await prove(`!!document.querySelector(${JSON.stringify(madeTarget(s))})`,'plusbook: made book missing');}}
+        {at:11,target:'#vs-mbsave',run:async s=>{await prove(`document.getElementById('vs-madebook').hidden`,'plusbook: the sheet did not close on Save');await prove(`!!document.querySelector(${JSON.stringify(madeTarget(s))})`,'plusbook: made book missing');}}
       ] }),
     scene({ name: "looks", seconds: 26, title: 'Choose a <b>binding and colour</b>.', sub: 'Preview one book, or give a whole plaque-run its own character.', setup:onShelf(),steps:[
         {at:2,target:bookTarget,action:'right'},
