@@ -5986,26 +5986,37 @@ check("the shelf parts as you type, and no book leaves the room", async (p) => {
 
 /* github#42, design/0008 -- the rung is the share, and a share has bands */
 const RUNGS = `(function(){
-  var out = { 1: null, 2: null, 3: null, 4: null };
+  var out = { 1: null, 2: null, 3: null, 4: null, rows: [] };
   var spines = document.querySelectorAll("#vs-shelves .vs-spine[data-strength]");
+  var byTrack = new Map();
   for (var i = 0; i < spines.length; i++) {
     var k = spines[i].getAttribute("data-strength");
     var cs = getComputedStyle(spines[i]);
     /* github#90 -- read on a whole row where there is one */
     var ration = parseFloat(cs.getPropertyValue("--air-k"));
     if (!(ration >= 0)) ration = 1;
-    if (!out[k] || (out[k].ration < 1 && ration === 1)) {
-      out[k] = { air: parseFloat(cs.marginLeft) || 0,
+    var base = parseFloat(cs.getPropertyValue("--spine-air-match")) || 0;
+    var seen = { air: parseFloat(cs.marginLeft) || 0,
                  /* github#42 -- what the air is ON ITS WAY TO, which does not transition */
-                 want: (parseFloat(cs.getPropertyValue("--spine-air-match")) || 0) * ration,
+                 want: base * ration,
+                 /* github#96 -- the ladder before any row rations it */
+                 base: base,
                  ration: ration,
                  /* github#90 */
                  dim: parseFloat(cs.opacity),
-                 dimWant: k <= 2 ? parseFloat(cs.getPropertyValue("--spine-dim-match-" + k)) : 1,
-                 lift: parseFloat(cs.getPropertyValue("--spine-lift-match")) || 0,
-                 edge: cs.borderTopColor,
-                 moved: cs.transform };
+                 dimWant: k <= 2 ? parseFloat(cs.getPropertyValue("--spine-dim-match-" + k)) : 1 };
+    if (!out[k] || (out[k].ration < 1 && ration === 1)) {
+      out[k] = Object.assign({}, seen, {
+        lift: parseFloat(cs.getPropertyValue("--spine-lift-match")) || 0,
+        edge: cs.borderTopColor,
+        moved: cs.transform });
     }
+    /* github#96, design/0008 -- one ration per row, so a climb is read within one */
+    var track = spines[i].closest(".vs-track");
+    if (!track) continue;
+    var row = byTrack.get(track);
+    if (!row) { row = { ration: ration, rungs: {} }; byTrack.set(track, row); out.rows.push(row); }
+    if (!row.rungs[k]) row.rungs[k] = seen;
   }
   return out;
 })()`;
@@ -6020,6 +6031,37 @@ const airArrived = (rung) => Math.abs(rung.air - rung.want) < 0.05 &&
 const louder = (lo, hi) => hi.air > lo.air || hi.dim > lo.dim;
 
 /**
+ * github#96, design/0008 -- the ladder climbs everywhere; the paint climbs within a row
+ * @param {any} r @returns {{flat:string[], rows:number, least:number}}
+ */
+function climbs(r) {
+  const flat = [];
+  const live = [1, 2, 3, 4].filter((k) => r[k]);
+  for (let i = 1; i < live.length; i++) {
+    const lo = r[live[i - 1]], hi = r[live[i]];
+    if (!louder({ air: lo.base, dim: lo.dim }, { air: hi.base, dim: hi.dim })) {
+      flat.push(`ladder ${live[i - 1]}->${live[i]}`);
+    }
+  }
+  let rows = 0, least = 1;
+  r.rows.forEach((/** @type {any} */ row, /** @type {number} */ n) => {
+    least = Math.min(least, row.ration);
+    /* github#96 -- a row with no slack opens no air; lift and edge carry it */
+    if (!(row.ration > 0)) return;
+    const here = [1, 2, 3, 4].filter((k) => row.rungs[k]);
+    if (here.length < 2) return;
+    rows++;
+    for (let i = 1; i < here.length; i++) {
+      if (!louder(row.rungs[here[i - 1]], row.rungs[here[i]])) {
+        flat.push(`air or brightness ${here[i - 1]}->${here[i]} on row ${n} at ` +
+                  `${Math.round(row.ration * 100)}%`);
+      }
+    }
+  });
+  return { flat, rows, least };
+}
+
+/**
  * github#42, decisions/0016 -- a margin transitions; wait for it to arrive
  * @param {{j:(e:string)=>Promise<any>}} p @returns {Promise<any>}
  */
@@ -6028,7 +6070,10 @@ async function restedRungs(p) {
   for (let wait = 0; wait < 40; wait++) {
     last = await p.j(RUNGS);
     const live = [1, 2, 3, 4].filter((k) => last[k]);
-    if (live.length && live.every((k) => airArrived(last[k]))) return last;
+    /* github#96 -- every row's air, not only the rung's sample */
+    if (live.length && live.every((k) => airArrived(last[k])) &&
+        last.rows.every((/** @type {any} */ row) =>
+          Object.keys(row.rungs).every((k) => airArrived(row.rungs[k])))) return last;
     /* github#42 -- an empty box carries no rung, so nothing is coming */
     if (!live.length && wait >= 4) return last;
     await sleep(50);
@@ -6124,12 +6169,12 @@ check("a book draws forward by how much of it answers, not merely that it does",
   /* github#42 -- every book at a rung is inside that rung's band */
   const spilled = live.filter((k) => r.bands[k][0] < FLOOR[k] || r.bands[k][1] >= CEIL[k]);
   /* github#42 -- and the paint climbs with the rung, in both carriers */
-  const flat = [];
+  const climb = climbs(r.rungs);
+  const flat = climb.flat;
   for (let i = 1; i < live.length; i++) {
     const lo = r.rungs[live[i - 1]], hi = r.rungs[live[i]];
     if (!lo || !hi) continue;
     if (!(hi.lift > lo.lift)) flat.push(`lift ${live[i - 1]}->${live[i]}`);
-    if (!louder(lo, hi)) flat.push(`air or brightness ${live[i - 1]}->${live[i]}`);
   }
   /* github#90 -- the weak half dims and opens no air */
   const muddled = live.filter((k) => r.rungs[k] &&
@@ -6139,8 +6184,8 @@ check("a book draws forward by how much of it answers, not merely that it does",
   /* github#42 -- and the air arrived, rather than being mid-transition */
   const moving = live.filter((k) => r.rungs[k] && !airArrived(r.rungs[k]));
   const ok = r.before === r.after && r.quiet === 0 && live.length >= 3 &&
-             spilled.length === 0 && flat.length === 0 && tall.length === 0 &&
-             muddled.length === 0 && heldDim &&
+             spilled.length === 0 && flat.length === 0 && climb.rows > 0 &&
+             tall.length === 0 && muddled.length === 0 && heldDim &&
              moving.length === 0 && live.every((k) => r.rungs[k]) &&
              r.fullest && r.fullest.rung === 4 && r.thinnest && r.thinnest.rung === 1 &&
              r.strong > 0 && r.strong < r.forward && r.forward === r.lit;
@@ -6156,7 +6201,9 @@ check("a book draws forward by how much of it answers, not merely that it does",
             `${r.fullest && r.fullest.rung}) and the thinnest ${r.thinnest && r.thinnest.id} at ` +
             `${r.thinnest && r.thinnest.hit}/${r.thinnest && r.thinnest.of} (rung ` +
             `${r.thinnest && r.thinnest.rung}); it reads "${r.hits}"; clearing the box leaves ` +
-            `${r.quiet} spines carrying a rung` +
+            `${r.quiet} spines carrying a rung; the paint climbs on ${climb.rows} row(s) ` +
+            `holding two rungs, the tightest rationed to ${Math.round(climb.least * 100)}%` +
+            (climb.rows ? "" : " -- NO ROW HOLDS TWO RUNGS") +
             (spilled.length ? ` -- OUT OF BAND: rung ${spilled.join(", ")}` : "") +
             `; a dimmed spine dragged reads ${r.dragged}, leaving ${r.leaving}` +
             (flat.length ? ` -- NOT CLIMBING: ${flat.join(", ")}` : "") +
@@ -6308,20 +6355,22 @@ check("the strength survives reduced motion, where the lift does not", async (p)
     await p.send("Emulation.setEmulatedMedia", { features: [] });
   }
   const live = [1, 2, 3, 4].filter((k) => r.rungs[k]);
-  const flat = [];
+  /* github#96 -- the air climbs within a row; the edge is never rationed */
+  const climb = climbs(r.rungs);
+  const flat = climb.flat;
   for (let i = 1; i < live.length; i++) {
-    if (!louder(r.rungs[live[i - 1]], r.rungs[live[i]])) {
-      flat.push(`air or brightness ${live[i - 1]}->${live[i]}`);
-    }
     if (r.rungs[live[i]].edge === r.rungs[live[i - 1]].edge) flat.push(`edge ${live[i - 1]}->${live[i]}`);
   }
-  const ok = r.moving === 0 && live.length >= 3 && flat.length === 0 && r.lit > 0;
+  const ok = r.moving === 0 && live.length >= 3 && flat.length === 0 && climb.rows > 0 &&
+             r.lit > 0;
   return {
     ok,
     detail: `with motion reduced, "${r.needle}" lifts ${r.moving} of ${r.lit} lit spines and ` +
-            `still separates ${live.length} rungs -- ` +
-            live.map((k) => `${k}: air ${r.rungs[k].air}px opacity ${r.rungs[k].dim} ` +
-              `edge ${r.rungs[k].edge}`).join("; ") +
+            `still separates ${live.length} rungs, the paint climbing on ${climb.rows} row(s) ` +
+            `holding two, the tightest rationed to ${Math.round(climb.least * 100)}% -- ` +
+            live.map((k) => `${k}: ladder ${r.rungs[k].base}px air ${r.rungs[k].air}px ` +
+              `opacity ${r.rungs[k].dim} edge ${r.rungs[k].edge}`).join("; ") +
+            (climb.rows ? "" : " -- NO ROW HOLDS TWO RUNGS") +
             (r.moving ? ` -- STILL MOVING: ${r.moving} spine(s) carry a transform` : "") +
             (flat.length ? ` -- NOT SEPARATED: ${flat.join(", ")}` : "")
   };

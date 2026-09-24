@@ -1864,7 +1864,8 @@ keep 14 / 24px of air at full opacity. The values clear every opacity already sp
 0.16, leaving 0.28, dragged 0.35, empty 0.45), and the dim is written
 `:not([data-dragging="1"]):not([data-leaving="1"])`, so a drag and a departure still outrank it —
 the reason the earlier record refused an opacity step. `"a book draws forward by how much of it
-answers"` asserts: each rung is louder than the one below **in air or brightness**, rungs 1–2 want
+answers"` asserts: each rung is louder than the one below **in air or brightness**, within a row (`github#96`,
+below), rungs 1–2 want
 no air and are dimmed, rungs 3–4 are whole, and a dimmed spine reads **0.35 dragged, 0.28
 leaving**. `restedRungs()` waits for the opacity as well as the margin (both transition 160ms).
 `mira vance`, 188 lit: rung 1 **8** books at 0.55, rung 2 **150** at 0.72, rung 3 **21** at 14px,
@@ -1892,7 +1893,7 @@ query without the name are not marked, and that clearing the box leaves **0** na
 
 `"the strength survives reduced motion, where the lift does not"` emulates
 `prefers-reduced-motion: reduce`, asserts **0 of 188** lit spines carry a transform, and that the
-air and the accent still separate all four rungs. This is the carrier the issue named as the trap
+air (within a row, `github#96`) and the accent still separate all four rungs. This is the carrier the issue named as the trap
 and the one a transform-only answer would have failed in silence.
 
 ## A query's air can push a packed run past the room
@@ -1924,9 +1925,26 @@ and the worst overflow **at or under 1px** — rounding, not a budget. Measured 
 rationed, the tightest to **2%**.
 
 **A rationed rung reads rationed.** `RUNGS` takes the want as the token × the row's `--air-k`,
-prefers a spine on a whole row for each rung so the "air climbs" comparison compares like with
-like, and treats a margin within 0.05px of its want as arrived — a product of two lengths is not
-bit-equal to the JS product.
+prefers a spine on a whole row for each rung, and treats a margin within 0.05px of its want as
+arrived — a product of two lengths is not bit-equal to the JS product.
+
+**THE CLIMB IS PER ROW, AND THE LADDER IS GLOBAL** (`github#96`). Preferring a whole row was not
+enough: when a rung has no spine on a whole row, its sample falls back to a rationed one. The full
+default run lit 184 books, not 188, and put rung 3 on a whole row (**14px**) and rung 4 on a 6% row
+(**1.44px**), so both rung checks read the 3→4 step as flat. Each row was correct under the law
+above: *a crowded row parts less than a sparse one* (`design/0008`). A floor tied to the weakest
+rung is the worst-case reserve `github#90` rejected. So `climbs()` asserts two things:
+- **The ladder climbs everywhere.** Each rung's token (`base`, before any ration), or its
+  brightness, is above the rung below it.
+- **The paint climbs within a row.** On every row with a non-zero ration that holds two rungs, the
+  painted air or brightness climbs across them. Both checks require at least one such row, and
+  `mira vance` has **9**, the tightest at 6%.
+
+A row rationed to **0** opens no air at any rung and is skipped. The lift and the edge are never
+rationed, and both are still asserted across the whole shelf. `restedRungs()` now waits for every
+row's air, not only each rung's sample. Checked against synthetic rows: the `github#96` shape
+passes, a flat ladder fails, and a row painting rung 4 as flat as rung 3 fails. The old sampler
+passed that last case.
 
 **A SPINE TRANSITIONS ITS MARGIN over 160ms**, so a read taken in the same turn as `setQuery`
 measures the air the room is *leaving*: every rung first came back at **0px** while its own

@@ -171,6 +171,11 @@ Re-packing on a query was rejected because it *is* the room being replaced under
 the worst-case air at rest was rejected because it loosens every shelf whether or not anybody is
 searching.
 
+**So the rung climb is a promise within a row, never across rows** (`github#96`). A rung-4 book on
+a crowded row can open less air than a rung-3 book on a sparse one. That is the ration working, and
+the lift and the edge still rank the two books everywhere. The checks read the painted air one row
+at a time, and read the ladder itself across the whole shelf.
+
 **And the weak half steps back** (`github#90`, asked for by the maintainer). On a letter shelf a
 person's name lights 29 of 35 books, 26 of them at rung 1–2, because every letter holds a few of
 that person's notes — the first law working, and it read as "everything matched". So rungs 1–2

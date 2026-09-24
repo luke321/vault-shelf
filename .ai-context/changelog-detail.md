@@ -1,5 +1,23 @@
 # Changelog detail
 
+## 2026-09-24 — The rung climb is read within a row (`github#96`, `design/0008`)
+
+The full default suite failed both rung checks reproducibly, while `--jobs 1` and `--only` passed.
+An earlier check in the same lane had changed the membership, so `mira vance` lit **184** books
+instead of **188**. Rung 4's only sample then fell on a row rationed to 6%, and rung 3's on a whole
+row. The checks compared the two rows' painted air, which `github#90` never promised. The product
+is unchanged. `climbs()` asserts the unrationed ladder across the shelf and the painted air within
+each row. Rows rationed to 0 are skipped, and the lift and edge stay global.
+
+| `mira vance`, `--only`, one Chrome | before | after |
+|---|---|---|
+| rows compared for the climb | 0 (one sample per rung) | **9**, the tightest at 6% |
+| the `github#96` shape (rung 3 at 14px on a whole row, rung 4 at 1.44px on a 6% row) | FAIL | **pass** |
+| a row painting rung 4 as flat as rung 3 | pass (missed) | **FAIL** |
+| a flat ladder, 3 = 4 | FAIL | FAIL |
+
+**Not yet measured:** the full default run, which is the one that reproduced the failure.
+
 ## 2026-09-24 — A row spends only the air its packing left (`github#90`, `design/0008`)
 
 The air a match opens is width, the packer packed every row before the query existed, and
