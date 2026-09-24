@@ -1,5 +1,19 @@
 # Changelog detail
 
+## 2026-09-24 — Only parent tags: a tag shelf can shelve by root (`github#68`, `decisions/0003`)
+
+`parentTagsOnly` on a shelf makes the tag classifier read `a/b/c` as `a`, once per note. It is
+off by default and is offered in the builder only when a tag makes the book. It folds and never
+drops, so the note count is unchanged. The source predicate is still `includeSubtags` alone.
+
+| measured on `vault-3ea58174` | off | on |
+|---|---|---|
+| default Tags shelf, books | 44 | **34** |
+| default Tags shelf, notes | 4,940 | **4,940** |
+| Untagged | 375 | **375** |
+| `#garden`-sourced tag shelf, books | 27 | **17** |
+| its `garden` book | 809 | **1,441** — the whole family, `seeds` and `soil` included |
+
 ## 2026-09-21 — Two states was the law, and on 5,000 notes two states is none (`github#42`, `design/0008`)
 
 `core.markMatches` has always counted, per book, how many of its notes answer — `Book.matches` —

@@ -121,3 +121,18 @@ Measured on that vault: **124 people → 140**, and the person in exactly the 22
 link to them. The demo fixture now carries a person who exists only as a link, in 38 notes, half of
 them aliased, so the suite holds all of that.
 
+### Revised 2026-09-24 — a tag shelf can shelve by root (`github#68`)
+
+`includeSubtags` answers whether `#garden` *collects* `#garden/seeds`. It never answered whether
+`#garden/seeds` gets a book of its own, and on a vault that nests its tags the Tags shelf was
+mostly children: `area/health`, `area/home`, `project/…`, each beside its parent. So
+`parentTagsOnly` is a second, separate setting on the shelf. It is off by default and appears in
+the builder only when a tag makes the book. When it is on, the tag classifier reads each tag as
+its top-level segment (`a/b/c` → `a`), once per note. It **folds**, it never drops: a note tagged
+only `#garden/seeds` goes to `#garden`, not to Untagged, so every note keeps its address. The
+source predicate is untouched and stays `includeSubtags`' question.
+
+Top-level rather than one level up, because "only parent tags" means one book per root. A
+middle level would just be a smaller copy of the same clutter. This is still declared metadata:
+the slash is the vault's own hierarchy, read as written.
+

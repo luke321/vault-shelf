@@ -1188,8 +1188,15 @@ started.
 
 `"parent tag inclusion is a setting, and it changes the answer"` builds the same tag-sourced
 shelf twice, with `includeSubtags` on and off, and asserts the first collects at least as many
-notes as the second. Measured: `#garden` collects **1,440** notes with its
-`garden/seeds` and `garden/soil` children and **62** without -- a difference of 48.
+notes as the second. Measured on the one vault (2026-09-24): `#garden` collects **1,441** notes
+with its `garden/seeds` and `garden/soil` children and **809** without.
+
+`"only parent tags folds a nested tag into its root"` (`github#68`) builds the same `#garden`
+shelf with and without `parentTagsOnly`. It asserts that the folded shelf has no book key
+containing `/`, has the same note count, has fewer books, and that its `garden` book holds exactly
+the union of the unfolded `garden`, `garden/seeds` and `garden/soil` books. Measured: **27 books →
+17**, **1,441 / 1,441** notes, and all 1,441 of the family in one book. On the default Tags shelf of
+the same vault the setting takes **44 books to 34**, with Untagged unchanged at 375.
 
 `"people come from the property alone, never from prose"` asserts that a name the fixtures
 put **only** in note bodies — never in a people property — reaches **zero** people lists and

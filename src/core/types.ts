@@ -96,6 +96,8 @@ export interface Shelf {
   plaques: boolean;
   /** Whether `#garden` also collects `#garden/seeds`. */
   includeSubtags?: boolean;
+  /** github#68 -- `#garden/seeds` shelves as `#garden`. */
+  parentTagsOnly?: boolean;
   /**
    * design/0005 -- give each book on this shelf a fixed colour of its own, hashed from its
    * address so it stays put as notes arrive, instead of the dye of its dominant folder. Per
