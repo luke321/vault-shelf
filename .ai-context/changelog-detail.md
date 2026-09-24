@@ -6,13 +6,22 @@
 off by default and is offered in the builder only when a tag makes the book. It folds and never
 drops, so the note count is unchanged. The source predicate is still `includeSubtags` alone.
 
-| measured on `vault-3ea58174` | off | on |
-|---|---|---|
-| default Tags shelf, books | 44 | **34** |
-| default Tags shelf, notes | 4,940 | **4,940** |
-| Untagged | 375 | **375** |
-| `#garden`-sourced tag shelf, books | 27 | **17** |
-| its `garden` book | 809 | **1,441** — the whole family, `seeds` and `soil` included |
+**The fixture nests its tags now, so the setting has something to show.** On the vault as it
+was, the setting took the Tags shelf from 44 books to 34, which is too small a change to see. The
+generator now moves about two thirds of ten common tags onto 31 new children (`garden/compost`,
+`reading/fiction`, `tooling/scripts` and so on). The child is picked by a hash of the note's plan
+position, so dates, people, links and every other `rand()` draw are unchanged, and
+`check-generator-determinism` stays clean. The vault goes from 43 tags to 73. The layout golden was
+rewritten deliberately. Note that it already carried **39 stale differences in the Months plaques
+before this change**, and the rewrite absorbs those as well.
+
+| measured on the one vault | before, setting off | after, setting off | after, setting on |
+|---|---|---|---|
+| default Tags shelf, books | 44 | 74 | **34** |
+| default Tags shelf, notes | 4,940 | 4,940 | **4,940** |
+| Untagged | 375 | 375 | **375** |
+| `#garden`-sourced tag shelf, books | 27 | 57 | **17** |
+| its `garden` book | 809 | 287 | **1,441**, the whole family |
 
 ## 2026-09-21 — Two states was the law, and on 5,000 notes two states is none (`github#42`, `design/0008`)
 
