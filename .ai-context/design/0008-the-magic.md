@@ -151,7 +151,7 @@ ladder is `core.matchStrength(book)`, one rule in one place, sitting beside `cor
 the lift, so a strength living in the transform alone would be four rungs for everybody except the
 reader who asked for the motion to stop — silently, and invisibly to every assertion in the suite.
 The lift is geometry (2/6/10/14px), the **air** either side is geometry that reduced motion does
-not touch (2/4/14/24px), and the accent is paint, which each look ramps its own way.
+not touch (2/4/14/24px, since `github#90` 0/0/14/24px), and the accent is paint, which each look ramps its own way.
 
 **The ceiling IS the room, so raising one raises the other.** Rung 4 is `--spine-lift-match`, and
 `design/0021` declares the room as that rung plus the look's halo. Topping out at 14px therefore
@@ -170,6 +170,15 @@ less than a sparse one — the room still parts where you are looking, and nothi
 Re-packing on a query was rejected because it *is* the room being replaced under you; reserving
 the worst-case air at rest was rejected because it loosens every shelf whether or not anybody is
 searching.
+
+**And the weak half steps back** (`github#90`, asked for by the maintainer). On a letter shelf a
+person's name lights 29 of 35 books, 26 of them at rung 1–2, because every letter holds a few of
+that person's notes — the first law working, and it read as "everything matched". So rungs 1–2
+open **no air** and **dim** to 0.55 / 0.72; the air and full brightness are for rungs 3–4, and the
+shelf parts around the books that are actually about the query. That is a fourth carrier, which
+this record refused while it meant "on one rung only", and while an opacity step would have
+outranked a drag. It is now a two-step ramp over the weak half, and it is written so a drag
+(0.35) and a departure (0.28) still win. A ghost stays 0.16: dimmed is still answered.
 
 **A fill up the spine like a level was the other candidate**, and it is the most literal gauge
 there is. Rejected because every look repaints the board heavily — leather's grain and gilt,

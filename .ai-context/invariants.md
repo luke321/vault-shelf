@@ -1858,6 +1858,18 @@ Measured on `vault-3ea58174`, needle `mira vance`, **188 of 231** books lit:
 | 3 | 19 | 20.0–36.4% | 10px | 14px |
 | 4 | **9** | 50.0–100% | **14px** | **24px** |
 
+**SUPERSEDED BY `github#90`: the weak half opens no air and dims.** Rungs 1–2 now carry
+`--spine-air-match-1/-2: 0px` and `opacity` `--spine-dim-match-1/-2` = **0.55 / 0.72**; rungs 3–4
+keep 14 / 24px of air at full opacity. The values clear every opacity already spoken for (ghost
+0.16, leaving 0.28, dragged 0.35, empty 0.45), and the dim is written
+`:not([data-dragging="1"]):not([data-leaving="1"])`, so a drag and a departure still outrank it —
+the reason the earlier record refused an opacity step. `"a book draws forward by how much of it
+answers"` asserts: each rung is louder than the one below **in air or brightness**, rungs 1–2 want
+no air and are dimmed, rungs 3–4 are whole, and a dimmed spine reads **0.35 dragged, 0.28
+leaving**. `restedRungs()` waits for the opacity as well as the margin (both transition 160ms).
+`mira vance`, 188 lit: rung 1 **8** books at 0.55, rung 2 **150** at 0.72, rung 3 **21** at 14px,
+rung 4 **9** at 24px. The history below is kept for the numbers.
+
 **The ladder is top-heavy on purpose, and the reason is `github#90`.** The air is *width*, and rung
 2 holds **149 of the 188** books a person's name lights, so the total width a query adds is very
 nearly all rung 2. Measured worst overflow on the Encyclopedia run, the widest shelf on the vault:

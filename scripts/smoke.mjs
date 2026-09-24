@@ -5999,6 +5999,9 @@ const RUNGS = `(function(){
                  /* github#42 -- what the air is ON ITS WAY TO, which does not transition */
                  want: (parseFloat(cs.getPropertyValue("--spine-air-match")) || 0) * ration,
                  ration: ration,
+                 /* github#90 */
+                 dim: parseFloat(cs.opacity),
+                 dimWant: k <= 2 ? parseFloat(cs.getPropertyValue("--spine-dim-match-" + k)) : 1,
                  lift: parseFloat(cs.getPropertyValue("--spine-lift-match")) || 0,
                  edge: cs.borderTopColor,
                  moved: cs.transform };
@@ -6007,8 +6010,14 @@ const RUNGS = `(function(){
   return out;
 })()`;
 
-/** github#90 -- @param {{air:number, want:number}} rung @returns {boolean} */
-const airArrived = (rung) => Math.abs(rung.air - rung.want) < 0.05;
+/* github#90 */
+/** @param {{air:number, want:number, dim:number, dimWant:number}} rung */
+const airArrived = (rung) => Math.abs(rung.air - rung.want) < 0.05 &&
+                             Math.abs(rung.dim - rung.dimWant) < 0.005;
+
+/* github#90 */
+/** @param {{air:number, dim:number}} lo @param {{air:number, dim:number}} hi */
+const louder = (lo, hi) => hi.air > lo.air || hi.dim > lo.dim;
 
 /**
  * github#42, decisions/0016 -- a margin transitions; wait for it to arrive
@@ -6084,6 +6093,18 @@ check("a book draws forward by how much of it answers, not merely that it does",
       });
     });
     var hits = document.getElementById("vs-hits").textContent;
+    /* github#90 -- a drag and a departure outrank the dim */
+    var weak = document.querySelector('#vs-shelves .vs-spine[data-strength="1"]');
+    var held = function (attr) {
+      if (!weak) return null;
+      weak.style.transition = "none";
+      weak.setAttribute(attr, "1");
+      var o = parseFloat(getComputedStyle(weak).opacity);
+      weak.removeAttribute(attr);
+      weak.style.transition = "";
+      return o;
+    };
+    var dragged = held("data-dragging"), leaving = held("data-leaving");
     __vs.setQuery("");
     var after = __vs.counts().spines;
     var quiet = document.querySelectorAll("#vs-shelves .vs-spine[data-strength]").length;
@@ -6092,6 +6113,7 @@ check("a book draws forward by how much of it answers, not merely that it does",
                                .getPropertyValue("--spine-lift-max")) || 0;
     return { before: before, after: after, quiet: quiet, needle: needle, lit: lit,
              strengths: m.strengths, strong: m.strong, forward: m.forward, ceiling: ceiling,
+             dragged: dragged, leaving: leaving,
              bands: bands, thinnest: thinnest, fullest: fullest, hits: hits };
   })()`);
   r.rungs = rested;
@@ -6107,19 +6129,25 @@ check("a book draws forward by how much of it answers, not merely that it does",
     const lo = r.rungs[live[i - 1]], hi = r.rungs[live[i]];
     if (!lo || !hi) continue;
     if (!(hi.lift > lo.lift)) flat.push(`lift ${live[i - 1]}->${live[i]}`);
-    if (!(hi.air > lo.air)) flat.push(`air ${live[i - 1]}->${live[i]}`);
+    if (!louder(lo, hi)) flat.push(`air or brightness ${live[i - 1]}->${live[i]}`);
   }
+  /* github#90 -- the weak half dims and opens no air */
+  const muddled = live.filter((k) => r.rungs[k] &&
+    (k <= 2 ? r.rungs[k].want !== 0 || !(r.rungs[k].dim < 1) : r.rungs[k].dim !== 1));
+  const heldDim = r.dragged === 0.35 && r.leaving === 0.28;
   const tall = live.filter((k) => r.rungs[k] && r.rungs[k].lift > r.ceiling);
   /* github#42 -- and the air arrived, rather than being mid-transition */
   const moving = live.filter((k) => r.rungs[k] && !airArrived(r.rungs[k]));
   const ok = r.before === r.after && r.quiet === 0 && live.length >= 3 &&
              spilled.length === 0 && flat.length === 0 && tall.length === 0 &&
+             muddled.length === 0 && heldDim &&
              moving.length === 0 && live.every((k) => r.rungs[k]) &&
              r.fullest && r.fullest.rung === 4 && r.thinnest && r.thinnest.rung === 1 &&
              r.strong > 0 && r.strong < r.forward && r.forward === r.lit;
   const ladder = live.map((k) => `${k}: ${r.strengths[k]} book(s), ` +
     `${(r.bands[k][0] * 100).toFixed(1)}-${(r.bands[k][1] * 100).toFixed(1)}%, ` +
-    `lift ${r.rungs[k] ? r.rungs[k].lift : "?"}px air ${r.rungs[k] ? r.rungs[k].air : "?"}px`);
+    `lift ${r.rungs[k] ? r.rungs[k].lift : "?"}px air ${r.rungs[k] ? r.rungs[k].air : "?"}px ` +
+    `opacity ${r.rungs[k] ? r.rungs[k].dim : "?"}`);
   return {
     ok,
     detail: `"${r.needle}" lit ${r.lit} of ${r.before} books across ${live.length} rungs -- ` +
@@ -6130,7 +6158,10 @@ check("a book draws forward by how much of it answers, not merely that it does",
             `${r.thinnest && r.thinnest.rung}); it reads "${r.hits}"; clearing the box leaves ` +
             `${r.quiet} spines carrying a rung` +
             (spilled.length ? ` -- OUT OF BAND: rung ${spilled.join(", ")}` : "") +
+            `; a dimmed spine dragged reads ${r.dragged}, leaving ${r.leaving}` +
             (flat.length ? ` -- NOT CLIMBING: ${flat.join(", ")}` : "") +
+            (muddled.length ? ` -- NOT SPLIT: rung ${muddled.join(", ")}` : "") +
+            (heldDim ? "" : " -- THE DIM OUTRANKS A DRAG") +
             (moving.length ? ` -- STILL MOVING: rung ${moving.map((k) =>
               `${k} at ${r.rungs[k].air}px of ${r.rungs[k].want}px`).join(", ")}` : "") +
             (tall.length ? ` -- PAST THE CEILING: rung ${tall.join(", ")} lifts over ${r.ceiling}px` : "")
@@ -6279,7 +6310,9 @@ check("the strength survives reduced motion, where the lift does not", async (p)
   const live = [1, 2, 3, 4].filter((k) => r.rungs[k]);
   const flat = [];
   for (let i = 1; i < live.length; i++) {
-    if (!(r.rungs[live[i]].air > r.rungs[live[i - 1]].air)) flat.push(`air ${live[i - 1]}->${live[i]}`);
+    if (!louder(r.rungs[live[i - 1]], r.rungs[live[i]])) {
+      flat.push(`air or brightness ${live[i - 1]}->${live[i]}`);
+    }
     if (r.rungs[live[i]].edge === r.rungs[live[i - 1]].edge) flat.push(`edge ${live[i - 1]}->${live[i]}`);
   }
   const ok = r.moving === 0 && live.length >= 3 && flat.length === 0 && r.lit > 0;
@@ -6287,7 +6320,8 @@ check("the strength survives reduced motion, where the lift does not", async (p)
     ok,
     detail: `with motion reduced, "${r.needle}" lifts ${r.moving} of ${r.lit} lit spines and ` +
             `still separates ${live.length} rungs -- ` +
-            live.map((k) => `${k}: air ${r.rungs[k].air}px edge ${r.rungs[k].edge}`).join("; ") +
+            live.map((k) => `${k}: air ${r.rungs[k].air}px opacity ${r.rungs[k].dim} ` +
+              `edge ${r.rungs[k].edge}`).join("; ") +
             (r.moving ? ` -- STILL MOVING: ${r.moving} spine(s) carry a transform` : "") +
             (flat.length ? ` -- NOT SEPARATED: ${flat.join(", ")}` : "")
   };

@@ -20,10 +20,21 @@ rest (loosens every shelf whether or not anybody is searching).
 | worst overflow, Encyclopedia | **352px** (budget) | **0px** (budget 1px) |
 | rows rationing their air | — | **6 of 10**, the tightest to 2% |
 | rows the query adds | 0 | 0 |
-| air, rung 1 / 2 / 3 / 4, on the first whole row | 2 / 4 / 14 / 24px | 0.04* / 4 / 14 / 24px |
+| air, rung 1 / 2 / 3 / 4, on the first whole row | 2 / 4 / 14 / 24px | 0 / 0 / 14 / 24px (below) |
 
-\* rung 1's only spines stand on rationed rows, so its air reads rationed; it still sits below
-rung 2 and the accent separates it, which both rung checks assert.
+**And the weak half steps back.** Asked for on review: on the Encyclopedia `mira vance` lit 29
+of 35 letter books, every match but one through the people property, 26 of them at rung 1–2.
+Rungs 1–2 now open no air and dim; rungs 3–4 keep theirs.
+
+| rung, `mira vance` | books | air before → after | opacity before → after |
+|---|---|---|---|
+| 1 | 8 | 2 → **0px** | 1 → **0.55** |
+| 2 | 150 | 4 → **0px** | 1 → **0.72** |
+| 3 | 21 | 14px | 1 |
+| 4 | 9 | 24px | 1 |
+
+A dimmed spine still reads 0.35 dragged and 0.28 leaving. The overflow stays **0px**; 6 of 10
+rows still ration, the tightest now to **6%** (was 2%), because only rungs 3–4 ask for room.
 
 **The plus is charged where it is drawn.** A hand-arranged shelf whose plus did not fit its last
 row still drew it there; the row's width now counts it, so the slack is never overstated.
