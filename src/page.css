@@ -1712,7 +1712,13 @@
   gap: 6px;
 }
 
-.vault-shelf .vs-field.vs-row { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 14px; }
+/* github#68, design/0021 -- two columns: a face's width never adds a line */
+.vault-shelf .vs-field.vs-row {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  align-items: center;
+  gap: 8px 28px;
+}
 /* github#14, design/0016 -- a form label is a control, and page.css sizes a control: left to
  * inherit it took leather's 17px base and wrapped the row. */
 .vault-shelf .vs-field.vs-row label {
