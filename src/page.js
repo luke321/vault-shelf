@@ -4352,6 +4352,7 @@ function mountVaultShelf(root, data, options) {
     field("bplaques").checked = !!d.plaques;
     field("bplaques").disabled = !PLAQUABLE[d.classifier];
     field("bsubtags").checked = d.includeSubtags !== false;
+    field("bparenttags").checked = !!d.parentTagsOnly;
     field("bvary").checked = core.variesColors(d);
     var index = node("bindex");
     clear(index);
@@ -4372,6 +4373,7 @@ function mountVaultShelf(root, data, options) {
     ruled.forEach(function (part) { if (part) part.hidden = pick; });
     field("bplaques").disabled = pick || !PLAQUABLE[d.classifier];
     field("bsubtags").disabled = pick || (d.classifier !== "tag" && d.source.kind !== "tag");
+    field("bparenttags").disabled = pick || d.classifier !== "tag";
     $("pickhint").hidden = !pick;
   }
 
@@ -4409,6 +4411,8 @@ function mountVaultShelf(root, data, options) {
     }
     d.plaques = !isPick(d) && !!PLAQUABLE[d.classifier] && field("bplaques").checked;
     d.includeSubtags = field("bsubtags").checked;
+    if (d.classifier === "tag" && field("bparenttags").checked) d.parentTagsOnly = true;
+    else delete d.parentTagsOnly;
     if (!isPick(d)) d.varyColors = field("bvary").checked;
     else delete d.varyColors;
     writeBuilderFields();
@@ -5515,7 +5519,7 @@ function mountVaultShelf(root, data, options) {
     deleteShelf(id);
   });
   ["bname", "bsource", "bsourceval", "bclassifier", "bproperty", "bdirection",
-   "bplaques", "bsubtags", "bvary"].forEach(function (id) {
+   "bplaques", "bsubtags", "bparenttags", "bvary"].forEach(function (id) {
     on($(id), "change", function () { readBuilderFields(); previewBuilder(); });
     on($(id), "input", function () { readBuilderFields(); previewBuilder(); });
   });

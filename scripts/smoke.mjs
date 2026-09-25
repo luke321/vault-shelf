@@ -9583,6 +9583,39 @@ check("parent tag inclusion is a setting, and it changes the answer", async (p) 
                    `-- a difference of ${r.withKids - r.without}` };
 });
 
+check("only parent tags folds a nested tag into its root", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var notes = __vs.data().notes;
+    var base = { id: "t", name: "t", source: { kind: "tag", value: "garden" },
+                 classifier: "tag", direction: "alphabetical", hidden: false, position: 0,
+                 plaques: false, includeSubtags: true };
+    var nested = core.buildShelf(base, notes);
+    var folded = core.buildShelf(Object.assign({}, base, { parentTagsOnly: true }), notes);
+    var want = {};
+    nested.books.forEach(function (b) {
+      if (b.key === "garden" || b.key.indexOf("garden/") === 0) {
+        b.notes.forEach(function (n) { want[n.id] = true; });
+      }
+    });
+    var root = folded.books.filter(function (b) { return b.key === "garden"; })[0];
+    var got = {};
+    (root ? root.notes : []).forEach(function (n) { got[n.id] = true; });
+    var same = Object.keys(want).length === Object.keys(got).length &&
+               Object.keys(want).every(function (id) { return got[id]; });
+    return { nestedBooks: nested.books.length, foldedBooks: folded.books.length,
+             slashed: folded.books.filter(function (b) { return b.key.indexOf("/") >= 0; }).length,
+             nestedCount: nested.noteCount, foldedCount: folded.noteCount,
+             want: Object.keys(want).length, same: same,
+             children: nested.books.filter(function (b) { return b.key.indexOf("garden/") === 0; }).length };
+  })()`);
+  return { ok: r.children > 0 && r.slashed === 0 && r.foldedCount === r.nestedCount && r.same &&
+               r.foldedBooks < r.nestedBooks,
+           detail: `#garden: ${r.nestedBooks} books with ${r.children} child tags, ${r.foldedBooks} ` +
+                   `folded (${r.slashed} still nested); ${r.foldedCount}/${r.nestedCount} notes; ` +
+                   `the #garden book holds all ${r.want} of its family: ${r.same}` };
+});
+
 /* The fixtures name PROSE_ONLY in note bodies and never in a people property. If it ever
  * reaches a note's people list, or earns a book of its own, something started reading prose. */
 const PROSE_ONLY = "Dagny Halvorsen";
@@ -9845,6 +9878,13 @@ check("a lifted spine is painted whole, in every look", async (p) => {
     }
     if (!sp) return null;
     sp.setAttribute("data-probe51", "1");
+    /* github#68 -- a band is read off the screen, so the spine has to be on it */
+    var seen = sp.getBoundingClientRect();
+    if (seen.top < 80 || seen.bottom > innerHeight - 20) {
+      var lib = document.getElementById("vs-library");
+      if (window.__vsProbe51Scroll === undefined) window.__vsProbe51Scroll = lib.scrollTop;
+      sp.scrollIntoView({ block: "center" });
+    }
     var track = sp.closest(".vs-track");
     var r = sp.getBoundingClientRect(), t = track.getBoundingClientRect();
     var cs = getComputedStyle(track);
@@ -9947,6 +9987,10 @@ check("a lifted spine is painted whole, in every look", async (p) => {
       .forEach(function (el) { el.removeAttribute("data-probe51"); });
     var s = document.getElementById("vs-probe-51");
     if (s) s.remove();
+    if (window.__vsProbe51Scroll !== undefined) {
+      document.getElementById("vs-library").scrollTop = window.__vsProbe51Scroll;
+      delete window.__vsProbe51Scroll;
+    }
     return 1;
   })()`);
 

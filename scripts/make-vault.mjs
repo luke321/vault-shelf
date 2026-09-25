@@ -1060,6 +1060,35 @@ RARE_TAGS.forEach((tag, i) => {
   host.fm.tags = (host.fm.tags || []).concat([tag]);
 });
 
+// github#68 -- hashed from the plan position: no rand(), no date
+const CHILD_TAGS = {
+  "garden": ["garden/compost", "garden/pests", "garden/tools", "garden/greenhouse"],
+  "reading": ["reading/fiction", "reading/history", "reading/essays", "reading/papers"],
+  "idea": ["idea/someday", "idea/product", "idea/writing"],
+  "reference": ["reference/recipes", "reference/manuals", "reference/maps"],
+  "attention": ["attention/deep-work", "attention/breaks"],
+  "method": ["method/zettelkasten", "method/weekly-review", "method/gtd"],
+  "systems": ["systems/backups", "systems/sync", "systems/naming"],
+  "tooling": ["tooling/editor", "tooling/scripts", "tooling/shortcuts"],
+  "area/home": ["area/home/kitchen", "area/home/repairs", "area/home/energy"],
+  "project/website-migration": ["project/website-migration/content",
+                                "project/website-migration/redirects"],
+};
+const hashOf = (s) => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0;
+  return h;
+};
+plan.forEach((note, at) => {
+  if (!note.fm.tags || note.kind === "person") return;
+  note.fm.tags = [...new Set(note.fm.tags.map((tag) => {
+    const kids = CHILD_TAGS[tag];
+    if (!kids) return tag;
+    const h = hashOf(at + "\u0000" + tag);
+    return h % 3 === 0 ? tag : kids[Math.floor(h / 3) % kids.length];
+  }))];
+});
+
 /* ---- the links -----------------------------------------------------------
  * A note that mentions LINKED_ONLY carries NO other wikilink, because the check that follows
  * one asks for the FIRST link in the rendered note and would otherwise follow whichever
@@ -1396,6 +1425,13 @@ if (!written.has("03 - Resources/" + STICKY_NOTE) || stickySaid < 3 || stickyChi
   problems.push(`the fore-edge sentinel says #garden ${stickySaid} times and #garden/seeds ` +
                 `${stickyChild}; nothing else in this vault writes a tag in its body, so the ` +
                 `sticky-note marks have only the details line to point at`);
+}
+// github#68
+const allTags = new Set(plan.flatMap((n) => n.fm.tags || []));
+const roots = new Set([...allTags].map((t) => t.split("/")[0]));
+if ([...allTags].filter((t) => t.includes("/")).length < 2 * roots.size / 3) {
+  problems.push(`${allTags.size} tags fold to ${roots.size} roots; the vault stopped nesting ` +
+                `its tags, and "only parent tags" has nothing to fold`);
 }
 const tailPeople = [...dealt.entries()].filter(([, n]) => n <= 3).length;
 if (tailPeople < TAIL_PEOPLE.length - 1) {

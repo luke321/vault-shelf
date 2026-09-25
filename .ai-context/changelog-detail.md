@@ -88,6 +88,29 @@ before.
 | `--exact-act` rearrange | 264/264 | 264/264 |
 | full take, `--hero` | stopped at 6,336 + 41 | **10,128 of 10,128** frames, 27 acts, in 525s |
 
+## 2026-09-24 — Only parent tags: a tag shelf can shelve by root (`github#68`, `decisions/0003`)
+
+`parentTagsOnly` on a shelf makes the tag classifier read `a/b/c` as `a`, once per note. It is
+off by default and is offered in the builder only when a tag makes the book. It folds and never
+drops, so the note count is unchanged. The source predicate is still `includeSubtags` alone.
+
+**The fixture nests its tags now, so the setting has something to show.** On the vault as it
+was, the setting took the Tags shelf from 44 books to 34, which is too small a change to see. The
+generator now moves about two thirds of ten common tags onto 31 new children (`garden/compost`,
+`reading/fiction`, `tooling/scripts` and so on). The child is picked by a hash of the note's plan
+position, so dates, people, links and every other `rand()` draw are unchanged, and
+`check-generator-determinism` stays clean. The vault goes from 43 tags to 73. The layout golden was
+rewritten deliberately. Note that it already carried **39 stale differences in the Months plaques
+before this change**, and the rewrite absorbs those as well.
+
+| measured on the one vault | before, setting off | after, setting off | after, setting on |
+|---|---|---|---|
+| default Tags shelf, books | 44 | 74 | **34** |
+| default Tags shelf, notes | 4,940 | 4,940 | **4,940** |
+| Untagged | 375 | 375 | **375** |
+| `#garden`-sourced tag shelf, books | 27 | 57 | **17** |
+| its `garden` book | 809 | 287 | **1,441**, the whole family |
+
 ## 2026-09-21 — Two states was the law, and on 5,000 notes two states is none (`github#42`, `design/0008`)
 
 `core.markMatches` has always counted, per book, how many of its notes answer — `Book.matches` —
