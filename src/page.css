@@ -2241,6 +2241,27 @@
   .vault-shelf .vs-managerules { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr); }
 }
 
+/* github#98, design/0021 -- the builder's checkbox row's two max-content columns demand
+ * ~555px no matter how narrow the sheet is: the fixed template that keeps a row count
+ * every look agrees on (github#68) also refuses to shrink. One column is still a template,
+ * so the row count stays face-independent -- it is just five rows here instead of three.
+ * A max-content TRACK carries the same refusal at the track level (a grid's automatic
+ * minimum size), so the column is minmax(0, 1fr) here, and the label's own text is fixed
+ * to one line and ellipsised rather than left to wrap -- a wider face may make a label
+ * cut off sooner, never grow its own row's height (design/0021 rule 1). */
+@media (max-width: 660px) {
+  .vault-shelf .vs-field.vs-row { grid-template-columns: minmax(0, 1fr); }
+  .vault-shelf .vs-field.vs-row label { min-width: 0; }
+  .vault-shelf .vs-field.vs-row label span {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .vault-shelf .vs-field.vs-row select { min-width: 0; max-width: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vault-shelf .vs-shelf { transition: none; }
   .vault-shelf .vs-spine { transition: none; }

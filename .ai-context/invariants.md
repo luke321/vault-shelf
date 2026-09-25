@@ -3644,3 +3644,12 @@ characters are identical before and after every press.
 `make-vault.mjs` refuses to finish unless "A season in the same bed, start to finish" exists,
 says `#garden` at least three times in its body and `#garden/seeds` exactly once. Without it no
 note in the vault writes a tag inline at all.
+
+**The builder's checkbox row (`.vs-field.vs-row`) never overflows its sheet** (`github#98`,
+`design/0021`). Below 660px the row drops to one `minmax(0, 1fr)` column and each label is a
+fixed one line, ellipsised rather than wrapped — a `max-content` column (or track) refuses to
+shrink below its content, which is what the two-column grid did at every width before this.
+Measured live at 620/480/400/360/320px in leather, modern and cyber: 0px overflow at every
+width and look, and the row's own height agrees across all three looks at each width (e.g.
+152px at 360px), never taller in a wider face. `"the builder's checkbox row fits a narrow
+sheet, in every look"` measures both halves.

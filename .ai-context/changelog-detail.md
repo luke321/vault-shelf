@@ -1,5 +1,30 @@
 # Changelog detail
 
+## 2026-09-25 — The builder's checkbox row shrinks instead of spilling off the sheet (`github#98`, `design/0021`)
+
+`github#68` laid the row out as `grid-template-columns: max-content max-content` so every look
+agreed on the row count (three, not the two-or-three a wider face's free wrap could produce). A
+`max-content` column also carries grid's automatic minimum size, so the row refused to shrink
+below ~555-575px no matter how narrow the sheet got, and overflowed it. Below 660px the row is
+now one column, `minmax(0, 1fr)` rather than `max-content` so the track itself can shrink, and
+each checkbox's own label is one fixed line (`overflow: hidden; text-overflow: ellipsis`) instead
+of free text wrap — a wider face may cut a label off sooner, never grow its own row's height,
+which keeps `design/0021` rule 1 (same row height in every look) at every width, not only the
+default one.
+
+| measured live (`scripts/smoke.mjs`, the builder open, `.vs-field.vs-row`) | before | after |
+|---|---|---|
+| overflow at 620px (any look) | 0px | 0px |
+| overflow at 480px, leather / modern / cyber | 168 / 130 / 130px | 0px |
+| overflow at 400px, leather / modern / cyber | 248 / 210 / 210px | 0px |
+| overflow at 360px, leather / modern / cyber | 288 / 250 / 250px | 0px |
+| overflow at 320px, leather / modern / cyber | 328 / 290 / 290px | 0px |
+| row height, 360px, leather / modern / cyber | 92 / 92 / 92px (equal, still overflowing) | 152 / 152 / 152px (equal) |
+
+Widths at and above 660px are unchanged (still the two-column grid, 0px overflow before and
+after). `check-comments` picked up the new check's two-line explanation as prose; folded to
+one pointer line each, matching the baseline.
+
 ## 2026-09-24 — The rung climb is read within a row (`github#96`, `design/0008`)
 
 The full default suite failed both rung checks reproducibly, while `--jobs 1` and `--only` passed.
