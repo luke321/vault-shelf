@@ -113,8 +113,12 @@ async function wiringHalf() {
   try {
     const mod = require_(bundle);
     const PluginClass = mod.default || mod;
-    const metadataCache = new stub.Events();
-    const vault = new stub.Events();
+    const metadataCache = Object.assign(new stub.Events(), {
+      getFileCache: () => null, getFirstLinkpathDest: () => null,
+    });
+    const vault = Object.assign(new stub.Events(), {
+      getMarkdownFiles: () => [], getName: () => "wiring-vault",
+    });
     const app = {
       metadataCache, vault,
       workspace: Object.assign(new stub.Events(), { getLeavesOfType: () => [] }),
@@ -154,6 +158,37 @@ async function wiringHalf() {
     await sleep(1200);
     check(plugin.rebuilds === settled, "a change caught mid-flight by unload never rebuilds",
           `${plugin.rebuilds - settled} rebuild(s) after the plugin unloaded`);
+
+    // github#100 -- toggling a metadata setting must re-date an undated note
+    vault.getMarkdownFiles = () => [{
+      path: "undated.md", basename: "undated",
+      stat: { ctime: Date.parse("2020-01-02T00:00:00Z"), mtime: Date.parse("2020-01-02T00:00:00Z") },
+    }];
+    const view = new mod.ShelfView({}, plugin);
+    // github#100 -- stub ItemView omits app; adopt() needs it for buildData
+    view.app = app;
+    const adoptCalls = [];
+    view.handle = {
+      setSettings: (s) => adoptCalls.push(["setSettings", s]),
+      refresh: (d) => adoptCalls.push(["refresh", d]),
+    };
+    plugin.config.useFileStamp = true;
+    view.adopt();
+    const dated = adoptCalls.length === 2 ? adoptCalls[1][1] : null;
+    check(adoptCalls.map((c) => c[0]).join(",") === "setSettings,refresh",
+          "adopt() tells the page the new settings AND hands it fresh data",
+          adoptCalls.map((c) => c[0]).join(", ") || "no calls");
+    check(!!dated && dated.notes[0] && dated.notes[0].date === "2020-01-02",
+          "the undated note is dated by the file stamp while useFileStamp is on",
+          dated && dated.notes[0] ? String(dated.notes[0].date) : "adopt() never rebuilt the data");
+
+    adoptCalls.length = 0;
+    plugin.config.useFileStamp = false;
+    view.adopt();
+    const undated = adoptCalls.length === 2 ? adoptCalls[1][1] : null;
+    check(!!undated && undated.notes[0] && undated.notes[0].date === null,
+          "turning the fallback off un-dates it again, without reopening the view",
+          undated && undated.notes[0] ? String(undated.notes[0].date) : "adopt() never rebuilt the data");
   } catch (e) {
     check(false, "the plugin's refresh wiring runs headless", e.message);
   } finally {

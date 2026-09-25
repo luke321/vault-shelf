@@ -1,6 +1,40 @@
 # Changelog detail
 
-## 2026-09-25 — The mirror refuses an output that overlaps its source (`github#97`, `design/0013`)
+## 2026-09-25 — A changed metadata setting now rebuilds the open library (`github#100`)
+
+Both paths through the settings tab (`setControlValue()` for 1.13's declarative tab, `display()`'s
+own `save()` for the legacy one) called `ShelfView.adopt()` after writing `dateFields`,
+`peopleFields`, `personNote` or `useFileStamp`. `adopt()` only did `handle.setSettings(config)`,
+which tells the mounted page's *settings* changed but never re-runs `buildData()` — the reduction
+that turns a note's frontmatter into the record (`date`, `people`, ...) the page actually reads.
+The notes stayed reduced under the old settings until a separate vault event, an explicit Refresh,
+or reopening the view.
+
+**Measured with the real bundled plugin, host stubbed (the same method the finding itself used):**
+a synthetic undated note (`plugin/main.js`'s own no-frontmatter case) with a fixed file stamp of
+2020-01-02.
+
+| | before | after |
+|---|---|---|
+| `useFileStamp: true`, note's computed `date` | `2020-01-02` | `2020-01-02` |
+| `useFileStamp` flipped to `false` via the settings tab, **same open view, no reopen** | `2020-01-02` (stale) | `null` |
+| calls `adopt()` makes on the page | `setSettings` only | `setSettings`, `refresh(buildData(...))` |
+
+**Fix:** `adopt()` now does both — `handle.setSettings(this.plugin.config)` and
+`handle.refresh(buildData(this.app, this.plugin.config))` — since `buildData()` already runs on the
+new settings (the tab writes `plugin.config` before calling `adopt()`), regardless of which of the
+two calls lands first.
+
+**Regression check added to `scripts/refresh-check.mjs`'s existing headless `wiringHalf()`**, which
+already stubs `obsidian` and loads the real built bundle without a live Obsidian — extended with the
+`vault`/`metadataCache` methods `buildData()` needs, a synthetic file, and a bare `ShelfView`
+instance (its constructor does no DOM work, so no mounting is required to exercise `adopt()`). The
+three new checks fail against the pre-fix code exactly as shown above, confirmed by reverting the
+fix and re-running before restoring it.
+
+**Nothing in `src/` moved**, so no shelf invariant moved and the suite was not re-run for this; the
+tree earns no stamp from this. `check-comments`, `check-pii`, `check-scope`, `check-network`, both
+determinism checks and the generated code-map check all stayed clean.
 
 `make-mirror-vault.mjs` read the source, `rmSync`'d `--out` recursively, then wrote the mirror.
 Its guard rejected only `OUT === VAULT` or `OUT` below `VAULT`, as case-sensitive strings. Both
