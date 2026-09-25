@@ -2507,6 +2507,36 @@ three `document` listeners (two `keydown`, one `mousedown`) and the one `window`
 against a bound of 1.5. The first row is the page as the browser parsed it; the steady state is
 what a destroy and a remount actually cost.
 
+### A refresh holds nothing past the nodes it replaced (`github#99`)
+
+The destroy cycles cannot see a leak **within** one mount, because destroying releases it. So
+`teardown-check` first opens a book and refreshes the same mounted page **20** times, and fails
+if the mount's held cleanups (`__vs.counts().held`) grow at all, or nodes or JS listeners grow by
+more than **5** a refresh (`REFRESH_GROWTH`). The suite's `a refresh holds nothing past the nodes
+it replaced` asserts the `held` half without a collection: five refreshes with the reader open and
+five with it closed leave it where it started, under **50**.
+
+The rule behind it is in `on()`: **only a target that outlives the page's own subtree keeps a
+cleanup** — `window`, `document`, the root or anything containing it, anything that is not an
+element. A listener on an element the page built dies with that element, and `destroy()` already
+ends by clearing the root. Until `github#99` every one of the 128 `on()` sites pushed its closure
+into the mount-lifetime list, so each rebuild's detached nodes stayed reachable until the view
+closed. The plugin's `renderNote` likewise renders into, and registers its two handlers on, one
+`Component` per note, removed when the next note is rendered or the view closes — never the view.
+
+| one mounted library, a book open, after GC | refresh 1 | refresh 20 |
+|---|---|---|
+| held cleanups, before | 12,755 | 90,389 |
+| held cleanups, after | **11** | **11** |
+| DOM nodes, before | 29,620 | 269,058 (+12,602/refresh) |
+| DOM nodes, after | **13,704** | **13,704** |
+| JS listeners, before | 12,753 | 90,387 (+4,086/refresh) |
+| JS listeners, after | **4,165** | **4,165** |
+| post-GC heap, before → after | 13.9 → 27.8 MB | **12.2 → 12.4 MB** |
+
+`document` and `window` listeners are **6** and **2** before and after: the page-wide wiring still
+registers and still comes off on destroy.
+
 ## The library follows the vault
 
 `scripts/refresh-check.mjs` (`github#5`, ported from `vault-graph#6`). Two halves, because the
