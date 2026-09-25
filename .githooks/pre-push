@@ -305,6 +305,22 @@ EOF
   exit 1
 fi
 
+# THE MIRROR'S PATH GUARD NEXT, same bar -- throwaway vaults in the temp dir, no Chrome, a
+# second or two. make-mirror-vault.mjs wipes its output before writing it, so an output that is,
+# holds, or aliases the source vault deletes somebody's real notes (github#97).
+echo "pre-push: checking the mirror still refuses an output that overlaps its source..."
+if ! node "$root/scripts/path-guard-selftest.mjs" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: the path-guard selftest failed -- push blocked.
+
+Read the FAIL lines above. scripts/path-guard.mjs must refuse an output that is the source,
+sits inside it, or contains it, after resolving case and links. It only ever touches
+throwaway vaults. There is no skip flag for this check.
+EOF
+  exit 1
+fi
+
 # THE LOCK NEXT, same bar -- a throwaway root, no Chrome, a second at most. scripts/lock.mjs is
 # the one mutex six worktrees and the sister repo share (github#25, decisions/0012), and every
 # rule in it is about whose measurements get ruined: break a live holder and two runs measure a

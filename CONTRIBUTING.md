@@ -46,7 +46,7 @@ choices look arbitrary and are not: the `0-9` volume, the `-undated` and `-unfil
 and the recurring failure mode in this repo is reasoning about the code instead of measuring
 it.
 
-Thirteen commands, and all of them are gates rather than suggestions:
+Fourteen commands, and all of them are gates rather than suggestions:
 
 ```bash
 node scripts/check-pii.mjs                    # no name or identifier reaches this public repo
@@ -58,6 +58,7 @@ node scripts/check-build-order-determinism.mjs # note order never depends on the
 node scripts/check-data-escape.mjs            # a note's own words can't break out of the page's data block
 node scripts/refresh-check.mjs --wiring-only  # the plugin still follows the vault, and coalesces a burst into one rebuild
 node scripts/update-note-selftest.mjs         # the update strip decides the way design/0023 says it does
+node scripts/path-guard-selftest.mjs          # the mirror refuses an output that is, holds or aliases its source vault
 node scripts/lock.mjs --selftest              # the shared mutex can tell a dead holder from a live one
 node scripts/code-map.mjs --check             # the generated code map and index are still current
 npm run lint                                  # tsc --noEmit on src/core under strict, then typescript-eslint on our own code; every finding held at zero

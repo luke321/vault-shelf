@@ -2635,6 +2635,20 @@ and both land inside the page. The vault's own `appearance.json` does not do it 
 written, it is copied, and Obsidian starts dark anyway. Measured under cyber with a light host:
 body `theme-light`, the app's ground `rgb(255,255,255)`, the page reading `data-theme="light"`
 under `data-look="cyber"`, note ink `rgb(232,245,255)`.
+## The mirror never writes over its source
+
+`node scripts/path-guard-selftest.mjs` — **21 cases** on Windows and macOS, **17** elsewhere (the
+four case-folding ones need a case-insensitive filesystem), pure Node, throwaway vaults under the
+OS temp dir, in the pre-push hook with no skip flag. `github#97`, `design/0013`.
+
+`make-mirror-vault.mjs` wipes its output before writing it, so the guard runs first and refuses an
+output that **is** the source, sits **inside** it, or **contains** it — after both paths go through
+`canonical()` in `scripts/path-guard.mjs`: `realpathSync.native` on the deepest part that exists
+(which resolves junctions, symlinks and the true case), the rest re-joined, case-folded on
+`win32` and `darwin`. Containment is tested in both directions on a separator boundary, so
+`vault2` beside `vault` is allowed. Seven cases (six without case folding) drive the script end to end and read the source
+note back; a sibling output must still exit 0.
+
 ## The plugin says what changed, once
 
 `node scripts/update-note-selftest.mjs` — **51 cases**, pure Node, in the pre-push hook and in
