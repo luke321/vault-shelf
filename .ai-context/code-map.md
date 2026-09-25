@@ -317,7 +317,7 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 5534 | `offBook` |
 | 5568 | `typing` |
 
-## `scripts/smoke.mjs` — 11589 lines, 6 sections, 204 functions, 162 checks
+## `scripts/smoke.mjs` — 11576 lines, 6 sections, 204 functions, 162 checks
 
 ### Sections
 
@@ -325,10 +325,10 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 |---|---|
 | 158–386 | the checks |
 | 387–10702 | the invariants |
-| 10703–10851 | which vault, and why |
-| 10852–10957 | at rest, or |
-| 10958–11410 | one run |
-| 11411–11589 | main |
+| 10703–10838 | which vault, and why |
+| 10839–10944 | at rest, or |
+| 10945–11397 | one run |
+| 11398–11576 | main |
 
 ### Functions
 
@@ -525,19 +525,19 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 10446 | · `faceOf` |
 | 10461 | · `read` |
 | 10728 | `resolveVaults` |
-| 10838 | `buildFor` |
-| 10865 | `settled` |
-| 10881 | `viewport` |
-| 10894 | `unviewport` |
-| 10904 | `atRest` |
-| 10932 | `settlePage` |
-| 10964 | `press` |
-| 10976 | `runOne` |
-| 11208 | `tagged` |
-| 11214 | `capture` |
-| 11260 | · · `pick` |
-| 11369 | `killBrowser` |
-| 11413 | `main` |
+| 10825 | `buildFor` |
+| 10852 | `settled` |
+| 10868 | `viewport` |
+| 10881 | `unviewport` |
+| 10891 | `atRest` |
+| 10919 | `settlePage` |
+| 10951 | `press` |
+| 10963 | `runOne` |
+| 11195 | `tagged` |
+| 11201 | `capture` |
+| 11247 | · · `pick` |
+| 11356 | `killBrowser` |
+| 11400 | `main` |
 
 ### Checks
 

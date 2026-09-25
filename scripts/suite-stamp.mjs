@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpath
          rmdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { currentFixture } from "./fixture-store.mjs";
+import { FIXTURE_ARGS, currentFixture, fixtureDigest } from "./fixture-store.mjs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -215,6 +215,11 @@ function selftest() {
     writeFileSync(join(repo, "a.txt"), "a\n");
     sh(["add", "a.txt"]);
     sh(["commit", "-q", "-m", "one"]);
+    /* github#102 -- the current fixture is the one this checkout's generator digests to */
+    const gen = join(repo, "scripts", "make-vault.mjs");
+    mkdirSync(dirname(gen), { recursive: true });
+    writeFileSync(gen, "// selftest generator\n");
+    const ours = fixtureDigest(repo, FIXTURE_ARGS.vault);
 
     const store = fixtureStore(repo);
     const today = todayDay();
@@ -227,7 +232,7 @@ function selftest() {
       writeFileSync(join(dir, ".stamp.json"),
                     JSON.stringify({ digest, day, args: pinned ? ["--end", "2026-08-28"] : [] }));
     };
-    seed("vault", "aaaaaaaa", today, false);
+    seed("vault", ours, today, false);
 
     const green = () => record({ fixtures: currentFixtures(repo), checks: 1, cwd: repo });
 
@@ -286,26 +291,39 @@ function selftest() {
     expect("a run naming no fixture refuses to record",
            !none.wrote && /vault did not run/.test(none.why));
 
-    seed("vault", "aaaaaaaa", "2026-01-01", false);
+    seed("vault", ours, "2026-01-01", false);
     const moved = lookup("HEAD~1", repo);
     expect("a regenerated fixture misses", !moved.ok && /not the one that passed/.test(moved.why));
-    seed("vault", "aaaaaaaa", today, false);
+    seed("vault", ours, today, false);
     expect("restoring the fixture hits again", lookup("HEAD~1", repo).ok);
+
+    /* github#102 -- a sibling's newer build is not this checkout's */
+    const foreign = join(store, "vault-ffffffff");
+    mkdirSync(foreign, { recursive: true });
+    writeFileSync(join(foreign, ".stamp.json"),
+                  JSON.stringify({ digest: "ffffffff", day: today, args: [] }));
+    expect("a newer foreign fixture is not the current one",
+           currentFixture(repo, "vault") === join(store, `vault-${ours}`));
+    expect("...and the stamp still hits", lookup("HEAD~1", repo).ok);
+    rmSync(foreign, { recursive: true, force: true });
+    writeFileSync(gen, "// selftest generator, edited\n");
+    expect("an edited generator has no current fixture", currentFixture(repo, "vault") === "");
+    writeFileSync(gen, "// selftest generator\n");
 
     /* github#55 -- driven on the changed tree, so the stamps above stand */
     green(); green();
     expect("the changed tree hits once it has two", lookup("HEAD", repo).ok);
-    seed("vault", "bbbbbbbb", today, false);
+    seed("vault", ours, new Date(Date.now() - 86400000).toISOString().slice(0, 10), false);
     expect("a run against a regenerated fixture starts the count again", green().greens === 1);
-    seed("vault", "aaaaaaaa", today, false);
+    seed("vault", ours, today, false);
 
     const old = new Date(Date.now() - 8 * 86400000).toISOString().slice(0, 10);
-    seed("vault", "aaaaaaaa", old, false);
+    seed("vault", ours, old, false);
     sh(["checkout", "-q", "HEAD~1"]);
     green(); green();
     const aged = lookup("HEAD", repo);
     expect("an aged unpinned fixture misses", !aged.ok && /would regenerate/.test(aged.why));
-    seed("vault", "aaaaaaaa", "2026-08-28", true);
+    seed("vault", ours, "2026-08-28", true);
     green(); green();
     expect("a pinned fixture never ages", lookup("HEAD", repo).ok);
 
