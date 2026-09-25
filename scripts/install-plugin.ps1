@@ -69,10 +69,17 @@ if ($Enable) {
   $listPath = Join-Path $dot 'community-plugins.json'
   $list = @()
   if (Test-Path $listPath) {
-    try { $list = @(Get-Content -Raw -Encoding UTF8 $listPath | ConvertFrom-Json) } catch { $list = @() }
+    # ConvertFrom-Json unwraps a one-element array when its result is enumerated straight onto
+    # the pipeline -- the same trap as the write below, mirrored on read. Assigning its result to
+    # a variable first, then wrapping THAT in @(), keeps a single entry a one-element array
+    # instead of a bare string (github#101).
+    try {
+      $parsed = Get-Content -Raw -Encoding UTF8 $listPath | ConvertFrom-Json
+      $list = @($parsed)
+    } catch { $list = @() }
   }
   if ($list -notcontains $pluginId) { $list += $pluginId }
-  ($list | ConvertTo-Json -Compress) | Out-File -Encoding utf8 $listPath
+  (ConvertTo-Json -InputObject @($list) -Compress) | Out-File -Encoding utf8 $listPath
   Write-Host "  enabled in community-plugins.json" -ForegroundColor DarkGray
 }
 
