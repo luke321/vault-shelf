@@ -1,5 +1,29 @@
 # Changelog detail
 
+## 2026-09-25 — The current fixture is the one this checkout digests to (`github#102`)
+
+`fixture-store.mjs` used to name the build **whose `.stamp.json` was written last** as current
+(the 2026-09-11 entry below). That was only true while one checkout wrote to the store. Sibling
+worktrees keep their own digest directories, and a reused fixture never rewrites its stamp, so a
+sibling's newer build won. `update-layout-snapshots` could then re-take goldens against another
+branch's vault (`d7dbab8` was one). `suite-stamp` could also compare a stamp with a fixture the
+suite never measured.
+
+The digest now lives in `fixture-store.mjs` (`fixtureDigest`, with `GENERATORS`,
+`FIXTURE_FORMAT` and `FIXTURE_ARGS`), and `smoke.mjs`'s `resolveVaults()` calls it rather than
+keeping its own copy. `currentFixture(root, name)` returns `<store>/<name>-<digest>` only when
+that directory's stamp carries the same digest, and `""` otherwise. **It never falls back to a
+foreign build.** Every reader already treated `""` as "not in the store". Age is still judged
+where it was, in `suite-stamp.lookup` and in the suite's own `isFresh`.
+
+Measured: in a throwaway repo holding our fixture plus a newer `vault-ffffffff`, the old
+selection picked **`vault-ffffffff`** and the new one picked **`vault-f800fa12`** (ours). Against
+the live store, `fixtureDigest` gives **`945ece0a`**, which is the directory the suite already
+uses. A scoped `smoke.mjs --only` run reused it without regenerating (**1/1, exit 0**).
+`suite-stamp --selftest` now seeds by the digest of a stub generator, and gains three cases: a
+newer foreign sibling is not current, the stamp still hits beside it, and an edited generator
+has no current fixture. **39/39.** Comment baseline 1532 → 1531.
+
 ## 2026-09-25 — The mirror refuses an output that overlaps its source (`github#97`, `design/0013`)
 
 `make-mirror-vault.mjs` read the source, `rmSync`'d `--out` recursively, then wrote the mirror.

@@ -33,8 +33,8 @@ const FIXTURES = [
 
 /** @param {{ name: string, script: string, args: string[] }} fx @returns {{ dir: string, temp: boolean }} */
 function vaultFor(fx) {
-  /* github#13 -- the CURRENT build, not whichever name sorts last. */
-  const hit = currentFixture(ROOT, fx.name);
+  /* github#13, github#102 -- the build this checkout's generator and args digest to */
+  const hit = currentFixture(ROOT, fx.name, fx.args);
   if (hit) return { dir: hit, temp: false };
   console.log(`  ${fx.name}: not in the shared fixture store, generating ...`);
   const dir = mkdtempSync(join(tmpdir(), "vs-snap-vault-"));

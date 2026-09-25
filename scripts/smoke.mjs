@@ -10,7 +10,7 @@ import { FIXTURE_MAX_AGE_DAYS, FIXTURE_NAMES, describeFixture,
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync,
          renameSync, mkdirSync, statSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { FIXTURE_ARGS, fixtureDigest, fixtureStore } from "./fixture-store.mjs";
 import { tmpdir } from "node:os";
 import { createServer } from "node:net";
 import { join, dirname } from "node:path";
@@ -10731,25 +10731,12 @@ function resolveVaults() {
   if (arg("url", "")) return [{ path: "", label: "the page passed with --url" }];
 
   const out = [];
-  const GENERATORS = ["make-vault.mjs"];
-  const FIXTURE_FORMAT = 1;
-
-  const storeRoot = (() => {
-    const g = spawnSync("git", ["-C", ROOT, "rev-parse", "--git-common-dir"], { encoding: "utf8" });
-    if (g.status === 0 && g.stdout.trim()) {
-      const common = g.stdout.trim();
-      const abs = /^[A-Za-z]:[\\/]|^\//.test(common) ? common : join(ROOT, common);
-      return join(dirname(abs), ".fixtures");
-    }
-    return join(ROOT, ".fixtures");
-  })();
-
+  // github#102 -- one digest, shared with every reader of the store
+  const storeRoot = fixtureStore(ROOT);
   const digestOf = (args) => {
-    const h = createHash("sha256");
-    h.update("format:" + FIXTURE_FORMAT);
-    for (const g of GENERATORS) h.update(readFileSync(join(HERE, g)));
-    h.update(JSON.stringify(args));
-    return h.digest("hex").slice(0, 8);
+    const d = fixtureDigest(ROOT, args);
+    if (!d) throw new Error("cannot read the fixture generator to digest it");
+    return d;
   };
 
   const todayDay = () => new Date().toISOString().slice(0, 10);
@@ -10829,7 +10816,7 @@ function resolveVaults() {
     out.push({ path: dir, label, fixture: desc ? { name, ...desc } : null });
   };
 
-  gen("make-vault.mjs", [], "vault", "the vault (5,000 notes over eleven years)");
+  gen("make-vault.mjs", FIXTURE_ARGS.vault, "vault", "the vault (5,000 notes over eleven years)");
 
   if (!out.length) throw new Error("no vault to check, and none could be generated");
   return out;
