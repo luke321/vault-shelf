@@ -317,18 +317,18 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 5532 | `offBook` |
 | 5566 | `typing` |
 
-## `scripts/smoke.mjs` — 11526 lines, 6 sections, 204 functions, 160 checks
+## `scripts/smoke.mjs` — 11572 lines, 6 sections, 204 functions, 161 checks
 
 ### Sections
 
 | lines | section |
 |---|---|
 | 158–386 | the checks |
-| 387–10639 | the invariants |
-| 10640–10788 | which vault, and why |
-| 10789–10894 | at rest, or |
-| 10895–11347 | one run |
-| 11348–11526 | main |
+| 387–10685 | the invariants |
+| 10686–10834 | which vault, and why |
+| 10835–10940 | at rest, or |
+| 10941–11393 | one run |
+| 11394–11572 | main |
 
 ### Functions
 
@@ -519,25 +519,25 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 9303 | · `hit` |
 | 9357 | · `press` |
 | 9366 | · `nameOf` |
-| 9870 | · `trim` |
-| 10043 | · `px` |
-| 10369 | · `faceOnto` |
-| 10383 | · `faceOf` |
-| 10398 | · `read` |
-| 10665 | `resolveVaults` |
-| 10775 | `buildFor` |
-| 10802 | `settled` |
-| 10818 | `viewport` |
-| 10831 | `unviewport` |
-| 10841 | `atRest` |
-| 10869 | `settlePage` |
-| 10901 | `press` |
-| 10913 | `runOne` |
-| 11145 | `tagged` |
-| 11151 | `capture` |
-| 11197 | · · `pick` |
-| 11306 | `killBrowser` |
-| 11350 | `main` |
+| 9916 | · `trim` |
+| 10089 | · `px` |
+| 10415 | · `faceOnto` |
+| 10429 | · `faceOf` |
+| 10444 | · `read` |
+| 10711 | `resolveVaults` |
+| 10821 | `buildFor` |
+| 10848 | `settled` |
+| 10864 | `viewport` |
+| 10877 | `unviewport` |
+| 10887 | `atRest` |
+| 10915 | `settlePage` |
+| 10947 | `press` |
+| 10959 | `runOne` |
+| 11191 | `tagged` |
+| 11197 | `capture` |
+| 11243 | · · `pick` |
+| 11352 | `killBrowser` |
+| 11396 | `main` |
 
 ### Checks
 
@@ -686,20 +686,21 @@ range, not the file. Stale when `node scripts/code-map.mjs --check` fails.
 | 9448 | the reading shelf survives its own shelf being hidden |
 | 9484 | a saved reading place re-resolves after its own book is gone |
 | 9499 | the builder previews the shelf it would actually save |
-| 9549 | a saved shelf gets a stable id and joins the library |
-| 9570 | parent tag inclusion is a setting, and it changes the answer |
-| 9586 | only parent tags folds a nested tag into its root |
-| 9623 | a person is read from every people property, and out of a wikilink |
-| 9657 | a link to a person's note names that person, once, by the note's name |
-| 9690 | people come from the property alone, never from prose |
-| 9711 | plain list mode keeps every book reachable |
-| 9728 | every control the keyboard can reach has a name |
-| 9750 | nothing on the page reaches the network |
-| 9760 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
-| 9820 | a lifted spine is painted whole, in every look |
-| 10037 | the room above a spine is the largest lift plus the look's halo, in every look |
-| 10112 | nothing a look paints outside a spine is cut off, in every look |
-| 10362 | a short cover is stood upright by one face, not the look's |
-| 10515 | a tag book's cover carries no hash, and every other place it is named keeps it |
-| 10565 | a spine lifts on hover and holds its size |
-| 10589 | the shelves are packed the way the golden snapshot says |
+| 9550 | the builder's checkbox row fits a narrow sheet, in every look |
+| 9595 | a saved shelf gets a stable id and joins the library |
+| 9616 | parent tag inclusion is a setting, and it changes the answer |
+| 9632 | only parent tags folds a nested tag into its root |
+| 9669 | a person is read from every people property, and out of a wikilink |
+| 9703 | a link to a person's note names that person, once, by the note's name |
+| 9736 | people come from the property alone, never from prose |
+| 9757 | plain list mode keeps every book reachable |
+| 9774 | every control the keyboard can reach has a name |
+| 9796 | nothing on the page reaches the network |
+| 9806 | a hovered spine shows one peek, big enough to read, and short labels stand upright |
+| 9866 | a lifted spine is painted whole, in every look |
+| 10083 | the room above a spine is the largest lift plus the look's halo, in every look |
+| 10158 | nothing a look paints outside a spine is cut off, in every look |
+| 10408 | a short cover is stood upright by one face, not the look's |
+| 10561 | a tag book's cover carries no hash, and every other place it is named keeps it |
+| 10611 | a spine lifts on hover and holds its size |
+| 10635 | the shelves are packed the way the golden snapshot says |

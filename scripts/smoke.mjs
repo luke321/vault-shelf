@@ -9546,6 +9546,52 @@ check("the builder previews the shelf it would actually save", async (p) => {
                    `${r.propertyStayed}; cancel left ${r.shelves} shelves` };
 });
 
+/* github#98, design/0021 */
+check("the builder's checkbox row fits a narrow sheet, in every look", async (p) => {
+  const was = await p.j("({width:innerWidth,height:innerHeight})");
+  const looks = await p.j("window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })");
+  await p.eval('document.getElementById("vs-newshelf").click(); void 0');
+  const at = async (width, look) => {
+    await viewport(p, width, 900);
+    await p.eval(`__vs.setLook(${JSON.stringify(look)}); void 0`);
+    return p.j(`(function(){
+      var sheet = document.getElementById("vs-builder");
+      var body = sheet.querySelector(".vs-sheetbody");
+      var row = sheet.querySelector(".vs-field.vs-row");
+      return { width: ${width}, look: ${JSON.stringify(look)},
+               sheetOver: sheet.scrollWidth - sheet.clientWidth,
+               bodyOver: body.scrollWidth - body.clientWidth,
+               rowOver: row.scrollWidth - row.clientWidth,
+               rowWidth: Math.round(row.getBoundingClientRect().width),
+               rowHeight: Math.round(row.getBoundingClientRect().height) };
+    })()`);
+  };
+  const widths = [1180, 660, 620, 480, 400, 360, 320];
+  const rs = [];
+  for (const w of widths) for (const l of looks) rs.push(await at(w, l));
+  await p.eval('document.getElementById("vs-bcancel").click(); void 0');
+  await p.eval(`__vs.setLook(${JSON.stringify(looks[0])}); void 0`);
+  await unviewport(p, was);
+  const overflowing = rs.filter((r) => r.sheetOver > 1 || r.bodyOver > 1 || r.rowOver > 1);
+  /* design/0021 -- same row height in every look, rule 1. */
+  const uneven = [];
+  widths.forEach((w) => {
+    const atW = rs.filter((r) => r.width === w);
+    const h0 = atW[0].rowHeight;
+    atW.forEach((r) => { if (Math.abs(r.rowHeight - h0) > 1) uneven.push(r); });
+  });
+  const say = (r) => `${r.width}px/${r.look || "modern"}: ${r.rowWidth}x${r.rowHeight}` +
+    (r.sheetOver > 1 || r.bodyOver > 1 || r.rowOver > 1
+      ? ` (OVERFLOW +${Math.max(r.sheetOver, r.bodyOver, r.rowOver)})` : "");
+  return {
+    ok: overflowing.length === 0 && uneven.length === 0,
+    detail: `${looks.length} look(s) x ${widths.length} width(s); ` +
+      (overflowing.length ? `overflow: ${overflowing.map(say).join(", ")}; ` : "no overflow; ") +
+      (uneven.length ? `uneven row height: ${uneven.map(say).join(", ")}` : "row height agrees across looks at every width") +
+      ` -- e.g. ${rs.filter((r) => r.width === 360).map(say).join(", ")}`
+  };
+});
+
 check("a saved shelf gets a stable id and joins the library", async (p) => {
   const r = await p.j(`(function(){
     var before = __vs.settings().shelves.length;
