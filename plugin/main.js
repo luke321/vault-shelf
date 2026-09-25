@@ -408,8 +408,11 @@ export class ShelfView extends ItemView {
    * the page is told rather than left to find out when it is next opened. Only the tab calls
    * this: the page's own persist() is where those settings came from, and handing them back
    * would re-render the room every time a book is opened. */
+  // github#100 -- also rebuild the notes; settings alone leaves them stale
   adopt() {
-    if (this.handle) this.handle.setSettings(this.plugin.config);
+    if (!this.handle) return;
+    this.handle.setSettings(this.plugin.config);
+    this.handle.refresh(buildData(this.app, this.plugin.config));
   }
 
   onClose() {
