@@ -5,7 +5,7 @@ markers already in the source: which code cites an issue, an ADR or a DDR; which
 enforces each invariant; who calls each `__vs` entry point. Stale when
 `node scripts/code-map.mjs --check` fails.
 
-## Issues — 78 cited (69 in code, 76 in `.ai-context/`)
+## Issues — 79 cited (70 in code, 76 in `.ai-context/`)
 
 | issue | code sites | prose sites |
 |---|---|---|
@@ -87,6 +87,7 @@ enforces each invariant; who calls each `__vs` entry point. Stale when
 | #97 | scripts/path-guard-selftest.mjs:2, scripts/path-guard.mjs:1 | .ai-context/changelog-detail.md:3, .ai-context/invariants.md:2672, .ai-context/design/0013-the-mirror-vault.md:86 |
 | #98 | src/page.css:2244, scripts/smoke.mjs:9566 | .ai-context/changelog-detail.md:22, .ai-context/invariants.md:3692 |
 | #99 | src/page.js:142, src/page.js:6022, plugin/main.js:231, plugin/main.js:347, scripts/smoke.mjs:5747, scripts/teardown-check.mjs:25, scripts/teardown-check.mjs:148 | .ai-context/changelog-detail.md:47, .ai-context/invariants.md:2510, .ai-context/invariants.md:2522 |
+| #101 | scripts/install-plugin.ps1:75 | — |
 
 ## Decision and design records cited in code — 55
 
