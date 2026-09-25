@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, uti
          writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { overlap } from "./path-guard.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
@@ -21,8 +22,11 @@ if (!VAULT || !existsSync(VAULT)) {
   console.error("no vault: pass --vault <path>, or set VAULT_SHELF_VAULT / OBSIDIAN_VAULT");
   process.exit(1);
 }
-if (OUT === VAULT || OUT.startsWith(VAULT + sep)) {
-  console.error("refusing to write inside the source vault");
+const clash = overlap(VAULT, OUT);
+if (clash.how) {
+  const why = { same: "is the source vault", inside: "is inside the source vault",
+                contains: "contains the source vault" }[clash.how];
+  console.error(`refusing to write the mirror: ${OUT} ${why} (${VAULT})`);
   process.exit(1);
 }
 

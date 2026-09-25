@@ -1,5 +1,24 @@
 # Changelog detail
 
+## 2026-09-25 — The mirror refuses an output that overlaps its source (`github#97`, `design/0013`)
+
+`make-mirror-vault.mjs` read the source, `rmSync`'d `--out` recursively, then wrote the mirror.
+Its guard rejected only `OUT === VAULT` or `OUT` below `VAULT`, as case-sensitive strings. Both
+paths now go through `canonical()` (`scripts/path-guard.mjs`) and the output is refused if it is,
+sits inside, or contains the source. Measured by `path-guard-selftest.mjs` on throwaway vaults
+only, before the fix and after:
+
+| `--out`, source `<tmp>/vault` | before | after |
+|---|---|---|
+| `<tmp>` (the parent) | exit 0, **source gone** | exit 1, source kept |
+| `<tmp>/VAULT` (Windows) | exit 0, **source gone** | exit 1, source kept |
+| a junction to the vault | exit 0, source kept | exit 1, source kept |
+| a junction to the parent | exit 0, source kept | exit 1, source kept |
+| the vault, a directory below it | exit 1 | exit 1 |
+| `<tmp>/mirror` (a sibling) | exit 0 | exit 0 |
+
+Selftest: **4 FAIL / 21** on the old guard, **21/21** on the new one.
+
 ## 2026-09-24 — The rung climb is read within a row (`github#96`, `design/0008`)
 
 The full default suite failed both rung checks reproducibly, while `--jobs 1` and `--only` passed.

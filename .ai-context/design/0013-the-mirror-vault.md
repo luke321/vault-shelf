@@ -82,7 +82,10 @@ If it fires, fix the mapping. Do not relax the check.
 
 `mirror-vault/` at the repo root, `.gitignore`d, wiped and rewritten on each run. It is a
 build artefact, and the thing it was built from is on the user's disk, not in this repository.
-The script refuses to write inside the source vault.
+The script refuses an output that is the source vault, sits inside it, or contains it, judged
+after resolving case, junctions and symlinks (`scripts/path-guard.mjs`, `github#97`). Until
+then it compared the two spellings as strings, so the vault's parent, or the vault in other
+capitals on Windows, passed the guard and the wipe deleted the source.
 
 ## A property key is a name too
 
