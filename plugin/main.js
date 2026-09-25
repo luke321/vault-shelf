@@ -1,4 +1,4 @@
-import { addIcon, ItemView, MarkdownRenderer, Plugin, PluginSettingTab, Setting, TFile } from "obsidian";
+import { addIcon, Component, ItemView, MarkdownRenderer, Plugin, PluginSettingTab, Setting, TFile } from "obsidian";
 import { mountVaultShelf } from "../src/page.js";
 import * as core from "../src/core/index";
 import PAGE_HTML from "raw:../src/page.html";
@@ -228,6 +228,8 @@ export class ShelfView extends ItemView {
     this.handle = null;
     /** @type {HTMLElement|null} */
     this.page = null;
+    /** @type {Component|null} github#99 -- the open note's renderer */
+    this.noteComponent = null;
   }
 
   getViewType() { return VIEW_TYPE; }
@@ -342,12 +344,18 @@ export class ShelfView extends ItemView {
    * @param {HTMLElement} into @param {import("../src/page.js").ShelfNote} note
    */
   async renderNote(into, note) {
+    // github#99 -- one note, one component
+    if (this.noteComponent) this.removeChild(this.noteComponent);
+    this.noteComponent = null;
     const file = this.app.vault.getAbstractFileByPath(note.path);
     if (!(file instanceof TFile)) {
       into.createEl("p", { text: "That note is no longer in the vault." });
       return;
     }
+    const owner = this.addChild(new Component());
+    this.noteComponent = owner;
     const text = await this.app.vault.cachedRead(file);
+    if (this.noteComponent !== owner) return;
     const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
     /* design/0010 -- THE RENDERER IS ONLY HALF OF IT. `MarkdownRenderer.render` produces
      * Obsidian's own markup, and Obsidian styles that markup through a class it expects on the
@@ -355,12 +363,12 @@ export class ShelfView extends ItemView {
      * blockquote and a code block has no chrome. It looked like the wrong renderer and was the
      * right renderer in an unmarked box. */
     into.addClass("markdown-rendered");
-    await MarkdownRenderer.render(this.app, body, into, note.path, this);
+    await MarkdownRenderer.render(this.app, body, into, note.path, owner);
 
     /* AND A LINK IS A LINK. `internal-link` anchors carry a `data-href` and no behaviour of
      * their own -- the workspace does the opening, and in a view of our own nobody had asked
      * it to, so every wikilink in a note was inert. */
-    this.registerDomEvent(into, "click", (evt) => {
+    owner.registerDomEvent(into, "click", (evt) => {
       const anchor = linkUnder(evt);
       if (!anchor) return;
       const href = anchor.getAttribute("data-href") || anchor.getAttribute("href");
@@ -379,7 +387,7 @@ export class ShelfView extends ItemView {
 
     /* The hover preview every other view gives you, through the same event the app listens
      * for; without it a link in here is the one link in Obsidian that does not preview. */
-    this.registerDomEvent(into, "mouseover", (evt) => {
+    owner.registerDomEvent(into, "mouseover", (evt) => {
       const anchor = linkUnder(evt);
       if (!anchor) return;
       const href = anchor.getAttribute("data-href") || anchor.getAttribute("href");
@@ -408,6 +416,8 @@ export class ShelfView extends ItemView {
     if (this.handle) attempt(() => this.handle.destroy());
     this.handle = null;
     this.page = null;
+    if (this.noteComponent) this.removeChild(this.noteComponent);
+    this.noteComponent = null;
     this.contentEl.empty();
   }
 }

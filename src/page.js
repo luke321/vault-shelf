@@ -139,6 +139,8 @@ function mountVaultShelf(root, data, options) {
    */
   function on(target, type, fn, capture) {
     target.addEventListener(type, fn, capture);
+    // github#99 -- a page element's listener dies with it
+    if (target instanceof WIN.Element && !target.contains(root)) return;
     onDestroy.push(function () { target.removeEventListener(type, fn, capture); });
   }
 
@@ -6016,7 +6018,9 @@ function mountVaultShelf(root, data, options) {
         spines: root.querySelectorAll("#" + ID + "shelves .vs-spine").length,
         plaques: root.querySelectorAll("#" + ID + "shelves .vs-plaque").length,
         newshelf: root.querySelectorAll("#" + ID + "library .vs-newshelf").length,
-        readingShelf: root.querySelectorAll('#' + ID + 'shelves [data-shelf="-reading"]').length
+        readingShelf: root.querySelectorAll('#' + ID + 'shelves [data-shelf="-reading"]').length,
+        // github#99 -- what the mount holds until destroy()
+        held: onDestroy.length
       };
     }
   };

@@ -1,5 +1,29 @@
 # Changelog detail
 
+## 2026-09-25 — A refresh holds nothing past the nodes it replaced (`github#99`)
+
+Every `on()` pushed a closure holding its target and handler into the mount-lifetime `onDestroy`
+list, so every rebuild's detached shelves and reader stayed reachable until the view closed. The
+review that found it measured ~1,651 nodes and ~2,247 listeners a refresh with the library alone;
+with a book open it is worse. `on()` now keeps a cleanup only for a target outside the page's own
+subtree (`window`, `document`, the root or an ancestor, a non-element); an element's listener dies
+with the element. The plugin's `renderNote` renders into one `Component` per note instead of the
+view, removed when the next note renders or the view closes. Rejected: rewriting 128 call sites as
+delegation (same effect, a large diff), and a `WeakRef` registry (still grows a list per refresh).
+
+| `teardown-check`, a book open, 20 refreshes, after GC | before | after |
+|---|---|---|
+| held cleanups, refresh 1 → 20 | 12,755 → 90,389 | **11 → 11** |
+| DOM nodes, refresh 1 → 20 | 29,620 → 269,058 | **13,704 → 13,704** |
+| JS listeners, refresh 1 → 20 | 12,753 → 90,387 | **4,165 → 4,165** |
+| post-GC heap | 13.9 → 27.8 MB | **12.2 → 12.4 MB** |
+| `document` / `window` listeners | 6 / 2 | 6 / 2 |
+| destroy+mount cycles | clean | clean (20 of 20) |
+
+The new suite check fails on the old `on()` (held 6,828 → 40,328 over ten refreshes) and passes on
+the new one (11 throughout). **Not measured:** the plugin half in a real Obsidian; its component
+is exercised only by the build and `refresh-check --wiring-only` (7/7).
+
 ## 2026-09-24 — The rung climb is read within a row (`github#96`, `design/0008`)
 
 The full default suite failed both rung checks reproducibly, while `--jobs 1` and `--only` passed.

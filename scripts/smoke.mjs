@@ -5744,6 +5744,23 @@ check("book history seeds notes once and counts additions without stamping a vis
     r.reset.count===r.initial&&r.reset.stamp==='never'&&r.never===r.totals,detail:JSON.stringify(r)};
 });
 
+/* github#99 */
+check("a refresh holds nothing past the nodes it replaced", async (p) => {
+  const r=await p.j(`(function(){
+    var data=__vs.data();
+    try {
+      __vs.closeReader();var closed=__vs.counts().held;
+      var book=__vs.views().filter(function(v){return v.books.length;})[0].books[0];
+      __vs.openBook(book.id,null);var open=__vs.counts().held;
+      for(var i=0;i<5;i++)window.vsHandle.refresh(data);
+      var after=__vs.counts().held,reader=!!__vs.reader();
+      __vs.closeReader();for(var k=0;k<5;k++)window.vsHandle.refresh(data);
+      return {closed:closed,open:open,after:after,reader:reader,reclosed:__vs.counts().held};
+    } finally {__vs.closeReader();}
+  })()`);
+  return {ok:r.reader&&r.after===r.open&&r.reclosed===r.closed&&r.closed<50,detail:JSON.stringify(r)};
+});
+
 /* design/0033 */
 check("last opened defaults to never and persists actual source-book opens", async (p) => {
   const saved=await p.j('JSON.stringify(__vs.settings())');
