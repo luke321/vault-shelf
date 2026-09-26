@@ -323,7 +323,8 @@ const mapTag = (tag) => String(tag).split("/")
   .map((part) => mapped(tagMap, part, newWord)).join("/");
 
 /** A folder keeps its name if it is structural -- numbered, dated, or a common word. */
-const KEEP_FOLDER = /^[_\d\W]|^(inbox|projects|areas|resources|archive|archives|daily|weekly|monthly|yearly|notes|templates|attachments|meetings?)\b/i;
+// design/0013 -- a folder number needs a separator
+const KEEP_FOLDER = /^(\d{1,3}[\s._-]|_)|^(inbox|projects|areas|resources|archive|archives|daily|weekly|monthly|yearly|notes|templates|attachments|meetings?)\b/i;
 const mapFolder = (dir) => {
   if (!dir) return "";
   if (folderMap.has(dir)) return folderMap.get(dir);
