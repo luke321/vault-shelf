@@ -242,6 +242,7 @@ const POINTER_DRIVEN = [
   "dragged off",
   /* design/0019 -- it clicks the builder open and reads the form it draws. */
   "second favourites shelf",
+  "checkbox row fits",
   /* github#0 -- it reads boxes: a drop on the lower half of a shelf, and a floor grip. */
   "carried by its floor",
   /* github#34 -- it scrolls the room under a drag and reads where it got to. */
@@ -9566,46 +9567,63 @@ check("the builder previews the shelf it would actually save", async (p) => {
 /* github#98, design/0021 */
 check("the builder's checkbox row fits a narrow sheet, in every look", async (p) => {
   const was = await p.j("({width:innerWidth,height:innerHeight})");
+  const saved = await p.j(`(function(){
+    var root = document.getElementById("vs-builder").closest(".vault-shelf");
+    return { width: root.style.getPropertyValue("width"),
+             priority: root.style.getPropertyPriority("width"), look: root.getAttribute("data-look") || "" };
+  })()`);
   const looks = await p.j("window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })");
   await p.eval('document.getElementById("vs-newshelf").click(); void 0');
-  const at = async (width, look) => {
-    await viewport(p, width, 900);
+  const at = async (width, look, pane) => {
+    await p.eval(`document.getElementById("vs-builder").closest(".vault-shelf").style.setProperty(
+      "width", ${JSON.stringify(pane ? width + "px" : saved.width)}, ${JSON.stringify(saved.priority)}); void 0`);
+    await viewport(p, pane ? 1180 : width, 900);
     await p.eval(`__vs.setLook(${JSON.stringify(look)}); void 0`);
     return p.j(`(function(){
       var sheet = document.getElementById("vs-builder");
       var body = sheet.querySelector(".vs-sheetbody");
       var row = sheet.querySelector(".vs-field.vs-row");
-      return { width: ${width}, look: ${JSON.stringify(look)},
+      return { width: ${width}, look: ${JSON.stringify(look)}, pane: ${pane}, viewport: innerWidth,
                sheetOver: sheet.scrollWidth - sheet.clientWidth,
                bodyOver: body.scrollWidth - body.clientWidth,
                rowOver: row.scrollWidth - row.clientWidth,
                rowWidth: Math.round(row.getBoundingClientRect().width),
-               rowHeight: Math.round(row.getBoundingClientRect().height) };
+               rowHeight: Math.round(row.getBoundingClientRect().height),
+               columns: getComputedStyle(row).gridTemplateColumns.split(" ").length };
     })()`);
   };
-  const widths = [1180, 660, 620, 480, 400, 360, 320];
+  const widths = [1180, 700, 660, 620, 480, 400, 360, 320];
   const rs = [];
-  for (const w of widths) for (const l of looks) rs.push(await at(w, l));
-  await p.eval('document.getElementById("vs-bcancel").click(); void 0');
-  await p.eval(`__vs.setLook(${JSON.stringify(looks[0])}); void 0`);
-  await unviewport(p, was);
+  try {
+    for (const pane of [false, true]) {
+      for (const w of widths) for (const l of looks) rs.push(await at(w, l, pane));
+    }
+  } finally {
+    await p.eval(`document.getElementById("vs-bcancel").click();
+      document.getElementById("vs-builder").closest(".vault-shelf").style.setProperty(
+        "width", ${JSON.stringify(saved.width)}, ${JSON.stringify(saved.priority)});
+      __vs.setLook(${JSON.stringify(saved.look)}); void 0`);
+    await unviewport(p, was);
+  }
   const overflowing = rs.filter((r) => r.sheetOver > 1 || r.bodyOver > 1 || r.rowOver > 1);
   /* design/0021 -- same row height in every look, rule 1. */
   const uneven = [];
-  widths.forEach((w) => {
-    const atW = rs.filter((r) => r.width === w);
+  for (const pane of [false, true]) widths.forEach((w) => {
+    const atW = rs.filter((r) => r.width === w && r.pane === pane);
     const h0 = atW[0].rowHeight;
     atW.forEach((r) => { if (Math.abs(r.rowHeight - h0) > 1) uneven.push(r); });
   });
-  const say = (r) => `${r.width}px/${r.look || "modern"}: ${r.rowWidth}x${r.rowHeight}` +
+  const wrongColumns = rs.filter((r) => r.columns !== (r.width <= 660 ? 1 : 2));
+  const say = (r) => `${r.width}px ${r.pane ? "pane" : "window"}/${r.look || "modern"}: ${r.rowWidth}x${r.rowHeight}` +
     (r.sheetOver > 1 || r.bodyOver > 1 || r.rowOver > 1
       ? ` (OVERFLOW +${Math.max(r.sheetOver, r.bodyOver, r.rowOver)})` : "");
   return {
-    ok: overflowing.length === 0 && uneven.length === 0,
-    detail: `${looks.length} look(s) x ${widths.length} width(s); ` +
+    ok: overflowing.length === 0 && uneven.length === 0 && wrongColumns.length === 0,
+    detail: `${looks.length} look(s) x ${widths.length} width(s) x window/pane; ` +
       (overflowing.length ? `overflow: ${overflowing.map(say).join(", ")}; ` : "no overflow; ") +
       (uneven.length ? `uneven row height: ${uneven.map(say).join(", ")}` : "row height agrees across looks at every width") +
-      ` -- e.g. ${rs.filter((r) => r.width === 360).map(say).join(", ")}`
+      (wrongColumns.length ? `; wrong column count: ${wrongColumns.map(say).join(", ")}` : "; narrow rows use one column, wide rows two") +
+      ` -- e.g. ${rs.filter((r) => r.width === 480 && r.pane).map(say).join(", ")}`
   };
 });
 

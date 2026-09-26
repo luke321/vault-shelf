@@ -1,5 +1,28 @@
 # Changelog detail
 
+## 2026-09-26 — The builder fits an Obsidian split inside a wide window
+
+The checkbox row's narrow layout was selected by the browser window's width. A 480px pane
+inside an 1180px window kept the two-column layout: row overflow was **168px in leather**
+and **130px in modern/cyber**. At 320px those overflows grew to 328px and 290px.
+
+`page.css` now names the root's inline-size container `vs-pane` and uses its width for the
+existing 660px breakpoint. The checkbox-row smoke check covers whole-window widths and
+pane widths inside an 1180px window: **3 looks × 8 widths × 2 modes = 48 cases**. The
+expanded check failed before the stylesheet change and passed afterwards: **0px overflow**,
+one column at narrow widths, two at wide widths, and equal row heights in every look.
+At 480px the row is 387×152px in all three looks. The check now runs in the serial layout
+lane and restores the root width, look and viewport even on failure.
+
+The two look checks also pass: **4,744 elements** compared across three looks in four states,
+**0 moved / 0 resized**. Lint, core typechecking and the scope gate pass. The explanation of
+the existing mirror-folder prefix edit moved to `design/0013`, with its regex preserved;
+the comment gate is back from **1,533 to 1,531**, matching its unchanged baseline.
+The layout golden also passes unchanged in all three looks (6 shelves, 11 rows, 257 spines,
+52 plaques). Build, network and generated-index checks pass. A screenshot of the corrected
+480px pane was inspected: the labels fit and the horizontal scrollbar is gone. These were
+targeted checks; no full-suite run was made.
+
 ## 2026-09-25 — A changed metadata setting now rebuilds the open library (`github#100`)
 
 Both paths through the settings tab (`setControlValue()` for 1.13's declarative tab, `display()`'s
