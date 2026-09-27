@@ -2,7 +2,7 @@
 
 As you type, suggestions offer people, tags, folders, the names printed on book covers and note titles. Use the arrow keys and Enter, or click a suggestion, to complete the search. The offered words and the library's matches use the same catalogue of names.
 
-![Words from your vault](https://raw.githubusercontent.com/luke321/vault-shelf/1.2.0/docs/features/autocomplete.webp)
+![Words from your vault](https://raw.githubusercontent.com/luke321/vault-shelf/1.3.0/docs/features/autocomplete.webp)
 
 ## Storyboard
 
@@ -25,7 +25,7 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.2.0 - 2026-09-23` |
+| Last re-recorded | `1.3.0 - 2026-09-27` |
 | Review | Approved on 2026-09-13; re-recorded for 1.2.0 after the suggestion list started sizing to content (`github#41`) |
 | Duration | 12 seconds |
 | Frame | 1000 × 1000 |

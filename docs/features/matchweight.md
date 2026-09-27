@@ -8,7 +8,7 @@ a half or more is the top rung, then a fifth, then a twentieth, then a bare matc
 The book that *is* the answer — every one of its notes carries the term — stands clearly proud of
 the whispers around it.
 
-![A book draws forward by how much of it answers](https://raw.githubusercontent.com/luke321/vault-shelf/1.2.0/docs/features/matchweight.webp)
+![A book draws forward by how much of it answers](https://raw.githubusercontent.com/luke321/vault-shelf/1.3.0/docs/features/matchweight.webp)
 
 ## Where it lives in the storyboard
 
@@ -41,7 +41,7 @@ update `Last re-recorded` below together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.2.0` |
-| Last re-recorded | `1.2.0 - 2026-09-23` |
+| Last re-recorded | `1.3.0 - 2026-09-27` |
 | Review | Recorded 2026-09-23 as part of the 1.2.0 release; ladder proven live (rungs 1-4, lift 2/6/10/14px) before the clip was accepted |
 | Duration | 14 seconds |
 | Frame | 1000 × 1000 |

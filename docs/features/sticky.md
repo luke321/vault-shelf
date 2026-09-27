@@ -43,7 +43,7 @@ the feature, not in the take.
 | Field | Value |
 |---|---|
 | Introduced in | `1.2.0` |
-| Last re-recorded | `1.2.0 - 2026-09-23` |
+| Last re-recorded | `1.3.0 - 2026-09-27` |
 | Review | Recording requested 2026-09-17; re-recorded and added to the gallery for 1.2.0 |
 | Duration | 13 seconds |
 | Frame | 1000 × 1000 |
