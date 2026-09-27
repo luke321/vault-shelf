@@ -359,7 +359,9 @@ function storyboard(P) {
         for (var i=0;i<spines.length;i++){
           var k=spines[i].getAttribute('data-strength');
           var cs=getComputedStyle(spines[i]);
-          var air=parseFloat(cs.marginLeft)||0, want=parseFloat(cs.getPropertyValue('--spine-air-match'))||0;
+          /* github#90 -- a rationed row settles below the nominal air, not at it */
+          var ration=parseFloat(cs.getPropertyValue('--air-k')); if (!(ration>=0)) ration=1;
+          var air=parseFloat(cs.marginLeft)||0, want=(parseFloat(cs.getPropertyValue('--spine-air-match'))||0)*ration;
           if (Math.abs(air-want)>0.5) rested=false;
           lift[k]=parseFloat(cs.getPropertyValue('--spine-lift-match'))||0;
         }
@@ -697,6 +699,14 @@ function storyboard(P) {
         {at:3.5,target:'#vs-bname'},
         {at:7,target:'#vs-bclassifier',action:'hover',run:async()=>{await change('vs-bclassifier','tag');}},
         {at:12,target:'#vs-bsave',run:async()=>{await prove(`__vs.settings().shelves.some(function(s){return s.name==='Garden notes';})`,'build: shelf was not saved');}},
+        {at:15,target:neutral}
+      ] }),
+    scene({ name: "parenttags", seconds: 16, title: 'Fold busy tags into <b>one shelf</b>.', sub: 'Only parent tags turns every child into its root.', setup:async()=>{await settleOn('tags');},
+      frame:async(sec)=>{if(sec>=8.5 && sec<9.4)await sheetTo('vs-builder',(sec-8.5)/0.9);},steps:[
+        {at:2,target:'#vs-manageopen'},
+        {at:4,target:'#vs-managelist .vs-managerow:has([data-go="tags"]) .vs-edit'},
+        {at:7,target:'label:has(#vs-bparenttags)',run:async()=>{await prove(`document.getElementById('vs-bparenttags').checked`,'parenttags: checkbox did not check');}},
+        {at:11,target:'#vs-bsave',run:async()=>{await prove(`__vs.settings().shelves.find(function(s){return s.id==='tags';}).parentTagsOnly===true`,'parenttags: setting was not saved');await settleOn('tags');}},
         {at:15,target:neutral}
       ] }),
     scene({ name: "makebook", seconds: 16, title: 'Make a book for <b>what matters</b>.', sub: 'A name and a source, right on Favourites.', setup:async s=>{s.fav=await favId();await settleOn(s.fav);},
