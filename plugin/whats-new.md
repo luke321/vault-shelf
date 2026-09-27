@@ -18,9 +18,9 @@
   1.0.0 carries no "> " line on purpose: that line names what a release ADDED, and on the
   first release that is the whole page. See design/0023.
 -->
-# 1.2.0
-- The search box suggests the people, tags, folders, book covers and note titles your vault actually has, sized so you can read every suggestion in full.
-- A small clear button empties the search box in one press, without touching an active filter.
-- A matching book now lifts and opens air by how much of it answers, so the book that is the actual answer stands out from the ones that merely mention it.
-- Open a tag, person or property book and flags on the page's edge mark exactly where the subject is written; press one and the note scrolls there.
-> vs-clearquery
+# 1.3.0
+- A Tags shelf can fold a busy tag family down to its roots: turn on Only parent tags and every child joins its parent, without dropping a single note.
+- A packed search row no longer overflows the room it was given.
+- The builder's checkbox row no longer overflows a narrow Obsidian pane.
+- Changing a date, people or file-stamp setting now updates the open library right away.
+> vs-bparenttags

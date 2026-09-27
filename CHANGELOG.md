@@ -12,6 +12,30 @@ The measurements behind each entry are in
 
 ---
 
+## 1.3.0 — "Parent Tags" — 2026-09-27
+
+**Parent Tags. A busy Tags shelf can fold down to its roots, a packed search row never overflows the room it was given, and the library holds steadier under your hand — a refresh no longer leaves the old shelf behind, and a changed setting takes effect the moment you save it.**
+
+### Fold busy tags into one shelf
+
+![Fold busy tags into one shelf](https://raw.githubusercontent.com/luke321/vault-shelf/1.3.0/docs/features/parenttags.webp)
+
+- A new `Only parent tags` setting on a Tags shelf reads `a/b/c` as `a`, once per note — `#garden/seeds` and `#garden/compost` now fold into one `garden` book instead of standing as separate, thinner ones. It folds and never drops: the note count under the shelf is unchanged.
+- Off by default, and offered in the builder only when a tag makes the book.
+
+If Vault Shelf is useful to you:
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/luke321)
+
+### For the record
+
+- A long search that packed a row before the query existed no longer overflows it: each row now rations the air a match wants to what it actually has left, closing `github#90` (filed against 1.2.0, not fixed there). Worst overflow on the Encyclopedia dropped from 352px to 0px.
+- The builder's checkbox row no longer overflows a narrow Obsidian pane. Its breakpoint now tracks the pane's own width through a CSS container query instead of the browser window's, so a 480px split inside a wider window gets the same one-column layout a genuinely narrow window does (168px overflow in leather → 0px). `github#98`, `github#105`.
+- Refreshing the open library while it stays open no longer leaks the shelves and listeners it replaced. With a book open, 20 refreshes used to grow to 269,058 DOM nodes and 90,387 listeners; every refresh now releases what it replaced and holds steady at the baseline (13,704 nodes, 4,165 listeners) regardless of how many times it runs. `github#99`.
+- Changing a date, people or file-stamp setting now updates what the open library actually shows immediately, instead of waiting for the next refresh, vault event or reopen. `github#100`.
+- The mirror-vault generator — used to build this page's own screenshots and clips, never shipped to users — refused to protect its source vault from being deleted when the output path was an ancestor of it, or a differently-cased alias of it on Windows. It now resolves both paths and refuses if either contains the other. `github#97`.
+- Repository tooling only, no effect on the shipped plugin: the local installer's `-Enable` no longer corrupts `community-plugins.json` into a bare string on a fresh vault; the shared test-fixture store now picks the fixture matching the current checkout's own generator instead of whichever sibling worktree wrote its stamp last; the demo recorder's full storyboard walkthrough no longer leaves a book open between acts; and the rung-climb invariant check now measures air within a row rather than across the whole shelf. `github#92`, `github#94`, `github#96`, `github#101`, `github#102`.
+
 ## 1.2.0 — "Search Update" — 2026-09-23
 
 **Search Update. The search box now offers the words your vault actually has, a book draws forward by how much of it answers rather than merely whether it does, and a tag book flags exactly where its subject is written.**
