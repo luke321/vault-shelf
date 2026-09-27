@@ -17,13 +17,18 @@
 | The hero | Re-recorded: `record-demo.mjs --act hero --width 1000 --height 1000 --hero assets/demo.webp --hero-width 1000`. |
 | Recorder bug found and fixed while re-shooting | `matchweight`'s own settle-wait (`matchweightRested`) compared the live margin against the nominal `--spine-air-match` value with no `--air-k` ration factor, so it timed out ("the ladder never settled") the first time the demo vault's People shelf happened to ration a row -- the exact class of gap `github#90`'s row-air-rationing feature introduced and `github#96` already fixed in `scripts/smoke.mjs`'s own equivalent check. Fixed the same way: `want = base * ration`. Not filed as a separate issue; recorder-only, fixed in the same commit as the release housekeeping. |
 | `npm run lint` | 0 errors, 0 warnings. |
-| `check-pii` / `check-scope` / `check-network` / `check-comments` | TBD |
-| `check-generator-determinism` / `check-build-order-determinism` | TBD |
-| `code-map.mjs --check` | current, regenerated after every code change. |
-| `node scripts/smoke.mjs` | TBD |
+| `check-pii` | clean (206 files, 6 names, 5 patterns). |
+| `check-scope` | clean (552 css rules, 624 css selectors, 79 ids, 128 prefixed classes, 75 id lookups, 19 shipped files with no invisible characters, 28 negative controls caught). |
+| `check-network` | clean (18 files, 2 built artifacts). |
+| `check-comments` | clean; baseline held at exactly **1531** across the whole session (including after committing the pre-existing mirror-folder WIP with its comment folded to a pointer line). |
+| `check-generator-determinism` | clean -- 4,940 notes in 17 folders, byte-identical at the same `--end`. |
+| `check-build-order-determinism` | clean. |
+| `code-map.mjs --check` | current, regenerated after every code change (three times over the session as new content added new pointer references). |
+| `node scripts/smoke.mjs` | **162/162, stamped tree `575bb85` as passed 2 times in a row.** Not a clean path to get there -- see the environmental-flakiness note below. |
 | `release.ps1 1.3.0 -DryRun` | TBD |
 | `release.yml` dry run on `release/1.3.0` | TBD |
 | `gh attestation verify main.js` | TBD (after the real tag run) |
+| Environmental flakiness during suite verification | The machine was heavily loaded partway through this release (confirmed by the owner: "pc was maxxed out"). Symptoms while it was: a spine measured 24x132px against the normal 44x132px, `--shot`'s CDP `Page.captureScreenshot` timed out at 10s though the recorder's own CDP frame capture worked fine minutes earlier, and the same "rung climb" check failed identically on a disposable `develop` worktree with zero code changes -- proving it wasn't this branch. Runs went 152/162 -> 153/162 (different checks failing each time, inflated durations) -> 118/162 (real Chrome GCM/updater errors visible) -> 160/162 x2 -> **162/162 x2** as load dropped. No product or test code was changed to chase this; it resolved on its own once the machine wasn't maxed out. Separately, a throwaway comparison worktree's `node_modules` was junctioned to the primary checkout's for speed, and removing that worktree afterward followed the junction and deleted the primary checkout's real `node_modules` contents -- caught immediately (`esbuild` missing), fixed with `npm ci`, confirmed harmless (git-ignored, no tracked files touched). |
 
 ## What was looked at, not just measured
 
