@@ -20,9 +20,9 @@
 # tree and skips its own run, because main only ever receives develop and so carries the same
 # tree (github#5, decisions/0010). Nothing runs the suite again on the push of main -- that
 # merge happens on the website, where no hook runs, and release.ps1 pushes only the tag. This
-# workflow TRUSTS THE TAG and runs the static gates instead -- lint, scope, network, PII, the
-# comment rule, the code map -- which need no vault and no browser and are about what the
-# release ships. The flow the two halves make up is
+# workflow TRUSTS THE TAG and runs the hook's static gates instead -- every one of them, which
+# check-ci-parity.mjs holds it to (github#89) -- which need no real vault and no browser and are
+# about what the release ships. The flow the two halves make up is
 # written down in .ai-context/releasing.md, which is the authority; change it in the same
 # commit as this file.
 
@@ -181,7 +181,11 @@ jobs:
 
       # The static gates, the same ones .githooks/pre-push runs on a push to develop or main.
       # The invariant suite is not among them: it needs a real Chrome and minutes, and
-      # release.ps1 has already run it against this commit.
+      # release.ps1 has already run it against this commit. This list was hand-kept and six of
+      # the hook's gates had fallen out of it (github#89); check-ci-parity.mjs now checks it
+      # against the hook the same way it checks quality.yml, and runs first.
+      - name: The hook's static gates all run here
+        run: node scripts/check-ci-parity.mjs
       - name: Lint, and typecheck the core
         run: npm run lint --silent
       - name: The page cannot style, or be styled by, its host
@@ -209,8 +213,20 @@ jobs:
           node scripts/check-pii.mjs
       - name: Comments are pointers
         run: node scripts/check-comments.mjs
+      - name: The vault generators are day-independent
+        run: node scripts/check-generator-determinism.mjs
+      - name: The build order is filesystem-independent
+        run: node scripts/check-build-order-determinism.mjs
+      - name: A note cannot close the data script it is serialised into
+        run: node scripts/check-data-escape.mjs
+      - name: The plugin still follows the vault
+        run: node scripts/refresh-check.mjs --wiring-only
       - name: The update note decides the way it says
         run: node scripts/update-note-selftest.mjs
+      - name: The mirror refuses an output that overlaps its source
+        run: node scripts/path-guard-selftest.mjs
+      - name: The lock tells a dead holder from a live one
+        run: node scripts/lock.mjs --selftest
       - name: The generated code map and index are current
         run: node scripts/code-map.mjs --check
 

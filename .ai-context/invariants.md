@@ -2407,7 +2407,8 @@ other `kind:` prefix exits 1. `.pii-names.example` documents the format with pla
 `PII_NAMES` without an `email:`, `jira:` or `vault:` entry exits 1, so a secret that was never
 updated cannot run half the rules and pass. Locally, a `.pii-names` without one prints a warning
 naming the missing kind and exits 0. With no list at all nothing has changed: the patterns run,
-the `NO NAME LIST` warning prints, and `release.yml` still refuses to run without the secret.
+the `NO NAME LIST` warning prints, and `release.yml` and `quality.yml` still refuse to run
+without the secret (`quality.yml` makes one exception, for a pull request from a fork, below).
 
 **Negative controls run on every invocation** (`decisions/0019`). Each generic pattern gets one.
 Each loaded name, domain, key and vault gets a synthetic line, and that line has to be flagged
@@ -2415,6 +2416,42 @@ Each loaded name, domain, key and vault gets a synthetic line, and that line has
 (`6 names, rules 1 email, 2 jira, 1 vault, 6 patterns, 13 negative controls caught` on the
 maintainer's list). A control that does not bite exits 1. The message names only its kind and
 index (`jira #1`) and never the value, because the CI log of a public repository is public too.
+
+## The merge boundary runs the gates the hook runs (`github#89`)
+
+`.githooks/pre-push` is a file in an installed checkout. It runs where somebody set
+`core.hooksPath .githooks`, on whichever machine pushed, and it is **never a server-side proof
+about a commit**. Before `github#89` it was the only place most of the gates ran: a push to
+`develop` from a clone without the setting ran nothing anywhere, and `release.yml` re-ran a
+hand-kept 7 of the hook's 13 static gates.
+
+`.github/workflows/quality.yml` runs the hook's **static block** on every push and pull request
+to `develop` or `main`. That is every check between the hook's `gated_push` early exit and its
+`SKIP_SMOKE` line, lint included. It runs as one job named `quality gates`, because a job name
+**is** the required-status context. **The push trigger matters most**, because work reaches
+`develop` here by a local merge and a direct push, not by a pull request.
+
+**The list is derived, then guarded.** `scripts/check-ci-parity.mjs` parses the hook's static
+block and fails on any gate that `quality.yml` or `release.yml` does not run. It compares
+normalised keys (script plus sorted flags, so `refresh-check.mjs` alone does not satisfy
+`refresh-check.mjs --wiring-only`). It reads only `run:` lines, never a YAML comment. It skips
+the hook's heredoc refusal messages, which name scripts in prose. It asserts the `quality gates`
+job name. The hook calls the check too, so both workflows carry it as a step. On the tree that
+added it: **14 static gates, all 14 in both workflows**. Wiring it in exposed 7 gaps in
+`release.yml`: `check-generator-determinism`, `check-build-order-determinism`,
+`check-data-escape`, `refresh-check --wiring-only`, `path-guard-selftest`, `lock --selftest`,
+and the parity check itself. A `LOCAL_ONLY` list exists for a gate a runner genuinely cannot
+run, and it is empty. An entry needs its reason written here.
+
+**A green `quality gates` does not mean the suite ran.** `smoke.mjs` and the four browser
+gates stay local, because they drive a headed Chrome under a machine-wide lock against goldens
+measured on one machine. **On a pull request from a fork, the name list did not run either.**
+GitHub gives such a run no secrets, so the PII step runs the patterns only, raises a
+`::warning::` and writes a step-summary line saying so, and stays green. Refusing would put a
+red status on every outside contribution, and its author could never fix it. The names are
+checked on the push that brings the merge to `develop`, both by the maintainer's hook and by
+this workflow's push run. A same-repository push or pull request without the secret is refused,
+exactly as in `release.yml`.
 
 ## A spine holds its size
 

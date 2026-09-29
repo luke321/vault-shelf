@@ -354,6 +354,26 @@ EOF
   exit 1
 fi
 
+# AND EVERYTHING ABOVE THIS LINE ALSO HAS TO RUN WHERE A MERGE BOUNDARY CAN SEE IT (github#89).
+# This hook is a file in an installed checkout: it runs where someone set core.hooksPath, on the
+# machine that pushed, and it is never a server-side proof about a commit.
+# .github/workflows/quality.yml runs this same static block on every push and pull request to
+# develop or main, release.yml runs it before it publishes, and scripts/check-ci-parity.mjs
+# reads this block and both files and fails if a gate here is missing from either -- a list
+# nobody checks is a list that drifts, which is how release.yml fell six gates behind.
+echo "pre-push: checking the merge boundary runs these same gates..."
+if ! node "$root/scripts/check-ci-parity.mjs" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: the CI parity check failed -- push blocked.
+
+A gate this hook runs is not run by .github/workflows/quality.yml or release.yml, so
+nothing on the server would catch it. Add the step there, then push again. There is no
+skip flag for this check.
+EOF
+  exit 1
+fi
+
 # LINT NEXT, same bar again -- about ten seconds, no Chrome -- and no skip flag, for a
 # different reason: a lint that runs when someone remembers is already deep in findings by
 # the time anyone looks. The same run carries tsc --noEmit over src/core under strict, and
