@@ -1,5 +1,49 @@
 # Changelog detail
 
+## 2026-09-29 — The merge boundary runs the hook's gates (`github#89`)
+
+The hook's static block now also runs in `.github/workflows/quality.yml` on every push and pull
+request to `develop` or `main`. `scripts/check-ci-parity.mjs`, ported from vault-graph, guards it
+together with `release.yml`.
+
+| | before | after |
+|---|---|---|
+| hook static gates | 13 | 14 (the parity check itself) |
+| run by `quality.yml` | no workflow | **14 / 14** |
+| run by `release.yml` | 7 / 13 | **14 / 14** |
+| server-side gate on an ordinary push to `develop` | none | `quality gates` |
+
+The 7 steps `release.yml` gained are `check-generator-determinism`,
+`check-build-order-determinism`, `check-data-escape`, `refresh-check --wiring-only`,
+`path-guard-selftest`, `lock --selftest` and `check-ci-parity`.
+
+**Negative controls, 10/10** in a throwaway root (`--root`):
+
+- These exit 1: a gate dropped from `quality.yml` or `release.yml`, a gate named only in a YAML comment, a flag dropped (`refresh-check.mjs` without `--wiring-only`), the job renamed, a hook marker renamed, a new gate added to the hook alone, and a missing workflow.
+- These exit 0: the real files, and `quality.yml` with CRLF line endings.
+
+**On Linux, before any runner saw it.** Every `run:` step of both workflows ran in a `node:24`
+container (v24.21.0) against the committed tree. That surfaced one real failure:
+`check-data-escape`'s non-Windows branch writes an extra note whose filename is markup, and the
+filename was `</script><b>x</b>`. The `/` is a path separator on every OS, so the write threw
+`ENOENT` before any check ran. The branch had never run anywhere. The title is now
+`<script>x<b>x`. After the fix, every step passed in both workflows:
+
+- `check-data-escape` saw 3 notes on Linux, against 2 on Windows.
+- `lock --selftest` was the slowest step at 40.7 s. Lint took 4.3 s.
+- Everything else took under 4 s.
+
+The PII step, three ways:
+
+| run | result |
+|---|---|
+| secret set | `6 names, rules 1 email, 2 jira, 1 vault, 6 patterns, 13 negative controls caught`, exit 0 |
+| fork PR, no secret | patterns only, `::warning::` plus a step-summary line, exit 0 |
+| same repository, no secret | `::error::`, exit 1 |
+| secret missing a kind | `check-pii: PII_NAMES declares no email, jira, vault entry -- refusing`, exit 1 |
+
+Nothing in `src/` moved, so the suite was not run, and this tree earns no stamp from this work.
+
 ## 2026-09-29 — check-pii's private rules move out of the tracked file (`github#106`)
 
 Three of the rules in `scripts/check-pii.mjs` spelled out the maintainer's employer email

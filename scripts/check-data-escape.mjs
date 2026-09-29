@@ -65,7 +65,8 @@ export const SVG_CENSUS = `(function () {
 })()`;
 
 // github#5 -- Windows forbids < > : " | ? * in a filename
-const FS_HOSTILE_TITLE = process.platform === "win32" ? null : "</script><b>x</b>";
+// github#89 -- and no OS allows `/`, so no closing tag
+const FS_HOSTILE_TITLE = process.platform === "win32" ? null : "<script>x<b>x";
 
 /** @param {string} dir @returns {{ out: string, notes: number }} */
 export function buildHostileVault(dir) {
