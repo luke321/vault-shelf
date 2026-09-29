@@ -65,6 +65,12 @@ npm run lint                                  # tsc --noEmit on src/core under s
 node scripts/smoke.mjs                        # the invariant suite, over the generated vault
 ```
 
+`check-pii` reads its deny list from the untracked `.pii-names`, or from the `PII_NAMES` secret in
+CI. The list holds names, plus typed `email:`, `jira:` and `vault:` entries for the rules that
+would otherwise name the maintainer in this public source (`github#106`). Copy
+`.pii-names.example` to see the format. In CI, a list with no entry of one kind fails. Locally,
+the check warns. Either way, every loaded value is planted and has to be caught on every run.
+
 One more launches a real Obsidian, for the one thing headless Chrome cannot answer: whether the
 CSS the sheets rely on is actually supported by the Electron/Chromium build Obsidian itself
 ships (`github#61`, `design/0036`):

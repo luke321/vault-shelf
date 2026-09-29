@@ -202,7 +202,8 @@ jobs:
             echo "::error::degrade to patterns-only and exit 0 on a PUBLIC repo, about other people's"
             echo "::error::names. Create it: Settings -> Secrets and variables -> Actions -> New"
             echo "::error::repository secret, name PII_NAMES, value a COMMA-separated list of names"
-            echo "::error::(this differs from the local .pii-names file, which is one name per line)."
+            echo "::error::(this differs from the local .pii-names file, which is one name per line),"
+            echo "::error::plus the typed email:, jira: and vault: entries .pii-names.example documents."
             exit 1
           fi
           node scripts/check-pii.mjs

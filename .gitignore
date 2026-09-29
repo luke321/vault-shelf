@@ -19,8 +19,8 @@ dist/
 # with scripts/make-vault.mjs; never commit one, since the generator is the artefact.
 demo-vault/
 
-# The PII deny list itself. The whole point is that these names are not in a commit;
-# .pii-names.example explains the file and carries no names.
+# The PII deny list itself: names, and the typed email/jira/vault rules (github#106). The
+# whole point is that none of it is in a commit; .pii-names.example explains the format.
 .pii-names
 
 node_modules/
