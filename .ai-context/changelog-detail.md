@@ -1,5 +1,32 @@
 # Changelog detail
 
+## 2026-09-29 — check-pii's private rules move out of the tracked file (`github#106`)
+
+Three of the rules in `scripts/check-pii.mjs` spelled out the maintainer's employer email
+domain, two internal Jira project keys and the name of a real vault. They had been public
+since the first commit, and `ALLOW_FILES` meant the guard never flagged itself. This is a
+forward fix only: history was not rewritten. The strings now load from the untracked
+`.pii-names` as typed entries (`email:`, `jira:`, `vault:`), or from `PII_NAMES` in CI.
+
+| | before | after |
+|---|---|---|
+| tracked patterns | 5, three naming the maintainer | 3 generic, plus 3 built at runtime from the list |
+| `git grep` for the three strings | 3 lines | **0** |
+| clean line on the maintainer's list | `203 files, 6 names, 5 patterns` | `203 files, 6 names, rules 1 email, 2 jira, 1 vault, 6 patterns, 13 negative controls caught` |
+| negative controls | none | **13** on every run (3 generic, plus one for each name and rule entry) |
+
+A throwaway-repo matrix passed **12/12**, using placeholder values:
+
+- A planted email, two Jira keys and a vault path each hit, from the file and from the env (4 hits, exit 1).
+- A clean tree passes from both.
+- `PII_NAMES` with no `jira:` entry exits 1; the file with none warns and exits 0.
+- No list at all prints today's `NO NAME LIST` warning.
+- An unknown `kind:` exits 1.
+- Breaking the email, Jira or vault rule makes its control fail, and the output names `email #1` / `jira #1` / `vault #1` without the value.
+- A drive-root `Obsidian` folder is still caught with no list.
+
+Nothing in `src/` moved, so the suite was not re-run, and the tree earns no stamp from this.
+
 ## 2026-09-26 — The builder fits an Obsidian split inside a wide window
 
 The checkbox row's narrow layout was selected by the browser window's width. A 480px pane
