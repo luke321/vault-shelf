@@ -15,15 +15,29 @@ nine days old and will regenerate. A fresh full suite and local release dry run 
 required, followed by a CI dry run of the final candidate before merging and tagging.
 Run `36304102110` remains evidence for the September candidate, not this reconciled tree.
 
-The five editor CSS warnings were also checked against the branch. Their declarations remain
-unchanged, as documented in `design/0036-the-css-floor-is-measured.md`: the editor target is
-Obsidian 1.6.5, below the declared minimum 1.7.2; the recorded runtime checks passed on
-Obsidian 1.13.7, with a font fallback and an intentional hidden-element `!important` rule.
-That earlier run does not establish runtime compatibility on the minimum Obsidian version.
+The owner confirmed that the five CSS warning categories came from the public Obsidian
+community review, superseding the earlier editor-only diagnosis. After the authorized snap,
+`github#109` (`d6f0f80`, integrated into `develop` by `c991a3c`) was also brought into this
+release candidate. Its only merge conflict was the generated code index, regenerated again.
+The official review rules reproduced 23 flagged declarations before and 10 afterward, across
+Electron 30 and both conservative desktop target ranges. Four categories are cleared;
+the remaining ten `clip-path` declarations preserve ribbon shapes and clipped click regions.
+No rule was suppressed and the minimum Obsidian version is unchanged.
+
+The worker's targeted headed smoke checks passed 8/8 plus a 1/1 clean capture check; the
+installed Obsidian runtime checks passed 19/19 on 1.13.7. Clean library and reader captures
+had zero pixel differences against the baseline. Link borders sit slightly lower than native
+underlines; code text now respects the host monospace font. These measurements belong to
+`d6f0f80`, whose complete tree matches the `develop` merge, not to a fresh full release run.
+Runtime compatibility on the minimum Obsidian version remains unmeasured. The community
+page's published score has not yet been rechecked against a released build of these changes.
+Touched clips still need review/refresh before publication; the inventory below predates #109.
 
 | Resumed preflight | Result |
 |---|---|
-| Build | Successful; all three SHA-256s match the September dry-run hashes below. |
+| Build before #109 | Successful; all three SHA-256s matched the September dry-run hashes below. These are historical hashes, not the final CSS-fix candidate. |
+| Build after #109 | Successful on the release reconciliation `7f3ebac` with the updated release notes. `main.js` and `manifest.json` retain the September hashes; `styles.css` SHA-256 is `e7d83dfd43374d289e015c1d1684d884f622da9bad4cb0faaff6cbeac1d9c1ec`. |
+| Official CSS rules after #109 | Re-run after rebuilding: source files and built `styles.css` report only ten `css-clip-path` warnings at Electron 30.0, >=30.0 and >=31.0. No suppressions. Build, lint/core typecheck and whitespace checks passed on this candidate. |
 | Lint and core typecheck | 0 errors, 0 warnings. |
 | Static gates | CI parity confirms all 14 hook gates exist in both workflows. PII, scope, network, comments, generator determinism, build-order determinism, data escaping, refresh wiring, update-note self-tests, path-guard self-tests, lock self-tests and generated-index checks passed. Comment baseline remains 1531. |
 | CI prerequisite | Repository secret `PII_NAMES` exists; its contents were not read. |
