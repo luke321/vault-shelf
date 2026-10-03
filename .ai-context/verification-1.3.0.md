@@ -44,7 +44,41 @@ Touched clips still need review/refresh before publication; the inventory below 
 | Clip inventory | 27 feature clips plus the hero, all decoded successfully at 1000 x 1000. All 1.3.0 image targets in the gallery and feature pages exist locally. The shared review helper searched the wrong assets directory; a scratch copy corrected its lookup to `docs/features` and treated `hero` as `assets/demo.webp`, reporting 28/28 clips. No shared skill was edited. |
 | Visual inspection | Inspected midpoint frames from all 27 feature clips as three contact sheets. The shelves, reader, builder controls, feature captions and parent-tags checkbox were visible. This is a still-frame review, not a replay of every animation. |
 | Closing-card duration | Decoding all three stored frames of `close.webp` and summing their durations gives exactly 5000 ms, matching the 5-second storyboard act. The earlier 3.4-second audit concern does not reproduce with the encoded frame durations. |
-| Full suite / local dry run / final CI dry run | Pending. The historical pass rows below must not be read as a pass for the resumed candidate. |
+| Full suite / local dry run / final CI dry run | Full headed run failed 163/165 on `48284f2`; see below. Local release dry run and final CI dry run remain pending. The historical pass rows below must not be read as a pass for the resumed candidate. |
+
+### Full headed validation on 2026-10-03
+
+On the owner's instruction to run, `node scripts/smoke.mjs --headed --jobs 1` exercised
+all 165 checks against the generated vault (4,940 notes), on commit `48284f2`, tree
+`be0d05be5be56b79f7951bfb33ee8e22f58409fa`. It exited **1**, with **163/165 passing**
+in 194 seconds: 113/114 in the first batch and 50/51 in the layout batch. Both suite and
+screen-left locks were held; Chrome ran visibly on the free left monitor. All browsers
+started by these checks exited and the locks were released.
+
+Two failures keep this candidate unverified:
+
+- `a lifted spine is painted whole, in every look`: a real search match lifted 14px but the
+  full-run measurement detected only 5px painted above the track in all three looks. A
+  focused rerun passed, measuring 15/14/28px for leather/modern/cyber. Its dependence on
+  earlier checks or runtime conditions is unresolved; an isolated pass does not erase the
+  full-run failure.
+- `the shelves are packed the way the golden snapshot says`: 66 differences against
+  `vault.json`, reproduced in the focused rerun. The first reported difference is the first
+  Months plaque width, expected 138px versus measured 108px. The snapshots were not updated.
+
+For comparison, the same two focused headed checks were run with `src/` temporarily taken
+from pre-#109 commit `d98a1e2`, retaining the same fixture and test harness. That source also
+passed the lifted-spine check with the same 15/14/28px measurement and failed the snapshot
+check with the same 66 differences and reported values. Thus the snapshot mismatch predates
+#109. The clean library and reader captures from the current and baseline probes had zero
+changed pixels. The current library capture was visually inspected. Source files were
+restored to HEAD afterward and the working tree was verified clean before this record edit.
+
+There is also a release-tooling conflict: `release.ps1` launches the suite without
+`--headed`, and `smoke.mjs` treats `--headed` as a reason not to stamp a run. The owner's
+headed-test rule was followed by invoking the full suite directly. No release dry run was
+claimed, no stamp was forged, and no tag or push was attempted. This conflict needs to be
+resolved before a compliant release dry run can certify the candidate.
 
 ## September preparation and verification
 
