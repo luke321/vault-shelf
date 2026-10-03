@@ -80,6 +80,43 @@ headed-test rule was followed by invoking the full suite directly. No release dr
 claimed, no stamp was forged, and no tag or push was attempted. This conflict needs to be
 resolved before a compliant release dry run can certify the candidate.
 
+### Headed rerun and paint-failure diagnosis
+
+The owner requested another full headed run and an explanation of the apparent flake.
+On `ee80ffb`, `node scripts/smoke.mjs --headed --jobs 1 --timings <temporary-file>` again
+exited **1**, with **163/165 passing**, in 200 seconds. The same two failures reproduced:
+the paint check reported 5px in all looks, and the golden comparison reported 66 differences.
+The complete output and per-check timings were retained locally.
+
+The paint failure is a reproducible test-order dependency, not evidence of a randomly
+clipping spine. A temporary diagnostic replay of the 110 checks through the paint check
+failed 109/110 and captured the cause: the `#joinery` hover preview covers the top of the
+`#letterpress` spine selected for the paint measurement. The spine begins at y=453.5 and
+its track at y=467.5; the preview extends to approximately y=461.9, leaving only about 5px
+above the track visible to the pixel comparison. The screenshot was visually inspected.
+The spine's geometry and declared clipping margin remain correct.
+
+The minimal reproduction uses the unchanged harness:
+
+```
+node scripts/smoke.mjs --headed --jobs 1 --only "clicking a row in the index moves the mark" --only "a lifted spine is painted whole"
+```
+
+It fails **1/2**, with the same 5px measurement. The index-row test sends real CDP mouse
+press/release events and leaves Chrome's pointer at the click position. Later scrolling
+puts a shelf under that pointer and opens a hover preview over the sampled area. The paint
+test alone starts without that pointer state and passes. The runner's `atRest` check does
+not include the preview among the open overlays it detects.
+
+In a temporary copy of the harness, moving the test pointer to `(0, 0)` with
+`Input.dispatchMouseEvent` immediately before the paint check makes that exact pair pass
+**2/2**. The measured paint returns to 15/14/28px for leather/modern/cyber; the spine still
+lifts 14px, and the existing forced-lift clipping assertions remain active and pass. Product
+CSS and test assertions were unchanged. This establishes the cause and a candidate test
+isolation correction; the correction has not yet been applied to the repository, and no
+corrected full-suite pass is claimed. The 66 snapshot differences and headed-stamp conflict
+remain separate release blockers. Diagnostic browsers exited and their locks were released.
+
 ## September preparation and verification
 
 ## What was run
