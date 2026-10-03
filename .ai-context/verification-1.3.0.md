@@ -2,6 +2,56 @@
 
 **Date** 2026-09-27 · **Candidate** `release/1.3.0` · **Reference** `1.2.0`
 
+## Validation correction included on 2026-10-03
+
+`github#110` at `6da3e3b` was integrated into `develop` by `59bf8ba`, then included in
+`release/1.3.0` by `c1a1188`. The only release-merge conflict was the generated code index;
+it was regenerated from the final sources. The release body now accounts for #110.
+The earlier failure and diagnosis sections below are historical evidence for the preceding
+candidates. No corrected full-suite pass is claimed yet.
+
+The index-row check parks the pointer before closing the reader, even on failure. The paint
+probe detects an occluding preview before and after its screenshots and restores its query,
+look, scroll positions and temporary probes in `finally`. The worker's focused headed checks
+passed 3/3; the exact failing pair improved from 1/2 to 2/2. A forced zero clip margin still
+fails the original clipping assertions in every look, and injected preview interference
+throws a clear precondition failure while restoring the prior state. These measurements
+belong to `6da3e3b`; they are not certification of the merged release tree.
+
+The geometry check uses the same generator with `--end 2026-09-24` and a fixed exported
+generation day. This reproduced the existing golden before its metadata was changed:
+6 shelves, 11 rows, 257 spines, 52 plaques and a 1125px room at 1180 x 900, zero differences
+in all three looks. No golden geometry or tolerance was rewritten. The main suite fixture
+continues to age and refresh normally. Two fresh geometry builds were byte-identical.
+
+Release and push tooling now invoke the suite headed and require the two-green certificate
+after it exits. Epoch 3 invalidates certificates from the earlier instrument. Partial runs
+cannot certify a candidate. The worker's stamp/consumer self-tests passed 59/59, fixture
+self-tests 5/5 and release guard self-tests 16/16, without a full suite or real release.
+
+| Current release step | Status |
+|---|---|
+| Include #110 | Complete at `c1a1188`; source/plugin behavior is unchanged by this tooling merge. |
+| Static preflight of the merged release | Build, lint/core typecheck, generated indexes, all 15 CI-parity gates, stamp/consumer tests (59/59), geometry fixture tests (5/5), PII, scope, network, comment budget, both determinism checks, data escaping, refresh wiring (10/10), update-note (51/51), path-guard (21/21) and lock (34/34) checks pass. Release guard self-test fails as described below. |
+| Rebuilt plugin hashes | `main.js`: `07cb9b40864108ca5cbdd1e663d1da8689087b87b66117cd9c046f8df4c07d6c`; `manifest.json`: `22e577313053cfbfca33cc33c6aab3475ae6542ecf5cd045594a432788c47992`; `styles.css`: `e7d83dfd43374d289e015c1d1684d884f622da9bad4cb0faaff6cbeac1d9c1ec`. Identical to the post-#109 build. |
+| Fresh gallery and hero recordings | Pending. The existing recorder hardcodes headless Chrome; #111 prepares the required headed/screen/record-lock correction. |
+| Full headed certification | Pending; no complete run is authorized after this correction. |
+| Local release dry run | Pending; would run a full suite without an existing certificate. |
+| Final CI dry run, integration/main merges, tag and publication | Pending; no new push or tag is authorized. |
+
+### Release guard self-test integration failure
+
+The worker's 16/16 release self-test result on the develop-based #110 branch does not hold
+on this release candidate. The isolated clone starts from `origin/main` with manifest 1.2.0,
+but copies the release checkout's 1.3.0 update note. Ten early refusal cases pass; the later
+passing case and five certificate-consumer cases stop at the update-note mismatch instead
+of reaching their intended checks. Five consumer-call/lock assertions also fail.
+
+Despite the `11 FAILED` summary, the external PowerShell process exits 0. Both the printed
+results and the process exit were inspected; this is a failed gate. `github#112` prepares
+coherent self-test metadata and an unambiguous failure exit, with isolated console checks.
+No actual release guards were weakened and no real tag, full suite or push was attempted.
+
 ## Release resumed on 2026-10-03
 
 The September results below describe the earlier candidate. Before publication, the release
