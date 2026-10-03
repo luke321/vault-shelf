@@ -97,10 +97,10 @@ of measuring it.** Build the page, drive it, read the numbers.
   here, or a `gdigrab` recording in the sister repo — lands on top of it.
 
   **A lock names the resource, not the job** (`github#37`, `decisions/0012`): `suite`,
-  `screen-left`, `screen-right`, `screen-primary`. `record` is legacy and transitional, kept
-  only until the sister repo drops its own alias, and **nothing here takes it** — this repo
-  makes no screen recording at all (`design/0007`: the recorder asks the browser for each frame
-  over CDP and touches no desktop).
+  `screen-left`, `screen-right`, `screen-primary`. The headed recorder takes `record` for its
+  entire job (`github#111`, `design/0007`). It captures frames over CDP but still occupies a
+  real display. `record` excludes all three screen names, so the recorder takes no second
+  screen lock. Its guard-selected monitor, cleanup and heartbeat are owned by the recorder.
 
   **`suite` and a display are separate names, and must stay separate.** `smoke.mjs` takes `suite`
   and *then* `screen-left`, so aliasing the two together would hang every run against its own

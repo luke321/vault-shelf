@@ -2809,6 +2809,24 @@ then the newest eight.
 
 ## Headed certification; historical headless measurements
 
+**Recorder ownership (#111):** default and `--headed` recordings show a normal browser on
+the guard's named device. `record` is held from fixture preparation through encoding, with
+the existing 30-second heartbeat and no nested screen hold. Missing/busy guards, wrong
+monitors, isolated lock storage and one-screen runs without individual permission refuse
+before Chrome. Errors and SIGINT/SIGTERM/SIGHUP/SIGBREAK clean only owned resources and
+release ownership. `--keep-frames` retains scratch only after success.
+
+`node scripts/record-session-selftest.mjs`: **20/20**, no browser and isolated console controls.
+Live headed default: **120/120 frames, 24 fps, 5.000 s, 1440×900**. Explicit headed peek:
+**168/168 frames, 24 fps, 7.000 s, 1080×1080**, pointer visible **168/168**, largest step
+**61.1px**. Its full WebP lasts **7,000 ms**; the explicit `1,3` hero slice lasts **3,000 ms**
+on the unchanged **125 ms** (8 fps) clock. A static close WebP can be coalesced into one still
+by the unchanged encoder; it is not a duration probe. Capture-error, encoder-error and real
+Ctrl+C checks each leave **0 profile directories, 0 scratch directories, 0 owned Chrome
+processes and 0 CDP listeners**. No full gallery or full suite is measured here.
+The independent headed sentinel survives recorder failure cleanup with **1 CDP listener**;
+its harness then removes it before releasing the actual machine record hold.
+
 **Current contract (#110):** local release/push run headed; a full headed run is eligible for
 epoch **3**, while headless, `--only`, `--vault`, `--url`, `--look`, missing/unstamped fixtures
 and dirty trees are excluded. Both consumers require the two-green certificate after the

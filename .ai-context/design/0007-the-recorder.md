@@ -12,12 +12,13 @@ display** to be safe — `screen-left`, `screen-right` or `screen-primary`, shar
 through one lock root (`decisions/0012`, `vault-graph#87`). It also cannot run on a machine
 nobody is sitting at.
 
-This one asks the browser for each frame — `Page.captureScreenshot` over CDP, headless.
+This one asks the browser for each frame — `Page.captureScreenshot` over CDP. Since github#111
+the browser is always headed; CDP capture does not exempt a recording from screen ownership.
 
 | | |
 |---|---|
 | **Reproducible** | The same fixture and the same storyboard produce the same frames. There is no desktop in the picture, so there is nothing on the desktop that can get into it. |
-| **Unattended** | Headless. It does not steal the screen, and it cannot capture the wrong window, so it takes no screen lock — the only thing in `scripts/` that places no window and claims no display (`decisions/0012`). |
+| **Guarded** | Default and `--headed` both show a real window on the monitor approved by the machine guard, under one shared `record` hold. Busy screens defer. A one-screen run requires permission each time. |
 | **Framed exactly** | `Emulation.setDeviceMetricsOverride` fixes the viewport at 1440×900 and DPR 1, so the output is the size it says it is regardless of the machine's display. |
 | **Slower than real time** | About 18 frames a second of capture. An 83-second video takes a little under two minutes to shoot. That is the price, and it is worth it. |
 
@@ -26,6 +27,45 @@ sequence of states.** Anything the page animates on its own — a CSS transition
 at whatever phase each frame happens to catch. Vault Shelf animates almost nothing on purpose
 (`design/0005`), so this costs nothing here; a project with a running animation would need the
 frames driven from its clock instead.
+
+## Headed ownership and cleanup (github#111)
+
+`record-session.mjs` owns only the recorder's lifecycle. `P16_SCREEN_GUARD` names the local
+PowerShell screen guard; missing configuration fails closed. `-FreeMonitor -Quiet -Json`
+returns the approved monitor and device. Its device name is matched to the live Windows
+working area, so placement does not guess a left/right coordinate. The guard is checked
+before building and again before opening. `--monitor <name>` requires that exact grant;
+otherwise the latest granted display is used. An actual monitor count of one defers unless
+`--allow-single-screen` is supplied after permission for that individual job and its duration.
+It is not a standing permission or a consequence of `--headed`.
+
+The existing `lock.mjs` acquires `record` before fixture preparation and keeps its 30-second
+heartbeat through capture and encoding. Busy ownership defers by default; `--lock-timeout-ms`
+can explicitly wait longer. `record` already excludes `screen-left`, `screen-right` and
+`screen-primary`: acquiring another screen hold would be redundant and can deadlock across
+helper contracts. No screen hold is acquired or adopted. Chrome starts with the approved
+position and app-window size; CDP sets and verifies normal window bounds before capture.
+The capture viewport remains the requested dimensions even on a smaller physical monitor.
+
+Build, mirror and encoder children run asynchronously so signals and the heartbeat are not
+blocked by a long encode. Both encoders keep their codec, timing, quality and scaling options;
+they use four threads at below-normal priority. The storyboard, easing, pointers, frame clock,
+24-to-8 fps hero decimation, hero slicing and output flags are unchanged.
+
+One outer cleanup covers preparation, launch, attachment, capture and encoding. It closes
+the recorder's CDP socket, terminates only its still-owned child processes and Chrome processes
+matching its unique temporary profile, then removes that profile and temporary frames before
+releasing the hold. SIGINT, SIGTERM, SIGHUP and SIGBREAK use that same cleanup. `--keep-frames`
+retains scratch only after a successful encode; errors and signals remove it. User-requested
+output files, including `--first-frame`, are not temporary frames. Force-killing the Node
+process or losing power cannot run JavaScript cleanup; the existing dead-holder lock recovery
+still applies. No unrelated browser, profile or lock is adopted or closed.
+
+`node scripts/record-session-selftest.mjs` exercises refusals, foreign owners, heartbeat and
+cleanup using console children and isolated lock storage, with no browser. Any real-browser
+verification must additionally use the actual machine-wide record hold and the live guard.
+The recording CLI refuses a `VAULT_LOCKS_HOME` override, so console test isolation cannot
+silently become the ownership used by a real recording.
 
 ## The storyboard is a table
 
@@ -76,7 +116,7 @@ Two things came out of that, and both are worth more than the fix:
 
 The flags that stop it accumulating are `--disable-gpu`, `--disable-dev-shm-usage`,
 `--disable-software-rasterizer` and a raised `--max-old-space-size`. None of them changes what
-is drawn; they change how long a headless renderer will keep drawing it.
+is drawn; they change how long the renderer will keep drawing it.
 
 ## One step, once, whatever the frame rate
 
@@ -233,7 +273,7 @@ Two things the suite's history teaches (`github#3`) and this act depends on: the
 never hidden on `dragstart`, which cancels the gesture in Chrome; and a `dragover` nobody
 accepts offers no drop, which is why `drop` reads the page's answer rather than assuming it.
 
-**The ghost.** A headless screenshot has no drag image in it, the way it has no cursor: Chrome
+**The ghost.** A CDP screenshot has no drag image in it, the way it has no cursor: Chrome
 draws both outside the page. So `lift` clones the spine into `#vsrec-ghost`, inside the
 library's own root so its own stylesheet paints it, and `carry` moves it with the arrow;
 `drop` removes it the way the browser's would be. The spine on the shelf dims by the page's
