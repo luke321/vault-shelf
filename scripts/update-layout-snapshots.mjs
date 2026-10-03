@@ -2,7 +2,6 @@
 // github#5 -- rewrite the golden geometry, deliberately
 
 import { spawn, spawnSync } from "node:child_process";
-import { currentFixture } from "./fixture-store.mjs";
 import { createServer } from "node:net";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -15,6 +14,7 @@ import { findChrome, harnessChromeArgs } from "./chrome.mjs";
 import { takeLeftScreen } from "./screen.mjs";
 import { ownerTag } from "./lock.mjs";
 import { MEASURE, VIEWPORT, diffLayout } from "./layout-snapshots/measure.mjs";
+import { LAYOUT_ARGS, LAYOUT_GENERATED, buildLayoutFixture } from "./layout-snapshots/fixture.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
@@ -26,22 +26,7 @@ const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[
 const LOCK_TIMEOUT_MS = Number(arg("lock-timeout-ms", "2700000")) || 2700000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// github#5, decisions/0014 -- the one shape the suite runs, with smoke's own args
-const FIXTURES = [
-  { name: "vault", script: "make-vault.mjs", args: [] },
-];
-
-/** @param {{ name: string, script: string, args: string[] }} fx @returns {{ dir: string, temp: boolean }} */
-function vaultFor(fx) {
-  /* github#13, github#102 -- the build this checkout's generator and args digest to */
-  const hit = currentFixture(ROOT, fx.name, fx.args);
-  if (hit) return { dir: hit, temp: false };
-  console.log(`  ${fx.name}: not in the shared fixture store, generating ...`);
-  const dir = mkdtempSync(join(tmpdir(), "vs-snap-vault-"));
-  const r = spawnSync(process.execPath, [join(HERE, fx.script), "--out", dir, ...fx.args], { encoding: "utf8" });
-  if (r.status !== 0) throw new Error(`${fx.script} failed:\n${r.stderr || ""}`);
-  return { dir, temp: true };
-}
+const FIXTURES = [{ name: "vault" }];
 
 const freePort = () => new Promise((res, rej) => {
   const s = createServer();
@@ -103,21 +88,20 @@ async function measure(htmlPath) {
 mkdirSync(OUT_DIR, { recursive: true });
 let bad = 0;
 for (const fx of FIXTURES) {
-  const vault = vaultFor(fx);
-  const scratch = mkdtempSync(join(tmpdir(), "vs-snap-build-"));
-  const htmlPath = join(scratch, "vault-shelf.html");
+  const fixture = buildLayoutFixture(ROOT);
   try {
-    const b = spawnSync(process.execPath,
-                        [join(ROOT, "src", "build-shelf.mjs"), "--vault", vault.dir, "--out", htmlPath],
-                        { encoding: "utf8" });
-    if (b.status !== 0) throw new Error(`build-shelf.mjs failed:\n${b.stderr || ""}`);
-    const now = await measure(htmlPath);
-    const out = Object.assign({ vault: fx.name, viewport: VIEWPORT }, now);
+    const now = await measure(fixture.html);
+    const out = Object.assign({ vault: fx.name, fixtureArgs: LAYOUT_ARGS,
+                               fixtureGenerated: LAYOUT_GENERATED, viewport: VIEWPORT }, now);
     const file = join(OUT_DIR, `${fx.name}.json`);
     if (CHECK) {
       if (!existsSync(file)) { console.error(`  FAIL ${fx.name}: no golden at ${file}`); bad++; continue; }
       const golden = JSON.parse(readFileSync(file, "utf8"));
       const problems = diffLayout(golden, out);
+      if (JSON.stringify(golden.fixtureArgs) !== JSON.stringify(LAYOUT_ARGS) ||
+          golden.fixtureGenerated !== LAYOUT_GENERATED) {
+        problems.push("golden fixture inputs differ from the declared layout inputs");
+      }
       if (problems.length) {
         bad++;
         console.error(`  FAIL ${fx.name}: ${problems.length} difference(s)`);
@@ -138,8 +122,7 @@ for (const fx of FIXTURES) {
                   `${plaques} plaques, room ${out.room}px`);
     }
   } finally {
-    rmSync(scratch, { recursive: true, force: true });
-    if (vault.temp) rmSync(vault.dir, { recursive: true, force: true });
+    fixture.cleanup();
   }
 }
 

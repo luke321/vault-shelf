@@ -227,6 +227,8 @@ jobs:
         run: node scripts/path-guard-selftest.mjs
       - name: The lock tells a dead holder from a live one
         run: node scripts/lock.mjs --selftest
+      - name: Headed eligibility and stamp exclusions hold without a browser
+        run: node scripts/suite-stamp.mjs --selftest
       - name: The generated code map and index are current
         run: node scripts/code-map.mjs --check
 

@@ -1,5 +1,15 @@
 # Releasing
 
+**Headed validation (#110):** the local runner explicitly invokes `smoke.mjs --headed
+--no-lock` under its own suite hold. Check the machine's screen guard before allowing the
+browser window; defer when the intended display is unavailable. Never wrap this script in an
+outer suite lock. A complete clean headed run earns one green toward the required two.
+The runner rechecks the certificate after smoke exits and refuses a release on only 1/2;
+it does not silently run again. Each further full run requires its own authorization.
+Epoch 3 rejects earlier-instrument stamps. Partial/custom/look/dirty runs cannot certify the
+candidate. CI remains static-only; it tests eligibility and stamp exclusions without Chrome.
+See [decisions/0020](decisions/0020-repeatable-headed-validation.md).
+
 **Show the status table after every step.** Whoever is driving a release keeps a table of
 every step it still needs — the polish asks, the docs and clips it must carry, the version
 bump, the name, the merge-down sequence, the tag — and re-posts it, updated, after each step
@@ -17,7 +27,7 @@ apply; add a row per polish ask the release picked up.
 | 3 | `CHANGELOG.md` section for `<version>`, written as the release body | |
 | 4 | Version bump: `manifest.json` → `<version>` | |
 | 5 | Release name — propose 2-4 candidates, the owner picks | |
-| 6 | Re-record every clip the change touched, and the hero if the page moved (`record-demo.mjs`, headless, no lock) — before the merge, so the clips show the merged tree; a patch hotfix may explicitly skip this when the owner asks for code, changelog and release files only | | **Then run the `review-clips` skill and look at the page** (`& "$env:USERPROFILE\.claude\skills\review-clips\build-clip-review.ps1" -Repo . -Open`) — it reads the storyboard itself and prints `clips present N/N` with the missing act names, so the recording step is confirmed rather than assumed. Do not eyeball a diff to decide what was re-recorded.
+| 6 | Re-record every clip the change touched, and the hero if the page moved (headed, after the screen guard grants the intended monitor, under the shared `record` lock; defer if unavailable, never fall back to headless) — before the merge, so the clips show the merged tree; a patch hotfix may explicitly skip this when the owner asks for code, changelog and release files only | | **Then run the `review-clips` skill and look at the page** (`& "$env:USERPROFILE\.claude\skills\review-clips\build-clip-review.ps1" -Repo . -Open`) — it reads the storyboard itself and prints `clips present N/N` with the missing act names, so the recording step is confirmed rather than assumed. Do not eyeball a diff to decide what was re-recorded.
 | 7 | Read the whole branch: every doc naming the version, every link, the README's install block | |
 | 8 | **Review the release body before the tag** — the `## <version>` section, read as the page it becomes | |
 | 9 | `release.ps1 <version> -DryRun` on the branch — the run that pays the suite and stamps the tree | |
@@ -84,7 +94,12 @@ Change one, change the other in the same commit. This file is the authority on t
 
 Every guard below answers a mistake that was actually made — next door, in the repo this
 tooling was cut from. `.\scripts\release.ps1 -SelfTest` drives all of them against a throwaway
-clone and prints which fired; it writes nothing outside that clone and tags nothing.
+clone and prints which fired; all writes stay in its scratch directory and it creates no tags.
+The setup removes the inherited manifest-version tag only from the throwaway clone and its
+throwaway origin, so that tag cannot mask later guards. The real repository's tags are untouched.
+Its **16 cases** include five certificate-consumer paths using stubbed external work: one
+green, silent success, misleading success text and a red suite refuse; two greens reach the
+dry-run stop. Each path checks headed arguments and lock release, without Chrome or live locks.
 
 | it refuses | because |
 |---|---|
@@ -155,14 +170,12 @@ guard stops it. The branch push the sister repo's script used to make was a no-o
    committing it today makes a stale hero look fresh. Silence means "no evidence of
    staleness", not "the hero is current".
 
-   ```bash
-   node scripts/record-demo.mjs --hero assets/demo.webp
-   node scripts/record-demo.mjs --act read           # one act, for a clip
-   ```
-
-   The recorder is headless and captures frame by frame over CDP, so it needs no `record`
-   lock and cannot capture the wrong window (`design/0007`). A **screen** recording does take
-   the `record` lock.
+   Every recording must be headed. Before opening, require
+   `screen-busy.ps1 -FreeMonitor -Prefer left -Quiet` to return `left`, place the browser
+   there, and hold the shared `record` lock throughout the take, releasing it in `finally`.
+   Defer when the screen or lock is unavailable; never fall back to headless. The current
+   `record-demo.mjs` still hardcodes headless Chrome: defer its use until it supports this
+   contract. Its historical CDP capture method (`design/0007`) grants no exception.
 
 6. **Read the whole branch.** Every doc that names a version, every link, the README's install
    block, the feature gallery, the docs site.

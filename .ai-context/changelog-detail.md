@@ -1,5 +1,38 @@
 # Changelog detail
 
+## 2026-10-03 — Repeatable headed validation (`github#110`)
+
+The index-row check now parks the pointer before closing the reader, including on failure.
+Its exact pair with the paint check improves from **1/2 to 2/2**: a 14px lift paints
+**15/14/28px** in leather/modern/cyber instead of **5/5/5px** behind a hover preview.
+Paint sampling refuses an occluding preview before and after each screenshot and restores
+probe styles/attributes, query, look and scroll in `finally`. Forced 40px lifts still clip
+to **15/14/32px**. Three scratch controls pass: zero clip margin fails `HEAD CUT` in every
+look; an injected preview throws and restores modern / `garden` / 140px with no probe left;
+the following clean paint check passes in the same browser. Product code/CSS is unchanged.
+
+Before any golden edit, a fresh `--end 2026-09-24` fixture reproduced the existing geometry
+with **zero differences in all three looks**: 6 shelves, 11 rows, 257 spines, 52 plaques,
+1125px room at 1180×900. The rolling October 3 fixture had 66 differences. Only fixture
+metadata was added to the golden. Geometry builds now pin both note dates and the exported
+generation day, without changing the live fixture/store or exporter. The fixture self-test
+passes **5/5**, including two byte-identical fresh builds and comparator negative controls.
+Focused smoke and the updater's `--check` independently reproduce the unchanged golden.
+
+Local release/push gates pass `--headed --no-lock` under their existing suite hold. Epoch 3
+allows complete clean headed runs; partial/custom/look/dirty/missing-fixture exclusions,
+freshness, tree identity and two consecutive greens remain. Both consumers require the
+certificate after smoke exits: one green or silent exit 0 cannot release or push. Stamp and
+consumer self-tests pass **59/59**. CI remains browser-free; all **15 static gates** match
+the hook in both workflows.
+
+Release SelfTest passes **16/16**, including five stubbed consumer paths with headed-argument
+and lock-release assertions. An inherited release tag had masked later baseline guards;
+only the scratch clone and scratch origin lose that tag. Real tags remain unchanged.
+Build, typecheck/lint, scope, network, PII, comment budget, both determinism checks, data
+escaping, refresh wiring, update-note, path-guard and lock self-tests passed. No full suite,
+real certificate, release, CI execution, push or merge is claimed. See decisions/0020.
+
 ## 2026-10-03 — Reduce community-review CSS findings (`github#109`)
 
 The community scorecard is the warning source; design/0036 explicitly supersedes its earlier

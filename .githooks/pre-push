@@ -338,6 +338,12 @@ EOF
   exit 1
 fi
 
+# github#110 -- eligibility and streak controls use only a throwaway repository.
+if ! node "$root/scripts/suite-stamp.mjs" --selftest </dev/null; then
+  echo "pre-push: suite stamp self-test failed -- push blocked" >&2
+  exit 1
+fi
+
 # THE GENERATED NAVIGATION FILES NEXT, same bar -- a read of the tree, well under a second.
 # .ai-context/code-map.md and code-index.md are written from the source by
 # scripts/code-map.mjs (decisions/0007) and are only worth having while they agree with it; a
@@ -457,12 +463,12 @@ EOF
   exit 1
 fi
 
-echo "pre-push: running the invariant suite over three vault shapes (SKIP_SMOKE=1 to skip)..."
+echo "pre-push: running the headed invariant suite over the generated vault..."
 # The suite is a child so a signal to this hook can take it down too: releasing the lock while
 # the run it guarded keeps driving Chrome would hand the next run a contended screen.
 # --no-lock: this hook is already holding the lock (github#8). smoke.mjs takes the suite
 # lock itself, so without this the run would wait for a lock its own parent holds.
-node "$root/scripts/smoke.mjs" --no-lock </dev/null &
+node "$root/scripts/smoke.mjs" --headed --no-lock </dev/null &
 suite_pid=$!
 trap 'kill "$suite_pid" 2>/dev/null; release_lock; exit 1' INT TERM HUP
 wait "$suite_pid"
@@ -470,6 +476,10 @@ suite_rc=$?
 release_lock
 trap - INT TERM HUP
 if [ "$suite_rc" -eq 0 ]; then
+  if ! node "$root/scripts/suite-certificate.mjs" $gated_shas </dev/null; then
+    echo "pre-push: the required headed green streak is not certified -- push blocked" >&2
+    exit 1
+  fi
   exit 0
 fi
 
