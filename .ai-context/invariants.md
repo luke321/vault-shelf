@@ -2644,6 +2644,15 @@ note. **0** console errors across the whole sequence.
 
 ## The packing has a golden
 
+**#110, 2026-10-03:** the golden now declares `--end 2026-09-24` and the exported wear day
+`2026-09-24 00:00`. Smoke and the updater generate that geometry page in temporary storage;
+the main fixture remains live and refreshes after seven days. The existing geometry reproduced
+unchanged: **6 shelves, 11 rows, 257 spines, 52 plaques, 1125px room**, at 1180×900, zero
+differences in all three looks. October 3's rolling input produced **66 differences** instead.
+Two fresh geometry generations are byte-identical; the fixture self-test passes **5/5**,
+including changed width/row/count/address negative controls. No tolerance or geometry changed.
+See [decisions/0020](decisions/0020-repeatable-headed-validation.md).
+
 `"the shelves are packed the way the golden snapshot says"` diffs the geometry of every shelf
 against `scripts/layout-snapshots/<fixture>.json`, at a viewport pinned to **1180×900** so the
 answer cannot depend on which window the suite happened to get. Per shelf: how many rows, how
@@ -2798,7 +2807,27 @@ pixel. **The width does not move**: 1556px either way, in a 922px view. It write
 the oldest links collapse: **11 releases behind draws 9 links** — one `…` to the releases page,
 then the newest eight.
 
-## No harness takes the keyboard, and a run that changes shape stamps nothing
+## Headed certification; historical headless measurements
+
+**Current contract (#110):** local release/push run headed; a full headed run is eligible for
+epoch **3**, while headless, `--only`, `--vault`, `--url`, `--look`, missing/unstamped fixtures
+and dirty trees are excluded. Both consumers require the two-green certificate after the
+suite returns; a first green cannot release or push. CI runs the stamp self-test without a
+browser. The table and #50 discussion below are historical, superseded on 2026-10-03.
+
+Stamp/consumer self-tests pass **59/59**, including silent-success and misleading-output
+refusals and a multi-tree push with one uncertified tree. Release SelfTest passes **16/16**:
+eleven original guards plus five real release-control-flow cases with external work stubbed.
+One green, silent success, misleading text and a red suite refuse; two greens reach the
+dry-run stop. Each verifies headed arguments and lock release. Removing the inherited
+manifest-version tag only in the scratch clone and scratch origin lets every guard be reached.
+
+The index-row pointer cleanup makes its pair with the paint check pass **2/2** instead of
+**1/2**: a 14px lift paints **15/14/28px** instead of **5/5/5px**. Paint sampling refuses a
+visible hover preview before/after its screenshots and restores query/look/scroll/probe state
+in `finally`. A forced zero clip margin still fails `HEAD CUT` in every look. An injected
+preview at screenshot 3 restores modern / `garden` / 140px exactly, with no probe left;
+the next paint check passes. These three focused negative/recovery controls pass **3/3**.
 
 Not a check in `smoke.mjs` but a property of the harness, held by driving it. `github#50`,
 `design/0006`.

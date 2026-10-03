@@ -1,12 +1,12 @@
 import { attach, json } from "./cdp.mjs";
 // github#50
-import { HEADED, findChrome, harnessChromeArgs } from "./chrome.mjs";
+import { findChrome, harnessChromeArgs } from "./chrome.mjs";
 import { leftmostScreen, leftWindowPos, takeLeftScreen, dropLeftScreen } from "./screen.mjs";
 // github#25, github#37, decisions/0012
 import { acquire, adopt, heldBy, ownerTag } from "./lock.mjs";
 // github#5, decisions/0010
 import { FIXTURE_MAX_AGE_DAYS, FIXTURE_NAMES, describeFixture,
-         record as recordPass, forget as forgetPass, GREENS_REQUIRED } from "./suite-stamp.mjs";
+         record as recordPass, forget as forgetPass, GREENS_REQUIRED, runExclusion } from "./suite-stamp.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync,
          renameSync, mkdirSync, statSync } from "node:fs";
@@ -16,6 +16,7 @@ import { createServer } from "node:net";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { MEASURE, VIEWPORT, diffLayout } from "./layout-snapshots/measure.mjs";
+import { LAYOUT_ARGS, LAYOUT_GENERATED, buildLayoutFixture, visitLayoutPage } from "./layout-snapshots/fixture.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
@@ -8645,6 +8646,7 @@ check("the contents scroll to the current row after a tab, Previous and a ribbon
 
 /* github#46, design/0026 */
 check("clicking a row in the index moves the mark and leaves the index where it stood", async (p) => {
+  try {
   const opened = await p.j(`(function(){
     var biggest = null;
     __vs.views().forEach(function (v) {
@@ -8700,8 +8702,6 @@ check("clicking a row in the index moves the mark and leaves the index where it 
              kept: rows.filter(function (b, k) { return b.__vs46 === k; }).length,
              index: __vs.reader().index };
   })()`);
-  await p.eval("__vs.closeReader(); void 0");
-
   const held = [pressed, released, after.at].every((v) => Math.abs(v - opened.at) <= 1);
   const sameRows = after.rows === opened.rows && after.kept === opened.rows;
   const ok = held && sameRows && after.markedAt === opened.want && after.index === opened.want;
@@ -8712,6 +8712,11 @@ check("clicking a row in the index moves the mark and leaves the index where it 
                    `(held ${held}); the mark moved ${opened.markedAt} -> ${after.markedAt} and ` +
                    `the reader to note ${after.index}; ${after.kept} of ${opened.rows} rows are ` +
                    `the same nodes (rebuilt ${!sameRows})` };
+  } finally {
+    /* github#110 -- park before closing: later scrolling must not hover a book */
+    try { await p.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 }); }
+    finally { await p.eval("__vs.closeReader(); void 0"); }
+  }
 });
 
 check("previous and next walk the book and stop at its ends", async (p) => {
@@ -10044,6 +10049,14 @@ check("a hovered spine shows one peek, big enough to read, and short labels stan
 
 /* github#51, design/0021 -- pixels: a clipped spine's rect reads whole. */
 check("a lifted spine is painted whole, in every look", async (p) => {
+  const before = await p.j(`({
+    look: document.getElementById("vs-app").getAttribute("data-look") || "",
+    query: __vs.magic().query,
+    library: document.getElementById("vs-library").scrollTop,
+    room: document.getElementById("vs-shelves").scrollTop,
+    x: window.scrollX, y: window.scrollY
+  })`);
+  try {
   /* github#69 -- idempotent: this check can now run twice on one page */
   await p.j(`(function(){
     var old = document.getElementById("vs-probe-51");
@@ -10063,9 +10076,20 @@ check("a lifted spine is painted whole, in every look", async (p) => {
 
   /* github#51 -- the whole width, never one column down the middle. */
   const band = async (x, y, w, rows) => {
+    /* github#110 */
+    const unobscured = async () => {
+      const visible = await p.j(`(function(){
+        var peek = document.getElementById("vs-peek");
+        return !!(peek && peek.getClientRects().length &&
+                  getComputedStyle(peek).visibility !== "hidden");
+      })()`);
+      if (visible) throw new Error("paint precondition: a hover preview is visible over the library");
+    };
+    await unobscured();
     const shot = await p.send("Page.captureScreenshot",
       { format: "png", captureBeyondViewport: false,
         clip: { x, y, width: w, height: rows, scale: 1 } });
+    await unobscured();
     return p.eval(`(async function(){
       var img = new Image();
       img.src = "data:image/png;base64," + ${JSON.stringify(shot.data)};
@@ -10107,8 +10131,6 @@ check("a lifted spine is painted whole, in every look", async (p) => {
     /* github#68 -- a band is read off the screen, so the spine has to be on it */
     var seen = sp.getBoundingClientRect();
     if (seen.top < 80 || seen.bottom > innerHeight - 20) {
-      var lib = document.getElementById("vs-library");
-      if (window.__vsProbe51Scroll === undefined) window.__vsProbe51Scroll = lib.scrollTop;
       sp.scrollIntoView({ block: "center" });
     }
     var track = sp.closest(".vs-track");
@@ -10151,7 +10173,6 @@ check("a lifted spine is painted whole, in every look", async (p) => {
   };
 
   const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
-  const was = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
   const OVER = 40;   /* github#51 -- far past any room, so the answer is the clip's */
   const granted = [];
   const matched = [];
@@ -10206,20 +10227,6 @@ check("a lifted spine is painted whole, in every look", async (p) => {
     await sleep(220);
   }
 
-  await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
-  await sleep(140);
-  await p.j(`(function(){
-    [].slice.call(document.querySelectorAll("#vs-app [data-probe51]"))
-      .forEach(function (el) { el.removeAttribute("data-probe51"); });
-    var s = document.getElementById("vs-probe-51");
-    if (s) s.remove();
-    if (window.__vsProbe51Scroll !== undefined) {
-      document.getElementById("vs-library").scrollTop = window.__vsProbe51Scroll;
-      delete window.__vsProbe51Scroll;
-    }
-    return 1;
-  })()`);
-
   /* github#51 -- not less, which cuts a head; not more, which drifts. */
   const wrongRoom = granted.filter((x) => x.got !== x.declared);
   const notClipping = granted.filter((x) => x.got >= OVER);   /* github#51 -- 40px of lift paints the room, never 40 */
@@ -10257,6 +10264,23 @@ check("a lifted spine is painted whole, in every look", async (p) => {
                   `(rows moved by ${x.moves})`).join(", ")
               : "")
   };
+  } finally {
+    /* github#110 -- a failed precondition must not leave a probe or query behind */
+    await p.eval(`(function(){
+      document.querySelectorAll("#vs-app [data-probe51]")
+        .forEach(function (el) { el.removeAttribute("data-probe51"); });
+      var s = document.getElementById("vs-probe-51");
+      if (s) s.remove();
+      __vs.setQuery(${JSON.stringify(before.query)});
+      __vs.setLook(${JSON.stringify(before.look)});
+    })(); void 0`);
+    await settled(p);
+    await p.eval(`(function(){
+      document.getElementById("vs-library").scrollTop = ${before.library};
+      document.getElementById("vs-shelves").scrollTop = ${before.room};
+      window.scrollTo(${before.x}, ${before.y});
+    })(); void 0`);
+  }
 });
 
 /* github#51, design/0021 -- the arithmetic: the tallest rung PLUS the look's halo. */
@@ -10812,14 +10836,20 @@ check("a spine lifts on hover and holds its size", async (p) => {
 });
 
 /* github#5 -- the packing as a diff, against a golden per fixture */
-check("the shelves are packed the way the golden snapshot says", async (p, ctx) => {
-  const fixture = (ctx.vault || "").split(/[\\/]/).filter(Boolean).pop() || "";
-  const name = fixture.replace(/-[0-9a-f]{8}$/, "");
+check("the shelves are packed the way the golden snapshot says", async (p) => {
+  const name = "vault";
   const file = join(ROOT, "scripts", "layout-snapshots", `${name}.json`);
-  if (!name || !existsSync(file)) {
-    return { ok: true, detail: `no golden for ${name || "this vault"} -- ` +
-                               `node scripts/update-layout-snapshots.mjs writes it` };
+  const golden = JSON.parse(readFileSync(file, "utf8"));
+  if (JSON.stringify(golden.fixtureArgs) !== JSON.stringify(LAYOUT_ARGS) ||
+      golden.fixtureGenerated !== LAYOUT_GENERATED) {
+    return { ok: false, detail: "golden fixture inputs differ from the declared layout inputs" };
   }
+  /* github#110 */
+  const original = await p.eval("location.href");
+  const wasView = await p.j("({width:innerWidth,height:innerHeight})");
+  const fixture = buildLayoutFixture(ROOT);
+  try {
+  await visitLayoutPage(p, fixture.url);
   // github#35
   const emptied = await p.j(`(function(){
     var s = __vs.settings();
@@ -10831,12 +10861,10 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
     return n;
   })()`);
   /* github#57 -- a golden read mid-repack fails a tree where nothing is wrong */
-  const wasView = await p.j("({width:innerWidth,height:innerHeight})");
   await viewport(p, VIEWPORT.width, VIEWPORT.height);
   /* github#14, design/0021 -- in every look against one golden; it holds a book's width. */
   const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
   const was = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
-  const golden = JSON.parse(readFileSync(file, "utf8"));
   const problems = [];
   let now = null;
   for (const look of looks) {
@@ -10847,7 +10875,6 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
     for (const bad of diffLayout(golden, seen)) problems.push(`${look || "modern"}: ${bad}`);
   }
   await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
-  await unviewport(p, wasView);
   const rows = now.shelves.reduce((n, s) => n + s.rows, 0);
   const spines = now.shelves.reduce((n, s) => n + s.books, 0);
   const plaques = now.shelves.reduce((n, s) => n + s.plaques.length, 0);
@@ -10861,6 +10888,12 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
         `${now.room}px room, all where ${name}.json says at ${VIEWPORT.width}px, in all ` +
         `${looks.length} looks`
   };
+  } finally {
+    try {
+      await visitLayoutPage(p, original);
+      await unviewport(p, wasView);
+    } finally { fixture.cleanup(); }
+  }
 });
 
 /* ------------------------------------------------------ which vault, and why
@@ -11687,22 +11720,7 @@ async function main() {
     }
   }
   // github#5, decisions/0010
-  // github#27
-  const lost = FIXTURE_NAMES.filter((n) => !vaults.some((v) => v.fixture && v.fixture.name === n));
-  /* github#50, decisions/0010 -- the run shape; any delta suppresses the stamp */
-  /* design/0006 -- what is not shape, and why, is recorded there */
-  const SHAPE = {
-    "--only": [ONLY.join(","), ""],
-    "--vault": [argAll("vault").join(","), ""],
-    "--url": [arg("url", ""), ""],
-    "--look": [LOOK || "", ""],
-    "--headed": [HEADED, false],
-  };
-  const shifted = Object.entries(SHAPE)
-    .filter(([, [is, byDefault]]) => is !== byDefault).map(([flag]) => flag);
-  const partial = shifted.length ? shifted.join(" and ")
-                : vaults.some((v) => !v.fixture) ? "an unstamped fixture"
-                : lost.length ? `a run without ${lost.join(" and ")} (the generator failed)` : "";
+  const partial = runExclusion(argv, vaults.map((v) => v.fixture));
   // github#25 -- the stamp is a measurement, so the hold is checked again
   if (suiteLock && !heldBy("suite", suiteLock.owner)) lostLock("somebody else");
   if (!worst && !partial) {

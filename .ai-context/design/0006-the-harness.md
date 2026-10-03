@@ -1,5 +1,21 @@
 # 0006 — The harness
 
+## Current local validation contract (#110)
+
+Local browser tests run **headed**, after the machine's screen guard permits the intended
+display, under the existing suite/screen locks. Release and push explicitly pass `--headed`.
+Only complete headed runs qualify for epoch-3 certification, still requiring two consecutive
+greens. `--only`, custom vault/URL/look runs and dirty trees cannot certify a tree. CI runs
+static controls, including the browser-free stamp self-test. The historical #50 headless
+policy below is superseded by this contract.
+
+The live fixture still refreshes weekly. The geometry check uses a temporary generation with
+`--end 2026-09-24` and a fixed exported generation day, shared with the golden updater.
+The original golden geometry was reproduced unchanged in all three looks. The index click
+owns pointer cleanup, and paint sampling rejects a visible preview and cleans up on failure.
+Inputs, failure controls and measured results are in
+[decisions/0020](../decisions/0020-repeatable-headed-validation.md).
+
 ## What the suite drives
 
 The **standalone build**, not the plugin. `src/build-shelf.mjs` inlines the core, the page, the
@@ -204,28 +220,21 @@ node scripts/smoke.mjs --vault ./my-vault    # a specific vault on purpose
 node scripts/smoke.mjs --jobs 1 --headed     # one browser, on screen, watchable
 ```
 
-`--headed` is a debugging aid and it **costs the stamp**: it is part of the run shape, and a run
-whose shape differs from the default writes none (`github#50`, below).
+`--headed` is required for local test runs and certification (`github#110`). Focused runs
+still cannot stamp: `--only` changes coverage regardless of the browser mode.
 
 The full suite runs on the push to `develop` (the pre-push hook). Do not run it by hand unless
 asked — it takes the `suite` lock and minutes of somebody's machine.
 
 ## The run shape, and why a delta writes no stamp
 
-A green full run stamps the tree it measured (`decisions/0010`), and the pre-push hook and
-`release.ps1` then trust that stamp. A stamp names **which tree, against which fixtures, and
-when** — so a flag that changes *what is measured* has to suppress it, or the stamp quietly
-starts lying. Wiring `--headed` made that concrete: without this, a headed run of a
-headless-default tree would stamp it, and both consumers would believe it.
-
-`smoke.mjs` therefore declares the run **shape** and its defaults in one place, and any delta
-sets `partial`, which already suppresses `recordPass()`. That generalises what used to be five
-reasons enumerated by hand (`--only`, `--vault`, `--url`, `--look`, a bad fixture), so the next
-flag that changes the measurement is covered without anyone remembering to extend a list.
-
-**Fail-closed rather than truthful.** A stamp that recorded its own mode would only help if
-every consumer remembered to compare it — today the hook and `release.ps1`, tomorrow whatever
-reads it next. A run with a shape delta writes nothing, so they find no stamp and run the suite.
+A complete headed run can earn a green toward the tree's certificate (`decisions/0010`).
+`suite-stamp.runExclusion()` is shared with its focused self-test: headless mode, `--only`,
+`--vault`, `--url`, `--look`, missing and unstamped fixtures are excluded. Dirty trees remain
+refused by the recorder. An excluded run neither writes a green nor clears an existing streak.
+The pre-push hook and `release.ps1` check the certificate again after smoke returns; exit 0
+from the first green is not a two-green certificate. Epoch 3 distinguishes this instrument
+from the historical headless-default policy. No full run was used to test this change.
 
 What is deliberately **not** shape, because none of it changes what is measured: `--jobs` (the
 quiet run beside a recording is `--jobs 1`, and it is a full suite that must still stamp),
