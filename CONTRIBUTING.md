@@ -46,7 +46,7 @@ choices look arbitrary and are not: the `0-9` volume, the `-undated` and `-unfil
 and the recurring failure mode in this repo is reasoning about the code instead of measuring
 it.
 
-Fourteen commands, and all of them are gates rather than suggestions:
+Fifteen commands, and all of them are gates rather than suggestions:
 
 ```bash
 node scripts/check-pii.mjs                    # no name or identifier reaches this public repo
@@ -61,9 +61,16 @@ node scripts/update-note-selftest.mjs         # the update strip decides the way
 node scripts/path-guard-selftest.mjs          # the mirror refuses an output that is, holds or aliases its source vault
 node scripts/lock.mjs --selftest              # the shared mutex can tell a dead holder from a live one
 node scripts/code-map.mjs --check             # the generated code map and index are still current
+node scripts/check-ci-parity.mjs              # every gate above also runs in CI, where a merge boundary can see it (github#89)
 npm run lint                                  # tsc --noEmit on src/core under strict, then typescript-eslint on our own code; every finding held at zero
 node scripts/smoke.mjs                        # the invariant suite, over the generated vault
 ```
+
+`check-pii` reads its deny list from the untracked `.pii-names`, or from the `PII_NAMES` secret in
+CI. The list holds names, plus typed `email:`, `jira:` and `vault:` entries for the rules that
+would otherwise name the maintainer in this public source (`github#106`). Copy
+`.pii-names.example` to see the format. In CI, a list with no entry of one kind fails. Locally,
+the check warns. Either way, every loaded value is planted and has to be caught on every run.
 
 One more launches a real Obsidian, for the one thing headless Chrome cannot answer: whether the
 CSS the sheets rely on is actually supported by the Electron/Chromium build Obsidian itself
@@ -110,6 +117,16 @@ step with the source. Only the invariant suite has a skip flag, on purpose: ever
 a static read costing seconds at most, and what most of it prevents is damage to somebody
 else's software, or to somebody else. The lint gate fails closed on a clone that has not run
 `npm ci` — run it, then push.
+
+The hook is a file in an installed checkout, so it proves nothing about a commit pushed from a
+clone that never set `core.hooksPath`. `.github/workflows/quality.yml` runs the same static
+block — every gate above except the invariant suite — on every push and pull request to
+`develop` or `main`, as one job named `quality gates`, and `release.yml` runs it again before
+it publishes. `node scripts/check-ci-parity.mjs` reads the hook and both workflows and fails if
+a gate in the hook is missing from either, so adding a gate to the hook means adding its step to
+both (`github#89`). In CI, `check-pii` gets its list from the `PII_NAMES` secret. The one
+exception is a pull request from a fork: GitHub gives it no secrets, so it checks patterns only,
+says so in a warning, and stays green. The names are checked on the push to `develop`.
 
 **The suite runs once per distinct tree, not once per push.** A green full run stamps the git
 tree it measured, and the hook skips the suite for a tree that already carries a stamp, naming

@@ -12,7 +12,7 @@ The measurements behind each entry are in
 
 ---
 
-## 1.3.0 — "Parent Tags" — 2026-09-27
+## 1.3.0 — "Parent Tags" — 2026-10-03
 
 **Parent Tags. A busy Tags shelf can fold down to its roots, a packed search row never overflows the room it was given, and the library holds steadier under your hand — a refresh no longer leaves the old shelf behind, and a changed setting takes effect the moment you save it.**
 
@@ -35,6 +35,7 @@ If Vault Shelf is useful to you:
 - Changing a date, people or file-stamp setting now updates what the open library actually shows immediately, instead of waiting for the next refresh, vault event or reopen. `github#100`.
 - The mirror-vault generator — used to build this page's own screenshots and clips, never shipped to users — refused to protect its source vault from being deleted when the output path was an ancestor of it, or a differently-cased alias of it on Windows. It now resolves both paths and refuses if either contains the other. `github#97`.
 - Repository tooling only, no effect on the shipped plugin: the local installer's `-Enable` no longer corrupts `community-plugins.json` into a bare string on a fresh vault; the shared test-fixture store now picks the fixture matching the current checkout's own generator instead of whichever sibling worktree wrote its stamp last; the demo recorder's full storyboard walkthrough no longer leaves a book open between acts; and the rung-climb invariant check now measures air within a row rather than across the whole shelf. `github#92`, `github#94`, `github#96`, `github#101`, `github#102`.
+- Repository checks now run the local push hook's static gates in CI for pushes and pull requests to `develop` and `main`, and during release builds. Private identifier rules come from an untracked local list or the CI secret instead of the published checker. `github#89`, `github#106`.
 
 ## 1.2.0 — "Search Update" — 2026-09-23
 

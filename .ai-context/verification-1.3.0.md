@@ -2,6 +2,38 @@
 
 **Date** 2026-09-27 · **Candidate** `release/1.3.0` · **Reference** `1.2.0`
 
+## Release resumed on 2026-10-03
+
+The September results below describe the earlier candidate. Before publication, the release
+branch was reconciled with `develop@d98a1e2`, adding the already-integrated tooling changes
+`github#89` and `github#106`. The only merge conflict was the generated code index; it was
+regenerated. No files under `src/` or `plugin/`, or recorded clips, changed in this reconciliation.
+The release notes now account for both additional changes and use the resumed release date.
+
+The old suite stamp is no longer usable: `suite-stamp.mjs check` reports that the fixture is
+nine days old and will regenerate. A fresh full suite and local release dry run are still
+required, followed by a CI dry run of the final candidate before merging and tagging.
+Run `36304102110` remains evidence for the September candidate, not this reconciled tree.
+
+The five editor CSS warnings were also checked against the branch. Their declarations remain
+unchanged, as documented in `design/0036-the-css-floor-is-measured.md`: the editor target is
+Obsidian 1.6.5, below the declared minimum 1.7.2; the recorded runtime checks passed on
+Obsidian 1.13.7, with a font fallback and an intentional hidden-element `!important` rule.
+That earlier run does not establish runtime compatibility on the minimum Obsidian version.
+
+| Resumed preflight | Result |
+|---|---|
+| Build | Successful; all three SHA-256s match the September dry-run hashes below. |
+| Lint and core typecheck | 0 errors, 0 warnings. |
+| Static gates | CI parity confirms all 14 hook gates exist in both workflows. PII, scope, network, comments, generator determinism, build-order determinism, data escaping, refresh wiring, update-note self-tests, path-guard self-tests, lock self-tests and generated-index checks passed. Comment baseline remains 1531. |
+| CI prerequisite | Repository secret `PII_NAMES` exists; its contents were not read. |
+| Clip inventory | 27 feature clips plus the hero, all decoded successfully at 1000 x 1000. All 1.3.0 image targets in the gallery and feature pages exist locally. The shared review helper searched the wrong assets directory; a scratch copy corrected its lookup to `docs/features` and treated `hero` as `assets/demo.webp`, reporting 28/28 clips. No shared skill was edited. |
+| Visual inspection | Inspected midpoint frames from all 27 feature clips as three contact sheets. The shelves, reader, builder controls, feature captions and parent-tags checkbox were visible. This is a still-frame review, not a replay of every animation. |
+| Closing-card duration | Decoding all three stored frames of `close.webp` and summing their durations gives exactly 5000 ms, matching the 5-second storyboard act. The earlier 3.4-second audit concern does not reproduce with the encoded frame durations. |
+| Full suite / local dry run / final CI dry run | Pending. The historical pass rows below must not be read as a pass for the resumed candidate. |
+
+## September preparation and verification
+
 ## What was run
 
 | gate | result |
