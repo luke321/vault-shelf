@@ -1,5 +1,19 @@
 # Invariants
 
+### CSS review equivalence (`github#109`, `design/0036`)
+
+Hidden descendants of the real `#vs-app.vault-shelf` root compute `display: none`, including
+ID-styled rail controls. Reader, builder and Manage open, close and reopen in all three looks,
+both themes and both list/shelf modes. The targeted cascade check measures 84 states and 72
+open/close cycles and restores its original look/theme/list state.
+
+The wrapping search rail keeps a 10px column gap and zero row gap above 860px; at 860px and
+below both are 2px. Monospaced content follows the host's `--font-monospace`, otherwise
+`SFMono-Regular, Menlo, monospace`. Live/dead links wrap into inline fragments with solid/dotted
+1px borders respectively. Hover thickens the live border to 2px without changing paragraph
+height or wrapping; keyboard focus remains a visible 2px outline. Probe nodes are removed
+on success and failure. The CSS review reports retained clipping warnings without ignores.
+
 Properties that must not regress, and the command that checks each one. **Every number here
 was measured, not reasoned about.** If a check fails because behaviour changed on purpose,
 update this file and the check in the same commit — a check quietly relaxed is worse than one

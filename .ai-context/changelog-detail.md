@@ -1,5 +1,58 @@
 # Changelog detail
 
+## 2026-10-03 — Reduce community-review CSS findings (`github#109`)
+
+The community scorecard is the warning source; design/0036 explicitly supersedes its earlier
+editor-local diagnosis. Two relevant official Stylelint rules, without ignores, were reproduced
+against Electron 30.0, >=30.0 and >=31.0. All three gave the same before/after:
+
+| Measurement | Before | After |
+|---|---:|---:|
+| flagged declarations / warning categories in styles.css | 23 / 5 | 10 / 1 |
+| extended-system-fonts / multicolumn / text-decoration / importance | 8 / 1 / 3 / 1 | 0 / 0 / 0 / 0 |
+| clipping declarations still reported | 10 | 10 |
+| source findings: page / leather / cyber | 10 / 6 / 7 | 4 / 6 / 0 |
+| library / reader screenshot pixels changed, identical clean capture path | baseline | 0 / 0 |
+| three-line link paragraph height, normal → hover | 89.0625px | 89.0625 → 89.0625px |
+
+New targeted checks: 5,442 hide/restore probes over 84 states and 72 open/close cycles,
+all three looks × two themes × shelf/list modes, no failures. Flex gaps measure 10/0px
+horizontal/vertical at 1180px and 2/2px at 780/460px. Live/dead links keep 3/3 fragments,
+solid/dotted borders, 1→2px hover thickness and a visible 2px keyboard-focus outline.
+Standalone fallback width is 527.8125px both through the variable fallback and explicit stack;
+the injected host stack is honoured and matches its explicit control.
+
+Targeted headed smoke: **8/8** (two runner groups of 4/4), plus **1/1** clean screenshot check.
+Existing checks measured 39 controls across three looks with zero size mismatches; 4,745
+elements across four states with zero moved/resized/missing; six ribbon binding styles;
+14 colours; unchanged book addresses; and successful link navigation within and across books.
+Build/typecheck/lint passed (0 errors/warnings). Scope: 552 rules, 624 selectors and 28 negative
+controls. PII: 6 names, all typed rules, 13 negative controls. Network, comment budget,
+data escaping and both determinism checks passed. Full smoke suite not run.
+
+The updated headed Obsidian harness passed **19/19** on Obsidian 1.13.7 / Electron 43.3.0 /
+Chromium 150.0.7871.212. The real host's resolved monospace stack measured **562.5px**, matching
+the new shipped stack, versus **527.81px** for the standalone fallback. The host stack itself
+includes its platform font choices; these were not copied into the plugin. Polygon notch hit
+exclusion and solid-body hit inclusion both passed; the live original and leather marks
+retained their clips, and hidden display computed none. This validates the installed host,
+not the minimum engine or mobile devices.
+
+The first new probe exceeded CDP's evaluation timeout; it was split into bounded cases.
+A later cleanup expression was invalid and left the probe in screenshots; fixed to run in
+`finally`, then passed. Those images are discarded. Fresh `clean-*` captures from the same
+single check as the baseline are pixel-identical, including the formerly differing header band.
+
+The text border sits slightly lower and does not skip ink; this visible polish change is
+shown separately in the link comparison. The host may choose a different monospace face;
+Apple/mobile pixels are not measured on Windows. Clip paths, silhouettes and hit regions
+are preserved, and the remaining warning is deliberately reported. No community-score claim.
+
+No release recording was made. The hero and clips showing prose/code (especially `read`,
+`open`, `turn`, `alsoin`, `peek`, and any cyber-look take) predate the new font/link paint;
+release review should refresh affected takes. Library-only samples were pixel-identical here.
+Release notes, version files and verification-1.3.0.md were not changed.
+
 ## 2026-09-29 — The merge boundary runs the hook's gates (`github#89`)
 
 The hook's static block now also runs in `.github/workflows/quality.yml` on every push and pull

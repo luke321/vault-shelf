@@ -7352,6 +7352,151 @@ check("the reader and the sheets are not painted until they are opened", async (
              : r.map((x) => `${x.id} display:${x.display}`).join(", ") };
 });
 
+/* github#109, design/0036 */
+check("hidden controls win the cascade and reopen in every look and theme", async (p) => {
+  const original = await p.j("({look:__vs.settings().look,theme:document.getElementById('vs-app').getAttribute('data-theme'),list:document.getElementById('vs-app').getAttribute('data-list')})");
+  const rows = [];
+  try {
+    for (const look of ['', 'leather', 'cyber']) for (const theme of ['light', 'dark']) for (const list of [false, true]) {
+      rows.push(await p.j(`(function(){
+    var root = document.getElementById('vs-app');
+    __vs.setLook(${JSON.stringify(look)});
+    __vs.setTheme(${JSON.stringify(theme)});
+    __vs.setListMode(${list});
+    var book = __vs.views().filter(function(v){return !v.shelf.hidden && v.books.length;})[0].books[0];
+    var failures = [], samples = 0, states = 0, cycles = 0;
+    function walk(label) {
+      states++;
+      root.querySelectorAll('[hidden]').forEach(function(el){
+        if (getComputedStyle(el).display !== 'none') failures.push(label + ' paints ' + el.id);
+      });
+      var seen = {};
+      root.querySelectorAll('[id], .vs-railsearch, .vs-railactions, .vs-inner, .vs-spine, .vs-slot').forEach(function(el){
+        if (el.hidden) return;
+        var key = el.id || el.className;
+        if (seen[key]) return;
+        seen[key] = true;
+        var before = getComputedStyle(el).display;
+        el.hidden = true;
+        if (getComputedStyle(el).display !== 'none') failures.push(label + ' cannot hide ' + key);
+        el.hidden = false;
+        if (getComputedStyle(el).display !== before) failures.push(label + ' cannot restore ' + key);
+        samples++;
+      });
+    }
+    function cycle(id, open, close) {
+      for (var n = 0; n < 2; n++) {
+        open();
+        var el = document.getElementById(id);
+        if (el.hidden || !el.getBoundingClientRect().width) failures.push(id + ' did not open');
+        walk(id);
+        close();
+        if (!el.hidden || getComputedStyle(el).display !== 'none' || el.getBoundingClientRect().width) failures.push(id + ' did not close');
+        cycles++;
+      }
+    }
+    walk('library');
+    cycle('vs-reader', function(){__vs.openBook(book.id, null);}, function(){__vs.closeReader();});
+    cycle('vs-builder', function(){document.getElementById('vs-newshelf').click();}, function(){document.getElementById('vs-bcancel').click();});
+    cycle('vs-manage', function(){document.getElementById('vs-manageopen').click();}, function(){document.getElementById('vs-mclose').click();});
+    return {failures:failures, samples:samples, states:states, cycles:cycles};
+  })()`));
+    }
+  } finally {
+    await p.j(`(function(){__vs.closeReader(); __vs.setLook(${JSON.stringify(original.look)}); __vs.setTheme(${JSON.stringify(original.theme || 'dark')}); __vs.setListMode(${original.list === '1'}); return true;})()`);
+    await settled(p);
+  }
+  const r = rows.reduce((sum, row) => ({failures:sum.failures.concat(row.failures),samples:sum.samples+row.samples,states:sum.states+row.states,cycles:sum.cycles+row.cycles}), {failures:[],samples:0,states:0,cycles:0});
+  return { ok: !r.failures.length && r.states === 84 && r.cycles === 72 && r.samples > 500,
+    detail: `${r.samples} hide/restore probes, ${r.states} states, ${r.cycles} open/close cycles; ` +
+            `${r.failures.length} failures: ${r.failures.slice(0, 5).join('; ')}` };
+});
+
+/* github#109, design/0036 */
+check("the search rail keeps its horizontal and wrapped vertical gaps", async (p) => {
+  const original = await p.j('({width:innerWidth,height:innerHeight})');
+  const rows = [];
+  try {
+    for (const width of [1180, 780, 460]) {
+      await viewport(p, width, 900);
+      rows.push(await p.j(`(function(){
+        var rail = document.querySelector('.vs-railsearch');
+        var cs = getComputedStyle(rail);
+        var probe = rail.cloneNode(false);
+        probe.style.cssText = 'position:fixed;left:0;top:0;width:90px;max-width:90px;';
+        for (var n=0;n<3;n++) {
+          var child = document.createElement('span');
+          child.style.cssText = 'flex:0 0 35px;height:20px;';
+          probe.appendChild(child);
+        }
+        document.getElementById('vs-app').appendChild(probe);
+        var a=probe.children[0].getBoundingClientRect(), b=probe.children[1].getBoundingClientRect(), c=probe.children[2].getBoundingClientRect();
+        var result={width:innerWidth,column:cs.columnGap,row:cs.rowGap,x:b.left-a.right,y:c.top-a.bottom};
+        probe.remove();
+        return result;
+      })()`));
+    }
+  } finally {
+    await unviewport(p, original);
+  }
+  return {ok:rows.every(r => r.x === (r.width > 860 ? 10 : 2) && r.y === (r.width > 860 ? 0 : 2)),
+    detail:rows.map(r => `${r.width}px: measured ${r.x}/${r.y}px horizontal/vertical (computed ${r.column}/${r.row})`).join('; ')};
+});
+
+/* github#109, design/0036 */
+check("review CSS preserves monospace intent and wrapped link distinction", async (p) => {
+  const r = await p.j(`(function(){
+    var root = document.getElementById('vs-app');
+    var host = document.createElement('div');
+    host.className = 'vs-prose';
+    host.style.cssText = 'position:fixed;left:30px;top:100px;width:230px;font:18px/1.65 Georgia;z-index:999';
+    var link = document.createElement('a'), dead = document.createElement('span');
+    link.className='vs-link'; link.href='#'; dead.className='vs-deadlink';
+    link.textContent=dead.textContent='a long link with gyp descenders wrapping across several lines to the end';
+    var liveRow=document.createElement('p'), deadRow=document.createElement('p');
+    liveRow.appendChild(link); deadRow.appendChild(dead); host.append(liveRow,deadRow);
+    var code=document.createElement('code'); code.textContent='0123456789 the quick brown fox';
+    code.style.cssText='font-size:32px;white-space:pre'; host.appendChild(code); root.appendChild(host);
+    try {
+      var cs=getComputedStyle(link), ds=getComputedStyle(dead);
+      var result={line:cs.borderBottomStyle,thickness:cs.borderBottomWidth,dead:ds.borderBottomStyle,
+        colour:cs.color!==ds.color,fragments:link.getClientRects().length,
+        deadFragments:dead.getClientRects().length,height:liveRow.getBoundingClientRect().height,
+        x:link.getClientRects()[0].x+5,y:link.getClientRects()[0].y+5};
+      host.style.setProperty('--font-monospace','initial');
+      result.fallback=getComputedStyle(code).fontFamily;
+      result.fallbackWidth=code.getBoundingClientRect().width;
+      code.style.fontFamily='SFMono-Regular, Menlo, monospace';
+      result.explicitWidth=code.getBoundingClientRect().width;
+      code.style.removeProperty('font-family');
+      host.style.setProperty('--font-monospace','Consolas, monospace');
+      result.host=getComputedStyle(code).fontFamily;
+      result.hostWidth=code.getBoundingClientRect().width;
+      code.style.fontFamily='Consolas, monospace';
+      result.hostExpected=code.getBoundingClientRect().width;
+      code.style.removeProperty('font-family');
+      host.id='vs-css-review-probe';
+      return result;
+    } catch(e) {host.remove();throw e;}
+  })()`);
+  let hover, focus;
+  try {
+    await p.send('Input.dispatchMouseEvent', {type:'mouseMoved',x:r.x,y:r.y});
+    hover = await p.j("(function(){var h=document.getElementById('vs-css-review-probe');var a=h.querySelector('a');return {width:getComputedStyle(a).borderBottomWidth,height:h.querySelector('p').getBoundingClientRect().height,fragments:a.getClientRects().length};})()");
+    await p.send('Input.dispatchKeyEvent', {type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+    await p.send('Input.dispatchKeyEvent', {type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+    focus = await p.j("(function(){var a=document.querySelector('#vs-css-review-probe a');a.focus();return {focused:document.activeElement===a,outline:getComputedStyle(a).outlineWidth,visible:a.matches(':focus-visible')};})()");
+  } finally {
+    await p.j("(function(){document.getElementById('vs-css-review-probe').remove(); return true;})()");
+    await p.send('Input.dispatchMouseEvent', {type:'mouseMoved',x:0,y:0});
+  }
+  return {ok:r.line==='solid' && r.thickness==='1px' && r.dead==='dotted' && r.colour && r.fragments>1 && r.deadFragments>1 &&
+    r.fallbackWidth===r.explicitWidth && r.fallback.includes('SFMono-Regular') && r.host.includes('Consolas') && r.hostWidth===r.hostExpected &&
+    hover.width==='2px' && hover.height===r.height && hover.fragments===r.fragments && focus.focused && focus.visible && focus.outline==='2px',
+    detail:`${r.fragments}/${r.deadFragments} live/dead fragments; ${r.line}/${r.dead} borders, hover ${hover.width}, height ${r.height}->${hover.height}px, focus ${JSON.stringify(focus)}; ` +
+      `fallback ${r.fallbackWidth}/${r.explicitWidth}px, host ${r.hostWidth}/${r.hostExpected}px`};
+});
+
 check("a wide table scrolls inside the page and never widens the book", async (p) => {
   const r = await p.j(`(function(){
     var note = __vs.data().notes.filter(function (n) { return n.title === "Wide table of everything"; })[0];
