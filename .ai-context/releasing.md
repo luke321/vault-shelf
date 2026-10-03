@@ -97,9 +97,24 @@ tooling was cut from. `.\scripts\release.ps1 -SelfTest` drives all of them again
 clone and prints which fired; all writes stay in its scratch directory and it creates no tags.
 The setup removes the inherited manifest-version tag only from the throwaway clone and its
 throwaway origin, so that tag cannot mask later guards. The real repository's tags are untouched.
+The working checkout's **manifest, CHANGELOG and update note are overlaid together**, along
+with its scripts, then committed and pushed only to the scratch origin. An older real `main`
+therefore supplies history, not mixed-version release metadata (`github#112`). The self-test
+does not rewrite an incoherent candidate to make it pass. Failed assertions throw; the
+PowerShell entry point explicitly exits **1** on failure and **0** on success. Native command
+output (including inherited-tag deletion) is diagnostic text, never a numeric return value.
 Its **16 cases** include five certificate-consumer paths using stubbed external work: one
 green, silent success, misleading success text and a red suite refuse; two greens reach the
 dry-run stop. Each path checks headed arguments and lock release, without Chrome or live locks.
+
+`node scripts/check-release-selftest.mjs` measures that contract at the external
+`powershell.exe -File` boundary. It runs the on-disk scripts with current candidate metadata,
+then a synthetic newer major release against older scratch `main`, then one deliberately
+wrong assertion with inherited tags and injected success-stream text. The first two must
+reach all 16 cases and all five consumer cleanup assertions and exit 0; the last must show
+exactly one assertion failure and exit 1. Each run checks that the source fixture's refs and
+tags are unchanged. `--out <directory>` retains the three logs after scratch cleanup.
+This is a Windows console check: it launches no browser and uses no real suite or lock.
 
 | it refuses | because |
 |---|---|

@@ -1,5 +1,34 @@
 # Changelog detail
 
+## 2026-10-03 — Release self-test metadata and process status (`github#112`)
+
+The release candidate exposed two harness defects after #110. The scratch checkout started
+with main's **1.2.0** manifest and CHANGELOG but overlaid the candidate's **1.3.0** update
+note. Ten early refusals passed; the passing case and five certificate consumers stopped at
+the wrong guard. The log reported **11 failed assertions** while `powershell.exe -File`
+returned **0**. A synthetic **2.0.0** candidate against **1.2.0** main reproduced that result.
+
+The exit defect was measured independently: deleting an inherited scratch tag through
+`Invoke-Native` emitted a **String**, followed by the self-test's **Int32 1**. Passing this
+two-element success stream to `exit` produced process status **0**. The self-test now throws
+on failed assertions, sends native diagnostics to the host, and maps completion/failure to
+literal **0/1** at the script boundary. Setup copies the on-disk manifest, CHANGELOG and
+update note together before seeding only the scratch origin. Real release guards and the
+release execution path are unchanged.
+
+`node scripts/check-release-selftest.mjs` passes **21/21** external-process checks. Current
+**1.2.0** metadata and synthetic **2.0.0** metadata versus older main each reach **16/16**
+cases plus **5/5** consumer call/cleanup assertions, exit **0**, and preserve source refs/tags.
+A deliberately wrong assertion yields **15 passing cases, 1 failure**, all five consumer
+cleanup assertions, and exit **1**, even with both inherited tags removed and extra text
+injected into the success stream. Fault injection exists only in disposable script copies.
+
+One focused code review plus a targeted scratch-isolation/exit review; three regex-spacing
+lint findings corrected without changing their matches. Scratch-clone typecheck/lint:
+**0 errors, 0 warnings**; PII: **211 files**, **6 names**, **13 negative controls caught**;
+comment budget: **1531/1531**; PowerShell parser: **0 errors**; Node syntax and generated
+indexes current. No browser, recording, full suite, real release dry run, push or merge.
+
 ## 2026-10-03 — Repeatable headed validation (`github#110`)
 
 The index-row check now parks the pointer before closing the reader, including on failure.

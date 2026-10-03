@@ -3342,11 +3342,10 @@ it recurs, look at the compositor read in `paintedAbove()`, never at a tolerance
 
 ## Every release guard fires, and none of them writes a tag
 
-`.\scripts
-elease.ps1 -SelfTest` — **11 cases**. A throwaway bare repository stands in for
+`powershell.exe -File scripts/release.ps1 -SelfTest` — **16 cases**. A throwaway bare repository stands in for
 `origin` (the guards *fetch* `origin/main`, so a self-test that faked the ref in a clone of the
 real repo would have it overwritten mid-run), a clone of it carries the working tree's
-`scripts/`, and each case breaks exactly one thing: a `v` prefix, a malformed version, a
+`scripts/`, manifest, CHANGELOG and update note together, and each refusal breaks exactly one thing: a `v` prefix, a malformed version, a
 manifest that disagrees, a missing CHANGELOG section, **an update note that names another
 version** (`github#33`), a branch other than `main`, a `main` one commit **ahead** of
 `origin/main`, a `main` one commit **behind**, a HEAD **off `origin/main`'s first-parent line**
@@ -3354,8 +3353,21 @@ version** (`github#33`), a branch other than `main`, a `main` one commit **ahead
 1.8.0 exactly), and a dirty tree. The eleventh case breaks nothing and is asserted on reaching
 the lint gate.
 
-Every case asserts the tag count **before and after**, and all eleven are `0 -> 0`: a guard that
-fires after a tag has been written is not a guard, and a published tag cannot be moved.
+Five more cases stub external work and verify certificate consumption: one green, silence,
+misleading success text and a red suite refuse; two greens reach the dry-run stop. Each
+asserts one headed suite invocation, the expected certificate calls and lock release.
+Every case asserts an unchanged tag count **before and after**: a guard that fires after a
+tag has been written is not a guard, and a published tag cannot be moved. Inherited tags
+for the candidate version are removed only inside the scratch clone and its scratch origin.
+
+**Self-test setup and exit are measured too (`github#112`).**
+`node scripts/check-release-selftest.mjs` checks current metadata and a synthetic newer
+candidate against older `main`: each must reach **16/16** cases and **5/5** consumer call/cleanup
+assertions with process exit **0**. An injected wrong assertion must produce exactly one
+failure and process exit **1**, even after inherited-tag deletion and additional success-stream
+output. The fixture's source refs/tags must remain unchanged on every path. These checks use
+only isolated console processes, never Chrome or a real release dry run.
+
 ## A native drag is the one gesture the harness cannot drive
 
 **This is the gap that let shelf dragging break completely while 77 checks passed.** A synthetic
