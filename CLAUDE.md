@@ -70,6 +70,11 @@ of measuring it.** Build the page, drive it, read the numbers.
 
 ## How to work here
 
+- **Local smoke runs are headed** (`github#110`, `decisions/0020`). Pass `--headed` for the
+  focused commands below, after the screen guard permits the display. Release and push pass it
+  themselves; neither may proceed until the complete clean tree has two consecutive greens.
+  The layout golden uses a temporary fixed-date build, while the main fixture stays fresh.
+
 - `node scripts/smoke.mjs --only "<substring>"` is the iteration loop. The full suite runs on
   the push to `develop` (the pre-push hook); do not run it by hand unless asked.
 - **Two Chromes at once, and two is a ceiling.** `--jobs` clamps to 2 and says so; `--jobs 1` is

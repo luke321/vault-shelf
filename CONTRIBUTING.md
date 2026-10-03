@@ -46,7 +46,7 @@ choices look arbitrary and are not: the `0-9` volume, the `-undated` and `-unfil
 and the recurring failure mode in this repo is reasoning about the code instead of measuring
 it.
 
-Fifteen commands, and all of them are gates rather than suggestions:
+Sixteen commands, and all of them are gates rather than suggestions:
 
 ```bash
 node scripts/check-pii.mjs                    # no name or identifier reaches this public repo
@@ -60,10 +60,11 @@ node scripts/refresh-check.mjs --wiring-only  # the plugin still follows the vau
 node scripts/update-note-selftest.mjs         # the update strip decides the way design/0023 says it does
 node scripts/path-guard-selftest.mjs          # the mirror refuses an output that is, holds or aliases its source vault
 node scripts/lock.mjs --selftest              # the shared mutex can tell a dead holder from a live one
+node scripts/suite-stamp.mjs --selftest       # headed eligibility and certificate exclusions, no browser
 node scripts/code-map.mjs --check             # the generated code map and index are still current
 node scripts/check-ci-parity.mjs              # every gate above also runs in CI, where a merge boundary can see it (github#89)
 npm run lint                                  # tsc --noEmit on src/core under strict, then typescript-eslint on our own code; every finding held at zero
-node scripts/smoke.mjs                        # the invariant suite, over the generated vault
+node scripts/smoke.mjs --headed               # full suite: separate authorization and screen guard first
 ```
 
 `check-pii` reads its deny list from the untracked `.pii-names`, or from the `PII_NAMES` secret in

@@ -1,5 +1,10 @@
 # 0014 — One vault for the checks and the film
 
+**2026-10-03 amendment (#110):** one generator still supplies the live suite and film.
+The golden geometry check additionally generates that shape with a fixed end date and
+exported wear day in temporary storage. It does not replace or pin the fresh live fixture.
+The original golden reproduced unchanged; see [0020](0020-repeatable-headed-validation.md).
+
 **Date** 2026-09-11 · **Status** accepted · **Issue** [#31](https://github.com/luke321/vault-shelf/issues/31) · **Amends** `decisions/0004`, `design/0013`
 
 ## Context
