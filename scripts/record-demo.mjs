@@ -5,10 +5,10 @@ import { attach } from "./cdp.mjs";
 // github#50 -- the one copy of it
 import { findChrome } from "./chrome.mjs";
 import { currentFixture } from "./fixture-store.mjs";
-import { spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { checkRecordingScreen, RecordingSession } from "./record-session.mjs";
+import { spawnSync } from "node:child_process";
+import { cpSync, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -79,7 +79,7 @@ function mirrorSource() {
   return explicit ? resolve(explicit) : "";
 }
 
-function sourceVault() {
+async function sourceVault(session) {
   const explicit = arg("vault", "");
   if (explicit) return resolve(explicit);
 
@@ -88,15 +88,9 @@ function sourceVault() {
     if (!existsSync(source)) throw new Error("mirror source does not exist: " + source);
     const out = join(ROOT, "mirror-vault");
     say("mirroring a real vault (its shape only) -> " + out);
-    const made = spawnSync(process.execPath,
-      [join(ROOT, "scripts", "make-mirror-vault.mjs"), "--vault", source, "--out", out],
-      { encoding: "utf8" });
+    const made = await session.run(process.execPath,
+      [join(ROOT, "scripts", "make-mirror-vault.mjs"), "--vault", source, "--out", out]);
     process.stdout.write(made.stdout || "");
-    if (made.status !== 0) {
-      // A failed mirror does NOT fall through to the fixture: the reason it failed is the
-      // reason it exists, and a silent downgrade would hide it behind a film that still works.
-      throw new Error("make-mirror-vault failed:\n" + (made.stderr || made.stdout));
-    }
     return out;
   }
 
@@ -799,8 +793,20 @@ function storyboard(P) {
 
 /* ------------------------------------------------------------------- run -- */
 
-const vault = sourceVault();
-const scratch = mkdtempSync(join(tmpdir(), "vs-record-"));
+const session = new RecordingSession(say);
+try {
+if (argv.some(a => /^--headless(?:=|$)/.test(a))) throw new Error("record-demo is always headed; headless recording is not supported");
+if (process.env.VAULT_LOCKS_HOME) throw new Error("record-demo refuses isolated VAULT_LOCKS_HOME; real recordings require machine-wide ownership");
+if (![FPS, W, H].every(n => Number.isFinite(n) && n > 0) || !Number.isInteger(W) || !Number.isInteger(H)) {
+  throw new Error("--fps, --width and --height must be positive; dimensions must be integers");
+}
+const screenOptions = { monitor: arg("monitor", ""), allowSingleScreen: argv.includes("--allow-single-screen"), width: W, height: H };
+const lockTimeout = Number(arg("lock-timeout-ms", "0"));
+if (!Number.isFinite(lockTimeout) || lockTimeout < 0) throw new Error("--lock-timeout-ms must be nonnegative and finite");
+checkRecordingScreen(screenOptions);
+await session.claim(lockTimeout);
+const vault = await sourceVault(session);
+const scratch = session.workspace();
 const page = join(scratch, "vault-shelf.html");
 const frames = join(scratch, "frames");
 mkdirSync(frames, { recursive: true });
@@ -812,15 +818,15 @@ const named = join(scratch, arg("vault-name", "Everything"));
 cpSync(vault, named, { recursive: true });
 
 say("fixture: " + vault);
-const build = spawnSync(process.execPath,
-                        [join(ROOT, "src", "build-shelf.mjs"), "--vault", named, "--out", page],
-                        { encoding: "utf8" });
-if (build.status !== 0) throw new Error("build-shelf failed:\n" + (build.stderr || build.stdout));
+const build = await session.run(process.execPath,
+                        [join(ROOT, "src", "build-shelf.mjs"), "--vault", named, "--out", page]);
 say((build.stdout || "").trim().split("\n").pop());
 
 const PORT = await freePort();
-const profile = mkdtempSync(join(tmpdir(), "vs-record-chrome-"));
-const chrome = spawn(findChrome(), [
+const profile = session.browserProfile();
+const approved = checkRecordingScreen(screenOptions);
+say(`headed recording: ${approved.monitor} at ${approved.left},${approved.top} ${approved.width}x${approved.height}; viewport ${W}x${H}`);
+const chrome = session.chrome = session.spawn(findChrome(), [
   "--remote-debugging-port=" + PORT, "--user-data-dir=" + profile,
   "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--disable-sync",
   "--disable-component-update", "--no-service-autorun", "--metrics-recording-only",
@@ -830,14 +836,14 @@ const chrome = spawn(findChrome(), [
   "--disable-background-timer-throttling", "--force-device-scale-factor=1",
   /* design/0007 -- a long capture run is not a browsing session. The first full pass died at
    * frame 948 of 1,992 with nothing but "socket closed"; these are the flags that stop a
-   * headless renderer accumulating its way into that on a two-thousand-frame run. */
+   * renderer accumulating its way into that on a two-thousand-frame run. */
   "--disable-gpu", "--disable-dev-shm-usage", "--disable-software-rasterizer",
   "--js-flags=--max-old-space-size=2048",
-  "--headless=new", "--window-size=" + W + "," + H,
-  pathToFileURL(page).href,
-], { stdio: ["ignore", "ignore", "pipe"] });
+  `--window-position=${approved.left},${approved.top}`, `--window-size=${approved.width},${approved.height}`,
+  "--app=" + pathToFileURL(page).href,
+], { stdio: ["ignore", "ignore", "pipe"], windowsHide: false });
 
-/* design/0007 -- a headless browser that dies mid-capture reports "socket closed" and nothing
+/* design/0007 -- a browser that dies mid-capture reports "socket closed" and nothing
  * else, which is a symptom and never a cause. Its stderr is the cause, and it is worth the
  * ring buffer to have it when the run is 2,000 frames long. */
 const chromeSaid = [];
@@ -853,6 +859,7 @@ if (chrome.stderr) {
   });
 }
 chrome.on("exit", (code, sig) => { chromeGone = "exit " + code + (sig ? " " + sig : ""); });
+chrome.on("error", error => { chromeGone = error.message; });
 
 let cdp = null;
 let shot = 0;
@@ -860,9 +867,20 @@ let heroWindow = HERO_CLIP;
 
 try {
   for (let i = 0; i < 60 && !cdp; i++) {
-    try { cdp = await attach(PORT, "vault-shelf"); } catch { await sleep(300); }
+    if (chromeGone) throw new Error("Chrome failed: " + chromeGone);
+    try { cdp = session.cdp = await attach(PORT, "vault-shelf"); } catch { await sleep(300); }
   }
   if (!cdp) throw new Error("could not attach to Chrome");
+
+  const { windowId } = await cdp.send("Browser.getWindowForTarget");
+  const { monitor: _monitor, ...bounds } = approved;
+  await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
+  await cdp.send("Browser.setWindowBounds", { windowId, bounds });
+  const placed = await cdp.send("Browser.getWindowBounds", { windowId });
+  if (Object.entries(bounds).some(([key, value]) => placed.bounds[key] !== value)) {
+    throw new Error("Chrome did not occupy the approved monitor bounds: " + JSON.stringify(placed.bounds));
+  }
+  say("verified headed window: " + JSON.stringify(placed.bounds));
 
   const go = (expr) => cdp.eval(expr);
   const j = async (expr) => JSON.parse(await cdp.eval("JSON.stringify(" + expr + ")"));
@@ -1208,13 +1226,7 @@ try {
   }
   say(`captured ${shot} frames in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
 } finally {
-  try { if (cdp) cdp.close(); } catch { }
-  try { chrome.kill(); } catch { }
-  if (process.platform === "win32" && chrome.pid) {
-    spawnSync("taskkill", ["/F", "/T", "/PID", String(chrome.pid)], { stdio: "ignore" });
-  }
-  await sleep(400);
-  try { rmSync(profile, { recursive: true, force: true }); } catch { }
+  session.closeBrowser();
 }
 
 if (!shot) throw new Error("no frames captured");
@@ -1222,28 +1234,31 @@ if (!shot) throw new Error("no frames captured");
 /* ---------------------------------------------------------------- encode -- */
 
 const ffmpeg = findFfmpeg();
-const run = (args) => {
-  const r = spawnSync(ffmpeg, args, { encoding: "utf8" });
-  if (r.status !== 0) throw new Error("ffmpeg failed:\n" + (r.stderr || "").split("\n").slice(-12).join("\n"));
-};
+const run = args => session.run(ffmpeg, args, { encode: true });
 
-run(["-y", "-loglevel", "error", "-framerate", String(FPS),
+await run(["-y", "-loglevel", "error", "-framerate", String(FPS),
      "-i", join(frames, "f-%05d.jpg"),
      "-c:v", "libx264", "-preset", "slow", "-crf", "20",
      "-pix_fmt", "yuv420p", "-movflags", "+faststart",
-     "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", OUT]);
+     "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", "-threads", "4", OUT]);
 say("wrote " + OUT + " (" + (statSync(OUT).size / 1024 / 1024).toFixed(1) + " MB)");
 
 if (HERO) {
   const hero = resolve(HERO);
   mkdirSync(dirname(hero), { recursive: true });
-  run(["-y", "-loglevel", "error",
+  await run(["-y", "-loglevel", "error",
        "-ss", String(heroWindow[0]), "-t", String(heroWindow[1]), "-i", OUT,
        "-vf", `fps=${HERO_FPS},scale=${HERO_W}:-2:flags=lanczos`,
        "-c:v", "libwebp_anim", "-lossless", "0", "-q:v", String(HERO_Q), "-compression_level", "6",
-       "-loop", "0", "-an", hero]);
+       "-loop", "0", "-an", "-threads", "4", hero]);
   say("wrote " + hero + " (" + (statSync(hero).size / 1024).toFixed(0) + " KB)");
 }
 
+session.keep = KEEP;
 if (KEEP) say("--keep-frames: " + frames);
-else rmSync(scratch, { recursive: true, force: true });
+} catch (error) {
+  console.error("record-demo: " + error.message);
+  process.exitCode = 1;
+} finally {
+  session.cleanup();
+}

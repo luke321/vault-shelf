@@ -79,8 +79,8 @@ passed in either mode and the size is the half the layout depends on.
 shared flag list, `--headless=new` unless `--headed`, and the `findChrome()` that six files
 carried byte for byte. Five harnesses had their own near-identical copy of that list, so wiring
 the mode into each of them would have been five places for the next person to miss one.
-`record-demo.mjs` keeps its own launch (`design/0007` — it is already headless, and a long
-capture run needs flags a check run does not) and takes only `findChrome()` from it.
+`record-demo.mjs` keeps its own launch (`design/0007` — always headed since github#111, and a
+long capture run needs flags a check run does not) and takes only `findChrome()` from it.
 
 **Taking that screen is a claim, not a convention** (`decisions/0012`). `takeLeftScreen(owner)`
 hands back the window arguments *and* the hold, and `leftWindowArgs` / `leftWindowPos` /
@@ -101,11 +101,11 @@ driving a window on it would not have thought to ask for a lock called `record`.
 | `suite` | Chrome, CDP and a contended GPU: two full runs measure each other rather than the code |
 | `screen-left` | the display this repo's harnesses park their windows on — all five of them |
 | `screen-right`, `screen-primary` | the other two displays, claimed by the sister repo's recordings and spike tests |
-| `record` | **legacy**, and transitional: kept only until the sister repo drops its own alias |
+| `record` | the headed recorder's entire job; excludes every `screen-*` hold (github#111) |
 
 A `screen-*` acquire waits on a live `record` and `record` waits on any live screen, so the two
-vocabularies collide during the changeover instead of passing through each other. Nothing in
-this repo takes `record`, and nothing should.
+vocabularies collide instead of passing through each other. The recorder now takes `record`
+alone, with a heartbeat through encoding; it must not nest another screen hold inside it.
 
 ```bash
 node scripts/lock.mjs acquire screen-left --owner "who you are"   # blocks; exit 1 = give up

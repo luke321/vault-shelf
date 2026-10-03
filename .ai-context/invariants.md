@@ -2809,6 +2809,24 @@ then the newest eight.
 
 ## Headed certification; historical headless measurements
 
+**Recorder ownership (#111):** default and `--headed` recordings show a normal browser on
+the guard's named device. `record` is held from fixture preparation through encoding, with
+the existing 30-second heartbeat and no nested screen hold. Missing/busy guards, wrong
+monitors, isolated lock storage and one-screen runs without individual permission refuse
+before Chrome. Errors and SIGINT/SIGTERM/SIGHUP/SIGBREAK clean only owned resources and
+release ownership. `--keep-frames` retains scratch only after success.
+
+`node scripts/record-session-selftest.mjs`: **20/20**, no browser and isolated console controls.
+Live headed default: **120/120 frames, 24 fps, 5.000 s, 1440×900**. Explicit headed peek:
+**168/168 frames, 24 fps, 7.000 s, 1080×1080**, pointer visible **168/168**, largest step
+**61.1px**. Its full WebP lasts **7,000 ms**; the explicit `1,3` hero slice lasts **3,000 ms**
+on the unchanged **125 ms** (8 fps) clock. A static close WebP can be coalesced into one still
+by the unchanged encoder; it is not a duration probe. Capture-error, encoder-error and real
+Ctrl+C checks each leave **0 profile directories, 0 scratch directories, 0 owned Chrome
+processes and 0 CDP listeners**. No full gallery or full suite is measured here.
+The independent headed sentinel survives recorder failure cleanup with **1 CDP listener**;
+its harness then removes it before releasing the actual machine record hold.
+
 **Current contract (#110):** local release/push run headed; a full headed run is eligible for
 epoch **3**, while headless, `--only`, `--vault`, `--url`, `--look`, missing/unstamped fixtures
 and dirty trees are excluded. Both consumers require the two-green certificate after the
@@ -3342,11 +3360,10 @@ it recurs, look at the compositor read in `paintedAbove()`, never at a tolerance
 
 ## Every release guard fires, and none of them writes a tag
 
-`.\scripts
-elease.ps1 -SelfTest` — **11 cases**. A throwaway bare repository stands in for
+`powershell.exe -File scripts/release.ps1 -SelfTest` — **16 cases**. A throwaway bare repository stands in for
 `origin` (the guards *fetch* `origin/main`, so a self-test that faked the ref in a clone of the
 real repo would have it overwritten mid-run), a clone of it carries the working tree's
-`scripts/`, and each case breaks exactly one thing: a `v` prefix, a malformed version, a
+`scripts/`, manifest, CHANGELOG and update note together, and each refusal breaks exactly one thing: a `v` prefix, a malformed version, a
 manifest that disagrees, a missing CHANGELOG section, **an update note that names another
 version** (`github#33`), a branch other than `main`, a `main` one commit **ahead** of
 `origin/main`, a `main` one commit **behind**, a HEAD **off `origin/main`'s first-parent line**
@@ -3354,8 +3371,21 @@ version** (`github#33`), a branch other than `main`, a `main` one commit **ahead
 1.8.0 exactly), and a dirty tree. The eleventh case breaks nothing and is asserted on reaching
 the lint gate.
 
-Every case asserts the tag count **before and after**, and all eleven are `0 -> 0`: a guard that
-fires after a tag has been written is not a guard, and a published tag cannot be moved.
+Five more cases stub external work and verify certificate consumption: one green, silence,
+misleading success text and a red suite refuse; two greens reach the dry-run stop. Each
+asserts one headed suite invocation, the expected certificate calls and lock release.
+Every case asserts an unchanged tag count **before and after**: a guard that fires after a
+tag has been written is not a guard, and a published tag cannot be moved. Inherited tags
+for the candidate version are removed only inside the scratch clone and its scratch origin.
+
+**Self-test setup and exit are measured too (`github#112`).**
+`node scripts/check-release-selftest.mjs` checks current metadata and a synthetic newer
+candidate against older `main`: each must reach **16/16** cases and **5/5** consumer call/cleanup
+assertions with process exit **0**. An injected wrong assertion must produce exactly one
+failure and process exit **1**, even after inherited-tag deletion and additional success-stream
+output. The fixture's source refs/tags must remain unchanged on every path. These checks use
+only isolated console processes, never Chrome or a real release dry run.
+
 ## A native drag is the one gesture the harness cannot drive
 
 **This is the gap that let shelf dragging break completely while 77 checks passed.** A synthetic

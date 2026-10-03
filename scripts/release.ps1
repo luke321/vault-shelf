@@ -162,12 +162,11 @@ function Invoke-SelfTest {
     # The overlay is committed and pushed, so the clone starts clean and on a main that is
     # exactly origin/main, which is what every case below breaks exactly one thing about.
     Copy-Item (Join-Path $Repo 'scripts\*') (Join-Path $clone 'scripts') -Recurse -Force
-    # github#33 -- and the update note, for the same reason: it is a file the guards now READ,
-    # so a clone of a main that predates it would measure the absence rather than the guard.
-    $wnSrc = Join-Path $Repo 'plugin\whats-new.md'
-    if (Test-Path -LiteralPath $wnSrc) {
-      New-Item -ItemType Directory -Path (Join-Path $clone 'plugin') -Force | Out-Null
-      Copy-Item $wnSrc (Join-Path $clone 'plugin\whats-new.md') -Force
+    # github#112 -- candidate metadata travels together. main can carry an older release;
+    # mixing its manifest/changelog with this checkout's note masks every later guard.
+    New-Item -ItemType Directory -Path (Join-Path $clone 'plugin') -Force | Out-Null
+    foreach ($file in @('manifest.json', 'CHANGELOG.md', 'plugin\whats-new.md')) {
+      Copy-Item -LiteralPath (Join-Path $Repo $file) -Destination (Join-Path $clone $file) -Force
     }
     & $git @('add', '-A') | Out-Null
     & $git @('commit', '-q', '-m', 'selftest: the working tree scripts under test') | Out-Null
@@ -183,7 +182,7 @@ function Invoke-SelfTest {
         throw "selftest tag target escaped its scratch directory"
       }
       $inherited = & git -C $tagRepo tag -l $manifestVersion
-      if ($inherited) { Invoke-Native git @('-C', $tagRepo, 'tag', '-d', $manifestVersion) }
+      if ($inherited) { Invoke-Native git @('-C', $tagRepo, 'tag', '-d', $manifestVersion) | Out-Host }
     }
     $changelogHas = ([IO.File]::ReadAllText((Join-Path $clone 'CHANGELOG.md'), [Text.Encoding]::UTF8)) -match [regex]::Escape("## $manifestVersion")
     Write-Host "clone: $clone (origin: $bare)" -ForegroundColor DarkGray
@@ -360,10 +359,9 @@ if (name === 'suite-stamp.mjs') {
     $rows | Format-Table -AutoSize | Out-String | Write-Host
     if ($fails.Count) {
       Write-Host ("release.ps1 -SelfTest: " + $fails.Count + " FAILED -- " + ($fails -join ', ')) -ForegroundColor Red
-      return 1
+      throw 'release self-test assertions failed'
     }
     Write-Host ("release.ps1 -SelfTest: all " + $rows.Count + " cases behaved") -ForegroundColor Green
-    return 0
   } finally {
     Remove-Item -Recurse -Force $scratch -ErrorAction SilentlyContinue
   }
@@ -371,7 +369,11 @@ if (name === 'suite-stamp.mjs') {
 
 if ($SelfTest) {
   if ($Version) { throw "-SelfTest takes no version: it drives every refusal in a throwaway clone." }
-  exit (Invoke-SelfTest -Repo $repo -Script $MyInvocation.MyCommand.Path)
+  # github#112 -- native stdout is not a return code. Failures throw; only literal codes
+  # cross the process boundary, even if a future setup command emits success-stream text.
+  try { Invoke-SelfTest -Repo $repo -Script $MyInvocation.MyCommand.Path | Out-Host }
+  catch { Write-Error $_ -ErrorAction Continue; exit 1 }
+  exit 0
 }
 
 if (-not $Version) {

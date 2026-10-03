@@ -1,5 +1,75 @@
 # Changelog detail
 
+## 2026-10-03 — Guarded headed release recorder (`github#111`)
+
+Before: **1 unconditional headless launch flag, 0 record holds**, no screen check, and cleanup
+only around capture. After: **0 headless launch flags, 1 record hold, 0 nested screen holds**;
+default and `--headed` both open on the guard-approved device. The guard runs before building
+and immediately before opening. A named monitor must match; missing/busy guards and one-screen
+runs without individual permission defer. An isolated `VAULT_LOCKS_HOME` is refused by the CLI.
+
+Build/mirror/encode children are asynchronous so the shared heartbeat and signals keep working.
+The capture viewport, storyboard, easing, pointer paths, frame counts, hero slicing and codec
+options stay unchanged; encoders use four threads at below-normal priority. A single lifecycle
+closes the owned CDP socket and browser, removes its unique profile and temporary frames, and
+releases the hold on success, failure, interruption and lost ownership. Successful
+`--keep-frames` still retains scratch; failure always removes it.
+
+| Focused measurement | Result |
+|---|---|
+| Default close recording | 120/120 frames, 24 fps, 5.000 s, 1440×900; 120/120 visible pointer frames |
+| Explicit headed peek | 168/168 frames, 24 fps, 7.000 s, 1080×1080; pointer visible 168/168, largest step 61.1px |
+| Full peek hero / explicit `--hero-clip 1,3` | 7,000 / 3,000 ms, 125 ms timebase (8 fps); original slicing and decimation preserved |
+| Real capture error / missing encoder / Ctrl+C | Each: 0 owned Chrome processes, 0 CDP listeners, 0 profiles, 0 scratch directories; record released |
+| Console ownership and cleanup controls | 20/20; foreign record and three screen owners unchanged, heartbeat advances, lost ownership preserves its replacement, four signal handlers clean console children |
+| Real foreign record contention | Deferred before browser launch; no lock adopted or released |
+| Controlled independent headed browser | Still alive with 1 CDP listener and its profile after recorder cleanup; sentinel then removed by its harness before the real record hold released |
+| Storyboard / release compatibility | Byte-identical to develop; scratch three-way recorder merge retains the release ration multiplier and parenttags act |
+
+The static close card's WebP collapses to a still under the existing encoder; the moving peek
+proves duration instead. The global Chrome PID population is not ownership evidence: it changed
+during a check and was discarded. Cleanup is scoped by tracked child handles and the unique
+profile, never by a global before/after process difference.
+The sentinel hook initially failed to remove its own descendants and left its test hold.
+That exact profile and owner were recovered. Profile-scoped cleanup and a nested `finally`
+around the original release fixed the hook; the controlled rerun passed with no hold remaining.
+
+One combined diff review and one targeted ownership/signal review. The risk pass fixed a broken
+CDP close preventing profile cleanup and added a regression check. Typecheck/lint: **0 errors,
+0 warnings**. PII: **6 names, 13 planted controls caught**; scope: **28 planted controls caught**;
+network and comments pass (**1531/1531** prose lines). The focused captures use only generated
+fixtures and temporary outputs. No product CSS/plugin edit, full suite, push, integration merge,
+release or bulk gallery regeneration. Jarvis still owns the 27 clips and hero after integration.
+
+## 2026-10-03 — Release self-test metadata and process status (`github#112`)
+
+The release candidate exposed two harness defects after #110. The scratch checkout started
+with main's **1.2.0** manifest and CHANGELOG but overlaid the candidate's **1.3.0** update
+note. Ten early refusals passed; the passing case and five certificate consumers stopped at
+the wrong guard. The log reported **11 failed assertions** while `powershell.exe -File`
+returned **0**. A synthetic **2.0.0** candidate against **1.2.0** main reproduced that result.
+
+The exit defect was measured independently: deleting an inherited scratch tag through
+`Invoke-Native` emitted a **String**, followed by the self-test's **Int32 1**. Passing this
+two-element success stream to `exit` produced process status **0**. The self-test now throws
+on failed assertions, sends native diagnostics to the host, and maps completion/failure to
+literal **0/1** at the script boundary. Setup copies the on-disk manifest, CHANGELOG and
+update note together before seeding only the scratch origin. Real release guards and the
+release execution path are unchanged.
+
+`node scripts/check-release-selftest.mjs` passes **21/21** external-process checks. Current
+**1.2.0** metadata and synthetic **2.0.0** metadata versus older main each reach **16/16**
+cases plus **5/5** consumer call/cleanup assertions, exit **0**, and preserve source refs/tags.
+A deliberately wrong assertion yields **15 passing cases, 1 failure**, all five consumer
+cleanup assertions, and exit **1**, even with both inherited tags removed and extra text
+injected into the success stream. Fault injection exists only in disposable script copies.
+
+One focused code review plus a targeted scratch-isolation/exit review; three regex-spacing
+lint findings corrected without changing their matches. Scratch-clone typecheck/lint:
+**0 errors, 0 warnings**; PII: **211 files**, **6 names**, **13 negative controls caught**;
+comment budget: **1531/1531**; PowerShell parser: **0 errors**; Node syntax and generated
+indexes current. No browser, recording, full suite, real release dry run, push or merge.
+
 ## 2026-10-03 — Repeatable headed validation (`github#110`)
 
 The index-row check now parks the pointer before closing the reader, including on failure.
