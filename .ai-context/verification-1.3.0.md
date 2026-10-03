@@ -2,6 +2,38 @@
 
 **Date** 2026-09-27 · **Candidate** `release/1.3.0` · **Reference** `1.2.0`
 
+## Recorder and release guard corrections included on 2026-10-03
+
+`github#111` at `8c92ae3` and `github#112` at `362f9a9` were integrated into
+`develop` at `594fa95` and `7a712c0`, respectively, then included in this release
+by `ca5a2d1`. Both workers were measured idle before their Orca cleanup, and both
+tips remain pinned by keep refs. The release merge conflicted only in the generated
+code index, regenerated from the final source. The release-specific parent-tags act
+and search-row settling correction remain present.
+
+The recorder's default and explicit headed runs use the guard-approved monitor and
+one shared record hold through build, capture and asynchronous encoding. Failure and
+Ctrl+C checks left no owned Chrome, CDP listener, profile or frame directory. A controlled
+independent browser retained its profile and CDP listener after recorder cleanup.
+Twenty console controls passed on the worker and were independently repeated at its
+pinned commit. Worker captures measured 120 frames / 5 seconds / 1440 x 900 and
+168 frames / 7 seconds / 1080 x 1080, both at 24 fps; a moving 8 fps hero slice lasted
+3 seconds. These are focused tooling measurements, not full-suite certification.
+
+The release self-test copies candidate manifest, changelog and update note together.
+Failed assertions throw and map to an explicit process exit of 1, even after native
+tag-deletion output. The worker's 21 regression controls cover current metadata, newer
+metadata against older main, and a deliberate assertion failure. Actual release guards
+were not weakened. The earlier failed result below remains historical evidence.
+
+| Current release step | Status |
+|---|---|
+| Include #111 and #112 | Complete at `ca5a2d1`; release body accounts for both. |
+| Merged-candidate console checks | Current 1.3.0 metadata passes all 16 cases and five consumer assertions, with process exit 0. Newer-version and deliberate-failure controls are in progress. |
+| Fresh 27 feature clips and hero | Pending headed recordings and visual review. |
+| Two complete headed suite passes and local dry run | Pending separate full-suite authorization. |
+| Push, CI dry run, release/develop/main integration, tag and publication | Pending separate authorization. |
+
 ## Validation correction included on 2026-10-03
 
 `github#110` at `6da3e3b` was integrated into `develop` by `59bf8ba`, then included in
