@@ -133,9 +133,9 @@ const PROBES = {
   })()`,
 
   // github#61 -- the flex code path, not multicol: measure the gap that lands
-  columnGap: `(function(){
+  flexGap: `(function(){
     var host = document.createElement("div");
-    host.style.cssText = "position:fixed;left:0;top:0;display:flex;align-items:center;column-gap:10px;width:400px";
+    host.style.cssText = "position:fixed;left:0;top:0;display:flex;align-items:center;gap:0 10px;width:400px";
     var a = document.createElement("div"), b = document.createElement("div");
     a.style.cssText = b.style.cssText = "width:50px;height:20px";
     host.appendChild(a); host.appendChild(b);
@@ -144,27 +144,26 @@ const PROBES = {
     var gap = +(rb.left - ra.right).toFixed(2);
     var computed = getComputedStyle(host).columnGap;
     host.remove();
-    return { supports: CSS.supports("column-gap", "10px"), gap: gap, computed: computed };
+    return { supports: CSS.supports("gap", "0 10px"), gap: gap, computed: computed };
   })()`,
 
-  textDecoration: `(function(){
+  linkBorders: `(function(){
     var host = document.createElement("div");
-    host.style.cssText = "position:fixed;left:0;top:0;text-decoration:underline;" +
-                         "text-decoration-thickness:1px;text-underline-offset:2px";
-    document.body.appendChild(host);
-    var cs = getComputedStyle(host);
-    var thickness = cs.textDecorationThickness, offset = cs.textUnderlineOffset;
-    host.style.textDecoration = "underline dotted";
-    var style = getComputedStyle(host).textDecorationStyle;
+    host.className = "vs-prose";
+    var live = document.createElement("a"), dead = document.createElement("span");
+    live.className = "vs-link"; dead.className = "vs-deadlink";
+    live.textContent = dead.textContent = "A link";
+    host.append(live, dead);
+    document.querySelector(".vault-shelf").appendChild(host);
+    var cs = getComputedStyle(live), ds = getComputedStyle(dead);
+    var result = { thickness: cs.borderBottomWidth, solid: cs.borderBottomStyle,
+      dotted: ds.borderBottomStyle, distinct: cs.color !== ds.color };
     host.remove();
-    return { supportsThickness: CSS.supports("text-decoration-thickness", "1px"),
-             supportsOffset: CSS.supports("text-underline-offset", "2px"),
-             supportsDotted: CSS.supports("text-decoration", "underline dotted"),
-             thickness: thickness, offset: offset, dottedStyle: style };
+    return result;
   })()`,
 
-  // github#61 -- does the keyword resolve, or does the stack fall through?
-  uiMonospace: `(function(){
+  // github#109 -- host and standalone font stacks
+  monospace: `(function(){
     function widthOf(stack) {
       var s = document.createElement("span");
       s.textContent = "0123456789 the quick brown fox";
@@ -174,12 +173,14 @@ const PROBES = {
       s.remove();
       return w;
     }
-    var shipped = widthOf("ui-monospace, SFMono-Regular, Menlo, monospace");
+    var shipped = widthOf("var(--font-monospace, SFMono-Regular, Menlo, monospace)");
     var withoutKeyword = widthOf("SFMono-Regular, Menlo, monospace");
     var plain = widthOf("monospace");
     var serif = widthOf("serif");
+    var host = getComputedStyle(document.body).getPropertyValue('--font-monospace').trim();
+    var expected = widthOf(host || "SFMono-Regular, Menlo, monospace");
     return { shipped: shipped, withoutKeyword: withoutKeyword, plain: plain, serif: serif,
-             keywordResolves: shipped !== withoutKeyword,
+             host: host, expected: expected,
              fallsBackToMonospace: shipped === plain,
              monospaceIsDistinct: plain !== serif };
   })()`,
@@ -223,17 +224,14 @@ const PROBES = {
 
   // github#61 -- [hidden] must beat a class that sets display
   hiddenWins: `(function(){
-    var wrap = document.createElement("div");
-    wrap.className = "vault-shelf";
-    wrap.style.cssText = "position:fixed;left:-9999px;top:0";
+    var wrap = document.querySelector(".vault-shelf");
     var el = document.createElement("div");
     el.className = "vs-railsearch";
     wrap.appendChild(el);
-    document.body.appendChild(wrap);
     var shown = getComputedStyle(el).display;
     el.hidden = true;
     var hiddenDisplay = getComputedStyle(el).display;
-    wrap.remove();
+    el.remove();
     return { classDisplay: shown, hiddenDisplay: hiddenDisplay,
              classSetsDisplay: shown !== "" && shown !== "block" && shown !== "none",
              hiddenWins: hiddenDisplay === "none" };
@@ -364,22 +362,22 @@ try {
   const inset = await E(PROBES.clipInset);
   report(inset.supports, "clip-path: inset() is supported", "CSS.supports " + inset.supports);
 
-  const gap = await E(PROBES.columnGap);
-  report(gap.supports && gap.gap === 10, "column-gap lands 10px in a flex row",
+  const gap = await E(PROBES.flexGap);
+  report(gap.supports && gap.gap === 10, "gap lands 10px in a flex row",
          "measured " + gap.gap + "px, computed " + gap.computed);
 
-  const td = await E(PROBES.textDecoration);
-  report(td.supportsThickness && td.thickness === "1px", "text-decoration-thickness applies", "computed " + td.thickness);
-  report(td.supportsOffset && td.offset === "2px", "text-underline-offset applies", "computed " + td.offset);
-  report(td.supportsDotted && td.dottedStyle === "dotted", "text-decoration: underline dotted applies", "computed " + td.dottedStyle);
+  const td = await E(PROBES.linkBorders);
+  report(td.thickness === "1px" && td.solid === "solid", "live links have a 1px solid border", td.thickness + " " + td.solid);
+  report(td.distinct, "live and dead links have distinct colours");
+  report(td.dotted === "dotted", "dead links keep their dotted border", td.dotted);
 
-  const mono = await E(PROBES.uiMonospace);
+  const mono = await E(PROBES.monospace);
   report(mono.monospaceIsDistinct, "the monospace fallback resolves to a real font",
          "monospace " + mono.plain + "px vs serif " + mono.serif + "px");
-  report(mono.shipped === mono.plain || mono.keywordResolves,
+  report(mono.shipped === mono.expected,
          "the shipped stack paints a monospace face",
-         "shipped " + mono.shipped + "px, without the keyword " + mono.withoutKeyword +
-         "px, plain monospace " + mono.plain + "px; ui-monospace resolves: " + mono.keywordResolves);
+         "shipped " + mono.shipped + "px, host " + mono.expected + "px (" + mono.host +
+         "), standalone fallback " + mono.withoutKeyword + "px, plain monospace " + mono.plain + "px");
 
   // github#61 -- the guard the linter would have talked someone out of
   const hid = await E(PROBES.hiddenWins);

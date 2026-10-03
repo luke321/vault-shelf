@@ -201,14 +201,6 @@
 
 .vault-shelf * { box-sizing: border-box; }
 
-/* HIDDEN MEANS HIDDEN. The reader and both sheets are laid out with `display: flex` on a
- * class, which is specificity 0-2-0 and beats the user agent's `[hidden] { display: none }`
- * at 0-1-0 -- so every one of them painted over the library at all times while the `hidden`
- * ATTRIBUTE said otherwise and every check that read the attribute passed. It took a
- * screenshot to see. `.vault-shelf [hidden]` matches the attribute at 0-2-0 and the
- * !important settles it for anything added later. */
-.vault-shelf [hidden] { display: none !important; }
-
 .vault-shelf .vs-sr {
   position: absolute;
   width: 1px;
@@ -323,7 +315,7 @@
 
 /* design/0031 */
 .vault-shelf #vs-rail .vs-inner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
-.vault-shelf .vs-railsearch { display: flex; align-items: center; column-gap: 10px; flex-wrap: wrap; min-width: 0; }
+.vault-shelf .vs-railsearch { display: flex; align-items: center; gap: 0 10px; flex-wrap: wrap; min-width: 0; }
 .vault-shelf .vs-railactions { display: flex; justify-content: flex-end; gap: 8px; }
 .vault-shelf #vs-vname { justify-self: center; text-align: center; max-width: 100%; }
 .vault-shelf #vs-rail #vs-q { width: min(232px, 100%); min-width: 0; }
@@ -1449,14 +1441,14 @@
 .vault-shelf .vs-prose h1 { font-size: 20px; margin: 0 0 12px; }
 .vault-shelf .vs-prose h2 { font-size: 16px; margin: 22px 0 8px; }
 .vault-shelf .vs-prose h3 { font-size: 14px; margin: 18px 0 6px; }
-.vault-shelf .vs-prose code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+.vault-shelf .vs-prose code { font-family: var(--font-monospace, SFMono-Regular, Menlo, monospace); font-size: 0.9em; }
 .vault-shelf .vs-prose ul, .vault-shelf .vs-prose ol { padding-left: 20px; }
 .vault-shelf .vs-prose img { max-width: 100%; height: auto; }
 
 /* A wikilink the library can follow, and one it cannot. */
-.vault-shelf .vs-prose .vs-link { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; cursor: pointer; }
-.vault-shelf .vs-prose .vs-link:hover { text-decoration-thickness: 2px; }
-.vault-shelf .vs-prose .vs-deadlink { color: var(--text-3); text-decoration: underline dotted; }
+.vault-shelf .vs-prose .vs-link { color: var(--accent); text-decoration: none; border-bottom: 1px solid currentColor; cursor: pointer; }
+.vault-shelf .vs-prose .vs-link:hover { border-bottom-width: 2px; }
+.vault-shelf .vs-prose .vs-deadlink { color: var(--text-3); text-decoration: none; border-bottom: 1px dotted currentColor; }
 
 /* A table, for the standalone -- inside Obsidian the host's own `markdown-rendered` rules
  * dress it, and the container now carries that class (design/0010). Wide ones scroll rather
@@ -2410,3 +2402,6 @@
   .vault-shelf .vs-bindingchoice .vs-binding-sample { width: 30px; --spine-w: 30px; }
   .vault-shelf .vs-bindingchoice .vs-bindingname { font-size: 10px; }
 }
+
+/* github#109, design/0036 -- 1-2-0, last: hidden beats class AND rail ID display rules. */
+.vault-shelf:is(#vs-app) [hidden] { display: none; }
