@@ -104,11 +104,15 @@ node scripts/record-demo.mjs --act read --fps 4   # one act, fast, for iterating
 node scripts/record-demo.mjs --hero assets/demo.webp
 ```
 
-It builds the standalone page from the demo fixture, drives it through twelve acts, and
-captures every frame over CDP — **headless, so it cannot capture the wrong window and needs no
-`record` lock**, unlike a screen grab. 83 seconds at 24fps takes about a minute and a half to
-shoot. `design/0007` has the reasoning, including why the captions are injected by the
-recorder rather than added to the page.
+It builds the standalone page from the generated fixture and captures each storyboard frame
+over CDP in a **headed browser**, both by default and with `--headed`. Configure the local
+`P16_SCREEN_GUARD` hook to the machine's `screen-busy.ps1`; the recorder asks it for a free
+monitor, places its own window there, and owns the shared `record` lock through encoding.
+Do not wrap it in an outer lock. `--monitor right` additionally requires that named monitor;
+busy or unavailable screens defer with no headless fallback. A one-screen machine requires
+permission for each run and its duration before passing `--allow-single-screen`.
+The viewport, storyboard timing, pointer and output options are unchanged. `design/0007`
+documents ownership, cleanup, and the captions injected by the recorder.
 
 `git config core.hooksPath .githooks` once per clone runs those on every push to `develop` or
 `main`, along with a check that refuses to publish other people's names, two that keep the

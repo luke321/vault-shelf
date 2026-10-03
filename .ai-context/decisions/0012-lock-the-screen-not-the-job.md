@@ -5,6 +5,12 @@
 
 ## Context
 
+**Amended 2026-10-03 (github#111):** recordings are visibly headed even when their frames
+come from CDP. The recorder now owns `record` through the whole job, using its existing
+exclusion of every `screen-*` name. It takes no nested screen hold. The historical statement
+below that the recorder needs no lock is superseded; see `design/0007` for the guard and
+cleanup contract. The lock implementation and suite/screen relationship are unchanged.
+
 Since `decisions/0011` both plugins take their locks from one root in the OS temp dir,
 `obsidian-vault-locks` — one machine, one Chrome, one screen, no matter which repository the run
 belongs to. **The root is shared. The names were not**, and contention is by name: a lock only

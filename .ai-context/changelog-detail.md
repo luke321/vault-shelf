@@ -1,5 +1,46 @@
 # Changelog detail
 
+## 2026-10-03 — Guarded headed release recorder (`github#111`)
+
+Before: **1 unconditional headless launch flag, 0 record holds**, no screen check, and cleanup
+only around capture. After: **0 headless launch flags, 1 record hold, 0 nested screen holds**;
+default and `--headed` both open on the guard-approved device. The guard runs before building
+and immediately before opening. A named monitor must match; missing/busy guards and one-screen
+runs without individual permission defer. An isolated `VAULT_LOCKS_HOME` is refused by the CLI.
+
+Build/mirror/encode children are asynchronous so the shared heartbeat and signals keep working.
+The capture viewport, storyboard, easing, pointer paths, frame counts, hero slicing and codec
+options stay unchanged; encoders use four threads at below-normal priority. A single lifecycle
+closes the owned CDP socket and browser, removes its unique profile and temporary frames, and
+releases the hold on success, failure, interruption and lost ownership. Successful
+`--keep-frames` still retains scratch; failure always removes it.
+
+| Focused measurement | Result |
+|---|---|
+| Default close recording | 120/120 frames, 24 fps, 5.000 s, 1440×900; 120/120 visible pointer frames |
+| Explicit headed peek | 168/168 frames, 24 fps, 7.000 s, 1080×1080; pointer visible 168/168, largest step 61.1px |
+| Full peek hero / explicit `--hero-clip 1,3` | 7,000 / 3,000 ms, 125 ms timebase (8 fps); original slicing and decimation preserved |
+| Real capture error / missing encoder / Ctrl+C | Each: 0 owned Chrome processes, 0 CDP listeners, 0 profiles, 0 scratch directories; record released |
+| Console ownership and cleanup controls | 20/20; foreign record and three screen owners unchanged, heartbeat advances, lost ownership preserves its replacement, four signal handlers clean console children |
+| Real foreign record contention | Deferred before browser launch; no lock adopted or released |
+| Controlled independent headed browser | Still alive with 1 CDP listener and its profile after recorder cleanup; sentinel then removed by its harness before the real record hold released |
+| Storyboard / release compatibility | Byte-identical to develop; scratch three-way recorder merge retains the release ration multiplier and parenttags act |
+
+The static close card's WebP collapses to a still under the existing encoder; the moving peek
+proves duration instead. The global Chrome PID population is not ownership evidence: it changed
+during a check and was discarded. Cleanup is scoped by tracked child handles and the unique
+profile, never by a global before/after process difference.
+The sentinel hook initially failed to remove its own descendants and left its test hold.
+That exact profile and owner were recovered. Profile-scoped cleanup and a nested `finally`
+around the original release fixed the hook; the controlled rerun passed with no hold remaining.
+
+One combined diff review and one targeted ownership/signal review. The risk pass fixed a broken
+CDP close preventing profile cleanup and added a regression check. Typecheck/lint: **0 errors,
+0 warnings**. PII: **6 names, 13 planted controls caught**; scope: **28 planted controls caught**;
+network and comments pass (**1531/1531** prose lines). The focused captures use only generated
+fixtures and temporary outputs. No product CSS/plugin edit, full suite, push, integration merge,
+release or bulk gallery regeneration. Jarvis still owns the 27 clips and hero after integration.
+
 ## 2026-10-03 — Repeatable headed validation (`github#110`)
 
 The index-row check now parks the pointer before closing the reader, including on failure.
