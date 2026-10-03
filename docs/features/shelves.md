@@ -11,7 +11,7 @@ Favourites starts empty. Encyclopedia, Years, Months, People and Tags each organ
 ## Regenerate the clip
 
 Run from the repository root. The recorder uses the shared generated vault and captures frames
-over CDP in headless Chrome. This act prepares its own starting state.
+over CDP in visibly headed Chrome on a guard-approved monitor under the shared record lock. This act prepares its own starting state.
 
 ```powershell
 node scripts/record-demo.mjs --exact-act --act shelves --width 1000 --height 1000 --out demo-shelves.mp4 --hero docs/features/shelves.webp --hero-acts shelves --hero-width 1000
@@ -25,8 +25,8 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.3.0 - 2026-09-27` |
-| Review | Approved on 2026-09-13; retained by user instruction after the counter update |
+| Last re-recorded | `1.3.0 - 2026-10-04` |
+| Review | Release refresh: start, middle and end stills inspected; source dimensions, frame count and WebP timing verified |
 | Duration | 14 seconds |
-| WebP | 70 frames; 3,214,222 bytes |
+| WebP | 89 animation frames; 4,328,138 bytes |
 | Frame | 1000 × 1000 |

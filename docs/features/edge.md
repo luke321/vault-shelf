@@ -11,7 +11,7 @@ Carry a book or shelf toward the top or bottom of the library and the room scrol
 ## Regenerate the clip
 
 Run from the repository root. The recorder uses the shared generated vault and captures frames
-over CDP in headless Chrome. This act prepares its own starting state.
+over CDP in visibly headed Chrome on a guard-approved monitor under the shared record lock. This act prepares its own starting state.
 
 ```powershell
 node scripts/record-demo.mjs --exact-act --act edge --width 1000 --height 1000 --out demo-edge.mp4 --hero docs/features/edge.webp --hero-acts edge --hero-width 1000
@@ -25,8 +25,8 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.3.0 - 2026-09-27` |
-| Review | Approved on 2026-09-13; retained by user instruction after the counter update |
+| Last re-recorded | `1.3.0 - 2026-10-03` |
+| Review | Release refresh: start, middle and end stills inspected; source dimensions, frame count and WebP timing verified |
 | Duration | 13 seconds |
-| WebP | 75 frames; 866,338 bytes |
+| WebP | 63 animation frames; 956,628 bytes |
 | Frame | 1000 × 1000 |

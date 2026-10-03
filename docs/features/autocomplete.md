@@ -11,7 +11,7 @@ As you type, suggestions offer people, tags, folders, the names printed on book 
 ## Regenerate the clip
 
 Run from the repository root. The recorder uses the shared generated vault and captures frames
-over CDP in headless Chrome. This act prepares its own starting state.
+over CDP in visibly headed Chrome on a guard-approved monitor under the shared record lock. This act prepares its own starting state.
 
 ```powershell
 node scripts/record-demo.mjs --exact-act --act autocomplete --width 1000 --height 1000 --out demo-autocomplete.mp4 --hero docs/features/autocomplete.webp --hero-acts autocomplete --hero-width 1000
@@ -25,7 +25,8 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.3.0 - 2026-09-27` |
-| Review | Approved on 2026-09-13; re-recorded for 1.2.0 after the suggestion list started sizing to content (`github#41`) |
+| Last re-recorded | `1.3.0 - 2026-10-03` |
+| Review | Release refresh: start, middle and end stills inspected; source dimensions, frame count and WebP timing verified |
 | Duration | 12 seconds |
+| WebP | 59 animation frames; 291,596 bytes |
 | Frame | 1000 × 1000 |

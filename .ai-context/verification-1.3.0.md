@@ -1,6 +1,55 @@
 # Verification of 1.3.0
 
-**Date** 2026-09-27 · **Candidate** `release/1.3.0` · **Reference** `1.2.0`
+**Date** 2026-10-04 · **Candidate** `release/1.3.0` · **Reference** `1.2.0`
+
+## Complete headed clip refresh on 2026-10-03/04
+
+All **27 feature clips and the hero** were re-recorded from `a8c103d`, after the approved
+#111/#112 integration. The source viewport is **1000 x 1000**, at **24 fps**; all declared
+durations match the MP4 frame counts, totaling **438 seconds / 10,512 frames**. Animated
+WebP timelines retain the **8 fps** timebase and matching durations; static cards can
+coalesce to a still. The hero is **74 seconds / 1,776 source frames**, **4,093,090 bytes**.
+Each job obtained and released the actual machine record hold, opened visibly on the
+guard-approved right display, and verified its window bounds. Foreign jobs caused two
+deferrals before capture; their locks and browsers were left untouched. Recording progress
+was checkpointed and resumed from completed acts.
+
+The `review-clips` inventory reports **28/28 clips** and **27/28 feature pages**; the hero is
+documented by the README, not a separate feature page. Its legacy lookup was corrected in
+a scratch copy to include `docs/features` and the hero; the shared skill was not edited.
+The local release review uses the Legion theme, references actual files, and was not opened
+unasked. The owner explicitly requested the recording scratchpad folder, which was opened.
+
+**Visual review:** start, middle and end frames of every source take, plus two additional
+binding-preview frames (**86 samples**), were inspected across ten contact sheets. The
+review document itself was also rendered and inspected. Shelf shapes, reader contents and
+edge tabs, dialogs, captions and visible pointers showed no new defects in these samples.
+This is visual sampling, not a claim of watching every complete animation. Each feature's
+metadata now records its actual date, dimensions, duration, animation-frame count and bytes;
+the regeneration instructions and template specify headed Chrome.
+
+The merged release self-test contract passes **21/21**: real 1.3.0 and newer synthetic
+metadata each reach all 16 cases plus five consumer assertions; an injected assertion
+failure exits **1** after tag-removal output. Build, lint/core typecheck and generated
+indexes also pass. These console/focused checks do not certify the full suite.
+
+| Latest release step | Status |
+|---|---|
+| #110, #111 and #112 integration, notes, version and name | Complete. |
+| All 28 recordings and sampled visual review | Complete; metadata refreshed. |
+| Final static gates and clean recording commit | All 18 console gates pass; all refreshed assets and metadata are committed on the release branch. |
+| Two consecutive complete headed passes and local dry run | Pending separate full-suite authorization. |
+| Release push and CI dry run | Pending separate push authorization. |
+| Release/develop/main integration, tag and publication | Pending; no 1.3.0 tag exists. |
+
+The final static pass includes build, zero-error lint/core typecheck, current indexes,
+all 15 CI-parity gates, 59 certificate controls, all 16 release guard cases, five geometry
+fixture controls, PII/scope/network/comment checks (1531/1531), both determinism checks,
+data escaping, refresh wiring (10/10), update-note (51/51), path guards (21/21) and locks
+(34/34). Rebuilt hashes remain `07cb9b40864108ca5cbdd1e663d1da8689087b87b66117cd9c046f8df4c07d6c`
+for `main.js`, `22e577313053cfbfca33cc33c6aab3475ae6542ecf5cd045594a432788c47992`
+for `manifest.json`, and `e7d83dfd43374d289e015c1d1684d884f622da9bad4cb0faaff6cbeac1d9c1ec`
+for `styles.css`. No corrected complete headed suite or real release dry run has run.
 
 ## Recorder and release guard corrections included on 2026-10-03
 
@@ -29,8 +78,8 @@ were not weakened. The earlier failed result below remains historical evidence.
 | Current release step | Status |
 |---|---|
 | Include #111 and #112 | Complete at `ca5a2d1`; release body accounts for both. |
-| Merged-candidate console checks | Current 1.3.0 metadata passes all 16 cases and five consumer assertions, with process exit 0. Newer-version and deliberate-failure controls are in progress. |
-| Fresh 27 feature clips and hero | Pending headed recordings and visual review. |
+| Merged-candidate console checks | All 21 contract checks pass, including current/newer metadata and a failing assertion returning exit 1. |
+| Fresh 27 feature clips and hero | Complete as documented in the refresh section above. |
 | Two complete headed suite passes and local dry run | Pending separate full-suite authorization. |
 | Push, CI dry run, release/develop/main integration, tag and publication | Pending separate authorization. |
 

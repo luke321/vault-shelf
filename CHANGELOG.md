@@ -12,7 +12,7 @@ The measurements behind each entry are in
 
 ---
 
-## 1.3.0 — "Parent Tags" — 2026-10-03
+## 1.3.0 — "Parent Tags" — 2026-10-04
 
 **Parent Tags. A busy Tags shelf can fold down to its roots, a packed search row never overflows the room it was given, and the library holds steadier under your hand — a refresh no longer leaves the old shelf behind, and a changed setting takes effect the moment you save it.**
 

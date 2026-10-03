@@ -11,7 +11,7 @@ Books show their age, entries and visits. Existing notes count once per book; a 
 ## Regenerate the clip
 
 Run from the repository root. The recorder uses the shared generated vault and captures frames
-over CDP in headless Chrome. This act prepares its own starting state.
+over CDP in visibly headed Chrome on a guard-approved monitor under the shared record lock. This act prepares its own starting state.
 
 ```powershell
 node scripts/record-demo.mjs --exact-act --act wear --width 1000 --height 1000 --out demo-wear.mp4 --hero docs/features/wear.webp --hero-acts wear --hero-width 1000
@@ -25,8 +25,8 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.3.0 - 2026-09-27` |
-| Review | Approved on 2026-09-13; retained by user instruction after the counter update |
+| Last re-recorded | `1.3.0 - 2026-10-04` |
+| Review | Release refresh: start, middle and end stills inspected; source dimensions, frame count and WebP timing verified |
 | Duration | 19 seconds |
-| WebP | 74 frames; 637,696 bytes |
+| WebP | 114 animation frames; 1,569,948 bytes |
 | Frame | 1000 × 1000 |

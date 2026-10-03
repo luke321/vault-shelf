@@ -19,7 +19,7 @@ can show more than the declared flag.
 ## Regenerating this feature's clip
 
 Run from the repository root. The recorder uses the shared generated vault and captures this act
-frame by frame over CDP in headless Chrome, writing an MP4 and the gallery's WebP:
+frame by frame over CDP in visibly headed Chrome on a guard-approved monitor under the shared record lock, writing an MP4 and the gallery's WebP:
 
 ```powershell
 node scripts/record-demo.mjs --exact-act --act sticky --width 1000 --height 1000 --out demo-sticky.mp4 --hero docs/features/sticky.webp --hero-acts sticky --hero-width 1000
@@ -43,7 +43,8 @@ the feature, not in the take.
 | Field | Value |
 |---|---|
 | Introduced in | `1.2.0` |
-| Last re-recorded | `1.3.0 - 2026-09-27` |
-| Review | Recording requested 2026-09-17; re-recorded and added to the gallery for 1.2.0 |
+| Last re-recorded | `1.3.0 - 2026-10-04` |
+| Review | Release refresh: start, middle and end stills inspected; source dimensions, frame count and WebP timing verified |
 | Duration | 13 seconds |
+| WebP | 77 animation frames; 466,086 bytes |
 | Frame | 1000 × 1000 |

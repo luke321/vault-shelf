@@ -11,7 +11,7 @@ Turn on `Only parent tags` for a Tags shelf and every child tag joins its root, 
 ## Regenerate the clip
 
 Run from the repository root. The recorder uses the shared generated vault and captures frames
-over CDP in headless Chrome. This act prepares its own starting state.
+over CDP in visibly headed Chrome on a guard-approved monitor under the shared record lock. This act prepares its own starting state.
 
 ```powershell
 node scripts/record-demo.mjs --exact-act --act parenttags --width 1000 --height 1000 --out demo-parenttags.mp4 --hero docs/features/parenttags.webp --hero-acts parenttags --hero-width 1000
@@ -25,8 +25,8 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.3.0` |
-| Last re-recorded | `1.3.0 - 2026-09-27` |
-| Review | Approved by the maintainer, 2026-09-27 |
+| Last re-recorded | `1.3.0 - 2026-10-04` |
+| Review | Release refresh: start, middle and end stills inspected; source dimensions, frame count and WebP timing verified |
 | Duration | 16 seconds |
-| WebP | 93 frames; 679,408 bytes |
+| WebP | 93 animation frames; 688,988 bytes |
 | Frame | 1000 × 1000 |

@@ -11,7 +11,7 @@ Choose which notes belong, then what makes a book: title, year, month, ISO week,
 ## Regenerate the clip
 
 Run from the repository root. The recorder uses the shared generated vault and captures frames
-over CDP in headless Chrome. This act prepares its own starting state.
+over CDP in visibly headed Chrome on a guard-approved monitor under the shared record lock. This act prepares its own starting state.
 
 ```powershell
 node scripts/record-demo.mjs --exact-act --act build --width 1000 --height 1000 --out demo-build.mp4 --hero docs/features/build.webp --hero-acts build --hero-width 1000
@@ -25,8 +25,8 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.3.0 - 2026-09-27` |
-| Review | Approved on 2026-09-13; retained by user instruction after the counter update |
+| Last re-recorded | `1.3.0 - 2026-10-03` |
+| Review | Release refresh: start, middle and end stills inspected; source dimensions, frame count and WebP timing verified |
 | Duration | 17 seconds |
-| WebP | 100 frames; 1,025,752 bytes |
+| WebP | 99 animation frames; 1,103,690 bytes |
 | Frame | 1000 × 1000 |
