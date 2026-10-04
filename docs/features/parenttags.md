@@ -28,5 +28,5 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Last re-recorded | `1.3.0 - 2026-10-04` |
 | Review | Final-tree re-shoot after the range review: start, middle and end stills inspected; dimensions, frame count and WebP timing read from the file |
 | Duration | 16 seconds |
-| WebP | 94 animation frames; 693,154 bytes |
+| WebP | 89 animation frames; 720,852 bytes |
 | Frame | 1000 × 1000 |

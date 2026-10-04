@@ -1743,9 +1743,7 @@
   margin-top: 4px;
 }
 
-/* design/0016, github#14 -- the preview wraps inside its sheet, in every look. */
-.vault-shelf .vs-preview .vs-group { min-width: 0; }
-.vault-shelf .vs-preview .vs-books { height: auto; flex-wrap: wrap; row-gap: 12px; }
+/* github#117 -- rowsOf packs the preview into rows, so nothing here wraps or shrinks */
 
 .vault-shelf .vs-sheetactions { margin-top: 18px; }
 

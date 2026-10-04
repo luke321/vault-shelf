@@ -635,10 +635,12 @@ function mountVaultShelf(root, data, options) {
    * `thicknessOf` is arithmetic on the note count -- so the packing needs no layout pass.
    *
    * @param {Book[]} books @param {number} [tail] @param {Shelf|null} [shelf]
-   * @param {boolean} [plaques] @param {number[]} [widths] github#90 @returns {Book[][]}
+   * @param {boolean} [plaques] @param {number[]} [widths] github#90
+   * @param {number} [width] github#117 -- a room other than the library's
+   * @returns {Book[][]}
    */
-  function rowsOf(books, tail, shelf, plaques, widths) {
-    var avail = room();
+  function rowsOf(books, tail, shelf, plaques, widths, width) {
+    var avail = width || room();
     squeezeIndex(shelf, books, avail - (tail || 0));
     /** @type {Book[][]} */
     var rows = [];
@@ -792,6 +794,8 @@ function mountVaultShelf(root, data, options) {
       seen = w;
       roomWidth = w;
       renderLibrary();
+      // github#117
+      if (builder) previewBuilder();
     }
     /* A TIMER, NOT AN ANIMATION FRAME. This coalesced through requestAnimationFrame first,
      * and the harness caught it: the resize handler ran, the frame callback never did -- the
@@ -4510,7 +4514,20 @@ function mountVaultShelf(root, data, options) {
       (draft.plaques ? " \u00b7 " + plaques + " under year plaques" : "");
     var box = $("preview");
     clear(box);
-    box.appendChild(renderTrack(view.books.slice(0, 60), draft, false));
+    /* github#117 -- packed like the shelf, in the sheet's room */
+    var packAs = core.clone(draft);
+    packAs.id = "-preview";
+    /** @param {number} width */
+    var pack = function (width) {
+      clear(box);
+      rowsOf(view.books.slice(0, 60), 0, packAs, true, undefined, width).forEach(function (row) {
+        box.appendChild(renderTrack(row, packAs, false));
+      });
+    };
+    var width = box.clientWidth > 80 ? box.clientWidth : 0;
+    pack(width);
+    /* design/0014 -- one correction: the rows can bring the sheet's scrollbar */
+    if (width && box.clientWidth > 80 && box.clientWidth !== width) pack(box.clientWidth);
   }
 
   function saveBuilder() {
