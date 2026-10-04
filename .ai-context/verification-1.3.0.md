@@ -5,7 +5,7 @@
 ## Review fixes on 2026-10-04
 
 A review of the `1.2.0..fcd5695` range for smaller bugs found four, fixed here on the release
-branch. **Product sources changed** (`src/page.js`, `plugin/main.js`), so the built hashes
+branch, and a fifth, filed as `github#114` and merged in from its own branch. **Product sources changed** (`src/page.js`, `plugin/main.js`), so the built hashes
 recorded below are superseded and certification restarts at **0/2**.
 
 | Finding | Fix | Measured |
@@ -13,6 +13,7 @@ recorded below are superseded and certification restarts at **0/2**.
 | A typed setting rebuilt every view per keystroke (`github#100`), so a half-typed people or date property could move or close the open book | Text fields hand settings to the views 800ms after the last keystroke, or when the tab closes; toggles apply at once | `refresh-check --wiring-only` 13/13: six keystrokes -> 0 redraws while typing, 1 after; tab close flushes once; toggle redraws at once |
 | `adopt()` redrew twice per change | `handle.setSettings(next, data)` takes both, one `refresh()` | same harness: one `setSettings(+data)` call per adopt |
 | `Show all` never reached an open library, whose next save re-hid the shelves | it calls `adoptViews()` | by reading; no live Obsidian session |
+| Closing the reader left the last note's renderer loaded (`github#114`, merged from its own branch) | `closeReader()` and the no-note branch call the host's `releaseNote()` | `refresh-check` 26/26, red with the call removed; `teardown-check` clean; the `reader` smoke checks pass |
 | A plus with no room on a hand-arranged shelf's last row was drawn on that row anyway (`design/0020`) | the full row is pushed and the plus gets a row of its own | new check, red on the old code (1188-1176px: 1-13px past the room, plus never alone), green after (alone from 1192px, inside the room at all 53 widths) |
 
 Focused headed runs, all green: the new check plus both existing plus checks 3/3, the air

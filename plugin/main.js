@@ -265,6 +265,7 @@ export class ShelfView extends ItemView {
         if (file instanceof TFile) void this.app.workspace.getLeaf(false).openFile(file);
       },
       renderNote: (into, note) => this.renderNote(into, note),
+      releaseNote: () => this.releaseNote(),
     });
 
     this.markNew();
@@ -348,8 +349,7 @@ export class ShelfView extends ItemView {
    */
   async renderNote(into, note) {
     // github#99 -- one note, one component
-    if (this.noteComponent) this.removeChild(this.noteComponent);
-    this.noteComponent = null;
+    this.releaseNote();
     const file = this.app.vault.getAbstractFileByPath(note.path);
     if (!(file instanceof TFile)) {
       into.createEl("p", { text: "That note is no longer in the vault." });
@@ -421,9 +421,14 @@ export class ShelfView extends ItemView {
     if (this.handle) attempt(() => this.handle.destroy());
     this.handle = null;
     this.page = null;
+    this.releaseNote();
+    this.contentEl.empty();
+  }
+
+  /** github#99, github#114 -- the open note's renderer, unloaded */
+  releaseNote() {
     if (this.noteComponent) this.removeChild(this.noteComponent);
     this.noteComponent = null;
-    this.contentEl.empty();
   }
 }
 

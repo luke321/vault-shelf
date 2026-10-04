@@ -1,5 +1,18 @@
 # Changelog detail
 
+## 2026-10-04 — Closing the reader releases the host's renderer (`github#114`)
+
+Before: the plugin unloaded a note's renderer `Component` only when the next note rendered or
+the view closed. Closing the reader did neither, so the last note — its detached subtree, its
+two handlers and every embed's child component — stayed loaded. Bounded at one note.
+
+After: `closeReader()` and the no-note branch of `renderNote()` call the optional host hook
+`releaseNote()`; the plugin's implementation is the two lines `onClose()` already ran.
+`refresh-check` 26/26: in a browser, open a book → `[render]`, close → exactly one `release`,
+and the same check is **red** with the call removed (`on close: []`); in the bundle, two notes
+rendered → **1** owner loaded, released → **0**, a release during a slow read → **0**.
+`teardown-check` clean. The standalone passes no hook, so its behaviour is unchanged.
+
 ## 2026-10-04 — Typed settings wait for the last keystroke; the plus gets its own row (`github#100`, `design/0020`)
 
 Before: each keystroke in a text setting ran `adopt()` on every view, which since `github#100`

@@ -61,6 +61,7 @@
  *   MarkdownRenderer.render over the file's real text, so a note in the reading spread is
  *   the note: wikilinks, embeds, callouts, tasks, code. Absent, the page falls back to its
  *   own small renderer over whatever `body` the producer supplied.
+ * @property {() => void} [releaseNote]  github#114 -- the reader stopped showing a host-rendered note
  */
 
 /* ================================================================== palette ==
@@ -2732,6 +2733,7 @@ function mountVaultShelf(root, data, options) {
     clearHere();
     hideStickies();
     reader = null;
+    releaseNote();
     pushStop();   // github#40 -- no band outlives the book it was in
     history.length = 0;
     $("reader").hidden = true;
@@ -3497,6 +3499,11 @@ function mountVaultShelf(root, data, options) {
     box.select();
   }
 
+  /* github#114 -- the host's renderer is let go once nothing shows it */
+  function releaseNote() {
+    if (opts.releaseNote) attempt(opts.releaseNote);
+  }
+
   function renderNote() {
     var box = $("note");
     clear(box);
@@ -3511,6 +3518,7 @@ function mountVaultShelf(root, data, options) {
       field("nextnote").disabled = true;
       /* github#19, design/0037 -- no note, so nothing to point into */
       hideStickies();
+      releaseNote();
       return;
     }
     reader.noteId = note.id;

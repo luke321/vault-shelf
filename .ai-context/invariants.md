@@ -2612,6 +2612,11 @@ ends by clearing the root. Until `github#99` every one of the 128 `on()` sites p
 into the mount-lifetime list, so each rebuild's detached nodes stayed reachable until the view
 closed. The plugin's `renderNote` likewise renders into, and registers its two handlers on, one
 `Component` per note, removed when the next note is rendered or the view closes — never the view.
+**And when the reader stops showing it** (`github#114`): `closeReader()`, and a book left with
+no note under the filters, call the host's optional `releaseNote()`, which unloads that
+`Component` and every embed it owns. `refresh-check` counts it: open a book → `render`, no
+release; close it → exactly **one** `release`; in the bundle, two notes rendered → **1** owner
+loaded, released → **0**, and a release during a slow read leaves **0**.
 
 | one mounted library, a book open, after GC | refresh 1 | refresh 20 |
 |---|---|---|
