@@ -2813,6 +2813,61 @@ check("a made book is edited, emptied and deleted from its own menu, and the vau
   };
 });
 
+/* design/0020, github#90 -- a plus with no room on the last row gets a row of its own */
+check("a plus that no longer fits its last row starts a row of its own, inside the room",
+      async (p) => {
+  const wasView = await p.j("({width:innerWidth,height:innerHeight})");
+  const was = await p.j(`(function(){
+    var m = __vs.settings().shelves.filter(function (s) { return s.id === "months"; })[0];
+    var out = { direction: m.direction, order: m.order ? m.order.slice() : null };
+    m.direction = "manual";
+    m.order = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0]
+      .books.map(function (b) { return b.key; });
+    __vs.setFilters({});
+    return out;
+  })()`);
+  const read = () => p.j(`(function(){
+    var rail = document.querySelector('#vs-shelves [data-shelf="months"] .vs-shelfrail');
+    var plus = rail && rail.querySelector(".vs-plusbook");
+    if (!plus) return { plus: false };
+    var track = plus.closest(".vs-track");
+    var tb = track.getBoundingClientRect(), pb = plus.getBoundingClientRect();
+    return { plus: true, alone: track.querySelectorAll(".vs-spine").length === 0,
+             last: track === rail.lastElementChild, inside: pb.right <= tb.right + 0.5,
+             over: Math.round(pb.right - tb.right) };
+  })()`);
+  /** @type {{ w: number, plus: boolean, alone?: boolean, last?: boolean, inside?: boolean, over?: number }[]} */
+  const seen = [];
+  try {
+    for (let w = 1400; w >= 1000; w -= 4) {
+      await viewport(p, w, 1000);
+      const r = await read();
+      seen.push({ w, ...r });
+      if (r.alone) break;
+    }
+  } finally {
+    await p.eval(`(function(){
+      var m = __vs.settings().shelves.filter(function (s) { return s.id === "months"; })[0];
+      var was = ${JSON.stringify(was)};
+      m.direction = was.direction;
+      if (was.order) m.order = was.order; else delete m.order;
+      __vs.setFilters({});
+    })(); void 0`);
+    await unviewport(p, wasView);
+  }
+  const alone = seen.find((s) => s.alone);
+  const bad = seen.filter((s) => !s.plus || !s.last || !s.inside);
+  return {
+    ok: !!alone && bad.length === 0,
+    detail: `${seen.length} widths from 1400px; the plus first stood alone at ` +
+            `${alone ? alone.w + "px" : "no width"}; ` +
+            (bad.length
+              ? `${bad.length} width(s) drew it wrong: ` +
+                bad.slice(0, 4).map((s) => `${s.w}px plus ${s.plus} last ${s.last} over ${s.over}px`).join(", ")
+              : "every width drew it on the last row, inside the room")
+  };
+});
+
 /* design/0020 -- on a shelf arranged by hand, and the plus that ends it. */
 check("a book is made on any shelf arranged by hand, and a plus stands where the books end",
       async (p) => {

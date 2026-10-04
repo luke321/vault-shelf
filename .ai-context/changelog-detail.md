@@ -1,5 +1,21 @@
 # Changelog detail
 
+## 2026-10-04 — Typed settings wait for the last keystroke; the plus gets its own row (`github#100`, `design/0020`)
+
+Before: each keystroke in a text setting ran `adopt()` on every view, which since `github#100`
+rebuilt the data and redrew twice (`setSettings` then `refresh`). Typing `people` -> `peopl`
+removed every person book for one redraw, and the reader's re-resolve moved an open person
+book to another book holding its note, or closed it. `Show all` saved settings no open view
+heard. On a hand-arranged shelf, a plus with no room on the last row was drawn there anyway:
+Months, arranged by hand, swept 1400 -> 1000px in 4px steps, put it **1-13px past the room**
+at 1188-1176px and **never** on a row of its own.
+
+After: typed fields adopt **800ms** after the last keystroke (`ADOPT_MS`), or when the tab
+closes; toggles and `Show all` adopt at once; each adopt is **one** `setSettings(next, data)`.
+The wiring harness counts **0** redraws during six keystrokes and **1** after. The same sweep
+stands the plus alone from **1192px** and keeps it inside the room at all **53** widths. The
+packing golden is unchanged.
+
 ## 2026-10-04 — Headed readiness and frame measurement (`decisions/0021`)
 
 Before: the complete candidate `17a65be` failed **163/165**. The forward gesture after a

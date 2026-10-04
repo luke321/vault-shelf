@@ -696,7 +696,11 @@ function mountVaultShelf(root, data, options) {
     closeRun();
     /* design/0020 -- the plus at the end needs its own room, or its own row. */
     /* github#90 -- the plus is charged where it is drawn */
-    if (tail && row.length && used + tail > avail) push(used + tail);
+    if (tail && row.length && used + tail > avail) {
+      push(used);
+      push(tail);
+      return rows;
+    }
     if (row.length || !rows.length) push(used + (tail || 0));
     return rows;
   }
@@ -6027,21 +6031,26 @@ function mountVaultShelf(root, data, options) {
   window.__vs = API;
   /* ---- END: debug api ---- */
 
+  /** @param {ShelfData} next */
+  function takeData(next) {
+    data = next;
+    notes = next.notes.slice();
+    folders = next.folders.slice();
+    slotOf = {};
+    readTheme();
+  }
+
   return {
     /** @param {ShelfData} [next] */
     refresh: function (next) {
-      if (next) {
-        data = next;
-        notes = next.notes.slice();
-        folders = next.folders.slice();
-        slotOf = {};
-        readTheme();
-      }
+      if (next) takeData(next);
       refresh();
     },
-    /** @param {unknown} next */
-    setSettings: function (next) {
+    /* github#100 -- settings and the data they shape, in one redraw */
+    /** @param {unknown} next @param {ShelfData} [nextData] */
+    setSettings: function (next, nextData) {
       settings = core.migrate(next);
+      if (nextData) takeData(nextData);
       refresh();
     },
     /** The host says the theme changed; re-read the twelve slots and repaint. */

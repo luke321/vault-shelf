@@ -2640,6 +2640,14 @@ burst, exactly 1 after it**, a later change → **1** more, and a change caught 
 unload → **0**. The coalescing window is `REBUILD_MS` = **400ms**: a sync or a bulk edit fires
 `changed` per file, and every rebuild walks every note and repacks every shelf.
 
+**A typed setting waits for the last keystroke** (`github#100`). A text field in the settings
+tab hands the settings to every open view `ADOPT_MS` = **800ms** after its last keystroke, or
+at once when the tab closes; a toggle and `Show all` hand them over at once. Each hand-over is
+**one** `setSettings(next, data)` — settings and the data they shape, one redraw. Measured:
+six keystrokes → **0** redraws while typing, **1** after; a waiting setting flushed by closing
+the tab → **1** in all. A redraw per keystroke reshelved an open book whenever a half-typed
+property name emptied the shelf it stood on.
+
 **In a browser**, against the standalone: a book is opened, a note is pushed into the data and
 the handle is refreshed. The library counts **one** more note, the open book is **one** thicker
 and holds it, the shelf's note count moves by **exactly one**, the open book's contents gain

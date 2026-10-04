@@ -169,15 +169,15 @@ async function wiringHalf() {
     view.app = app;
     const adoptCalls = [];
     view.handle = {
-      setSettings: (s) => adoptCalls.push(["setSettings", s]),
+      setSettings: (s, d) => adoptCalls.push(["setSettings", s, d]),
       refresh: (d) => adoptCalls.push(["refresh", d]),
     };
     plugin.config.useFileStamp = true;
     view.adopt();
-    const dated = adoptCalls.length === 2 ? adoptCalls[1][1] : null;
-    check(adoptCalls.map((c) => c[0]).join(",") === "setSettings,refresh",
-          "adopt() tells the page the new settings AND hands it fresh data",
-          adoptCalls.map((c) => c[0]).join(", ") || "no calls");
+    const dated = adoptCalls.length === 1 ? adoptCalls[0][2] : null;
+    check(adoptCalls.map((c) => c[0]).join(",") === "setSettings" && !!dated,
+          "adopt() hands the page the new settings AND fresh data, in one redraw",
+          adoptCalls.map((c) => c[0] + (c[2] ? "(+data)" : "")).join(", ") || "no calls");
     check(!!dated && dated.notes[0] && dated.notes[0].date === "2020-01-02",
           "the undated note is dated by the file stamp while useFileStamp is on",
           dated && dated.notes[0] ? String(dated.notes[0].date) : "adopt() never rebuilt the data");
@@ -185,10 +185,30 @@ async function wiringHalf() {
     adoptCalls.length = 0;
     plugin.config.useFileStamp = false;
     view.adopt();
-    const undated = adoptCalls.length === 2 ? adoptCalls[1][1] : null;
+    const undated = adoptCalls.length === 1 ? adoptCalls[0][2] : null;
     check(!!undated && undated.notes[0] && undated.notes[0].date === null,
           "turning the fallback off un-dates it again, without reopening the view",
           undated && undated.notes[0] ? String(undated.notes[0].date) : "adopt() never rebuilt the data");
+
+    // github#100 -- typing waits; leaving the tab applies it
+    app.workspace.getLeavesOfType = () => [{ view }];
+    adoptCalls.length = 0;
+    for (let i = 0; i < 6; i++) plugin.adoptViews(true);
+    const typed = adoptCalls.length;
+    await sleep(mod.ADOPT_MS + 400);
+    check(typed === 0 && adoptCalls.length === 1, "six keystrokes become one redraw, after typing stops",
+          `${typed} during typing, ${adoptCalls.length} after`);
+    adoptCalls.length = 0;
+    plugin.adoptViews(true);
+    plugin.flushAdopt();
+    const flushed = adoptCalls.length;
+    await sleep(mod.ADOPT_MS + 400);
+    check(flushed === 1 && adoptCalls.length === 1, "closing the tab applies a waiting setting once",
+          `${flushed} on close, ${adoptCalls.length} in all`);
+    adoptCalls.length = 0;
+    plugin.adoptViews();
+    check(adoptCalls.length === 1, "a toggle redraws at once", `${adoptCalls.length} redraw(s)`);
+    app.workspace.getLeavesOfType = () => [];
   } catch (e) {
     check(false, "the plugin's refresh wiring runs headless", e.message);
   } finally {

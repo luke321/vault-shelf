@@ -22,5 +22,5 @@
 - A Tags shelf can fold a busy tag family down to its roots: turn on Only parent tags and every child joins its parent, without dropping a single note.
 - A packed search row no longer overflows the room it was given.
 - The builder's checkbox row no longer overflows a narrow Obsidian pane.
-- Changing a date, people or file-stamp setting now updates the open library right away.
+- Changing a date, people or file-stamp setting now updates the open library as soon as you stop typing.
 > vs-bparenttags

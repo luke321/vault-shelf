@@ -2,6 +2,26 @@
 
 **Date** 2026-10-04 · **Candidate** `release/1.3.0` · **Reference** `1.2.0`
 
+## Review fixes on 2026-10-04
+
+A review of the `1.2.0..fcd5695` range for smaller bugs found four, fixed here on the release
+branch. **Product sources changed** (`src/page.js`, `plugin/main.js`), so the built hashes
+recorded below are superseded and certification restarts at **0/2**.
+
+| Finding | Fix | Measured |
+|---|---|---|
+| A typed setting rebuilt every view per keystroke (`github#100`), so a half-typed people or date property could move or close the open book | Text fields hand settings to the views 800ms after the last keystroke, or when the tab closes; toggles apply at once | `refresh-check --wiring-only` 13/13: six keystrokes -> 0 redraws while typing, 1 after; tab close flushes once; toggle redraws at once |
+| `adopt()` redrew twice per change | `handle.setSettings(next, data)` takes both, one `refresh()` | same harness: one `setSettings(+data)` call per adopt |
+| `Show all` never reached an open library, whose next save re-hid the shelves | it calls `adoptViews()` | by reading; no live Obsidian session |
+| A plus with no room on a hand-arranged shelf's last row was drawn on that row anyway (`design/0020`) | the full row is pushed and the plus gets a row of its own | new check, red on the old code (1188-1176px: 1-13px past the room, plus never alone), green after (alone from 1192px, inside the room at all 53 widths) |
+
+Focused headed runs, all green: the new check plus both existing plus checks 3/3, the air
+check 1/1, `row` 14/14, the packing golden 2/2, `settings` 3/3; `refresh-check` 22/22 and
+`teardown-check` clean in a browser. Lint, typecheck, comments (baseline 1531), scope,
+network, PII and `code-map --check` pass. No complete suite has run on this tree. The clips
+that show a hand-arranged shelf (`makebook`, `plusbook`) were not re-shot, and nobody checked
+whether either frames a last row too full for the plus.
+
 ## Headed flake correction on 2026-10-04
 
 The authorized complete run on `17a65be` exited **1**, passing **163/165**. The next forward

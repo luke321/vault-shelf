@@ -18,6 +18,9 @@ const NEW_CLASS = "vs-new";
 // github#5 -- how long a burst of changes may coalesce, in ms
 export const REBUILD_MS = 400;
 
+// github#100 -- how long a typed setting waits for the next keystroke, in ms
+export const ADOPT_MS = 800;
+
 /* ================================================================= the icon ==
  * design/0005 -- a shelf, not a book. Obsidian's own `library` icon is a stack of volumes and
  * reads as "a book" at 18px, which is the wrong noun: the thing in the sidebar is the room,
@@ -411,8 +414,7 @@ export class ShelfView extends ItemView {
   // github#100 -- also rebuild the notes; settings alone leaves them stale
   adopt() {
     if (!this.handle) return;
-    this.handle.setSettings(this.plugin.config);
-    this.handle.refresh(buildData(this.app, this.plugin.config));
+    this.handle.setSettings(this.plugin.config, buildData(this.app, this.plugin.config));
   }
 
   onClose() {
@@ -437,6 +439,9 @@ export default class VaultShelfPlugin extends Plugin {
 
   /** @type {number} */
   pending = 0;
+
+  /** @type {number} github#100 -- a typed setting not yet handed to the views */
+  adoptPending = 0;
 
   /** @type {number} */
   rebuilds = 0;
@@ -512,9 +517,28 @@ export default class VaultShelfPlugin extends Plugin {
     this.eachView((view) => view.rebuild());
   }
 
+  /* github#100 -- now, or once typing stops */
+  /** @param {boolean} [soon] */
+  adoptViews(soon) {
+    if (this.adoptPending) window.clearTimeout(this.adoptPending);
+    this.adoptPending = 0;
+    if (soon) {
+      this.adoptPending = window.setTimeout(() => this.adoptViews(), ADOPT_MS);
+      return;
+    }
+    this.eachView((view) => view.adopt());
+  }
+
+  /** github#100 -- a typed setting still waiting is applied now */
+  flushAdopt() {
+    if (this.adoptPending) this.adoptViews();
+  }
+
   onunload() {
     if (this.pending) window.clearTimeout(this.pending);
     this.pending = 0;
+    if (this.adoptPending) window.clearTimeout(this.adoptPending);
+    this.adoptPending = 0;
     this.eachView((view) => attempt(() => view.onClose()));
   }
 
@@ -647,7 +671,13 @@ class ShelfSettingTab extends PluginSettingTab {
   async setControlValue(key, value) {
     this.write(key, value);
     await this.plugin.saveSettings(this.plugin.config);
-    this.plugin.eachView((view) => view.adopt());
+    // github#100 -- a half-typed field never reshelves an open book
+    this.plugin.adoptViews(key !== "useFileStamp");
+  }
+
+  hide() {
+    this.plugin.flushAdopt();
+    super.hide();
   }
 
   /**
@@ -678,7 +708,7 @@ class ShelfSettingTab extends PluginSettingTab {
       const save = (/** @type {unknown} */ value) => {
         this.write(def.key, value);
         void this.plugin.saveSettings(this.plugin.config);
-        this.plugin.eachView((view) => view.adopt());
+        this.plugin.adoptViews(def.kind !== "toggle");
       };
       if (def.kind === "toggle") {
         setting.addToggle((toggle) => toggle
@@ -699,6 +729,8 @@ class ShelfSettingTab extends PluginSettingTab {
         .onClick(() => {
           for (const shelf of this.plugin.config.shelves) shelf.hidden = false;
           void this.plugin.saveSettings(this.plugin.config);
+          // github#100 -- else an open library's next save re-hides them
+          this.plugin.adoptViews();
         }));
   }
 }
