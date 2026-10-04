@@ -305,6 +305,22 @@ EOF
   exit 1
 fi
 
+# THE MIRROR'S PATH GUARD NEXT, same bar -- throwaway vaults in the temp dir, no Chrome, a
+# second or two. make-mirror-vault.mjs wipes its output before writing it, so an output that is,
+# holds, or aliases the source vault deletes somebody's real notes (github#97).
+echo "pre-push: checking the mirror still refuses an output that overlaps its source..."
+if ! node "$root/scripts/path-guard-selftest.mjs" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: the path-guard selftest failed -- push blocked.
+
+Read the FAIL lines above. scripts/path-guard.mjs must refuse an output that is the source,
+sits inside it, or contains it, after resolving case and links. It only ever touches
+throwaway vaults. There is no skip flag for this check.
+EOF
+  exit 1
+fi
+
 # THE LOCK NEXT, same bar -- a throwaway root, no Chrome, a second at most. scripts/lock.mjs is
 # the one mutex six worktrees and the sister repo share (github#25, decisions/0012), and every
 # rule in it is about whose measurements get ruined: break a live holder and two runs measure a
@@ -322,6 +338,18 @@ EOF
   exit 1
 fi
 
+# decisions/0021 -- browser batch and readiness controls run without Chrome.
+if ! node "$root/scripts/check-smoke-isolation.mjs" </dev/null; then
+  echo "pre-push: browser isolation self-test failed -- push blocked" >&2
+  exit 1
+fi
+
+# github#110 -- eligibility and streak controls use only a throwaway repository.
+if ! node "$root/scripts/suite-stamp.mjs" --selftest </dev/null; then
+  echo "pre-push: suite stamp self-test failed -- push blocked" >&2
+  exit 1
+fi
+
 # THE GENERATED NAVIGATION FILES NEXT, same bar -- a read of the tree, well under a second.
 # .ai-context/code-map.md and code-index.md are written from the source by
 # scripts/code-map.mjs (decisions/0007) and are only worth having while they agree with it; a
@@ -334,6 +362,26 @@ pre-push: the generated code map or index is stale -- push blocked.
 
 Run: node scripts/code-map.mjs   and commit .ai-context/code-map.md and code-index.md.
 `npm run build` regenerates them too. There is no skip flag for this check.
+EOF
+  exit 1
+fi
+
+# AND EVERYTHING ABOVE THIS LINE ALSO HAS TO RUN WHERE A MERGE BOUNDARY CAN SEE IT (github#89).
+# This hook is a file in an installed checkout: it runs where someone set core.hooksPath, on the
+# machine that pushed, and it is never a server-side proof about a commit.
+# .github/workflows/quality.yml runs this same static block on every push and pull request to
+# develop or main, release.yml runs it before it publishes, and scripts/check-ci-parity.mjs
+# reads this block and both files and fails if a gate here is missing from either -- a list
+# nobody checks is a list that drifts, which is how release.yml fell six gates behind.
+echo "pre-push: checking the merge boundary runs these same gates..."
+if ! node "$root/scripts/check-ci-parity.mjs" </dev/null; then
+  cat >&2 <<'EOF'
+
+pre-push: the CI parity check failed -- push blocked.
+
+A gate this hook runs is not run by .github/workflows/quality.yml or release.yml, so
+nothing on the server would catch it. Add the step there, then push again. There is no
+skip flag for this check.
 EOF
   exit 1
 fi
@@ -421,12 +469,12 @@ EOF
   exit 1
 fi
 
-echo "pre-push: running the invariant suite over three vault shapes (SKIP_SMOKE=1 to skip)..."
+echo "pre-push: running the headed invariant suite over the generated vault..."
 # The suite is a child so a signal to this hook can take it down too: releasing the lock while
 # the run it guarded keeps driving Chrome would hand the next run a contended screen.
 # --no-lock: this hook is already holding the lock (github#8). smoke.mjs takes the suite
 # lock itself, so without this the run would wait for a lock its own parent holds.
-node "$root/scripts/smoke.mjs" --no-lock </dev/null &
+node "$root/scripts/smoke.mjs" --headed --no-lock </dev/null &
 suite_pid=$!
 trap 'kill "$suite_pid" 2>/dev/null; release_lock; exit 1' INT TERM HUP
 wait "$suite_pid"
@@ -434,6 +482,10 @@ suite_rc=$?
 release_lock
 trap - INT TERM HUP
 if [ "$suite_rc" -eq 0 ]; then
+  if ! node "$root/scripts/suite-certificate.mjs" $gated_shas </dev/null; then
+    echo "pre-push: the required headed green streak is not certified -- push blocked" >&2
+    exit 1
+  fi
   exit 0
 fi
 

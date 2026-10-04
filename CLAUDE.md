@@ -70,6 +70,11 @@ of measuring it.** Build the page, drive it, read the numbers.
 
 ## How to work here
 
+- **Local smoke runs are headed** (`github#110`, `decisions/0020`). Pass `--headed` for the
+  focused commands below, after the screen guard permits the display. Release and push pass it
+  themselves; neither may proceed until the complete clean tree has two consecutive greens.
+  The layout golden uses a temporary fixed-date build, while the main fixture stays fresh.
+
 - `node scripts/smoke.mjs --only "<substring>"` is the iteration loop. The full suite runs on
   the push to `develop` (the pre-push hook); do not run it by hand unless asked.
 - **Two Chromes at once, and two is a ceiling.** `--jobs` clamps to 2 and says so; `--jobs 1` is
@@ -92,10 +97,10 @@ of measuring it.** Build the page, drive it, read the numbers.
   here, or a `gdigrab` recording in the sister repo — lands on top of it.
 
   **A lock names the resource, not the job** (`github#37`, `decisions/0012`): `suite`,
-  `screen-left`, `screen-right`, `screen-primary`. `record` is legacy and transitional, kept
-  only until the sister repo drops its own alias, and **nothing here takes it** — this repo
-  makes no screen recording at all (`design/0007`: the recorder asks the browser for each frame
-  over CDP and touches no desktop).
+  `screen-left`, `screen-right`, `screen-primary`. The headed recorder takes `record` for its
+  entire job (`github#111`, `design/0007`). It captures frames over CDP but still occupies a
+  real display. `record` excludes all three screen names, so the recorder takes no second
+  screen lock. Its guard-selected monitor, cleanup and heartbeat are owned by the recorder.
 
   **`suite` and a display are separate names, and must stay separate.** `smoke.mjs` takes `suite`
   and *then* `screen-left`, so aliasing the two together would hang every run against its own
@@ -224,7 +229,7 @@ of measuring it.** Build the page, drive it, read the numbers.
 | `src/leather.css`, `src/cyber.css` | the opt-in looks (`design/0016`, `design/0017`): every rule under `.vault-shelf[data-look="leather"]`, off unless the setting says otherwise. `page.css` is the default look and this file never edits it |
 | `src/build-shelf.mjs` | the exporter: vault → data → one HTML file. This is what the suite drives |
 | `plugin/main.js` | the Obsidian plugin: metadata cache → data → mounts the page in a view |
-| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP): **150 checks over the one vault shape** (`decisions/0014`), two lanes, three browsers |
+| `scripts/smoke.mjs` | the invariant suite (Chrome over CDP): **169 checks over the one vault shape** (`decisions/0014`), at most two parallel lanes, then serial checks and two isolated frame benchmarks (`decisions/0021`) |
 | `scripts/release.ps1` | the local half of a release: the guards, the gates, the tag, the tag push. `-SelfTest` drives every refusal in a throwaway clone; `.ai-context/releasing.md` is the authority on the flow |
 | `scripts/suite-stamp.mjs` | which trees have passed the suite (`decisions/0010`), read by the pre-push hook and `release.ps1`. `--selftest` proves the hit and miss cases |
 | `scripts/record-demo.mjs` | the demo film: a storyboard driven over CDP, captured frame by frame (`design/0007`) |

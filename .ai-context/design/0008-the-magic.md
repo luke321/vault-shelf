@@ -151,7 +151,7 @@ ladder is `core.matchStrength(book)`, one rule in one place, sitting beside `cor
 the lift, so a strength living in the transform alone would be four rungs for everybody except the
 reader who asked for the motion to stop — silently, and invisibly to every assertion in the suite.
 The lift is geometry (2/6/10/14px), the **air** either side is geometry that reduced motion does
-not touch (2/4/14/24px), and the accent is paint, which each look ramps its own way.
+not touch (2/4/14/24px, since `github#90` 0/0/14/24px), and the accent is paint, which each look ramps its own way.
 
 **The ceiling IS the room, so raising one raises the other.** Rung 4 is `--spine-lift-match`, and
 `design/0021` declares the room as that rung plus the look's halo. Topping out at 14px therefore
@@ -162,6 +162,28 @@ shape — only in value.
 **The air, though, is width the row was never packed for** (`github#90`). It is top-heavy for that
 reason: rung 2 holds 149 of the 188 books a name lights, so 4px there buys 24px at rung 4 and still
 overflows 141px less than the flat 9 on `develop`.
+
+**So a row spends only the slack its packing left** (`github#90`). The packer knows every row's
+width by arithmetic; a row whose lit books want more air than that gets `--air-k`, one factor for
+every margin on it, so the ladder keeps its ratios and nothing is re-packed. A crowded row parts
+less than a sparse one — the room still parts where you are looking, and nothing leaves it.
+Re-packing on a query was rejected because it *is* the room being replaced under you; reserving
+the worst-case air at rest was rejected because it loosens every shelf whether or not anybody is
+searching.
+
+**So the rung climb is a promise within a row, never across rows** (`github#96`). A rung-4 book on
+a crowded row can open less air than a rung-3 book on a sparse one. That is the ration working, and
+the lift and the edge still rank the two books everywhere. The checks read the painted air one row
+at a time, and read the ladder itself across the whole shelf.
+
+**And the weak half steps back** (`github#90`, asked for by the maintainer). On a letter shelf a
+person's name lights 29 of 35 books, 26 of them at rung 1–2, because every letter holds a few of
+that person's notes — the first law working, and it read as "everything matched". So rungs 1–2
+open **no air** and **dim** to 0.55 / 0.72; the air and full brightness are for rungs 3–4, and the
+shelf parts around the books that are actually about the query. That is a fourth carrier, which
+this record refused while it meant "on one rung only", and while an opacity step would have
+outranked a drag. It is now a two-step ramp over the weak half, and it is written so a drag
+(0.35) and a departure (0.28) still win. A ghost stays 0.16: dimmed is still answered.
 
 **A fill up the spine like a level was the other candidate**, and it is the most literal gauge
 there is. Rejected because every look repaints the board heavily — leather's grain and gilt,

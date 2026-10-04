@@ -162,12 +162,11 @@ function Invoke-SelfTest {
     # The overlay is committed and pushed, so the clone starts clean and on a main that is
     # exactly origin/main, which is what every case below breaks exactly one thing about.
     Copy-Item (Join-Path $Repo 'scripts\*') (Join-Path $clone 'scripts') -Recurse -Force
-    # github#33 -- and the update note, for the same reason: it is a file the guards now READ,
-    # so a clone of a main that predates it would measure the absence rather than the guard.
-    $wnSrc = Join-Path $Repo 'plugin\whats-new.md'
-    if (Test-Path -LiteralPath $wnSrc) {
-      New-Item -ItemType Directory -Path (Join-Path $clone 'plugin') -Force | Out-Null
-      Copy-Item $wnSrc (Join-Path $clone 'plugin\whats-new.md') -Force
+    # github#112 -- candidate metadata travels together. main can carry an older release;
+    # mixing its manifest/changelog with this checkout's note masks every later guard.
+    New-Item -ItemType Directory -Path (Join-Path $clone 'plugin') -Force | Out-Null
+    foreach ($file in @('manifest.json', 'CHANGELOG.md', 'plugin\whats-new.md')) {
+      Copy-Item -LiteralPath (Join-Path $Repo $file) -Destination (Join-Path $clone $file) -Force
     }
     & $git @('add', '-A') | Out-Null
     & $git @('commit', '-q', '-m', 'selftest: the working tree scripts under test') | Out-Null
@@ -176,6 +175,15 @@ function Invoke-SelfTest {
     & $git @('fetch', '-q', 'origin', 'refs/heads/main:refs/remotes/origin/main') | Out-Null
 
     $manifestVersion = (ConvertFrom-Json ([IO.File]::ReadAllText((Join-Path $clone 'manifest.json'), [Text.Encoding]::UTF8))).version
+    # github#110 -- copied release tags must not mask the guards in this isolated fixture.
+    foreach ($tagRepo in @($clone, $bare)) {
+      $resolvedTagRepo = [IO.Path]::GetFullPath($tagRepo)
+      if (-not $resolvedTagRepo.StartsWith([IO.Path]::GetFullPath($scratch) + [IO.Path]::DirectorySeparatorChar)) {
+        throw "selftest tag target escaped its scratch directory"
+      }
+      $inherited = & git -C $tagRepo tag -l $manifestVersion
+      if ($inherited) { Invoke-Native git @('-C', $tagRepo, 'tag', '-d', $manifestVersion) | Out-Host }
+    }
     $changelogHas = ([IO.File]::ReadAllText((Join-Path $clone 'CHANGELOG.md'), [Text.Encoding]::UTF8)) -match [regex]::Escape("## $manifestVersion")
     Write-Host "clone: $clone (origin: $bare)" -ForegroundColor DarkGray
     Write-Host "manifest says $manifestVersion; CHANGELOG has a section for it: $changelogHas" -ForegroundColor DarkGray
@@ -184,7 +192,7 @@ function Invoke-SelfTest {
     $runCase = {
       # NOT $Args: that is an automatic variable, and a param named after it binds nothing
       # -- which is the same trap Invoke-Native's comment above records, met a second time.
-      param([string] $Name, [string[]] $CaseArgs, [string] $Expect)
+      param([string] $Name, [string[]] $CaseArgs, [string] $Expect, [int] $ExpectedExit = 1)
       $prev = $ErrorActionPreference
       $ErrorActionPreference = 'Continue'
       $tagsBefore = @(& git -C $clone tag -l).Count
@@ -200,7 +208,7 @@ function Invoke-SelfTest {
       $ErrorActionPreference = $prev
       $hit = $out -match $Expect
       $clean = ($tagsAfter -eq $tagsBefore)
-      $ok = $hit -and $clean
+      $ok = $hit -and $clean -and ($code -eq $ExpectedExit)
       if (-not $ok) { [void] $fails.Add($Name) }
       [void] $rows.Add([pscustomobject]@{
         guard = $Name; fired = $hit; tags = "$tagsBefore -> $tagsAfter"; exit = $code
@@ -210,6 +218,7 @@ function Invoke-SelfTest {
       if ($line) { Write-Host ("       " + $line.Trim()) -ForegroundColor DarkGray }
       elseif (-not $hit) { Write-Host ("       expected /$Expect/, got: " + (($out -split "`r?`n" | Where-Object { $_ -match '\S' } | Select-Object -Last 2) -join ' | ')) -ForegroundColor Red }
       if (-not $clean) { Write-Host "       A TAG WAS WRITTEN ($tagsBefore -> $tagsAfter)" -ForegroundColor Red }
+      if ($code -ne $ExpectedExit) { Write-Host "       expected exit $ExpectedExit, got $code" -ForegroundColor Red }
     }
 
     Write-Host "=== the refusals ===" -ForegroundColor Cyan
@@ -290,14 +299,69 @@ function Invoke-SelfTest {
     # and no Chrome.
     & $runCase 'every guard passed, reached lint' @($manifestVersion, '-DryRun') '(=== lint ===|npm ci|lint failed)'
 
+    # github#110 -- real release control flow, fake external work, never Chrome or live locks.
+    $stub = @'
+import { appendFileSync } from 'node:fs';
+import { basename } from 'node:path';
+const name = basename(process.argv[1]);
+const args = process.argv.slice(2);
+appendFileSync(process.env.VS_RELEASE_SELFTEST_EVENTS, JSON.stringify({name,args})+'\n');
+if (name === 'smoke.mjs') {
+  if (!args.includes('--headed') || !args.includes('--no-lock')) process.exit(9);
+  process.exit(process.env.VS_RELEASE_SELFTEST_MODE === 'red' ? 1 : 0);
+}
+if (name === 'suite-stamp.mjs') {
+  const mode = process.env.VS_RELEASE_SELFTEST_MODE;
+  if (mode === 'silent') process.exit(0);
+  if (mode === 'one') { console.log('suite-stamp: tree abcdef0 has 1 green run(s) of the 2'); process.exit(1); }
+  console.log('suite-stamp: tree abcdef0 passed the invariant suite 2 times in a row');
+  process.exit(mode === 'misleading' ? 1 : 0);
+}
+'@
+    foreach ($name in @('lint.mjs', 'build-plugin.mjs', 'lock.mjs', 'smoke.mjs', 'suite-stamp.mjs')) {
+      [IO.File]::WriteAllText((Join-Path $clone "scripts\$name"), $stub, $noBom)
+    }
+    & $git @('add', '-A') | Out-Null
+    & $git @('commit', '-q', '-m', 'selftest: isolate external gate work') | Out-Null
+    $seeded = & $git @('push', '-q', 'origin', 'HEAD:main')
+    if ($seeded.code -ne 0) { throw "could not seed gate stubs: $($seeded.out)" }
+    $oldMode = $env:VS_RELEASE_SELFTEST_MODE
+    $oldEvents = $env:VS_RELEASE_SELFTEST_EVENTS
+    $events = Join-Path $scratch 'gate-events.jsonl'
+    try {
+      $env:VS_RELEASE_SELFTEST_EVENTS = $events
+      foreach ($mode in @('one', 'silent', 'misleading', 'red', 'two')) {
+        $env:VS_RELEASE_SELFTEST_MODE = $mode
+        [IO.File]::WriteAllText($events, '', $noBom)
+        $expect = 'required green streak is not certified'
+        $expectedExit = 1
+        if ($mode -eq 'red') { $expect = 'invariant suite failed' }
+        if ($mode -eq 'two') { $expect = 'DryRun: stopping before the tag'; $expectedExit = 0 }
+        & $runCase "certificate consumer: $mode" @($manifestVersion, '-DryRun', '-ForceSuite') $expect $expectedExit
+        $calls = @(Get-Content -LiteralPath $events | ForEach-Object { ConvertFrom-Json $_ })
+        $smokes = @($calls | Where-Object { $_.name -eq 'smoke.mjs' })
+        $locks = @($calls | Where-Object { $_.name -eq 'lock.mjs' })
+        $certs = @($calls | Where-Object { $_.name -eq 'suite-stamp.mjs' })
+        $expectedCerts = 1
+        if ($mode -eq 'red') { $expectedCerts = 0 }
+        $balanced = $smokes.Count -eq 1 -and $locks.Count -eq 2 -and
+          $locks[0].args[0] -eq 'acquire' -and $locks[1].args[0] -eq 'release' -and
+          $certs.Count -eq $expectedCerts
+        if (-not $balanced) { [void] $fails.Add("certificate consumer calls/cleanup: $mode") }
+        Write-Host "       one headed suite, expected certificate calls, lock released: $balanced"
+      }
+    } finally {
+      $env:VS_RELEASE_SELFTEST_MODE = $oldMode
+      $env:VS_RELEASE_SELFTEST_EVENTS = $oldEvents
+    }
+
     Write-Host ""
     $rows | Format-Table -AutoSize | Out-String | Write-Host
     if ($fails.Count) {
       Write-Host ("release.ps1 -SelfTest: " + $fails.Count + " FAILED -- " + ($fails -join ', ')) -ForegroundColor Red
-      return 1
+      throw 'release self-test assertions failed'
     }
     Write-Host ("release.ps1 -SelfTest: all " + $rows.Count + " cases behaved") -ForegroundColor Green
-    return 0
   } finally {
     Remove-Item -Recurse -Force $scratch -ErrorAction SilentlyContinue
   }
@@ -305,7 +369,11 @@ function Invoke-SelfTest {
 
 if ($SelfTest) {
   if ($Version) { throw "-SelfTest takes no version: it drives every refusal in a throwaway clone." }
-  exit (Invoke-SelfTest -Repo $repo -Script $MyInvocation.MyCommand.Path)
+  # github#112 -- native stdout is not a return code. Failures throw; only literal codes
+  # cross the process boundary, even if a future setup command emits success-stream text.
+  try { Invoke-SelfTest -Repo $repo -Script $MyInvocation.MyCommand.Path | Out-Host }
+  catch { Write-Error $_ -ErrorAction Continue; exit 1 }
+  exit 0
 }
 
 if (-not $Version) {
@@ -595,8 +663,10 @@ try {
     try {
       # --no-lock: this script is holding the lock already (github#8). smoke.mjs takes it
       # itself now, and a nested acquire would wait for its own parent.
-      try { Invoke-Native node @((Join-Path $here 'smoke.mjs'), '--no-lock') }
+      try { Invoke-Native node @((Join-Path $here 'smoke.mjs'), '--headed', '--no-lock') }
       catch { throw "the invariant suite failed -- not releasing" }
+      try { Invoke-Native node @((Join-Path $here 'suite-certificate.mjs'), 'HEAD') }
+      catch { throw "the headed run passed but the required green streak is not certified -- not releasing" }
     } finally {
       $prev = $ErrorActionPreference
       $ErrorActionPreference = 'Continue'

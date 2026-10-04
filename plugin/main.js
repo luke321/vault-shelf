@@ -1,4 +1,4 @@
-import { addIcon, ItemView, MarkdownRenderer, Plugin, PluginSettingTab, Setting, TFile } from "obsidian";
+import { addIcon, Component, ItemView, MarkdownRenderer, Plugin, PluginSettingTab, Setting, TFile } from "obsidian";
 import { mountVaultShelf } from "../src/page.js";
 import * as core from "../src/core/index";
 import PAGE_HTML from "raw:../src/page.html";
@@ -17,6 +17,9 @@ const NEW_CLASS = "vs-new";
 
 // github#5 -- how long a burst of changes may coalesce, in ms
 export const REBUILD_MS = 400;
+
+// github#100 -- how long a typed setting waits for the next keystroke, in ms
+export const ADOPT_MS = 800;
 
 /* ================================================================= the icon ==
  * design/0005 -- a shelf, not a book. Obsidian's own `library` icon is a stack of volumes and
@@ -228,6 +231,8 @@ export class ShelfView extends ItemView {
     this.handle = null;
     /** @type {HTMLElement|null} */
     this.page = null;
+    /** @type {Component|null} github#99 -- the open note's renderer */
+    this.noteComponent = null;
   }
 
   getViewType() { return VIEW_TYPE; }
@@ -260,6 +265,7 @@ export class ShelfView extends ItemView {
         if (file instanceof TFile) void this.app.workspace.getLeaf(false).openFile(file);
       },
       renderNote: (into, note) => this.renderNote(into, note),
+      releaseNote: () => this.releaseNote(),
     });
 
     this.markNew();
@@ -342,12 +348,17 @@ export class ShelfView extends ItemView {
    * @param {HTMLElement} into @param {import("../src/page.js").ShelfNote} note
    */
   async renderNote(into, note) {
+    // github#99 -- one note, one component
+    this.releaseNote();
     const file = this.app.vault.getAbstractFileByPath(note.path);
     if (!(file instanceof TFile)) {
       into.createEl("p", { text: "That note is no longer in the vault." });
       return;
     }
+    const owner = this.addChild(new Component());
+    this.noteComponent = owner;
     const text = await this.app.vault.cachedRead(file);
+    if (this.noteComponent !== owner) return;
     const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
     /* design/0010 -- THE RENDERER IS ONLY HALF OF IT. `MarkdownRenderer.render` produces
      * Obsidian's own markup, and Obsidian styles that markup through a class it expects on the
@@ -355,12 +366,12 @@ export class ShelfView extends ItemView {
      * blockquote and a code block has no chrome. It looked like the wrong renderer and was the
      * right renderer in an unmarked box. */
     into.addClass("markdown-rendered");
-    await MarkdownRenderer.render(this.app, body, into, note.path, this);
+    await MarkdownRenderer.render(this.app, body, into, note.path, owner);
 
     /* AND A LINK IS A LINK. `internal-link` anchors carry a `data-href` and no behaviour of
      * their own -- the workspace does the opening, and in a view of our own nobody had asked
      * it to, so every wikilink in a note was inert. */
-    this.registerDomEvent(into, "click", (evt) => {
+    owner.registerDomEvent(into, "click", (evt) => {
       const anchor = linkUnder(evt);
       if (!anchor) return;
       const href = anchor.getAttribute("data-href") || anchor.getAttribute("href");
@@ -379,7 +390,7 @@ export class ShelfView extends ItemView {
 
     /* The hover preview every other view gives you, through the same event the app listens
      * for; without it a link in here is the one link in Obsidian that does not preview. */
-    this.registerDomEvent(into, "mouseover", (evt) => {
+    owner.registerDomEvent(into, "mouseover", (evt) => {
       const anchor = linkUnder(evt);
       if (!anchor) return;
       const href = anchor.getAttribute("data-href") || anchor.getAttribute("href");
@@ -400,15 +411,24 @@ export class ShelfView extends ItemView {
    * the page is told rather than left to find out when it is next opened. Only the tab calls
    * this: the page's own persist() is where those settings came from, and handing them back
    * would re-render the room every time a book is opened. */
+  // github#100 -- also rebuild the notes; settings alone leaves them stale
   adopt() {
-    if (this.handle) this.handle.setSettings(this.plugin.config);
+    if (!this.handle) return;
+    this.handle.setSettings(this.plugin.config, buildData(this.app, this.plugin.config));
   }
 
   onClose() {
     if (this.handle) attempt(() => this.handle.destroy());
     this.handle = null;
     this.page = null;
+    this.releaseNote();
     this.contentEl.empty();
+  }
+
+  /** github#99, github#114 -- the open note's renderer, unloaded */
+  releaseNote() {
+    if (this.noteComponent) this.removeChild(this.noteComponent);
+    this.noteComponent = null;
   }
 }
 
@@ -424,6 +444,9 @@ export default class VaultShelfPlugin extends Plugin {
 
   /** @type {number} */
   pending = 0;
+
+  /** @type {number} github#100 -- a typed setting not yet handed to the views */
+  adoptPending = 0;
 
   /** @type {number} */
   rebuilds = 0;
@@ -499,9 +522,28 @@ export default class VaultShelfPlugin extends Plugin {
     this.eachView((view) => view.rebuild());
   }
 
+  /* github#100 -- now, or once typing stops */
+  /** @param {boolean} [soon] */
+  adoptViews(soon) {
+    if (this.adoptPending) window.clearTimeout(this.adoptPending);
+    this.adoptPending = 0;
+    if (soon) {
+      this.adoptPending = window.setTimeout(() => this.adoptViews(), ADOPT_MS);
+      return;
+    }
+    this.eachView((view) => view.adopt());
+  }
+
+  /** github#100 -- a typed setting still waiting is applied now */
+  flushAdopt() {
+    if (this.adoptPending) this.adoptViews();
+  }
+
   onunload() {
     if (this.pending) window.clearTimeout(this.pending);
     this.pending = 0;
+    if (this.adoptPending) window.clearTimeout(this.adoptPending);
+    this.adoptPending = 0;
     this.eachView((view) => attempt(() => view.onClose()));
   }
 
@@ -634,7 +676,13 @@ class ShelfSettingTab extends PluginSettingTab {
   async setControlValue(key, value) {
     this.write(key, value);
     await this.plugin.saveSettings(this.plugin.config);
-    this.plugin.eachView((view) => view.adopt());
+    // github#100 -- a half-typed field never reshelves an open book
+    this.plugin.adoptViews(key !== "useFileStamp");
+  }
+
+  hide() {
+    this.plugin.flushAdopt();
+    super.hide();
   }
 
   /**
@@ -665,7 +713,7 @@ class ShelfSettingTab extends PluginSettingTab {
       const save = (/** @type {unknown} */ value) => {
         this.write(def.key, value);
         void this.plugin.saveSettings(this.plugin.config);
-        this.plugin.eachView((view) => view.adopt());
+        this.plugin.adoptViews(def.kind !== "toggle");
       };
       if (def.kind === "toggle") {
         setting.addToggle((toggle) => toggle
@@ -686,6 +734,8 @@ class ShelfSettingTab extends PluginSettingTab {
         .onClick(() => {
           for (const shelf of this.plugin.config.shelves) shelf.hidden = false;
           void this.plugin.saveSettings(this.plugin.config);
+          // github#100 -- else an open library's next save re-hides them
+          this.plugin.adoptViews();
         }));
   }
 }

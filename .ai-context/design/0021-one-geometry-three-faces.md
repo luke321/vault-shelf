@@ -1,5 +1,23 @@
 # 0021 — One geometry, three faces
 
+### 2026-09-26 — The builder responds to the pane
+
+The builder's checkbox row uses two fixed columns at wide widths and one `minmax(0, 1fr)`
+column at pane widths of 660px or less. Labels stay on one line and ellipsise, so a wider
+face never changes a row's height. The two wide columns need about 555px of content width;
+allowing their track to keep its automatic minimum would make a narrow sheet overflow.
+
+The breakpoint is a named container query on `.vault-shelf` (`vs-pane`, inline-size),
+not a window media query. An Obsidian split can be 480px wide inside an 1180px window:
+the previous media query kept two columns there, overflowing the checkbox row by 168px
+in leather. The named container keeps the breakpoint tied to the pane even if an inner
+element later becomes a query container too. The row's one-column and two-column layouts
+remain shared by every look.
+
+The checkbox-row smoke check covers both whole-window resizing and constrained roots in
+an 1180px window, across all three looks. It measures overflow, row-height agreement and
+the column count, and restores the root width, look and viewport in a `finally` block.
+
 ### 2026-09-13 — Manage rows at phone widths
 
 At 390px, the automatic flex wrap let Leather's wider labels push Delete to another row:

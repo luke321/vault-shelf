@@ -1,0 +1,163 @@
+# Run the quality gates against the commit a merge boundary is actually looking at.
+#
+# WHY THIS FILE EXISTS (github#89, ported from vault-graph's github#147). Everything that
+# asserts quality here lives in .githooks/pre-push, and a hook is a file in an installed
+# checkout: it runs where someone ran `git config core.hooksPath .githooks`, on the machine
+# that pushed, and it is never a server-side proof about a commit. Before this file, a push to
+# develop or main from a clone without that setting ran nothing anywhere, and the one status
+# main's ruleset requires -- `main only accepts develop` -- says where a commit came FROM and
+# nothing about whether it is any good.
+#
+# WHAT THIS RUNS, AND WHY THE LIST IS NOT A JUDGEMENT CALL. Exactly the hook's UNSKIPPABLE
+# STATIC BLOCK: every check between the hook's `gated_push` early exit and its `SKIP_SMOKE`
+# line, lint included. That slice is already the set the hook treats as having no honest
+# reason to skip -- cheap, no browser, no real vault, mostly about damage to somebody else's
+# software or to somebody else.
+#
+# AND THE LIST IS GUARDED, NOT TRUSTED. scripts/check-ci-parity.mjs reads the hook's static
+# block, this file and release.yml, and fails if a gate in the hook is missing from either. It
+# runs in the hook and as the first step below. release.yml kept a hand-written copy of the
+# same list for months and six of the hook's gates were missing from it by the time anyone
+# compared -- a list nobody checks becomes a list that lies.
+#
+# WHAT THIS DELIBERATELY DOES NOT RUN: scripts/smoke.mjs. The invariant suite drives a real
+# Chrome, headed, on a named monitor under a machine-wide lock, and its layout goldens were
+# measured against one machine's Chrome. A required status that flakes is a required status
+# that gets bypassed. It stays on the hook's develop/main push and on release.ps1, stamped per
+# tree (decisions/0010). The four browser gates (check-data-escape --browser, teardown-check,
+# refresh-check without --wiring-only, check-css-support) stay by hand for the same reason.
+#
+# THE FILE IS ONLY HALF THE FIX. A workflow produces a status; it does not require one. The
+# `quality gates` context has to be added to main's ruleset beside `main only accepts
+# develop`, which is a repository settings change and not something any commit can make.
+
+name: quality
+
+on:
+  pull_request:
+    branches: [develop, main]
+    # Same types as branch-policy.yml: re-run when the pull request is retargeted or its head
+    # moves, so an edited pull request cannot keep a green check it earned under a different
+    # base or a different commit.
+    types: [opened, reopened, synchronize, edited]
+  push:
+    # THE PUSH TRIGGER IS THE ONE THAT MATTERS MOST: work lands on develop here by a direct
+    # `git push` after a local merge, not through a pull request, so without it the common
+    # path would produce no status at all. Feature branches are deliberately absent -- gating a
+    # branch nobody has asked to merge yet is the unearned minute the hook also refuses.
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # CANCEL A SUPERSEDED PULL-REQUEST RUN, NEVER A PUSH RUN. A cancelled run reports a status
+  # that is not "passing", and on develop or main that status is what a merge boundary reads.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  quality-gates:
+    # THIS NAME IS THE REQUIRED-STATUS CONTEXT. GitHub names a status after the job, so
+    # renaming it silently drops whatever the ruleset requires; check-ci-parity.mjs asserts it.
+    # One job on purpose: a matrix would produce one context per leg.
+    name: quality gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out the commit under review
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      # `npm ci` installs exactly package-lock.json. Lint needs eslint and typescript, and the
+      # refresh wiring check needs esbuild to build the plugin bundle it loads.
+      - name: Install the toolchain
+        run: npm ci
+
+      # FIRST, because it says whether the rest of this file is still the truth. If a gate has
+      # been added to the hook and not here, every step below can pass while the status means
+      # less than it did yesterday.
+      - name: The hook's static gates all run here
+        run: node scripts/check-ci-parity.mjs
+
+      # THE NAME LIST COMES FROM THE PII_NAMES SECRET. .pii-names is gitignored on purpose, so
+      # a runner has none; fed nothing, check-pii.mjs checks its built-in patterns only and
+      # exits 0, which on a PUBLIC repo about other people is a green step that checked no name.
+      # So an unset secret is refused here, as in release.yml -- and check-pii.mjs itself
+      # refuses a secret that is missing any of the email:, jira: or vault: kinds (github#106).
+      #
+      # THE ONE EXCEPTION IS A PULL REQUEST FROM A FORK. GitHub gives such a run no secrets at
+      # all, and refusing would put a red status on every outside contribution that its author
+      # can never fix. There the step runs the patterns only, says so as a warning and in the
+      # run summary, and stays green. The names are checked when the merge reaches develop:
+      # by the maintainer's own hook on that push, and by this workflow's push run, which has
+      # the secret. pull_request_target would hand the secret to code from the fork, and is
+      # exactly the thing not to reach for here.
+      - name: No other people's names or identifiers
+        env:
+          PII_NAMES: ${{ secrets.PII_NAMES }}
+          FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PII_NAMES:-}" ]; then
+            if [ "$FORK_PR" = "true" ]; then
+              echo "::warning::pull request from a fork: no secrets reach this run, so NO NAMES were checked -- patterns only. The push to develop checks the names."
+              echo "**PII: patterns only.** A pull request from a fork gets no secrets, so the \`PII_NAMES\` name list was not checked. The push to \`develop\` checks it." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error::PII_NAMES repository secret is not set -- check-pii.mjs would silently"
+              echo "::error::degrade to patterns-only and exit 0 on a PUBLIC repo. Create it under"
+              echo "::error::Settings -> Secrets and variables -> Actions, as a COMMA-separated list"
+              echo "::error::of names plus the typed email:, jira: and vault: entries .pii-names.example documents."
+              exit 1
+            fi
+          fi
+          node scripts/check-pii.mjs
+
+      - name: The page cannot style, or be styled by, its host
+        run: node scripts/check-scope.mjs
+
+      - name: Nothing shipped can make a network request
+        run: node scripts/check-network.mjs
+
+      - name: Comments are pointers
+        run: node scripts/check-comments.mjs
+
+      - name: The vault generators are day-independent
+        run: node scripts/check-generator-determinism.mjs
+
+      - name: The build order is filesystem-independent
+        run: node scripts/check-build-order-determinism.mjs
+
+      - name: A note cannot close the data script it is serialised into
+        run: node scripts/check-data-escape.mjs
+
+      - name: The plugin still follows the vault
+        run: node scripts/refresh-check.mjs --wiring-only
+
+      - name: The update note decides the way it says
+        run: node scripts/update-note-selftest.mjs
+
+      - name: The mirror refuses an output that overlaps its source
+        run: node scripts/path-guard-selftest.mjs
+
+      - name: The lock tells a dead holder from a live one
+        run: node scripts/lock.mjs --selftest
+      - name: Headed eligibility and stamp exclusions hold without a browser
+        run: node scripts/suite-stamp.mjs --selftest
+      - name: Frame checks own a fresh browser and readiness failures refuse
+        run: node scripts/check-smoke-isolation.mjs
+
+      - name: The generated code map and index are current
+        run: node scripts/code-map.mjs --check
+
+      # LAST, because it is the slowest of them and the others each fail in seconds -- a broken
+      # tree should say so before the toolchain has finished. tsc --noEmit on src/core under
+      # strict, then typescript-eslint, every finding held at zero.
+      - name: Lint, and typecheck the core
+        run: npm run lint --silent

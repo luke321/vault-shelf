@@ -46,7 +46,7 @@ choices look arbitrary and are not: the `0-9` volume, the `-undated` and `-unfil
 and the recurring failure mode in this repo is reasoning about the code instead of measuring
 it.
 
-Thirteen commands, and all of them are gates rather than suggestions:
+Sixteen commands, and all of them are gates rather than suggestions:
 
 ```bash
 node scripts/check-pii.mjs                    # no name or identifier reaches this public repo
@@ -58,11 +58,20 @@ node scripts/check-build-order-determinism.mjs # note order never depends on the
 node scripts/check-data-escape.mjs            # a note's own words can't break out of the page's data block
 node scripts/refresh-check.mjs --wiring-only  # the plugin still follows the vault, and coalesces a burst into one rebuild
 node scripts/update-note-selftest.mjs         # the update strip decides the way design/0023 says it does
+node scripts/path-guard-selftest.mjs          # the mirror refuses an output that is, holds or aliases its source vault
 node scripts/lock.mjs --selftest              # the shared mutex can tell a dead holder from a live one
+node scripts/suite-stamp.mjs --selftest       # headed eligibility and certificate exclusions, no browser
 node scripts/code-map.mjs --check             # the generated code map and index are still current
+node scripts/check-ci-parity.mjs              # every gate above also runs in CI, where a merge boundary can see it (github#89)
 npm run lint                                  # tsc --noEmit on src/core under strict, then typescript-eslint on our own code; every finding held at zero
-node scripts/smoke.mjs                        # the invariant suite, over the generated vault
+node scripts/smoke.mjs --headed               # full suite: separate authorization and screen guard first
 ```
+
+`check-pii` reads its deny list from the untracked `.pii-names`, or from the `PII_NAMES` secret in
+CI. The list holds names, plus typed `email:`, `jira:` and `vault:` entries for the rules that
+would otherwise name the maintainer in this public source (`github#106`). Copy
+`.pii-names.example` to see the format. In CI, a list with no entry of one kind fails. Locally,
+the check warns. Either way, every loaded value is planted and has to be caught on every run.
 
 One more launches a real Obsidian, for the one thing headless Chrome cannot answer: whether the
 CSS the sheets rely on is actually supported by the Electron/Chromium build Obsidian itself
@@ -95,11 +104,15 @@ node scripts/record-demo.mjs --act read --fps 4   # one act, fast, for iterating
 node scripts/record-demo.mjs --hero assets/demo.webp
 ```
 
-It builds the standalone page from the demo fixture, drives it through twelve acts, and
-captures every frame over CDP — **headless, so it cannot capture the wrong window and needs no
-`record` lock**, unlike a screen grab. 83 seconds at 24fps takes about a minute and a half to
-shoot. `design/0007` has the reasoning, including why the captions are injected by the
-recorder rather than added to the page.
+It builds the standalone page from the generated fixture and captures each storyboard frame
+over CDP in a **headed browser**, both by default and with `--headed`. Configure the local
+`P16_SCREEN_GUARD` hook to the machine's `screen-busy.ps1`; the recorder asks it for a free
+monitor, places its own window there, and owns the shared `record` lock through encoding.
+Do not wrap it in an outer lock. `--monitor right` additionally requires that named monitor;
+busy or unavailable screens defer with no headless fallback. A one-screen machine requires
+permission for each run and its duration before passing `--allow-single-screen`.
+The viewport, storyboard timing, pointer and output options are unchanged. `design/0007`
+documents ownership, cleanup, and the captions injected by the recorder.
 
 `git config core.hooksPath .githooks` once per clone runs those on every push to `develop` or
 `main`, along with a check that refuses to publish other people's names, two that keep the
@@ -109,6 +122,16 @@ step with the source. Only the invariant suite has a skip flag, on purpose: ever
 a static read costing seconds at most, and what most of it prevents is damage to somebody
 else's software, or to somebody else. The lint gate fails closed on a clone that has not run
 `npm ci` — run it, then push.
+
+The hook is a file in an installed checkout, so it proves nothing about a commit pushed from a
+clone that never set `core.hooksPath`. `.github/workflows/quality.yml` runs the same static
+block — every gate above except the invariant suite — on every push and pull request to
+`develop` or `main`, as one job named `quality gates`, and `release.yml` runs it again before
+it publishes. `node scripts/check-ci-parity.mjs` reads the hook and both workflows and fails if
+a gate in the hook is missing from either, so adding a gate to the hook means adding its step to
+both (`github#89`). In CI, `check-pii` gets its list from the `PII_NAMES` secret. The one
+exception is a pull request from a fork: GitHub gives it no secrets, so it checks patterns only,
+says so in a warning, and stays green. The names are checked on the push to `develop`.
 
 **The suite runs once per distinct tree, not once per push.** A green full run stamps the git
 tree it measured, and the hook skips the suite for a tree that already carries a stamp, naming

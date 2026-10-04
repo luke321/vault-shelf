@@ -10,13 +10,33 @@
  * vault nobody was measuring. Two scripts disagreeing about which fixture is current is worse
  * than either being wrong: the stamp would then vouch for a tree the suite never measured.
  *
- * The current one is the one whose `.stamp.json` was written last. `smoke.mjs` writes that
- * stamp when it regenerates, so "most recently stamped" is "what the last suite run used" --
- * no hashing here, nothing to drift out of step with the digest smoke computes.
+ * github#102 -- the current one is the one this checkout's generator digest names.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+
+/* github#8, github#102 -- the digest inputs, owned here so smoke and every reader agree */
+export const GENERATORS = ["make-vault.mjs"];
+export const FIXTURE_FORMAT = 1;
+export const FIXTURE_ARGS = { vault: [] };
+
+/**
+ * The digest `smoke.mjs` names a fixture by, or "" when a generator cannot be read.
+ * @param {string} root @param {string[]} args @returns {string}
+ */
+export function fixtureDigest(root, args) {
+  const h = createHash("sha256");
+  h.update("format:" + FIXTURE_FORMAT);
+  try {
+    for (const g of GENERATORS) h.update(readFileSync(join(root, "scripts", g)));
+  } catch {
+    return "";
+  }
+  h.update(JSON.stringify(args));
+  return h.digest("hex").slice(0, 8);
+}
 
 /** The store beside the main repo, shared by every worktree of it. @param {string} root */
 export function fixtureStore(root) {
@@ -29,29 +49,15 @@ export function fixtureStore(root) {
 
 /**
  * The directory holding the current build of one fixture, or "" when the store has none.
- * @param {string} root @param {string} name @returns {string}
+ * @param {string} root @param {string} name @param {string[]} [args] @returns {string}
  */
-export function currentFixture(root, name) {
-  const store = fixtureStore(root);
-  if (!existsSync(store)) return "";
-  /** @type {{ dir: string, at: number }[]} */
-  const found = [];
-  for (const d of readdirSync(store)) {
-    if (!d.startsWith(name + "-")) continue;
-    const dir = join(store, d);
-    let at = 0;
-    try {
-      at = statSync(join(dir, ".stamp.json")).mtimeMs;
-    } catch {
-      /* A directory with no stamp was never finished by a generator; it loses to one that
-       * has a stamp, and only wins against nothing at all. */
-      try { at = statSync(dir).mtimeMs - 1e12; } catch { continue; }
-    }
-    found.push({ dir, at });
-  }
-  if (!found.length) return "";
-  found.sort((a, b) => b.at - a.at);
-  return found[0].dir;
+export function currentFixture(root, name, args = FIXTURE_ARGS[name] || []) {
+  const digest = fixtureDigest(root, args);
+  if (!digest) return "";
+  /* github#102 -- a sibling's newer build is not ours; no match is no fixture */
+  const dir = join(fixtureStore(root), `${name}-${digest}`);
+  const st = stampOf(dir);
+  return st && st.digest === digest ? dir : "";
 }
 
 /** What a fixture's stamp says, or null. @param {string} dir */

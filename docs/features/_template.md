@@ -24,7 +24,7 @@ at the end, the way docs/features.md does.>
 ## Regenerating this feature's clip
 
 Run from the repository root. The recorder uses the shared generated vault and captures this
-act frame by frame over CDP in headless Chrome, writing an MP4 and the gallery's WebP:
+act frame by frame over CDP in visibly headed Chrome on a guard-approved monitor under the shared record lock, writing an MP4 and the gallery's WebP:
 
 ```powershell
 node scripts/record-demo.mjs --exact-act --act <name> --width 1000 --height 1000 --out demo-<name>.mp4 --hero docs/features/<name>.webp --hero-acts <name> --hero-width 1000

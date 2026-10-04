@@ -1,5 +1,548 @@
 # Changelog detail
 
+## 2026-10-04 — Closing the reader releases the host's renderer (`github#114`)
+
+Before: the plugin unloaded a note's renderer `Component` only when the next note rendered or
+the view closed. Closing the reader did neither, so the last note — its detached subtree, its
+two handlers and every embed's child component — stayed loaded. Bounded at one note.
+
+After: `closeReader()` and the no-note branch of `renderNote()` call the optional host hook
+`releaseNote()`; the plugin's implementation is the two lines `onClose()` already ran.
+`refresh-check` 26/26: in a browser, open a book → `[render]`, close → exactly one `release`,
+and the same check is **red** with the call removed (`on close: []`); in the bundle, two notes
+rendered → **1** owner loaded, released → **0**, a release during a slow read → **0**.
+`teardown-check` clean. The standalone passes no hook, so its behaviour is unchanged.
+
+## 2026-10-04 — Typed settings wait for the last keystroke; the plus gets its own row (`github#100`, `design/0020`)
+
+Before: each keystroke in a text setting ran `adopt()` on every view, which since `github#100`
+rebuilt the data and redrew twice (`setSettings` then `refresh`). Typing `people` -> `peopl`
+removed every person book for one redraw, and the reader's re-resolve moved an open person
+book to another book holding its note, or closed it. `Show all` saved settings no open view
+heard. On a hand-arranged shelf, a plus with no room on the last row was drawn there anyway:
+Months, arranged by hand, swept 1400 -> 1000px in 4px steps, put it **1-13px past the room**
+at 1188-1176px and **never** on a row of its own.
+
+After: typed fields adopt **800ms** after the last keystroke (`ADOPT_MS`), or when the tab
+closes; toggles and `Show all` adopt at once; each adopt is **one** `setSettings(next, data)`.
+The wiring harness counts **0** redraws during six keystrokes and **1** after. The same sweep
+stands the plus alone from **1192px** and keeps it inside the room at all **53** widths. The
+packing golden is unchanged.
+
+## 2026-10-04 — Headed readiness and frame measurement (`decisions/0021`)
+
+Before: the complete candidate `17a65be` failed **163/165**. The forward gesture after a
+backward turn remained on note 1 at scrollTop 242; cyber scrolling missed **121/30** frames.
+A partial predecessor replay reproduced the turn failure at **87/88**, with the spent latch
+still true after Node's 400ms sleep. Fresh-browser isolation alone missed 52 cyber frames;
+explicit image decoding measured 18. A later 91-check replay found a separate one-timestamp
+sample: the measurement clock had started before Chrome's first animation callback.
+
+After: gesture checks run serially and wait on Chrome's actual quiet signal. Frame benchmarks
+own separate browsers, decode the original inline look images, and start timing at their
+first callback. Startup/completion watchdogs and sample validation reject missing frames;
+later gaps count. Product sources, CSS, 2,000px/s descent and 30/14 frame budgets are unchanged.
+
+The focused nine checks passed **9/9** (library leather/modern/cyber **21/0/19**, expensive
+control **119**, reader **0/0/0**). The predecessor replay plus new controls passed **92/92**
+in 119s: library **12/0/18**, expensive control **104**, reader **0/0/5**. A delayed first
+callback retained 11 samples over 167ms; an injected later 817ms gap counted 48 missed frames.
+Broken/stuck images, stuck gesture state and missing first/later callbacks all refused.
+Library and reader screenshots were inspected; no new visual defect was observed.
+
+The final reader sampler also uses the shared first-callback clock; its focused verification
+is recorded in `verification-1.3.0.md`. These are partial, dirty-tree measurements, not release
+certification. Epoch 4 requires two complete clean headed greens, each separately authorized.
+
+## 2026-10-03 — Guarded headed release recorder (`github#111`)
+
+Before: **1 unconditional headless launch flag, 0 record holds**, no screen check, and cleanup
+only around capture. After: **0 headless launch flags, 1 record hold, 0 nested screen holds**;
+default and `--headed` both open on the guard-approved device. The guard runs before building
+and immediately before opening. A named monitor must match; missing/busy guards and one-screen
+runs without individual permission defer. An isolated `VAULT_LOCKS_HOME` is refused by the CLI.
+
+Build/mirror/encode children are asynchronous so the shared heartbeat and signals keep working.
+The capture viewport, storyboard, easing, pointer paths, frame counts, hero slicing and codec
+options stay unchanged; encoders use four threads at below-normal priority. A single lifecycle
+closes the owned CDP socket and browser, removes its unique profile and temporary frames, and
+releases the hold on success, failure, interruption and lost ownership. Successful
+`--keep-frames` still retains scratch; failure always removes it.
+
+| Focused measurement | Result |
+|---|---|
+| Default close recording | 120/120 frames, 24 fps, 5.000 s, 1440×900; 120/120 visible pointer frames |
+| Explicit headed peek | 168/168 frames, 24 fps, 7.000 s, 1080×1080; pointer visible 168/168, largest step 61.1px |
+| Full peek hero / explicit `--hero-clip 1,3` | 7,000 / 3,000 ms, 125 ms timebase (8 fps); original slicing and decimation preserved |
+| Real capture error / missing encoder / Ctrl+C | Each: 0 owned Chrome processes, 0 CDP listeners, 0 profiles, 0 scratch directories; record released |
+| Console ownership and cleanup controls | 20/20; foreign record and three screen owners unchanged, heartbeat advances, lost ownership preserves its replacement, four signal handlers clean console children |
+| Real foreign record contention | Deferred before browser launch; no lock adopted or released |
+| Controlled independent headed browser | Still alive with 1 CDP listener and its profile after recorder cleanup; sentinel then removed by its harness before the real record hold released |
+| Storyboard / release compatibility | Byte-identical to develop; scratch three-way recorder merge retains the release ration multiplier and parenttags act |
+
+The static close card's WebP collapses to a still under the existing encoder; the moving peek
+proves duration instead. The global Chrome PID population is not ownership evidence: it changed
+during a check and was discarded. Cleanup is scoped by tracked child handles and the unique
+profile, never by a global before/after process difference.
+The sentinel hook initially failed to remove its own descendants and left its test hold.
+That exact profile and owner were recovered. Profile-scoped cleanup and a nested `finally`
+around the original release fixed the hook; the controlled rerun passed with no hold remaining.
+
+One combined diff review and one targeted ownership/signal review. The risk pass fixed a broken
+CDP close preventing profile cleanup and added a regression check. Typecheck/lint: **0 errors,
+0 warnings**. PII: **6 names, 13 planted controls caught**; scope: **28 planted controls caught**;
+network and comments pass (**1531/1531** prose lines). The focused captures use only generated
+fixtures and temporary outputs. No product CSS/plugin edit, full suite, push, integration merge,
+release or bulk gallery regeneration. Jarvis still owns the 27 clips and hero after integration.
+
+## 2026-10-03 — Release self-test metadata and process status (`github#112`)
+
+The release candidate exposed two harness defects after #110. The scratch checkout started
+with main's **1.2.0** manifest and CHANGELOG but overlaid the candidate's **1.3.0** update
+note. Ten early refusals passed; the passing case and five certificate consumers stopped at
+the wrong guard. The log reported **11 failed assertions** while `powershell.exe -File`
+returned **0**. A synthetic **2.0.0** candidate against **1.2.0** main reproduced that result.
+
+The exit defect was measured independently: deleting an inherited scratch tag through
+`Invoke-Native` emitted a **String**, followed by the self-test's **Int32 1**. Passing this
+two-element success stream to `exit` produced process status **0**. The self-test now throws
+on failed assertions, sends native diagnostics to the host, and maps completion/failure to
+literal **0/1** at the script boundary. Setup copies the on-disk manifest, CHANGELOG and
+update note together before seeding only the scratch origin. Real release guards and the
+release execution path are unchanged.
+
+`node scripts/check-release-selftest.mjs` passes **21/21** external-process checks. Current
+**1.2.0** metadata and synthetic **2.0.0** metadata versus older main each reach **16/16**
+cases plus **5/5** consumer call/cleanup assertions, exit **0**, and preserve source refs/tags.
+A deliberately wrong assertion yields **15 passing cases, 1 failure**, all five consumer
+cleanup assertions, and exit **1**, even with both inherited tags removed and extra text
+injected into the success stream. Fault injection exists only in disposable script copies.
+
+One focused code review plus a targeted scratch-isolation/exit review; three regex-spacing
+lint findings corrected without changing their matches. Scratch-clone typecheck/lint:
+**0 errors, 0 warnings**; PII: **211 files**, **6 names**, **13 negative controls caught**;
+comment budget: **1531/1531**; PowerShell parser: **0 errors**; Node syntax and generated
+indexes current. No browser, recording, full suite, real release dry run, push or merge.
+
+## 2026-10-03 — Repeatable headed validation (`github#110`)
+
+The index-row check now parks the pointer before closing the reader, including on failure.
+Its exact pair with the paint check improves from **1/2 to 2/2**: a 14px lift paints
+**15/14/28px** in leather/modern/cyber instead of **5/5/5px** behind a hover preview.
+Paint sampling refuses an occluding preview before and after each screenshot and restores
+probe styles/attributes, query, look and scroll in `finally`. Forced 40px lifts still clip
+to **15/14/32px**. Three scratch controls pass: zero clip margin fails `HEAD CUT` in every
+look; an injected preview throws and restores modern / `garden` / 140px with no probe left;
+the following clean paint check passes in the same browser. Product code/CSS is unchanged.
+
+Before any golden edit, a fresh `--end 2026-09-24` fixture reproduced the existing geometry
+with **zero differences in all three looks**: 6 shelves, 11 rows, 257 spines, 52 plaques,
+1125px room at 1180×900. The rolling October 3 fixture had 66 differences. Only fixture
+metadata was added to the golden. Geometry builds now pin both note dates and the exported
+generation day, without changing the live fixture/store or exporter. The fixture self-test
+passes **5/5**, including two byte-identical fresh builds and comparator negative controls.
+Focused smoke and the updater's `--check` independently reproduce the unchanged golden.
+
+Local release/push gates pass `--headed --no-lock` under their existing suite hold. Epoch 3
+allows complete clean headed runs; partial/custom/look/dirty/missing-fixture exclusions,
+freshness, tree identity and two consecutive greens remain. Both consumers require the
+certificate after smoke exits: one green or silent exit 0 cannot release or push. Stamp and
+consumer self-tests pass **59/59**. CI remains browser-free; all **15 static gates** match
+the hook in both workflows.
+
+Release SelfTest passes **16/16**, including five stubbed consumer paths with headed-argument
+and lock-release assertions. An inherited release tag had masked later baseline guards;
+only the scratch clone and scratch origin lose that tag. Real tags remain unchanged.
+Build, typecheck/lint, scope, network, PII, comment budget, both determinism checks, data
+escaping, refresh wiring, update-note, path-guard and lock self-tests passed. No full suite,
+real certificate, release, CI execution, push or merge is claimed. See decisions/0020.
+
+## 2026-10-03 — Reduce community-review CSS findings (`github#109`)
+
+The community scorecard is the warning source; design/0036 explicitly supersedes its earlier
+editor-local diagnosis. Two relevant official Stylelint rules, without ignores, were reproduced
+against Electron 30.0, >=30.0 and >=31.0. All three gave the same before/after:
+
+| Measurement | Before | After |
+|---|---:|---:|
+| flagged declarations / warning categories in styles.css | 23 / 5 | 10 / 1 |
+| extended-system-fonts / multicolumn / text-decoration / importance | 8 / 1 / 3 / 1 | 0 / 0 / 0 / 0 |
+| clipping declarations still reported | 10 | 10 |
+| source findings: page / leather / cyber | 10 / 6 / 7 | 4 / 6 / 0 |
+| library / reader screenshot pixels changed, identical clean capture path | baseline | 0 / 0 |
+| three-line link paragraph height, normal → hover | 89.0625px | 89.0625 → 89.0625px |
+
+New targeted checks: 5,442 hide/restore probes over 84 states and 72 open/close cycles,
+all three looks × two themes × shelf/list modes, no failures. Flex gaps measure 10/0px
+horizontal/vertical at 1180px and 2/2px at 780/460px. Live/dead links keep 3/3 fragments,
+solid/dotted borders, 1→2px hover thickness and a visible 2px keyboard-focus outline.
+Standalone fallback width is 527.8125px both through the variable fallback and explicit stack;
+the injected host stack is honoured and matches its explicit control.
+
+Targeted headed smoke: **8/8** (two runner groups of 4/4), plus **1/1** clean screenshot check.
+Existing checks measured 39 controls across three looks with zero size mismatches; 4,745
+elements across four states with zero moved/resized/missing; six ribbon binding styles;
+14 colours; unchanged book addresses; and successful link navigation within and across books.
+Build/typecheck/lint passed (0 errors/warnings). Scope: 552 rules, 624 selectors and 28 negative
+controls. PII: 6 names, all typed rules, 13 negative controls. Network, comment budget,
+data escaping and both determinism checks passed. Full smoke suite not run.
+
+The updated headed Obsidian harness passed **19/19** on Obsidian 1.13.7 / Electron 43.3.0 /
+Chromium 150.0.7871.212. The real host's resolved monospace stack measured **562.5px**, matching
+the new shipped stack, versus **527.81px** for the standalone fallback. The host stack itself
+includes its platform font choices; these were not copied into the plugin. Polygon notch hit
+exclusion and solid-body hit inclusion both passed; the live original and leather marks
+retained their clips, and hidden display computed none. This validates the installed host,
+not the minimum engine or mobile devices.
+
+The first new probe exceeded CDP's evaluation timeout; it was split into bounded cases.
+A later cleanup expression was invalid and left the probe in screenshots; fixed to run in
+`finally`, then passed. Those images are discarded. Fresh `clean-*` captures from the same
+single check as the baseline are pixel-identical, including the formerly differing header band.
+
+The text border sits slightly lower and does not skip ink; this visible polish change is
+shown separately in the link comparison. The host may choose a different monospace face;
+Apple/mobile pixels are not measured on Windows. Clip paths, silhouettes and hit regions
+are preserved, and the remaining warning is deliberately reported. No community-score claim.
+
+No release recording was made. The hero and clips showing prose/code (especially `read`,
+`open`, `turn`, `alsoin`, `peek`, and any cyber-look take) predate the new font/link paint;
+release review should refresh affected takes. Library-only samples were pixel-identical here.
+Release notes, version files and verification-1.3.0.md were not changed.
+
+## 2026-09-29 — The merge boundary runs the hook's gates (`github#89`)
+
+The hook's static block now also runs in `.github/workflows/quality.yml` on every push and pull
+request to `develop` or `main`. `scripts/check-ci-parity.mjs`, ported from vault-graph, guards it
+together with `release.yml`.
+
+| | before | after |
+|---|---|---|
+| hook static gates | 13 | 14 (the parity check itself) |
+| run by `quality.yml` | no workflow | **14 / 14** |
+| run by `release.yml` | 7 / 13 | **14 / 14** |
+| server-side gate on an ordinary push to `develop` | none | `quality gates` |
+
+The 7 steps `release.yml` gained are `check-generator-determinism`,
+`check-build-order-determinism`, `check-data-escape`, `refresh-check --wiring-only`,
+`path-guard-selftest`, `lock --selftest` and `check-ci-parity`.
+
+**Negative controls, 10/10** in a throwaway root (`--root`):
+
+- These exit 1: a gate dropped from `quality.yml` or `release.yml`, a gate named only in a YAML comment, a flag dropped (`refresh-check.mjs` without `--wiring-only`), the job renamed, a hook marker renamed, a new gate added to the hook alone, and a missing workflow.
+- These exit 0: the real files, and `quality.yml` with CRLF line endings.
+
+**On Linux, before any runner saw it.** Every `run:` step of both workflows ran in a `node:24`
+container (v24.21.0) against the committed tree. That surfaced one real failure:
+`check-data-escape`'s non-Windows branch writes an extra note whose filename is markup, and the
+filename was `</script><b>x</b>`. The `/` is a path separator on every OS, so the write threw
+`ENOENT` before any check ran. The branch had never run anywhere. The title is now
+`<script>x<b>x`. After the fix, every step passed in both workflows:
+
+- `check-data-escape` saw 3 notes on Linux, against 2 on Windows.
+- `lock --selftest` was the slowest step at 40.7 s. Lint took 4.3 s.
+- Everything else took under 4 s.
+
+The PII step, three ways:
+
+| run | result |
+|---|---|
+| secret set | `6 names, rules 1 email, 2 jira, 1 vault, 6 patterns, 13 negative controls caught`, exit 0 |
+| fork PR, no secret | patterns only, `::warning::` plus a step-summary line, exit 0 |
+| same repository, no secret | `::error::`, exit 1 |
+| secret missing a kind | `check-pii: PII_NAMES declares no email, jira, vault entry -- refusing`, exit 1 |
+
+Nothing in `src/` moved, so the suite was not run, and this tree earns no stamp from this work.
+
+## 2026-09-29 — check-pii's private rules move out of the tracked file (`github#106`)
+
+Three of the rules in `scripts/check-pii.mjs` spelled out the maintainer's employer email
+domain, two internal Jira project keys and the name of a real vault. They had been public
+since the first commit, and `ALLOW_FILES` meant the guard never flagged itself. This is a
+forward fix only: history was not rewritten. The strings now load from the untracked
+`.pii-names` as typed entries (`email:`, `jira:`, `vault:`), or from `PII_NAMES` in CI.
+
+| | before | after |
+|---|---|---|
+| tracked patterns | 5, three naming the maintainer | 3 generic, plus 3 built at runtime from the list |
+| `git grep` for the three strings | 3 lines | **0** |
+| clean line on the maintainer's list | `203 files, 6 names, 5 patterns` | `203 files, 6 names, rules 1 email, 2 jira, 1 vault, 6 patterns, 13 negative controls caught` |
+| negative controls | none | **13** on every run (3 generic, plus one for each name and rule entry) |
+
+A throwaway-repo matrix passed **12/12**, using placeholder values:
+
+- A planted email, two Jira keys and a vault path each hit, from the file and from the env (4 hits, exit 1).
+- A clean tree passes from both.
+- `PII_NAMES` with no `jira:` entry exits 1; the file with none warns and exits 0.
+- No list at all prints today's `NO NAME LIST` warning.
+- An unknown `kind:` exits 1.
+- Breaking the email, Jira or vault rule makes its control fail, and the output names `email #1` / `jira #1` / `vault #1` without the value.
+- A drive-root `Obsidian` folder is still caught with no list.
+
+Nothing in `src/` moved, so the suite was not re-run, and the tree earns no stamp from this.
+
+## 2026-09-26 — The builder fits an Obsidian split inside a wide window
+
+The checkbox row's narrow layout was selected by the browser window's width. A 480px pane
+inside an 1180px window kept the two-column layout: row overflow was **168px in leather**
+and **130px in modern/cyber**. At 320px those overflows grew to 328px and 290px.
+
+`page.css` now names the root's inline-size container `vs-pane` and uses its width for the
+existing 660px breakpoint. The checkbox-row smoke check covers whole-window widths and
+pane widths inside an 1180px window: **3 looks × 8 widths × 2 modes = 48 cases**. The
+expanded check failed before the stylesheet change and passed afterwards: **0px overflow**,
+one column at narrow widths, two at wide widths, and equal row heights in every look.
+At 480px the row is 387×152px in all three looks. The check now runs in the serial layout
+lane and restores the root width, look and viewport even on failure.
+
+The two look checks also pass: **4,744 elements** compared across three looks in four states,
+**0 moved / 0 resized**. Lint, core typechecking and the scope gate pass. The explanation of
+the existing mirror-folder prefix edit moved to `design/0013`, with its regex preserved;
+the comment gate is back from **1,533 to 1,531**, matching its unchanged baseline.
+The layout golden also passes unchanged in all three looks (6 shelves, 11 rows, 257 spines,
+52 plaques). Build, network and generated-index checks pass. A screenshot of the corrected
+480px pane was inspected: the labels fit and the horizontal scrollbar is gone. These were
+targeted checks; no full-suite run was made.
+
+## 2026-09-25 — A changed metadata setting now rebuilds the open library (`github#100`)
+
+Both paths through the settings tab (`setControlValue()` for 1.13's declarative tab, `display()`'s
+own `save()` for the legacy one) called `ShelfView.adopt()` after writing `dateFields`,
+`peopleFields`, `personNote` or `useFileStamp`. `adopt()` only did `handle.setSettings(config)`,
+which tells the mounted page's *settings* changed but never re-runs `buildData()` — the reduction
+that turns a note's frontmatter into the record (`date`, `people`, ...) the page actually reads.
+The notes stayed reduced under the old settings until a separate vault event, an explicit Refresh,
+or reopening the view.
+
+**Measured with the real bundled plugin, host stubbed (the same method the finding itself used):**
+a synthetic undated note (`plugin/main.js`'s own no-frontmatter case) with a fixed file stamp of
+2020-01-02.
+
+| | before | after |
+|---|---|---|
+| `useFileStamp: true`, note's computed `date` | `2020-01-02` | `2020-01-02` |
+| `useFileStamp` flipped to `false` via the settings tab, **same open view, no reopen** | `2020-01-02` (stale) | `null` |
+| calls `adopt()` makes on the page | `setSettings` only | `setSettings`, `refresh(buildData(...))` |
+
+**Fix:** `adopt()` now does both — `handle.setSettings(this.plugin.config)` and
+`handle.refresh(buildData(this.app, this.plugin.config))` — since `buildData()` already runs on the
+new settings (the tab writes `plugin.config` before calling `adopt()`), regardless of which of the
+two calls lands first.
+
+**Regression check added to `scripts/refresh-check.mjs`'s existing headless `wiringHalf()`**, which
+already stubs `obsidian` and loads the real built bundle without a live Obsidian — extended with the
+`vault`/`metadataCache` methods `buildData()` needs, a synthetic file, and a bare `ShelfView`
+instance (its constructor does no DOM work, so no mounting is required to exercise `adopt()`). The
+three new checks fail against the pre-fix code exactly as shown above, confirmed by reverting the
+fix and re-running before restoring it.
+
+**Nothing in `src/` moved**, so no shelf invariant moved and the suite was not re-run for this; the
+tree earns no stamp from this. `check-comments`, `check-pii`, `check-scope`, `check-network`, both
+determinism checks and the generated code-map check all stayed clean.
+
+## 2026-09-25 — The current fixture is the one this checkout digests to (`github#102`)
+
+`fixture-store.mjs` used to name the build **whose `.stamp.json` was written last** as current
+(the 2026-09-11 entry below). That was only true while one checkout wrote to the store. Sibling
+worktrees keep their own digest directories, and a reused fixture never rewrites its stamp, so a
+sibling's newer build won. `update-layout-snapshots` could then re-take goldens against another
+branch's vault (`d7dbab8` was one). `suite-stamp` could also compare a stamp with a fixture the
+suite never measured.
+
+The digest now lives in `fixture-store.mjs` (`fixtureDigest`, with `GENERATORS`,
+`FIXTURE_FORMAT` and `FIXTURE_ARGS`), and `smoke.mjs`'s `resolveVaults()` calls it rather than
+keeping its own copy. `currentFixture(root, name)` returns `<store>/<name>-<digest>` only when
+that directory's stamp carries the same digest, and `""` otherwise. **It never falls back to a
+foreign build.** Every reader already treated `""` as "not in the store". Age is still judged
+where it was, in `suite-stamp.lookup` and in the suite's own `isFresh`.
+
+Measured: in a throwaway repo holding our fixture plus a newer `vault-ffffffff`, the old
+selection picked **`vault-ffffffff`** and the new one picked **`vault-f800fa12`** (ours). Against
+the live store, `fixtureDigest` gives **`945ece0a`**, which is the directory the suite already
+uses. A scoped `smoke.mjs --only` run reused it without regenerating (**1/1, exit 0**).
+`suite-stamp --selftest` now seeds by the digest of a stub generator, and gains three cases: a
+newer foreign sibling is not current, the stamp still hits beside it, and an edited generator
+has no current fixture. **39/39.** Comment baseline 1532 → 1531.
+
+## 2026-09-25 — The mirror refuses an output that overlaps its source (`github#97`, `design/0013`)
+
+`make-mirror-vault.mjs` read the source, `rmSync`'d `--out` recursively, then wrote the mirror.
+Its guard rejected only `OUT === VAULT` or `OUT` below `VAULT`, as case-sensitive strings. Both
+paths now go through `canonical()` (`scripts/path-guard.mjs`) and the output is refused if it is,
+sits inside, or contains the source. Measured by `path-guard-selftest.mjs` on throwaway vaults
+only, before the fix and after:
+
+| `--out`, source `<tmp>/vault` | before | after |
+|---|---|---|
+| `<tmp>` (the parent) | exit 0, **source gone** | exit 1, source kept |
+| `<tmp>/VAULT` (Windows) | exit 0, **source gone** | exit 1, source kept |
+| a junction to the vault | exit 0, source kept | exit 1, source kept |
+| a junction to the parent | exit 0, source kept | exit 1, source kept |
+| the vault, a directory below it | exit 1 | exit 1 |
+| `<tmp>/mirror` (a sibling) | exit 0 | exit 0 |
+
+Selftest: **4 FAIL / 21** on the old guard, **21/21** on the new one.
+
+## 2026-09-25 — The builder's checkbox row shrinks instead of spilling off the sheet (`github#98`, `design/0021`)
+
+`github#68` laid the row out as `grid-template-columns: max-content max-content` so every look
+agreed on the row count (three, not the two-or-three a wider face's free wrap could produce). A
+`max-content` column also carries grid's automatic minimum size, so the row refused to shrink
+below ~555-575px no matter how narrow the sheet got, and overflowed it. Below 660px the row is
+now one column, `minmax(0, 1fr)` rather than `max-content` so the track itself can shrink, and
+each checkbox's own label is one fixed line (`overflow: hidden; text-overflow: ellipsis`) instead
+of free text wrap — a wider face may cut a label off sooner, never grow its own row's height,
+which keeps `design/0021` rule 1 (same row height in every look) at every width, not only the
+default one.
+
+| measured live (`scripts/smoke.mjs`, the builder open, `.vs-field.vs-row`) | before | after |
+|---|---|---|
+| overflow at 620px (any look) | 0px | 0px |
+| overflow at 480px, leather / modern / cyber | 168 / 130 / 130px | 0px |
+| overflow at 400px, leather / modern / cyber | 248 / 210 / 210px | 0px |
+| overflow at 360px, leather / modern / cyber | 288 / 250 / 250px | 0px |
+| overflow at 320px, leather / modern / cyber | 328 / 290 / 290px | 0px |
+| row height, 360px, leather / modern / cyber | 92 / 92 / 92px (equal, still overflowing) | 152 / 152 / 152px (equal) |
+
+Widths at and above 660px are unchanged (still the two-column grid, 0px overflow before and
+after). `check-comments` picked up the new check's two-line explanation as prose; folded to
+one pointer line each, matching the baseline.
+
+## 2026-09-25 — A refresh holds nothing past the nodes it replaced (`github#99`)
+
+Every `on()` pushed a closure holding its target and handler into the mount-lifetime `onDestroy`
+list, so every rebuild's detached shelves and reader stayed reachable until the view closed. The
+review that found it measured ~1,651 nodes and ~2,247 listeners a refresh with the library alone;
+with a book open it is worse. `on()` now keeps a cleanup only for a target outside the page's own
+subtree (`window`, `document`, the root or an ancestor, a non-element); an element's listener dies
+with the element. The plugin's `renderNote` renders into one `Component` per note instead of the
+view, removed when the next note renders or the view closes. Rejected: rewriting 128 call sites as
+delegation (same effect, a large diff), and a `WeakRef` registry (still grows a list per refresh).
+
+| `teardown-check`, a book open, 20 refreshes, after GC | before | after |
+|---|---|---|
+| held cleanups, refresh 1 → 20 | 12,755 → 90,389 | **11 → 11** |
+| DOM nodes, refresh 1 → 20 | 29,620 → 269,058 | **13,704 → 13,704** |
+| JS listeners, refresh 1 → 20 | 12,753 → 90,387 | **4,165 → 4,165** |
+| post-GC heap | 13.9 → 27.8 MB | **12.2 → 12.4 MB** |
+| `document` / `window` listeners | 6 / 2 | 6 / 2 |
+| destroy+mount cycles | clean | clean (20 of 20) |
+
+The new suite check fails on the old `on()` (held 6,828 → 40,328 over ten refreshes) and passes on
+the new one (11 throughout). **Not measured:** the plugin half in a real Obsidian; its component
+is exercised only by the build and `refresh-check --wiring-only` (7/7).
+
+## 2026-09-24 — The rung climb is read within a row (`github#96`, `design/0008`)
+
+The full default suite failed both rung checks reproducibly, while `--jobs 1` and `--only` passed.
+An earlier check in the same lane had changed the membership, so `mira vance` lit **184** books
+instead of **188**. Rung 4's only sample then fell on a row rationed to 6%, and rung 3's on a whole
+row. The checks compared the two rows' painted air, which `github#90` never promised. The product
+is unchanged. `climbs()` asserts the unrationed ladder across the shelf and the painted air within
+each row. Rows rationed to 0 are skipped, and the lift and edge stay global.
+
+| `mira vance`, `--only`, one Chrome | before | after |
+|---|---|---|
+| rows compared for the climb | 0 (one sample per rung) | **9**, the tightest at 6% |
+| the `github#96` shape (rung 3 at 14px on a whole row, rung 4 at 1.44px on a 6% row) | FAIL | **pass** |
+| a row painting rung 4 as flat as rung 3 | pass (missed) | **FAIL** |
+| a flat ladder, 3 = 4 | FAIL | FAIL |
+
+**Not yet measured:** the full default run, which is the one that reproduced the failure.
+
+## 2026-09-24 — A row spends only the air its packing left (`github#90`, `design/0008`)
+
+The air a match opens is width, the packer packed every row before the query existed, and
+`design/0008` forbids re-packing — so a long run overflowed its track and the books past the edge
+were clipped while a query was live. `github#42` held it at a declared budget; this closes it.
+
+**The row is rationed, not re-packed.** `rowsOf()` already knows each row's packed width by
+arithmetic, so each track carries `data-slack` — the room it has left, never a layout read. On a
+query `rationAir()` sums the air every lit spine on a row wants (`2 × --spine-air-match` at its
+rung) and, when that is more than the slack, sets `--air-k` on the track: every margin in the row
+scales alike, so the ladder keeps its ratios, and a row with room keeps `github#42`'s ladder whole.
+The lift and the accent take no width and are not touched. Nothing moves at rest, so no golden
+changes. Rejected: re-packing per keystroke (the magic itself), and reserving worst-case air at
+rest (loosens every shelf whether or not anybody is searching).
+
+| measured on the one vault, needle `mira vance`, 188 of 231 books lit | before | after |
+|---|---|---|
+| worst overflow, Encyclopedia | **352px** (budget) | **0px** (budget 1px) |
+| rows rationing their air | — | **6 of 10**, the tightest to 2% |
+| rows the query adds | 0 | 0 |
+| air, rung 1 / 2 / 3 / 4, on the first whole row | 2 / 4 / 14 / 24px | 0 / 0 / 14 / 24px (below) |
+
+**And the weak half steps back.** Asked for on review: on the Encyclopedia `mira vance` lit 29
+of 35 letter books, every match but one through the people property, 26 of them at rung 1–2.
+Rungs 1–2 now open no air and dim; rungs 3–4 keep theirs.
+
+| rung, `mira vance` | books | air before → after | opacity before → after |
+|---|---|---|---|
+| 1 | 8 | 2 → **0px** | 1 → **0.55** |
+| 2 | 150 | 4 → **0px** | 1 → **0.72** |
+| 3 | 21 | 14px | 1 |
+| 4 | 9 | 24px | 1 |
+
+A dimmed spine still reads 0.35 dragged and 0.28 leaving. The overflow stays **0px**; 6 of 10
+rows still ration, the tightest now to **6%** (was 2%), because only rungs 3–4 ask for room.
+
+**The plus is charged where it is drawn.** A hand-arranged shelf whose plus did not fit its last
+row still drew it there; the row's width now counts it, so the slack is never overstated.
+
+## 2026-09-24 — The made-book acts pressed Save where the stage had already ended (`github#94`)
+
+Stale acts, not a regressed product. The issue read the rail menu as the fault: Favourites is
+`manual` in every settings file (`pickedBy` forces it), its menu's first button is
+*New book here…*, and the sheet opens. Probed at the press:
+
+| `makebook`, fixture `vault-3ea58174`, 1440×900 | measured |
+|---|---|
+| `#vs-mbsave` | y **810–838** |
+| the stage (`#vs-madebook`, the library above the caption bar) | y 0–**772** |
+| `elementFromPoint` at Save's centre | **`BODY`** |
+| after the press | sheet still open, `made` undefined |
+
+The sheet grew the appearance and contents-order block in `3234da8` (`design/0030`) and scrolls
+(`overflow-y: auto`); only the recorder never did. `makebook`, `editbook` and `plusbook` now
+scroll it as `build` scrolls the builder (`sheetTo`), and prove it closed before looking for the
+book, so a missed press names itself instead of surfacing two steps later as `context menu did
+not open`.
+
+The full take then failed at `makebook` frame 41 and, once that was fixed, `rearrange` frame
+142 — both `pointer hidden`. After `hero` and `build`, **Reading** and **Garden notes** stand
+above Favourites, whose head sat at y **793**, below the stage; the three acts scrolled to 0.
+They `settleOn` Favourites now, which clamps to 0 when it is first, so the solo clips film as
+before.
+
+| run | before | after |
+|---|---|---|
+| `--exact-act` makebook / editbook / plusbook | fail at 312 / 264 / 264 | 384/384 · 384/384 · 312/312, pointer visible every frame |
+| `--exact-act` rearrange | 264/264 | 264/264 |
+| full take, `--hero` | stopped at 6,336 + 41 | **10,128 of 10,128** frames, 27 acts, in 525s |
+
+## 2026-09-24 — Only parent tags: a tag shelf can shelve by root (`github#68`, `decisions/0003`)
+
+`parentTagsOnly` on a shelf makes the tag classifier read `a/b/c` as `a`, once per note. It is
+off by default and is offered in the builder only when a tag makes the book. It folds and never
+drops, so the note count is unchanged. The source predicate is still `includeSubtags` alone.
+
+**The fixture nests its tags now, so the setting has something to show.** On the vault as it
+was, the setting took the Tags shelf from 44 books to 34, which is too small a change to see. The
+generator now moves about two thirds of ten common tags onto 31 new children (`garden/compost`,
+`reading/fiction`, `tooling/scripts` and so on). The child is picked by a hash of the note's plan
+position, so dates, people, links and every other `rand()` draw are unchanged, and
+`check-generator-determinism` stays clean. The vault goes from 43 tags to 73. The layout golden was
+rewritten deliberately. Note that it already carried **39 stale differences in the Months plaques
+before this change**, and the rewrite absorbs those as well.
+
+| measured on the one vault | before, setting off | after, setting off | after, setting on |
+|---|---|---|---|
+| default Tags shelf, books | 44 | 74 | **34** |
+| default Tags shelf, notes | 4,940 | 4,940 | **4,940** |
+| Untagged | 375 | 375 | **375** |
+| `#garden`-sourced tag shelf, books | 27 | 57 | **17** |
+| its `garden` book | 809 | 287 | **1,441**, the whole family |
+
 ## 2026-09-21 — Two states was the law, and on 5,000 notes two states is none (`github#42`, `design/0008`)
 
 `core.markMatches` has always counted, per book, how many of its notes answer — `Book.matches` —

@@ -8,7 +8,7 @@ a half or more is the top rung, then a fifth, then a twentieth, then a bare matc
 The book that *is* the answer — every one of its notes carries the term — stands clearly proud of
 the whispers around it.
 
-![A book draws forward by how much of it answers](https://raw.githubusercontent.com/luke321/vault-shelf/1.2.0/docs/features/matchweight.webp)
+![A book draws forward by how much of it answers](https://raw.githubusercontent.com/luke321/vault-shelf/1.3.0/docs/features/matchweight.webp)
 
 ## Where it lives in the storyboard
 
@@ -24,7 +24,7 @@ button (`github#91`) to show the ladder resets with it.
 ## Regenerating this feature's clip
 
 Run from the repository root. The recorder uses the shared generated vault and captures this act
-frame by frame over CDP in headless Chrome, writing an MP4 and the gallery's WebP:
+frame by frame over CDP in visibly headed Chrome on a guard-approved monitor under the shared record lock, writing an MP4 and the gallery's WebP:
 
 ```powershell
 node scripts/record-demo.mjs --exact-act --act matchweight --width 1000 --height 1000 --out demo-matchweight.mp4 --hero docs/features/matchweight.webp --hero-acts matchweight --hero-width 1000
@@ -41,7 +41,8 @@ update `Last re-recorded` below together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.2.0` |
-| Last re-recorded | `1.2.0 - 2026-09-23` |
-| Review | Recorded 2026-09-23 as part of the 1.2.0 release; ladder proven live (rungs 1-4, lift 2/6/10/14px) before the clip was accepted |
+| Last re-recorded | `1.3.0 - 2026-10-04` |
+| Review | Final-tree re-shoot after the range review: start, middle and end stills inspected; dimensions, frame count and WebP timing read from the file |
 | Duration | 14 seconds |
+| WebP | 81 animation frames; 606,166 bytes |
 | Frame | 1000 × 1000 |

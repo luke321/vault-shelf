@@ -1,5 +1,35 @@
 # Invariants
 
+### Browser readiness and benchmark isolation (`decisions/0021`)
+
+Gesture checks run serially and observe the actual spent-latch signal before a fresh
+gesture. A delayed quiet timer must remain spent until Chrome services it; a stuck signal
+must fail within a bounded wait without resetting state. Frame benchmarks each own a fresh
+browser, and inline look images and fonts must be ready before sampling. Malformed and
+never-decoding images fail; the decoder is restored after the controls. Every selected
+check runs exactly once. Library/reader limits remain 30/14 missed frames and the expensive
+containment control remains required. Complete headed certification is epoch 4, two greens.
+
+Sampling starts its clock at the first animation callback, bounded by a 3,000ms startup
+watchdog and a duration-plus-3,000ms completion watchdog. A delayed first callback must
+still produce a full sample; later gaps must count against the frame budget. Missing or
+stopped callbacks must fail. Fewer than two timestamps, nonfinite/nonincreasing timestamps
+and invalid calibration are errors, never green measurements.
+
+### CSS review equivalence (`github#109`, `design/0036`)
+
+Hidden descendants of the real `#vs-app.vault-shelf` root compute `display: none`, including
+ID-styled rail controls. Reader, builder and Manage open, close and reopen in all three looks,
+both themes and both list/shelf modes. The targeted cascade check measures 84 states and 72
+open/close cycles and restores its original look/theme/list state.
+
+The wrapping search rail keeps a 10px column gap and zero row gap above 860px; at 860px and
+below both are 2px. Monospaced content follows the host's `--font-monospace`, otherwise
+`SFMono-Regular, Menlo, monospace`. Live/dead links wrap into inline fragments with solid/dotted
+1px borders respectively. Hover thickens the live border to 2px without changing paragraph
+height or wrapping; keyboard focus remains a visible 2px outline. Probe nodes are removed
+on success and failure. The CSS review reports retained clipping warnings without ignores.
+
 Properties that must not regress, and the command that checks each one. **Every number here
 was measured, not reasoned about.** If a check fails because behaviour changed on purpose,
 update this file and the check in the same commit — a check quietly relaxed is worse than one
@@ -1188,8 +1218,22 @@ started.
 
 `"parent tag inclusion is a setting, and it changes the answer"` builds the same tag-sourced
 shelf twice, with `includeSubtags` on and off, and asserts the first collects at least as many
-notes as the second. Measured: `#garden` collects **1,440** notes with its
-`garden/seeds` and `garden/soil` children and **62** without -- a difference of 48.
+notes as the second. Measured on the one vault (2026-09-24): `#garden` collects **1,441** notes
+with its six children and **287** without.
+
+`"only parent tags folds a nested tag into its root"` (`github#68`) builds the same `#garden`
+shelf with and without `parentTagsOnly`. It asserts that the folded shelf has no book key
+containing `/`, has the same note count, has fewer books, and that its `garden` book holds exactly
+the union of the unfolded `garden` book and every `garden/…` book. Measured: **57 books → 17**,
+**1,441 / 1,441** notes, and all 1,441 of the family in one book. On the default Tags shelf of the
+same vault the setting takes **74 books to 34**, with Untagged unchanged at 375.
+
+The generator nests most of its common tags for this (`make-vault.mjs`, `CHILD_TAGS`). About two
+thirds of the notes carrying `garden`, `reading`, `idea`, `reference`, `attention`, `method`,
+`systems`, `tooling`, `area/home` or `project/website-migration` get one of that tag's children
+instead. The child is picked by a hash of the note's plan position, so no `rand()` draw moves and
+nothing depends on the date. It **refuses to finish** when fewer tags are nested than two thirds
+of the number of roots.
 
 `"people come from the property alone, never from prose"` asserts that a name the fixtures
 put **only** in note bodies — never in a people property — reaches **zero** people lists and
@@ -1858,6 +1902,19 @@ Measured on `vault-3ea58174`, needle `mira vance`, **188 of 231** books lit:
 | 3 | 19 | 20.0–36.4% | 10px | 14px |
 | 4 | **9** | 50.0–100% | **14px** | **24px** |
 
+**SUPERSEDED BY `github#90`: the weak half opens no air and dims.** Rungs 1–2 now carry
+`--spine-air-match-1/-2: 0px` and `opacity` `--spine-dim-match-1/-2` = **0.55 / 0.72**; rungs 3–4
+keep 14 / 24px of air at full opacity. The values clear every opacity already spoken for (ghost
+0.16, leaving 0.28, dragged 0.35, empty 0.45), and the dim is written
+`:not([data-dragging="1"]):not([data-leaving="1"])`, so a drag and a departure still outrank it —
+the reason the earlier record refused an opacity step. `"a book draws forward by how much of it
+answers"` asserts: each rung is louder than the one below **in air or brightness**, within a row (`github#96`,
+below), rungs 1–2 want
+no air and are dimmed, rungs 3–4 are whole, and a dimmed spine reads **0.35 dragged, 0.28
+leaving**. `restedRungs()` waits for the opacity as well as the margin (both transition 160ms).
+`mira vance`, 188 lit: rung 1 **8** books at 0.55, rung 2 **150** at 0.72, rung 3 **21** at 14px,
+rung 4 **9** at 24px. The history below is kept for the numbers.
+
 **The ladder is top-heavy on purpose, and the reason is `github#90`.** The air is *width*, and rung
 2 holds **149 of the 188** books a person's name lights, so the total width a query adds is very
 nearly all rung 2. Measured worst overflow on the Encyclopedia run, the widest shelf on the vault:
@@ -1880,7 +1937,7 @@ query without the name are not marked, and that clearing the box leaves **0** na
 
 `"the strength survives reduced motion, where the lift does not"` emulates
 `prefers-reduced-motion: reduce`, asserts **0 of 188** lit spines carry a transform, and that the
-air and the accent still separate all four rungs. This is the carrier the issue named as the trap
+air (within a row, `github#96`) and the accent still separate all four rungs. This is the carrier the issue named as the trap
 and the one a transform-only answer would have failed in silence.
 
 ## A query's air can push a packed run past the room
@@ -1897,12 +1954,41 @@ and no book leaves the room"` counts **spines in the DOM**, where all 231 are pr
 box**, which is the one state the air does not exist in. Numbers cannot see, and a clipped book is a
 book that left the room.
 
+**THE FIX IS A RATION, NOT A RE-PACK.** Each track carries `data-slack`, the room its packing left
+(`rowsOf()`'s own arithmetic, the plus on a hand-arranged shelf's last row counted wherever it is
+drawn). `rationAir()` — run by `applyQuery()` and by `drawLibrary()`, because a spine born
+mid-query carries its rung — sets `--air-k = floor(slack / wanted air, 2 dp)` on a track that
+wants more than it has, and clears it otherwise; the lit margins are
+`--spine-air-match × --air-k`. A row keeps its ladder's ratios, and a row with room keeps the
+whole ladder. The lift and the accent take no width and are never rationed.
+
 `"the air a query opens still fits the room, and a run too long wraps"` measures it: no track wider
-than the room, every row restored when the box clears, and the worst overflow **at or under a
-declared budget of 352px**, printed against `develop`'s 493px so the direction is legible. A
-budget and not a zero, because the fix is not this change's to make — re-packing on every keystroke
-is the magic `design/0008` exists to protect, and reserving worst-case air at rest loosens every
-shelf in the library whether anybody is searching or not. `github#90` holds the choice.
+than the room, every row restored when the box clears, **no track still rationed once cleared**,
+and the worst overflow **at or under 1px** — rounding, not a budget. Measured on the one vault,
+`mira vance`, 188 of 231 lit: **0px** (352px before, 493px before `github#42`), **6 of 10** rows
+rationed, the tightest to **2%**.
+
+**A rationed rung reads rationed.** `RUNGS` takes the want as the token × the row's `--air-k`,
+prefers a spine on a whole row for each rung, and treats a margin within 0.05px of its want as
+arrived — a product of two lengths is not bit-equal to the JS product.
+
+**THE CLIMB IS PER ROW, AND THE LADDER IS GLOBAL** (`github#96`). Preferring a whole row was not
+enough: when a rung has no spine on a whole row, its sample falls back to a rationed one. The full
+default run lit 184 books, not 188, and put rung 3 on a whole row (**14px**) and rung 4 on a 6% row
+(**1.44px**), so both rung checks read the 3→4 step as flat. Each row was correct under the law
+above: *a crowded row parts less than a sparse one* (`design/0008`). A floor tied to the weakest
+rung is the worst-case reserve `github#90` rejected. So `climbs()` asserts two things:
+- **The ladder climbs everywhere.** Each rung's token (`base`, before any ration), or its
+  brightness, is above the rung below it.
+- **The paint climbs within a row.** On every row with a non-zero ration that holds two rungs, the
+  painted air or brightness climbs across them. Both checks require at least one such row, and
+  `mira vance` has **9**, the tightest at 6%.
+
+A row rationed to **0** opens no air at any rung and is skipped. The lift and the edge are never
+rationed, and both are still asserted across the whole shelf. `restedRungs()` now waits for every
+row's air, not only each rung's sample. Checked against synthetic rows: the `github#96` shape
+passes, a flat ladder fails, and a row painting rung 4 as flat as rung 3 fails. The old sampler
+passed that last case.
 
 **A SPINE TRANSITIONS ITS MARGIN over 160ms**, so a read taken in the same turn as `setQuery`
 measures the air the room is *leaving*: every rung first came back at **0px** while its own
@@ -2338,6 +2424,65 @@ the count. A control that stops biting fails the gate. `node scripts/check-scope
 prints them case by case. The reasoning, and why this is not a `--selftest` the hook calls the way
 `lock.mjs` is, is `decisions/0019`.
 
+## check-pii names nobody in its own source (`github#106`)
+
+The tracked `scripts/check-pii.mjs` holds only generic shapes: an `*.atlassian.net` host, a
+Windows user path, and the generic drive-root `Obsidian` vault path. Every rule that would name somebody
+is loaded from the same place as the names, never from a commit: the untracked `.pii-names`, or
+the `PII_NAMES` secret in CI. A bare entry is a name. `email: <domain>`, `jira: <KEY>` and
+`vault: <name>` are typed entries, and each adds a work email, Jira key or vault path rule. Any
+other `kind:` prefix exits 1. `.pii-names.example` documents the format with placeholder values.
+
+**A list that is loaded but lacks a kind fails in CI and warns locally.** In CI,
+`PII_NAMES` without an `email:`, `jira:` or `vault:` entry exits 1, so a secret that was never
+updated cannot run half the rules and pass. Locally, a `.pii-names` without one prints a warning
+naming the missing kind and exits 0. With no list at all nothing has changed: the patterns run,
+the `NO NAME LIST` warning prints, and `release.yml` and `quality.yml` still refuse to run
+without the secret (`quality.yml` makes one exception, for a pull request from a fork, below).
+
+**Negative controls run on every invocation** (`decisions/0019`). Each generic pattern gets one.
+Each loaded name, domain, key and vault gets a synthetic line, and that line has to be flagged
+**by the rule it was built for**. The clean line prints the count
+(`6 names, rules 1 email, 2 jira, 1 vault, 6 patterns, 13 negative controls caught` on the
+maintainer's list). A control that does not bite exits 1. The message names only its kind and
+index (`jira #1`) and never the value, because the CI log of a public repository is public too.
+
+## The merge boundary runs the gates the hook runs (`github#89`)
+
+`.githooks/pre-push` is a file in an installed checkout. It runs where somebody set
+`core.hooksPath .githooks`, on whichever machine pushed, and it is **never a server-side proof
+about a commit**. Before `github#89` it was the only place most of the gates ran: a push to
+`develop` from a clone without the setting ran nothing anywhere, and `release.yml` re-ran a
+hand-kept 7 of the hook's 13 static gates.
+
+`.github/workflows/quality.yml` runs the hook's **static block** on every push and pull request
+to `develop` or `main`. That is every check between the hook's `gated_push` early exit and its
+`SKIP_SMOKE` line, lint included. It runs as one job named `quality gates`, because a job name
+**is** the required-status context. **The push trigger matters most**, because work reaches
+`develop` here by a local merge and a direct push, not by a pull request.
+
+**The list is derived, then guarded.** `scripts/check-ci-parity.mjs` parses the hook's static
+block and fails on any gate that `quality.yml` or `release.yml` does not run. It compares
+normalised keys (script plus sorted flags, so `refresh-check.mjs` alone does not satisfy
+`refresh-check.mjs --wiring-only`). It reads only `run:` lines, never a YAML comment. It skips
+the hook's heredoc refusal messages, which name scripts in prose. It asserts the `quality gates`
+job name. The hook calls the check too, so both workflows carry it as a step. On the tree that
+added it: **14 static gates, all 14 in both workflows**. Wiring it in exposed 7 gaps in
+`release.yml`: `check-generator-determinism`, `check-build-order-determinism`,
+`check-data-escape`, `refresh-check --wiring-only`, `path-guard-selftest`, `lock --selftest`,
+and the parity check itself. A `LOCAL_ONLY` list exists for a gate a runner genuinely cannot
+run, and it is empty. An entry needs its reason written here.
+
+**A green `quality gates` does not mean the suite ran.** `smoke.mjs` and the four browser
+gates stay local, because they drive a headed Chrome under a machine-wide lock against goldens
+measured on one machine. **On a pull request from a fork, the name list did not run either.**
+GitHub gives such a run no secrets, so the PII step runs the patterns only, raises a
+`::warning::` and writes a step-summary line saying so, and stays green. Refusing would put a
+red status on every outside contribution, and its author could never fix it. The names are
+checked on the push that brings the merge to `develop`, both by the maintainer's hook and by
+this workflow's push run. A same-repository push or pull request without the secret is refused,
+exactly as in `release.yml`.
+
 ## A spine holds its size
 
 `"a spine lifts on hover and holds its size"` measures a spine's box at rest and focused and
@@ -2451,6 +2596,41 @@ three `document` listeners (two `keydown`, one `mousedown`) and the one `window`
 against a bound of 1.5. The first row is the page as the browser parsed it; the steady state is
 what a destroy and a remount actually cost.
 
+### A refresh holds nothing past the nodes it replaced (`github#99`)
+
+The destroy cycles cannot see a leak **within** one mount, because destroying releases it. So
+`teardown-check` first opens a book and refreshes the same mounted page **20** times, and fails
+if the mount's held cleanups (`__vs.counts().held`) grow at all, or nodes or JS listeners grow by
+more than **5** a refresh (`REFRESH_GROWTH`). The suite's `a refresh holds nothing past the nodes
+it replaced` asserts the `held` half without a collection: five refreshes with the reader open and
+five with it closed leave it where it started, under **50**.
+
+The rule behind it is in `on()`: **only a target that outlives the page's own subtree keeps a
+cleanup** — `window`, `document`, the root or anything containing it, anything that is not an
+element. A listener on an element the page built dies with that element, and `destroy()` already
+ends by clearing the root. Until `github#99` every one of the 128 `on()` sites pushed its closure
+into the mount-lifetime list, so each rebuild's detached nodes stayed reachable until the view
+closed. The plugin's `renderNote` likewise renders into, and registers its two handlers on, one
+`Component` per note, removed when the next note is rendered or the view closes — never the view.
+**And when the reader stops showing it** (`github#114`): `closeReader()`, and a book left with
+no note under the filters, call the host's optional `releaseNote()`, which unloads that
+`Component` and every embed it owns. `refresh-check` counts it: open a book → `render`, no
+release; close it → exactly **one** `release`; in the bundle, two notes rendered → **1** owner
+loaded, released → **0**, and a release during a slow read leaves **0**.
+
+| one mounted library, a book open, after GC | refresh 1 | refresh 20 |
+|---|---|---|
+| held cleanups, before | 12,755 | 90,389 |
+| held cleanups, after | **11** | **11** |
+| DOM nodes, before | 29,620 | 269,058 (+12,602/refresh) |
+| DOM nodes, after | **13,704** | **13,704** |
+| JS listeners, before | 12,753 | 90,387 (+4,086/refresh) |
+| JS listeners, after | **4,165** | **4,165** |
+| post-GC heap, before → after | 13.9 → 27.8 MB | **12.2 → 12.4 MB** |
+
+`document` and `window` listeners are **6** and **2** before and after: the page-wide wiring still
+registers and still comes off on destroy.
+
 ## The library follows the vault
 
 `scripts/refresh-check.mjs` (`github#5`, ported from `vault-graph#6`). Two halves, because the
@@ -2464,6 +2644,14 @@ Rebuild command; it now listens for the cache's `changed` and `deleted` and the 
 burst, exactly 1 after it**, a later change → **1** more, and a change caught mid-flight by
 unload → **0**. The coalescing window is `REBUILD_MS` = **400ms**: a sync or a bulk edit fires
 `changed` per file, and every rebuild walks every note and repacks every shelf.
+
+**A typed setting waits for the last keystroke** (`github#100`). A text field in the settings
+tab hands the settings to every open view `ADOPT_MS` = **800ms** after its last keystroke, or
+at once when the tab closes; a toggle and `Show all` hand them over at once. Each hand-over is
+**one** `setSettings(next, data)` — settings and the data they shape, one redraw. Measured:
+six keystrokes → **0** redraws while typing, **1** after; a waiting setting flushed by closing
+the tab → **1** in all. A redraw per keystroke reshelved an open book whenever a half-typed
+property name emptied the shelf it stood on.
 
 **In a browser**, against the standalone: a book is opened, a note is pushed into the data and
 the handle is refreshed. The library counts **one** more note, the open book is **one** thicker
@@ -2484,6 +2672,15 @@ reader still on the note it was on. Taking the note away again: **396**, **2**, 
 note. **0** console errors across the whole sequence.
 
 ## The packing has a golden
+
+**#110, 2026-10-03:** the golden now declares `--end 2026-09-24` and the exported wear day
+`2026-09-24 00:00`. Smoke and the updater generate that geometry page in temporary storage;
+the main fixture remains live and refreshes after seven days. The existing geometry reproduced
+unchanged: **6 shelves, 11 rows, 257 spines, 52 plaques, 1125px room**, at 1180×900, zero
+differences in all three looks. October 3's rolling input produced **66 differences** instead.
+Two fresh geometry generations are byte-identical; the fixture self-test passes **5/5**,
+including changed width/row/count/address negative controls. No tolerance or geometry changed.
+See [decisions/0020](decisions/0020-repeatable-headed-validation.md).
 
 `"the shelves are packed the way the golden snapshot says"` diffs the geometry of every shelf
 against `scripts/layout-snapshots/<fixture>.json`, at a viewport pinned to **1180×900** so the
@@ -2579,6 +2776,20 @@ and both land inside the page. The vault's own `appearance.json` does not do it 
 written, it is copied, and Obsidian starts dark anyway. Measured under cyber with a light host:
 body `theme-light`, the app's ground `rgb(255,255,255)`, the page reading `data-theme="light"`
 under `data-look="cyber"`, note ink `rgb(232,245,255)`.
+## The mirror never writes over its source
+
+`node scripts/path-guard-selftest.mjs` — **21 cases** on Windows and macOS, **17** elsewhere (the
+four case-folding ones need a case-insensitive filesystem), pure Node, throwaway vaults under the
+OS temp dir, in the pre-push hook with no skip flag. `github#97`, `design/0013`.
+
+`make-mirror-vault.mjs` wipes its output before writing it, so the guard runs first and refuses an
+output that **is** the source, sits **inside** it, or **contains** it — after both paths go through
+`canonical()` in `scripts/path-guard.mjs`: `realpathSync.native` on the deepest part that exists
+(which resolves junctions, symlinks and the true case), the rest re-joined, case-folded on
+`win32` and `darwin`. Containment is tested in both directions on a separator boundary, so
+`vault2` beside `vault` is allowed. Seven cases (six without case folding) drive the script end to end and read the source
+note back; a sibling output must still exit 0.
+
 ## The plugin says what changed, once
 
 `node scripts/update-note-selftest.mjs` — **51 cases**, pure Node, in the pre-push hook and in
@@ -2625,7 +2836,45 @@ pixel. **The width does not move**: 1556px either way, in a 922px view. It write
 the oldest links collapse: **11 releases behind draws 9 links** — one `…` to the releases page,
 then the newest eight.
 
-## No harness takes the keyboard, and a run that changes shape stamps nothing
+## Headed certification; historical headless measurements
+
+**Recorder ownership (#111):** default and `--headed` recordings show a normal browser on
+the guard's named device. `record` is held from fixture preparation through encoding, with
+the existing 30-second heartbeat and no nested screen hold. Missing/busy guards, wrong
+monitors, isolated lock storage and one-screen runs without individual permission refuse
+before Chrome. Errors and SIGINT/SIGTERM/SIGHUP/SIGBREAK clean only owned resources and
+release ownership. `--keep-frames` retains scratch only after success.
+
+`node scripts/record-session-selftest.mjs`: **20/20**, no browser and isolated console controls.
+Live headed default: **120/120 frames, 24 fps, 5.000 s, 1440×900**. Explicit headed peek:
+**168/168 frames, 24 fps, 7.000 s, 1080×1080**, pointer visible **168/168**, largest step
+**61.1px**. Its full WebP lasts **7,000 ms**; the explicit `1,3` hero slice lasts **3,000 ms**
+on the unchanged **125 ms** (8 fps) clock. A static close WebP can be coalesced into one still
+by the unchanged encoder; it is not a duration probe. Capture-error, encoder-error and real
+Ctrl+C checks each leave **0 profile directories, 0 scratch directories, 0 owned Chrome
+processes and 0 CDP listeners**. No full gallery or full suite is measured here.
+The independent headed sentinel survives recorder failure cleanup with **1 CDP listener**;
+its harness then removes it before releasing the actual machine record hold.
+
+**Current contract (#110):** local release/push run headed; a full headed run is eligible for
+epoch **4** (`decisions/0021`), while headless, `--only`, `--vault`, `--url`, `--look`, missing/unstamped fixtures
+and dirty trees are excluded. Both consumers require the two-green certificate after the
+suite returns; a first green cannot release or push. CI runs the stamp self-test without a
+browser. The table and #50 discussion below are historical, superseded on 2026-10-03.
+
+Stamp/consumer self-tests pass **59/59**, including silent-success and misleading-output
+refusals and a multi-tree push with one uncertified tree. Release SelfTest passes **16/16**:
+eleven original guards plus five real release-control-flow cases with external work stubbed.
+One green, silent success, misleading text and a red suite refuse; two greens reach the
+dry-run stop. Each verifies headed arguments and lock release. Removing the inherited
+manifest-version tag only in the scratch clone and scratch origin lets every guard be reached.
+
+The index-row pointer cleanup makes its pair with the paint check pass **2/2** instead of
+**1/2**: a 14px lift paints **15/14/28px** instead of **5/5/5px**. Paint sampling refuses a
+visible hover preview before/after its screenshots and restores query/look/scroll/probe state
+in `finally`. A forced zero clip margin still fails `HEAD CUT` in every look. An injected
+preview at screenshot 3 restores modern / `garden` / 140px exactly, with no probe left;
+the next paint check passes. These three focused negative/recovery controls pass **3/3**.
 
 Not a check in `smoke.mjs` but a property of the harness, held by driving it. `github#50`,
 `design/0006`.
@@ -3140,11 +3389,10 @@ it recurs, look at the compositor read in `paintedAbove()`, never at a tolerance
 
 ## Every release guard fires, and none of them writes a tag
 
-`.\scripts
-elease.ps1 -SelfTest` — **11 cases**. A throwaway bare repository stands in for
+`powershell.exe -File scripts/release.ps1 -SelfTest` — **16 cases**. A throwaway bare repository stands in for
 `origin` (the guards *fetch* `origin/main`, so a self-test that faked the ref in a clone of the
 real repo would have it overwritten mid-run), a clone of it carries the working tree's
-`scripts/`, and each case breaks exactly one thing: a `v` prefix, a malformed version, a
+`scripts/`, manifest, CHANGELOG and update note together, and each refusal breaks exactly one thing: a `v` prefix, a malformed version, a
 manifest that disagrees, a missing CHANGELOG section, **an update note that names another
 version** (`github#33`), a branch other than `main`, a `main` one commit **ahead** of
 `origin/main`, a `main` one commit **behind**, a HEAD **off `origin/main`'s first-parent line**
@@ -3152,8 +3400,21 @@ version** (`github#33`), a branch other than `main`, a `main` one commit **ahead
 1.8.0 exactly), and a dirty tree. The eleventh case breaks nothing and is asserted on reaching
 the lint gate.
 
-Every case asserts the tag count **before and after**, and all eleven are `0 -> 0`: a guard that
-fires after a tag has been written is not a guard, and a published tag cannot be moved.
+Five more cases stub external work and verify certificate consumption: one green, silence,
+misleading success text and a red suite refuse; two greens reach the dry-run stop. Each
+asserts one headed suite invocation, the expected certificate calls and lock release.
+Every case asserts an unchanged tag count **before and after**: a guard that fires after a
+tag has been written is not a guard, and a published tag cannot be moved. Inherited tags
+for the candidate version are removed only inside the scratch clone and its scratch origin.
+
+**Self-test setup and exit are measured too (`github#112`).**
+`node scripts/check-release-selftest.mjs` checks current metadata and a synthetic newer
+candidate against older `main`: each must reach **16/16** cases and **5/5** consumer call/cleanup
+assertions with process exit **0**. An injected wrong assertion must produce exactly one
+failure and process exit **1**, even after inherited-tag deletion and additional success-stream
+output. The fixture's source refs/tags must remain unchanged on every path. These checks use
+only isolated console processes, never Chrome or a real release dry run.
+
 ## A native drag is the one gesture the harness cannot drive
 
 **This is the gap that let shelf dragging break completely while 77 checks passed.** A synthetic
@@ -3588,3 +3849,15 @@ characters are identical before and after every press.
 `make-vault.mjs` refuses to finish unless "A season in the same bed, start to finish" exists,
 says `#garden` at least three times in its body and `#garden/seeds` exactly once. Without it no
 note in the vault writes a tag inline at all.
+
+**The builder's checkbox row (`.vs-field.vs-row`) never overflows its sheet** (`github#98`,
+`design/0021`). At pane widths of 660px or less the row drops to one `minmax(0, 1fr)` column and each label is a
+fixed one line, ellipsised rather than wrapped — a `max-content` column (or track) refuses to
+shrink below its content, which is what the two-column grid did at every width before this.
+Measured live at 620/480/400/360/320px in leather, modern and cyber: 0px overflow at every
+width and look, and the row's own height agrees across all three looks at each width (e.g.
+152px at 360px), never taller in a wider face. `"the builder's checkbox row fits a narrow
+sheet, in every look"` measures both halves. The breakpoint is the named `vs-pane` inline-size
+container on `.vault-shelf`, not the browser window: a narrow Obsidian split must get the same
+layout inside a wide window. The check also constrains the root in an 1180px viewport and
+asserts one column at narrow widths and two at wide widths, in all three looks.

@@ -1,5 +1,24 @@
 # Releasing
 
+**Headed validation (#110):** the local runner explicitly invokes `smoke.mjs --headed
+--no-lock` under its own suite hold. Check the machine's screen guard before allowing the
+browser window; defer when the intended display is unavailable. Never wrap this script in an
+outer suite lock. A complete clean headed run earns one green toward the required two.
+The runner rechecks the certificate after smoke exits and refuses a release on only 1/2;
+it does not silently run again. Each further full run requires its own authorization.
+Epoch 4 rejects earlier-instrument stamps. Partial/custom/look/dirty runs cannot certify the
+candidate. CI remains static-only; it tests eligibility and stamp exclusions without Chrome.
+See [decisions/0020](decisions/0020-repeatable-headed-validation.md).
+
+Gesture checks run serially and wait for Chrome's actual quiet signal, with a bounded refusal
+when it does not arrive. Each frame benchmark owns a fresh browser and decodes the current
+look's inline images and fonts before sampling. Its frame limits and containment regression
+control remain unchanged; readiness failures refuse rather than retrying a benchmark.
+Measured time starts with the first animation callback; bounded startup/completion watchdogs
+and validated multi-frame samples refuse a missing or stalled scheduler. Later stalls count.
+The same console isolation check gates local pushes and both CI workflows.
+See [decisions/0021](decisions/0021-browser-readiness-and-frame-isolation.md).
+
 **Show the status table after every step.** Whoever is driving a release keeps a table of
 every step it still needs — the polish asks, the docs and clips it must carry, the version
 bump, the name, the merge-down sequence, the tag — and re-posts it, updated, after each step
@@ -17,7 +36,7 @@ apply; add a row per polish ask the release picked up.
 | 3 | `CHANGELOG.md` section for `<version>`, written as the release body | |
 | 4 | Version bump: `manifest.json` → `<version>` | |
 | 5 | Release name — propose 2-4 candidates, the owner picks | |
-| 6 | Re-record every clip the change touched, and the hero if the page moved (`record-demo.mjs`, headless, no lock) — before the merge, so the clips show the merged tree; a patch hotfix may explicitly skip this when the owner asks for code, changelog and release files only | | **Then run the `review-clips` skill and look at the page** (`& "$env:USERPROFILE\.claude\skills\review-clips\build-clip-review.ps1" -Repo . -Open`) — it reads the storyboard itself and prints `clips present N/N` with the missing act names, so the recording step is confirmed rather than assumed. Do not eyeball a diff to decide what was re-recorded.
+| 6 | Re-record every clip the change touched, and the hero if the page moved (headed, after the screen guard grants the intended monitor, under the shared `record` lock; defer if unavailable, never fall back to headless) — before the merge, so the clips show the merged tree; a patch hotfix may explicitly skip this when the owner asks for code, changelog and release files only | | **Then run the `review-clips` skill and look at the page** (`& "$env:USERPROFILE\.claude\skills\review-clips\build-clip-review.ps1" -Repo . -Open`) — it reads the storyboard itself and prints `clips present N/N` with the missing act names, so the recording step is confirmed rather than assumed. Do not eyeball a diff to decide what was re-recorded.
 | 7 | Read the whole branch: every doc naming the version, every link, the README's install block | |
 | 8 | **Review the release body before the tag** — the `## <version>` section, read as the page it becomes | |
 | 9 | `release.ps1 <version> -DryRun` on the branch — the run that pays the suite and stamps the tree | |
@@ -84,7 +103,27 @@ Change one, change the other in the same commit. This file is the authority on t
 
 Every guard below answers a mistake that was actually made — next door, in the repo this
 tooling was cut from. `.\scripts\release.ps1 -SelfTest` drives all of them against a throwaway
-clone and prints which fired; it writes nothing outside that clone and tags nothing.
+clone and prints which fired; all writes stay in its scratch directory and it creates no tags.
+The setup removes the inherited manifest-version tag only from the throwaway clone and its
+throwaway origin, so that tag cannot mask later guards. The real repository's tags are untouched.
+The working checkout's **manifest, CHANGELOG and update note are overlaid together**, along
+with its scripts, then committed and pushed only to the scratch origin. An older real `main`
+therefore supplies history, not mixed-version release metadata (`github#112`). The self-test
+does not rewrite an incoherent candidate to make it pass. Failed assertions throw; the
+PowerShell entry point explicitly exits **1** on failure and **0** on success. Native command
+output (including inherited-tag deletion) is diagnostic text, never a numeric return value.
+Its **16 cases** include five certificate-consumer paths using stubbed external work: one
+green, silent success, misleading success text and a red suite refuse; two greens reach the
+dry-run stop. Each path checks headed arguments and lock release, without Chrome or live locks.
+
+`node scripts/check-release-selftest.mjs` measures that contract at the external
+`powershell.exe -File` boundary. It runs the on-disk scripts with current candidate metadata,
+then a synthetic newer major release against older scratch `main`, then one deliberately
+wrong assertion with inherited tags and injected success-stream text. The first two must
+reach all 16 cases and all five consumer cleanup assertions and exit 0; the last must show
+exactly one assertion failure and exit 1. Each run checks that the source fixture's refs and
+tags are unchanged. `--out <directory>` retains the three logs after scratch cleanup.
+This is a Windows console check: it launches no browser and uses no real suite or lock.
 
 | it refuses | because |
 |---|---|
@@ -155,14 +194,15 @@ guard stops it. The branch push the sister repo's script used to make was a no-o
    committing it today makes a stale hero look fresh. Silence means "no evidence of
    staleness", not "the hero is current".
 
-   ```bash
-   node scripts/record-demo.mjs --hero assets/demo.webp
-   node scripts/record-demo.mjs --act read           # one act, for a clip
-   ```
-
-   The recorder is headless and captures frame by frame over CDP, so it needs no `record`
-   lock and cannot capture the wrong window (`design/0007`). A **screen** recording does take
-   the `record` lock.
+   `record-demo.mjs` is headed by default; `--headed` is equivalent (`github#111`). Configure
+   `P16_SCREEN_GUARD` to this machine's `screen-busy.ps1`. Before work and again before opening,
+   it calls `-FreeMonitor -Quiet -Json`, places and verifies the window on that exact display,
+   and defers if unavailable. Add `--monitor right` (or the intended monitor name) when the
+   take must use that monitor. A one-screen machine requires permission for the individual
+   take and its duration before `--allow-single-screen` is passed; unattended runs defer.
+   The recorder owns and refreshes the shared `record` lock through encoding and releases it
+   on success, failure and interruption. **Do not wrap it in another record or screen hold**:
+   `record` already excludes the screen names. No headless fallback. See `design/0007`.
 
 6. **Read the whole branch.** Every doc that names a version, every link, the README's install
    block, the feature gallery, the docs site.

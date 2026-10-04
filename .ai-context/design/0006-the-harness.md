@@ -1,5 +1,21 @@
 # 0006 — The harness
 
+## Current local validation contract (#110)
+
+Local browser tests run **headed**, after the machine's screen guard permits the intended
+display, under the existing suite/screen locks. Release and push explicitly pass `--headed`.
+Only complete headed runs qualify for epoch-3 certification, still requiring two consecutive
+greens. `--only`, custom vault/URL/look runs and dirty trees cannot certify a tree. CI runs
+static controls, including the browser-free stamp self-test. The historical #50 headless
+policy below is superseded by this contract.
+
+The live fixture still refreshes weekly. The geometry check uses a temporary generation with
+`--end 2026-09-24` and a fixed exported generation day, shared with the golden updater.
+The original golden geometry was reproduced unchanged in all three looks. The index click
+owns pointer cleanup, and paint sampling rejects a visible preview and cleans up on failure.
+Inputs, failure controls and measured results are in
+[decisions/0020](../decisions/0020-repeatable-headed-validation.md).
+
 ## What the suite drives
 
 The **standalone build**, not the plugin. `src/build-shelf.mjs` inlines the core, the page, the
@@ -63,8 +79,8 @@ passed in either mode and the size is the half the layout depends on.
 shared flag list, `--headless=new` unless `--headed`, and the `findChrome()` that six files
 carried byte for byte. Five harnesses had their own near-identical copy of that list, so wiring
 the mode into each of them would have been five places for the next person to miss one.
-`record-demo.mjs` keeps its own launch (`design/0007` — it is already headless, and a long
-capture run needs flags a check run does not) and takes only `findChrome()` from it.
+`record-demo.mjs` keeps its own launch (`design/0007` — always headed since github#111, and a
+long capture run needs flags a check run does not) and takes only `findChrome()` from it.
 
 **Taking that screen is a claim, not a convention** (`decisions/0012`). `takeLeftScreen(owner)`
 hands back the window arguments *and* the hold, and `leftWindowArgs` / `leftWindowPos` /
@@ -85,11 +101,11 @@ driving a window on it would not have thought to ask for a lock called `record`.
 | `suite` | Chrome, CDP and a contended GPU: two full runs measure each other rather than the code |
 | `screen-left` | the display this repo's harnesses park their windows on — all five of them |
 | `screen-right`, `screen-primary` | the other two displays, claimed by the sister repo's recordings and spike tests |
-| `record` | **legacy**, and transitional: kept only until the sister repo drops its own alias |
+| `record` | the headed recorder's entire job; excludes every `screen-*` hold (github#111) |
 
 A `screen-*` acquire waits on a live `record` and `record` waits on any live screen, so the two
-vocabularies collide during the changeover instead of passing through each other. Nothing in
-this repo takes `record`, and nothing should.
+vocabularies collide instead of passing through each other. The recorder now takes `record`
+alone, with a heartbeat through encoding; it must not nest another screen hold inside it.
 
 ```bash
 node scripts/lock.mjs acquire screen-left --owner "who you are"   # blocks; exit 1 = give up
@@ -204,28 +220,21 @@ node scripts/smoke.mjs --vault ./my-vault    # a specific vault on purpose
 node scripts/smoke.mjs --jobs 1 --headed     # one browser, on screen, watchable
 ```
 
-`--headed` is a debugging aid and it **costs the stamp**: it is part of the run shape, and a run
-whose shape differs from the default writes none (`github#50`, below).
+`--headed` is required for local test runs and certification (`github#110`). Focused runs
+still cannot stamp: `--only` changes coverage regardless of the browser mode.
 
 The full suite runs on the push to `develop` (the pre-push hook). Do not run it by hand unless
 asked — it takes the `suite` lock and minutes of somebody's machine.
 
 ## The run shape, and why a delta writes no stamp
 
-A green full run stamps the tree it measured (`decisions/0010`), and the pre-push hook and
-`release.ps1` then trust that stamp. A stamp names **which tree, against which fixtures, and
-when** — so a flag that changes *what is measured* has to suppress it, or the stamp quietly
-starts lying. Wiring `--headed` made that concrete: without this, a headed run of a
-headless-default tree would stamp it, and both consumers would believe it.
-
-`smoke.mjs` therefore declares the run **shape** and its defaults in one place, and any delta
-sets `partial`, which already suppresses `recordPass()`. That generalises what used to be five
-reasons enumerated by hand (`--only`, `--vault`, `--url`, `--look`, a bad fixture), so the next
-flag that changes the measurement is covered without anyone remembering to extend a list.
-
-**Fail-closed rather than truthful.** A stamp that recorded its own mode would only help if
-every consumer remembered to compare it — today the hook and `release.ps1`, tomorrow whatever
-reads it next. A run with a shape delta writes nothing, so they find no stamp and run the suite.
+A complete headed run can earn a green toward the tree's certificate (`decisions/0010`).
+`suite-stamp.runExclusion()` is shared with its focused self-test: headless mode, `--only`,
+`--vault`, `--url`, `--look`, missing and unstamped fixtures are excluded. Dirty trees remain
+refused by the recorder. An excluded run neither writes a green nor clears an existing streak.
+The pre-push hook and `release.ps1` check the certificate again after smoke returns; exit 0
+from the first green is not a two-green certificate. Epoch 3 distinguishes this instrument
+from the historical headless-default policy. No full run was used to test this change.
 
 What is deliberately **not** shape, because none of it changes what is measured: `--jobs` (the
 quiet run beside a recording is `--jobs 1`, and it is a full suite that must still stamp),

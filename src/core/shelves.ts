@@ -86,9 +86,12 @@ export function keysFor(note: Note, shelf: Shelf): string[] {
     case "week": return [note.date ? isoWeekOf(note.date) : UNDATED];
     case "person": return note.people.length ? note.people.slice() : [UNFILED];
     case "tag": {
-      const tags = shelf.includeSubtags === false
-        ? note.tags.filter((t) => t.indexOf("/") < 0)
+      const own = shelf.parentTagsOnly === true
+        ? Array.from(new Set(note.tags.map((t) => t.split("/")[0])))
         : note.tags;
+      const tags = shelf.includeSubtags === false
+        ? own.filter((t) => t.indexOf("/") < 0)
+        : own;
       return tags.length ? tags.slice() : [UNFILED];
     }
     case "folder": return [note.folder || UNFILED];

@@ -2,7 +2,7 @@
 
 The quiet plus after the last book opens the same creation sheet and adds the new book at the end. It appears on shelves arranged by hand, including Favourites.
 
-![A place for another book](https://raw.githubusercontent.com/luke321/vault-shelf/1.2.0/docs/features/plusbook.webp)
+![A place for another book](https://raw.githubusercontent.com/luke321/vault-shelf/1.3.0/docs/features/plusbook.webp)
 
 ## Storyboard
 
@@ -11,7 +11,7 @@ The quiet plus after the last book opens the same creation sheet and adds the ne
 ## Regenerate the clip
 
 Run from the repository root. The recorder uses the shared generated vault and captures frames
-over CDP in headless Chrome. This act prepares its own starting state.
+over CDP in visibly headed Chrome on a guard-approved monitor under the shared record lock. This act prepares its own starting state.
 
 ```powershell
 node scripts/record-demo.mjs --exact-act --act plusbook --width 1000 --height 1000 --out demo-plusbook.mp4 --hero docs/features/plusbook.webp --hero-acts plusbook --hero-width 1000
@@ -25,8 +25,8 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.2.0 - 2026-09-23` |
-| Review | Approved on 2026-09-13; retained by user instruction after the counter update |
+| Last re-recorded | `1.3.0 - 2026-10-04` |
+| Review | Final-tree re-shoot after the range review: start, middle and end stills inspected; dimensions, frame count and WebP timing read from the file |
 | Duration | 13 seconds |
-| WebP | 74 frames; 287,592 bytes |
+| WebP | 89 animation frames; 531,566 bytes |
 | Frame | 1000 × 1000 |

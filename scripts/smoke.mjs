@@ -1,21 +1,23 @@
 import { attach, json } from "./cdp.mjs";
 // github#50
-import { HEADED, findChrome, harnessChromeArgs } from "./chrome.mjs";
+import { findChrome, harnessChromeArgs } from "./chrome.mjs";
 import { leftmostScreen, leftWindowPos, takeLeftScreen, dropLeftScreen } from "./screen.mjs";
 // github#25, github#37, decisions/0012
 import { acquire, adopt, heldBy, ownerTag } from "./lock.mjs";
 // github#5, decisions/0010
 import { FIXTURE_MAX_AGE_DAYS, FIXTURE_NAMES, describeFixture,
-         record as recordPass, forget as forgetPass, GREENS_REQUIRED } from "./suite-stamp.mjs";
+         record as recordPass, forget as forgetPass, GREENS_REQUIRED, runExclusion } from "./suite-stamp.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync,
          renameSync, mkdirSync, statSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { FIXTURE_ARGS, fixtureDigest, fixtureStore } from "./fixture-store.mjs";
 import { tmpdir } from "node:os";
 import { createServer } from "node:net";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { MEASURE, VIEWPORT, diffLayout } from "./layout-snapshots/measure.mjs";
+import { LAYOUT_ARGS, LAYOUT_GENERATED, buildLayoutFixture, visitLayoutPage } from "./layout-snapshots/fixture.mjs";
+import { serialBatches, waitForPushQuiet, framePeriod, frameStats, frameSteady } from "./smoke-isolation.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
@@ -217,6 +219,14 @@ function gridSlot(i, k) {
 /* Checks that click, scroll or read a laid-out box run alone: a contended browser reports a
  * geometry that has more to do with the other three windows than with the code. */
 const POINTER_DRIVEN = [
+  /* decisions/0021 */
+  "pushing past the end",
+  "push made slowly",
+  "a turn arrives",
+  "push resists",
+  "push quiet boundary",
+  "frame asset readiness",
+  "frame sampling",
   /* A frame-time measurement and a viewport resize are as sensitive to three other Chromes
    * on the same GPU as any box-reading check is, and showed it: the scroll check failed one
    * shape in a full run and passed the same shape alone. */
@@ -242,6 +252,7 @@ const POINTER_DRIVEN = [
   "dragged off",
   /* design/0019 -- it clicks the builder open and reads the form it draws. */
   "second favourites shelf",
+  "checkbox row fits",
   /* github#0 -- it reads boxes: a drop on the lower half of a shelf, and a floor grip. */
   "carried by its floor",
   /* github#34 -- it scrolls the room under a drag and reads where it got to. */
@@ -301,43 +312,95 @@ const holdWear = async (p) => {
 /* github#77, decisions/0017 -- both smoothness checks share this, page side */
 const FRAME_HELPERS = `(function(){
   window.__fr = {
+    /* decisions/0021 */
+    frames: function (ms, tick) {
+      return new Promise(function (resolve, reject) {
+        var start = null, frame, timer, ended = false;
+        function finish(error, result) {
+          if (ended) return;
+          ended = true;
+          clearTimeout(timer); cancelAnimationFrame(frame);
+          if (error) reject(error); else resolve(result);
+        }
+        timer = setTimeout(function () {
+          finish(new Error("frame probe did not start within 3000ms"));
+        }, 3000);
+        function step(now) {
+          if (ended) return;
+          if (start === null) {
+            start = now;
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+              finish(new Error("frame probe stalled after starting"));
+            }, ms + 3000);
+          }
+          try {
+            var result = tick(now, start);
+            if (result) finish(null, result);
+            else frame = requestAnimationFrame(step);
+          } catch (error) { finish(error); }
+        }
+        frame = requestAnimationFrame(step);
+      });
+    },
+    /* decisions/0021 */
+    ready: async function () {
+      var style = getComputedStyle(document.getElementById("vs-app"));
+      var urls = new Set(), images = [], timer;
+      for (var i = 0; i < style.length; i++) {
+        var prop = style[i];
+        if (prop.indexOf("--vs-") !== 0) continue;
+        var value = style.getPropertyValue(prop), match;
+        var pattern = /url\\(\\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\\s*\\)/g;
+        while ((match = pattern.exec(value))) urls.add((match[1] || match[2] || match[3]).trim());
+      }
+      try {
+        await Promise.race([
+          (async function () {
+            await document.fonts.ready;
+            for (var url of urls) {
+              if (url.indexOf("data:image/") !== 0) throw new Error("frame asset is not an inline image");
+              var image = new Image(); image.src = url;
+              await image.decode(); images.push(image);
+            }
+          })(),
+          new Promise(function (_, reject) {
+            timer = setTimeout(function () { reject(new Error("frame assets did not decode within 3000ms")); }, 3000);
+          })
+        ]);
+        window.__fr.assets = images;
+        return images.length;
+      } finally { clearTimeout(timer); }
+    },
     /* A FIXED VELOCITY, turned round at either end, so the pixels crossed per frame never
      * depend on how far the thing being scrolled happens to reach. Covering a whole span in a
      * fixed time does not measure one thing: it made the 1494px room this sees under --only
      * 36% faster than the 1102px one it sees in a full suite. */
     sweep: function (el, ms, pxPerSec) {
-      return new Promise(function (done) {
-        el.scrollTop = 0;
-        var span = Math.max(1, el.scrollHeight - el.clientHeight);
-        var ts = [], start = performance.now();
-        function step(now) {
-          ts.push(now);
-          var gone = (now - start) / 1000 * pxPerSec;
-          var leg = Math.floor(gone / span), into = gone - leg * span;
-          el.scrollTop = (leg % 2) ? span - into : into;
-          if (now - start < ms) requestAnimationFrame(step);
-          else { el.scrollTop = 0; done({ ts: ts, span: Math.round(span) }); }
-        }
-        requestAnimationFrame(step);
+      el.scrollTop = 1;
+      var span = Math.max(1, el.scrollHeight - el.clientHeight);
+      var ts = [];
+      return __fr.frames(ms, function (now, start) {
+        ts.push(now);
+        var gone = (now - start) / 1000 * pxPerSec;
+        var leg = Math.floor(gone / span), into = gone - leg * span;
+        el.scrollTop = (leg % 2) ? span - into : into;
+        if (now - start >= ms) { el.scrollTop = 0; return { ts: ts, span: Math.round(span) }; }
       });
     },
     /* github#20 -- ONE WAY DOWN: a turned-round sweep re-crosses what it rasterised
      * github#20 -- it stops at the FLOOR; a still scroller paints nothing
      * github#20 -- and re-reads the span, which firms up as rows are reached */
     descend: function (el, ms, pxPerSec) {
-      return new Promise(function (done) {
-        el.scrollTop = 0;
-        var span0 = Math.max(1, el.scrollHeight - el.clientHeight);
-        var ts = [], start = performance.now();
-        function step(now) {
-          ts.push(now);
-          var span = Math.max(1, el.scrollHeight - el.clientHeight);
-          var want = (now - start) / 1000 * pxPerSec;
-          el.scrollTop = Math.min(span, want);
-          if (now - start < ms && want < span) requestAnimationFrame(step);
-          else { el.scrollTop = 0; done({ ts: ts, span: Math.round(span0) }); }
-        }
-        requestAnimationFrame(step);
+      el.scrollTop = 1;
+      var span0 = Math.max(1, el.scrollHeight - el.clientHeight);
+      var ts = [];
+      return __fr.frames(ms, function (now, start) {
+        ts.push(now);
+        var span = Math.max(1, el.scrollHeight - el.clientHeight);
+        var want = (now - start) / 1000 * pxPerSec;
+        el.scrollTop = Math.min(span, want);
+        if (now - start >= ms || want >= span) { el.scrollTop = 0; return { ts: ts, span: Math.round(span0) }; }
       });
     },
     /* THIS MACHINE'S VSYNC, which is the one number neither check may read off the measurement
@@ -350,39 +413,17 @@ const FRAME_HELPERS = `(function(){
      * invalidates nothing and the frames stop again. A pixel is a real invalidation and no
      * paint worth the name, so every interval here is one vsync. */
     calibrate: function (el, ms) {
-      return new Promise(function (done) {
-        var was = el.scrollTop, step1 = was > 0 ? -1 : 1;
-        var ts = [], start = performance.now(), n = 0;
-        function step(now) {
-          ts.push(now);
-          el.scrollTop = was + (n++ % 2 ? step1 : 0);
-          if (now - start < ms) requestAnimationFrame(step);
-          else { el.scrollTop = was; done(ts); }
-        }
-        requestAnimationFrame(step);
+      var was = el.scrollTop, step1 = was > 0 ? -1 : 1;
+      el.scrollTop = was + step1;
+      var ts = [], n = 0;
+      return __fr.frames(ms, function (now, start) {
+        ts.push(now);
+        el.scrollTop = was + (n++ % 2 ? step1 : 0);
+        if (now - start >= ms) { el.scrollTop = was; return ts; }
       });
     }
   };
 })(); void 0`;
-
-/* github#77, decisions/0017 -- and node side: missed vsyncs, never a percentile */
-const frameGaps = (ts) => {
-  const iv = [];
-  for (let i = 1; i < ts.length; i++) iv.push(ts[i] - ts[i - 1]);
-  return iv;
-};
-const frameAt = (up, q) => up[Math.min(up.length - 1, Math.floor(up.length * q))];
-const framePeriod = (ts) => frameAt(frameGaps(ts).sort((a, b) => a - b), 0.5);
-const frameStats = (s, vsync) => {
-  const iv = frameGaps(s.ts);
-  const up = iv.slice().sort((a, b) => a - b);
-  const elapsed = s.ts[s.ts.length - 1] - s.ts[0];
-  return { missed: Math.max(0, Math.round(elapsed / vsync) - iv.length), painted: iv.length,
-           p50: frameAt(up, 0.5), p95: frameAt(up, 0.95), worst: up[up.length - 1],
-           span: s.span };
-};
-/* github#77, decisions/0017 -- a period no machine could paint means calibration failed */
-const frameSteady = (vsync) => vsync > 6 && vsync < 26;
 
 /* =========================================================== the invariants ==
  * Every check here prints the number it measured, and every one has a section in
@@ -2769,6 +2810,61 @@ check("a made book is edited, emptied and deleted from its own menu, and the vau
             `Years still ${r.gone.yearsBooks} books; by the menu line: spine ${r.byMenu.spine}; from ` +
             `its sheet: spine ${r.bySheet.spine}, landing back ${r.bySheet.landing}; the vault's ` +
             `${r.notes} notes are byte-identical: ${r.vaultSame}`
+  };
+});
+
+/* design/0020, github#90 -- a plus with no room on the last row gets a row of its own */
+check("a plus that no longer fits its last row starts a row of its own, inside the room",
+      async (p) => {
+  const wasView = await p.j("({width:innerWidth,height:innerHeight})");
+  const was = await p.j(`(function(){
+    var m = __vs.settings().shelves.filter(function (s) { return s.id === "months"; })[0];
+    var out = { direction: m.direction, order: m.order ? m.order.slice() : null };
+    m.direction = "manual";
+    m.order = __vs.views().filter(function (v) { return v.shelf.id === "months"; })[0]
+      .books.map(function (b) { return b.key; });
+    __vs.setFilters({});
+    return out;
+  })()`);
+  const read = () => p.j(`(function(){
+    var rail = document.querySelector('#vs-shelves [data-shelf="months"] .vs-shelfrail');
+    var plus = rail && rail.querySelector(".vs-plusbook");
+    if (!plus) return { plus: false };
+    var track = plus.closest(".vs-track");
+    var tb = track.getBoundingClientRect(), pb = plus.getBoundingClientRect();
+    return { plus: true, alone: track.querySelectorAll(".vs-spine").length === 0,
+             last: track === rail.lastElementChild, inside: pb.right <= tb.right + 0.5,
+             over: Math.round(pb.right - tb.right) };
+  })()`);
+  /** @type {{ w: number, plus: boolean, alone?: boolean, last?: boolean, inside?: boolean, over?: number }[]} */
+  const seen = [];
+  try {
+    for (let w = 1400; w >= 1000; w -= 4) {
+      await viewport(p, w, 1000);
+      const r = await read();
+      seen.push({ w, ...r });
+      if (r.alone) break;
+    }
+  } finally {
+    await p.eval(`(function(){
+      var m = __vs.settings().shelves.filter(function (s) { return s.id === "months"; })[0];
+      var was = ${JSON.stringify(was)};
+      m.direction = was.direction;
+      if (was.order) m.order = was.order; else delete m.order;
+      __vs.setFilters({});
+    })(); void 0`);
+    await unviewport(p, wasView);
+  }
+  const alone = seen.find((s) => s.alone);
+  const bad = seen.filter((s) => !s.plus || !s.last || !s.inside);
+  return {
+    ok: !!alone && bad.length === 0,
+    detail: `${seen.length} widths from 1400px; the plus first stood alone at ` +
+            `${alone ? alone.w + "px" : "no width"}; ` +
+            (bad.length
+              ? `${bad.length} width(s) drew it wrong: ` +
+                bad.slice(0, 4).map((s) => `${s.w}px plus ${s.plus} last ${s.last} over ${s.over}px`).join(", ")
+              : "every width drew it on the last row, inside the room")
   };
 });
 
@@ -5744,6 +5840,23 @@ check("book history seeds notes once and counts additions without stamping a vis
     r.reset.count===r.initial&&r.reset.stamp==='never'&&r.never===r.totals,detail:JSON.stringify(r)};
 });
 
+/* github#99 */
+check("a refresh holds nothing past the nodes it replaced", async (p) => {
+  const r=await p.j(`(function(){
+    var data=__vs.data();
+    try {
+      __vs.closeReader();var closed=__vs.counts().held;
+      var book=__vs.views().filter(function(v){return v.books.length;})[0].books[0];
+      __vs.openBook(book.id,null);var open=__vs.counts().held;
+      for(var i=0;i<5;i++)window.vsHandle.refresh(data);
+      var after=__vs.counts().held,reader=!!__vs.reader();
+      __vs.closeReader();for(var k=0;k<5;k++)window.vsHandle.refresh(data);
+      return {closed:closed,open:open,after:after,reader:reader,reclosed:__vs.counts().held};
+    } finally {__vs.closeReader();}
+  })()`);
+  return {ok:r.reader&&r.after===r.open&&r.reclosed===r.closed&&r.closed<50,detail:JSON.stringify(r)};
+});
+
 /* design/0033 */
 check("last opened defaults to never and persists actual source-book opens", async (p) => {
   const saved=await p.j('JSON.stringify(__vs.settings())');
@@ -5986,22 +6099,80 @@ check("the shelf parts as you type, and no book leaves the room", async (p) => {
 
 /* github#42, design/0008 -- the rung is the share, and a share has bands */
 const RUNGS = `(function(){
-  var out = { 1: null, 2: null, 3: null, 4: null };
+  var out = { 1: null, 2: null, 3: null, 4: null, rows: [] };
   var spines = document.querySelectorAll("#vs-shelves .vs-spine[data-strength]");
+  var byTrack = new Map();
   for (var i = 0; i < spines.length; i++) {
     var k = spines[i].getAttribute("data-strength");
-    if (!out[k]) {
-      var cs = getComputedStyle(spines[i]);
-      out[k] = { air: parseFloat(cs.marginLeft) || 0,
+    var cs = getComputedStyle(spines[i]);
+    /* github#90 -- read on a whole row where there is one */
+    var ration = parseFloat(cs.getPropertyValue("--air-k"));
+    if (!(ration >= 0)) ration = 1;
+    var base = parseFloat(cs.getPropertyValue("--spine-air-match")) || 0;
+    var seen = { air: parseFloat(cs.marginLeft) || 0,
                  /* github#42 -- what the air is ON ITS WAY TO, which does not transition */
-                 want: parseFloat(cs.getPropertyValue("--spine-air-match")) || 0,
-                 lift: parseFloat(cs.getPropertyValue("--spine-lift-match")) || 0,
-                 edge: cs.borderTopColor,
-                 moved: cs.transform };
+                 want: base * ration,
+                 /* github#96 -- the ladder before any row rations it */
+                 base: base,
+                 ration: ration,
+                 /* github#90 */
+                 dim: parseFloat(cs.opacity),
+                 dimWant: k <= 2 ? parseFloat(cs.getPropertyValue("--spine-dim-match-" + k)) : 1 };
+    if (!out[k] || (out[k].ration < 1 && ration === 1)) {
+      out[k] = Object.assign({}, seen, {
+        lift: parseFloat(cs.getPropertyValue("--spine-lift-match")) || 0,
+        edge: cs.borderTopColor,
+        moved: cs.transform });
     }
+    /* github#96, design/0008 -- one ration per row, so a climb is read within one */
+    var track = spines[i].closest(".vs-track");
+    if (!track) continue;
+    var row = byTrack.get(track);
+    if (!row) { row = { ration: ration, rungs: {} }; byTrack.set(track, row); out.rows.push(row); }
+    if (!row.rungs[k]) row.rungs[k] = seen;
   }
   return out;
 })()`;
+
+/* github#90 */
+/** @param {{air:number, want:number, dim:number, dimWant:number}} rung */
+const airArrived = (rung) => Math.abs(rung.air - rung.want) < 0.05 &&
+                             Math.abs(rung.dim - rung.dimWant) < 0.005;
+
+/* github#90 */
+/** @param {{air:number, dim:number}} lo @param {{air:number, dim:number}} hi */
+const louder = (lo, hi) => hi.air > lo.air || hi.dim > lo.dim;
+
+/**
+ * github#96, design/0008 -- the ladder climbs everywhere; the paint climbs within a row
+ * @param {any} r @returns {{flat:string[], rows:number, least:number}}
+ */
+function climbs(r) {
+  const flat = [];
+  const live = [1, 2, 3, 4].filter((k) => r[k]);
+  for (let i = 1; i < live.length; i++) {
+    const lo = r[live[i - 1]], hi = r[live[i]];
+    if (!louder({ air: lo.base, dim: lo.dim }, { air: hi.base, dim: hi.dim })) {
+      flat.push(`ladder ${live[i - 1]}->${live[i]}`);
+    }
+  }
+  let rows = 0, least = 1;
+  r.rows.forEach((/** @type {any} */ row, /** @type {number} */ n) => {
+    least = Math.min(least, row.ration);
+    /* github#96 -- a row with no slack opens no air; lift and edge carry it */
+    if (!(row.ration > 0)) return;
+    const here = [1, 2, 3, 4].filter((k) => row.rungs[k]);
+    if (here.length < 2) return;
+    rows++;
+    for (let i = 1; i < here.length; i++) {
+      if (!louder(row.rungs[here[i - 1]], row.rungs[here[i]])) {
+        flat.push(`air or brightness ${here[i - 1]}->${here[i]} on row ${n} at ` +
+                  `${Math.round(row.ration * 100)}%`);
+      }
+    }
+  });
+  return { flat, rows, least };
+}
 
 /**
  * github#42, decisions/0016 -- a margin transitions; wait for it to arrive
@@ -6012,7 +6183,10 @@ async function restedRungs(p) {
   for (let wait = 0; wait < 40; wait++) {
     last = await p.j(RUNGS);
     const live = [1, 2, 3, 4].filter((k) => last[k]);
-    if (live.length && live.every((k) => last[k].air === last[k].want)) return last;
+    /* github#96 -- every row's air, not only the rung's sample */
+    if (live.length && live.every((k) => airArrived(last[k])) &&
+        last.rows.every((/** @type {any} */ row) =>
+          Object.keys(row.rungs).every((k) => airArrived(row.rungs[k])))) return last;
     /* github#42 -- an empty box carries no rung, so nothing is coming */
     if (!live.length && wait >= 4) return last;
     await sleep(50);
@@ -6077,6 +6251,18 @@ check("a book draws forward by how much of it answers, not merely that it does",
       });
     });
     var hits = document.getElementById("vs-hits").textContent;
+    /* github#90 -- a drag and a departure outrank the dim */
+    var weak = document.querySelector('#vs-shelves .vs-spine[data-strength="1"]');
+    var held = function (attr) {
+      if (!weak) return null;
+      weak.style.transition = "none";
+      weak.setAttribute(attr, "1");
+      var o = parseFloat(getComputedStyle(weak).opacity);
+      weak.removeAttribute(attr);
+      weak.style.transition = "";
+      return o;
+    };
+    var dragged = held("data-dragging"), leaving = held("data-leaving");
     __vs.setQuery("");
     var after = __vs.counts().spines;
     var quiet = document.querySelectorAll("#vs-shelves .vs-spine[data-strength]").length;
@@ -6085,6 +6271,7 @@ check("a book draws forward by how much of it answers, not merely that it does",
                                .getPropertyValue("--spine-lift-max")) || 0;
     return { before: before, after: after, quiet: quiet, needle: needle, lit: lit,
              strengths: m.strengths, strong: m.strong, forward: m.forward, ceiling: ceiling,
+             dragged: dragged, leaving: leaving,
              bands: bands, thinnest: thinnest, fullest: fullest, hits: hits };
   })()`);
   r.rungs = rested;
@@ -6095,24 +6282,30 @@ check("a book draws forward by how much of it answers, not merely that it does",
   /* github#42 -- every book at a rung is inside that rung's band */
   const spilled = live.filter((k) => r.bands[k][0] < FLOOR[k] || r.bands[k][1] >= CEIL[k]);
   /* github#42 -- and the paint climbs with the rung, in both carriers */
-  const flat = [];
+  const climb = climbs(r.rungs);
+  const flat = climb.flat;
   for (let i = 1; i < live.length; i++) {
     const lo = r.rungs[live[i - 1]], hi = r.rungs[live[i]];
     if (!lo || !hi) continue;
     if (!(hi.lift > lo.lift)) flat.push(`lift ${live[i - 1]}->${live[i]}`);
-    if (!(hi.air > lo.air)) flat.push(`air ${live[i - 1]}->${live[i]}`);
   }
+  /* github#90 -- the weak half dims and opens no air */
+  const muddled = live.filter((k) => r.rungs[k] &&
+    (k <= 2 ? r.rungs[k].want !== 0 || !(r.rungs[k].dim < 1) : r.rungs[k].dim !== 1));
+  const heldDim = r.dragged === 0.35 && r.leaving === 0.28;
   const tall = live.filter((k) => r.rungs[k] && r.rungs[k].lift > r.ceiling);
   /* github#42 -- and the air arrived, rather than being mid-transition */
-  const moving = live.filter((k) => r.rungs[k] && r.rungs[k].air !== r.rungs[k].want);
+  const moving = live.filter((k) => r.rungs[k] && !airArrived(r.rungs[k]));
   const ok = r.before === r.after && r.quiet === 0 && live.length >= 3 &&
-             spilled.length === 0 && flat.length === 0 && tall.length === 0 &&
+             spilled.length === 0 && flat.length === 0 && climb.rows > 0 &&
+             tall.length === 0 && muddled.length === 0 && heldDim &&
              moving.length === 0 && live.every((k) => r.rungs[k]) &&
              r.fullest && r.fullest.rung === 4 && r.thinnest && r.thinnest.rung === 1 &&
              r.strong > 0 && r.strong < r.forward && r.forward === r.lit;
   const ladder = live.map((k) => `${k}: ${r.strengths[k]} book(s), ` +
     `${(r.bands[k][0] * 100).toFixed(1)}-${(r.bands[k][1] * 100).toFixed(1)}%, ` +
-    `lift ${r.rungs[k] ? r.rungs[k].lift : "?"}px air ${r.rungs[k] ? r.rungs[k].air : "?"}px`);
+    `lift ${r.rungs[k] ? r.rungs[k].lift : "?"}px air ${r.rungs[k] ? r.rungs[k].air : "?"}px ` +
+    `opacity ${r.rungs[k] ? r.rungs[k].dim : "?"}`);
   return {
     ok,
     detail: `"${r.needle}" lit ${r.lit} of ${r.before} books across ${live.length} rungs -- ` +
@@ -6121,9 +6314,14 @@ check("a book draws forward by how much of it answers, not merely that it does",
             `${r.fullest && r.fullest.rung}) and the thinnest ${r.thinnest && r.thinnest.id} at ` +
             `${r.thinnest && r.thinnest.hit}/${r.thinnest && r.thinnest.of} (rung ` +
             `${r.thinnest && r.thinnest.rung}); it reads "${r.hits}"; clearing the box leaves ` +
-            `${r.quiet} spines carrying a rung` +
+            `${r.quiet} spines carrying a rung; the paint climbs on ${climb.rows} row(s) ` +
+            `holding two rungs, the tightest rationed to ${Math.round(climb.least * 100)}%` +
+            (climb.rows ? "" : " -- NO ROW HOLDS TWO RUNGS") +
             (spilled.length ? ` -- OUT OF BAND: rung ${spilled.join(", ")}` : "") +
+            `; a dimmed spine dragged reads ${r.dragged}, leaving ${r.leaving}` +
             (flat.length ? ` -- NOT CLIMBING: ${flat.join(", ")}` : "") +
+            (muddled.length ? ` -- NOT SPLIT: rung ${muddled.join(", ")}` : "") +
+            (heldDim ? "" : " -- THE DIM OUTRANKS A DRAG") +
             (moving.length ? ` -- STILL MOVING: rung ${moving.map((k) =>
               `${k} at ${r.rungs[k].air}px of ${r.rungs[k].want}px`).join(", ")}` : "") +
             (tall.length ? ` -- PAST THE CEILING: rung ${tall.join(", ")} lifts over ${r.ceiling}px` : "")
@@ -6146,8 +6344,12 @@ check("the air a query opens still fits the room, and a run too long wraps", asy
     var wide = tracks.filter(function (t) {
       return Math.round(t.getBoundingClientRect().width) > measure + 2;
     }).length;
+    var rationed = tracks.filter(function (t) { return t.style.getPropertyValue("--air-k"); });
+    var least = rationed.reduce(function (m, t) {
+      return Math.min(m, parseFloat(t.style.getPropertyValue("--air-k")));
+    }, 1);
     return { measure: measure, tracks: tracks.length, overflow: worst, who: who,
-             rows: rows, wide: wide,
+             rows: rows, wide: wide, rationed: rationed.length, least: least,
              lit: document.querySelectorAll('#vs-shelves .vs-spine[data-match="1"]').length };
   })()`);
 
@@ -6172,24 +6374,27 @@ check("the air a query opens still fits the room, and a run too long wraps", asy
   await p.j(`(__vs.setQuery(""), 1)`);
   const back = await settleAir();
 
-  /* github#90 -- a budget, not a zero; develop measures 493px here */
-  const BUDGET = 352;
+  /* github#90 -- zero, and a pixel for rounding */
+  const BUDGET = 1;
   const grew = Object.keys(live.rows).filter((k) => live.rows[k] > quiet.rows[k]);
   const same = Object.keys(quiet.rows).every((k) => back.rows[k] === quiet.rows[k]);
   const ok = live.overflow <= BUDGET && quiet.overflow <= 1 && back.overflow <= 1 &&
-             live.wide === 0 && back.wide === 0 && same && live.lit > 0;
+             live.wide === 0 && back.wide === 0 && same && live.lit > 0 &&
+             back.rationed === 0;
   return {
     ok,
     detail: `${live.lit} books lit into ${live.measure}px of room: worst overflow ` +
-            `${live.overflow}px of a ${BUDGET}px budget on ${live.who}, against 493px on ` +
-            `develop (quiet ${quiet.overflow}px, back ${back.overflow}px); ${live.wide} ` +
-            `track(s) wider than the room; ` +
+            `${live.overflow}px of a ${BUDGET}px budget on ${live.who}, against 352px before ` +
+            `github#90 (quiet ${quiet.overflow}px, back ${back.overflow}px); ` +
+            `${live.rationed} of ${live.tracks} rows rationed their air, the tightest to ` +
+            `${Math.round(live.least * 100)}%, ${back.rationed} still rationed once cleared; ` +
+            `${live.wide} track(s) wider than the room; ` +
             (grew.length
               ? `${grew.map((k) => `${k} ${quiet.rows[k]}→${live.rows[k]} rows`).join(", ")}`
               : "no shelf needed another row") +
             `; clearing the box puts every row back (${same})` +
             (live.overflow > BUDGET
-              ? ` -- OVER BUDGET: ${live.who} runs ${live.overflow - BUDGET}px past it, and a ` +
+              ? ` -- OVER THE ROOM: ${live.who} runs ${live.overflow}px past it, and a ` +
                 `clipped book is a book that left the room (github#90)`
               : "")
   };
@@ -6263,17 +6468,22 @@ check("the strength survives reduced motion, where the lift does not", async (p)
     await p.send("Emulation.setEmulatedMedia", { features: [] });
   }
   const live = [1, 2, 3, 4].filter((k) => r.rungs[k]);
-  const flat = [];
+  /* github#96 -- the air climbs within a row; the edge is never rationed */
+  const climb = climbs(r.rungs);
+  const flat = climb.flat;
   for (let i = 1; i < live.length; i++) {
-    if (!(r.rungs[live[i]].air > r.rungs[live[i - 1]].air)) flat.push(`air ${live[i - 1]}->${live[i]}`);
     if (r.rungs[live[i]].edge === r.rungs[live[i - 1]].edge) flat.push(`edge ${live[i - 1]}->${live[i]}`);
   }
-  const ok = r.moving === 0 && live.length >= 3 && flat.length === 0 && r.lit > 0;
+  const ok = r.moving === 0 && live.length >= 3 && flat.length === 0 && climb.rows > 0 &&
+             r.lit > 0;
   return {
     ok,
     detail: `with motion reduced, "${r.needle}" lifts ${r.moving} of ${r.lit} lit spines and ` +
-            `still separates ${live.length} rungs -- ` +
-            live.map((k) => `${k}: air ${r.rungs[k].air}px edge ${r.rungs[k].edge}`).join("; ") +
+            `still separates ${live.length} rungs, the paint climbing on ${climb.rows} row(s) ` +
+            `holding two, the tightest rationed to ${Math.round(climb.least * 100)}% -- ` +
+            live.map((k) => `${k}: ladder ${r.rungs[k].base}px air ${r.rungs[k].air}px ` +
+              `opacity ${r.rungs[k].dim} edge ${r.rungs[k].edge}`).join("; ") +
+            (climb.rows ? "" : " -- NO ROW HOLDS TWO RUNGS") +
             (r.moving ? ` -- STILL MOVING: ${r.moving} spine(s) carry a transform` : "") +
             (flat.length ? ` -- NOT SEPARATED: ${flat.join(", ")}` : "")
   };
@@ -7006,6 +7216,7 @@ check("scrolling the library stays smooth in every look", async (p) => {
   /* decisions/0017 -- the throwaway pass gets frames flowing before calibrate */
   idle = await run(`
     __vs.setLook("");
+    await __fr.ready();
     await wait(120);
     await __fr.sweep(lib, 240, 800);
     return await __fr.calibrate(lib, 500);
@@ -7021,12 +7232,15 @@ check("scrolling the library stays smooth in every look", async (p) => {
   for (const one of looks) {
     out[one || "modern"] = await run(`
       __vs.setLook(${JSON.stringify(one)});
+      var assets = await __fr.ready();
       await wait(120);
       /* one discarded pass, so the look's stylesheet has painted before anything is timed */
       await __fr.sweep(lib, 240, 800);
       lib.scrollTop = 0;
       await wait(250);
-      return await __fr.descend(lib, ${LEGMS}, ${DOWN});
+      var measured = await __fr.descend(lib, ${LEGMS}, ${DOWN});
+      measured.assets = assets;
+      return measured;
     `);
   }
 
@@ -7036,6 +7250,7 @@ check("scrolling the library stays smooth in every look", async (p) => {
    * design/0017 -- on leather, the one look the selector offers. */
   slowed = await run(`
     __vs.setLook("leather");
+    await __fr.ready();
     await wait(120);
     var probe = document.createElement("style");
     probe.id = "vs-smoothprobe";
@@ -7107,8 +7322,78 @@ check("scrolling the library stays smooth in every look", async (p) => {
             `${probed.painted + probed.missed}` +
             (blind ? `, inside the budget -- the number has stopped seeing cost` : "") +
             `; vsync calibrated at ${VSYNC.toFixed(1)}ms` +
+            `; decoded inline assets ` + names.map((n) => n + " " + r.looks[n].assets).join(", ") +
             (frameSteady(VSYNC) ? "" : ", which is no frame this machine can paint")
   };
+});
+
+/* decisions/0021 */
+check("frame sampling waits for its first callback and counts later stalls", async (p) => {
+  await p.eval(FRAME_HELPERS);
+  const samples = await p.eval(`(async function(){
+    var original = window.requestAnimationFrame, lib = document.getElementById("vs-library");
+    var was = lib.scrollTop;
+    async function measure(at, delay) {
+      var calls = 0;
+      window.requestAnimationFrame = function (callback) {
+        return original(function (now) {
+          if (++calls === at) setTimeout(function () { original(callback); }, delay);
+          else callback(now);
+        });
+      };
+      return await __fr.descend(lib, 160, 2000);
+    }
+    try { return { first: await measure(1, 350), later: await measure(3, 800) }; }
+    finally { window.requestAnimationFrame = original; lib.scrollTop = was; }
+  })()`);
+  const guards = await p.eval(`(async function(){
+    var original = window.requestAnimationFrame, first = false, later = false;
+    try {
+      window.requestAnimationFrame = function () { return 0; };
+      try { await __fr.frames(80, function () {}); }
+      catch (e) { first = e.message.indexOf("did not start") >= 0; }
+      var calls = 0;
+      window.requestAnimationFrame = function (callback) {
+        return ++calls === 1 ? original(callback) : 0;
+      };
+      try { await __fr.frames(80, function () {}); }
+      catch (e) { later = e.message.indexOf("stalled after starting") >= 0; }
+      return { first: first, later: later };
+    } finally { window.requestAnimationFrame = original; }
+  })()`);
+  const duration = samples.first.ts.at(-1) - samples.first.ts[0];
+  const delayed = frameStats(samples.later, 1000 / 60);
+  return { ok: samples.first.ts.length >= 2 && duration >= 160 && delayed.worst >= 750 && delayed.missed > 30 && guards.first && guards.later,
+    detail: `350ms first-callback delay left ${samples.first.ts.length} samples over ${Math.round(duration)}ms; ` +
+      `later stall counted ${delayed.missed} missed frames, worst ${Math.round(delayed.worst)}ms; ` +
+      `missing first/later callbacks refused (${guards.first}/${guards.later})` };
+});
+
+/* decisions/0021 */
+check("frame asset readiness decodes the look and refuses broken or stuck images", async (p) => {
+  await p.eval(FRAME_HELPERS);
+  const r = await p.eval(`(async function(){
+    var host = document.getElementById("vs-app"), original = Image.prototype.decode;
+    var decoded = await __fr.ready(), broken = false, stuck = false, elapsed = 0;
+    try {
+      host.style.setProperty("--vs-readiness-control", 'url("data:image/svg+xml,broken")');
+      try { await __fr.ready(); } catch (e) { broken = true; }
+      host.style.removeProperty("--vs-readiness-control");
+      Image.prototype.decode = function () { return new Promise(function () {}); };
+      var began = performance.now();
+      try { await __fr.ready(); }
+      catch (e) { stuck = e.message.indexOf("did not decode within 3000ms") >= 0; }
+      elapsed = performance.now() - began;
+      return { decoded: decoded, broken: broken, stuck: stuck, elapsed: elapsed };
+    } finally {
+      host.style.removeProperty("--vs-readiness-control");
+      Image.prototype.decode = original;
+    }
+  })()`);
+  const restored = await p.eval("__fr.ready()");
+  return { ok: r.decoded > 0 && r.broken && r.stuck && r.elapsed >= 3000 && restored === r.decoded,
+    detail: `${r.decoded} inline assets decoded; broken image refused (${r.broken}); ` +
+      `stuck decode refused (${r.stuck}) after ${Math.round(r.elapsed)}ms; restored ${restored} assets` };
 });
 
 /* github#57, github#69, decisions/0016 -- the runner's own guarantee, checked both ways */
@@ -7235,6 +7520,151 @@ check("the reader and the sheets are not painted until they are opened", async (
            detail: painted.length
              ? painted.map((x) => `${x.id} is still painted (hidden=${x.attr}, display=${x.display})`).join("; ")
              : r.map((x) => `${x.id} display:${x.display}`).join(", ") };
+});
+
+/* github#109, design/0036 */
+check("hidden controls win the cascade and reopen in every look and theme", async (p) => {
+  const original = await p.j("({look:__vs.settings().look,theme:document.getElementById('vs-app').getAttribute('data-theme'),list:document.getElementById('vs-app').getAttribute('data-list')})");
+  const rows = [];
+  try {
+    for (const look of ['', 'leather', 'cyber']) for (const theme of ['light', 'dark']) for (const list of [false, true]) {
+      rows.push(await p.j(`(function(){
+    var root = document.getElementById('vs-app');
+    __vs.setLook(${JSON.stringify(look)});
+    __vs.setTheme(${JSON.stringify(theme)});
+    __vs.setListMode(${list});
+    var book = __vs.views().filter(function(v){return !v.shelf.hidden && v.books.length;})[0].books[0];
+    var failures = [], samples = 0, states = 0, cycles = 0;
+    function walk(label) {
+      states++;
+      root.querySelectorAll('[hidden]').forEach(function(el){
+        if (getComputedStyle(el).display !== 'none') failures.push(label + ' paints ' + el.id);
+      });
+      var seen = {};
+      root.querySelectorAll('[id], .vs-railsearch, .vs-railactions, .vs-inner, .vs-spine, .vs-slot').forEach(function(el){
+        if (el.hidden) return;
+        var key = el.id || el.className;
+        if (seen[key]) return;
+        seen[key] = true;
+        var before = getComputedStyle(el).display;
+        el.hidden = true;
+        if (getComputedStyle(el).display !== 'none') failures.push(label + ' cannot hide ' + key);
+        el.hidden = false;
+        if (getComputedStyle(el).display !== before) failures.push(label + ' cannot restore ' + key);
+        samples++;
+      });
+    }
+    function cycle(id, open, close) {
+      for (var n = 0; n < 2; n++) {
+        open();
+        var el = document.getElementById(id);
+        if (el.hidden || !el.getBoundingClientRect().width) failures.push(id + ' did not open');
+        walk(id);
+        close();
+        if (!el.hidden || getComputedStyle(el).display !== 'none' || el.getBoundingClientRect().width) failures.push(id + ' did not close');
+        cycles++;
+      }
+    }
+    walk('library');
+    cycle('vs-reader', function(){__vs.openBook(book.id, null);}, function(){__vs.closeReader();});
+    cycle('vs-builder', function(){document.getElementById('vs-newshelf').click();}, function(){document.getElementById('vs-bcancel').click();});
+    cycle('vs-manage', function(){document.getElementById('vs-manageopen').click();}, function(){document.getElementById('vs-mclose').click();});
+    return {failures:failures, samples:samples, states:states, cycles:cycles};
+  })()`));
+    }
+  } finally {
+    await p.j(`(function(){__vs.closeReader(); __vs.setLook(${JSON.stringify(original.look)}); __vs.setTheme(${JSON.stringify(original.theme || 'dark')}); __vs.setListMode(${original.list === '1'}); return true;})()`);
+    await settled(p);
+  }
+  const r = rows.reduce((sum, row) => ({failures:sum.failures.concat(row.failures),samples:sum.samples+row.samples,states:sum.states+row.states,cycles:sum.cycles+row.cycles}), {failures:[],samples:0,states:0,cycles:0});
+  return { ok: !r.failures.length && r.states === 84 && r.cycles === 72 && r.samples > 500,
+    detail: `${r.samples} hide/restore probes, ${r.states} states, ${r.cycles} open/close cycles; ` +
+            `${r.failures.length} failures: ${r.failures.slice(0, 5).join('; ')}` };
+});
+
+/* github#109, design/0036 */
+check("the search rail keeps its horizontal and wrapped vertical gaps", async (p) => {
+  const original = await p.j('({width:innerWidth,height:innerHeight})');
+  const rows = [];
+  try {
+    for (const width of [1180, 780, 460]) {
+      await viewport(p, width, 900);
+      rows.push(await p.j(`(function(){
+        var rail = document.querySelector('.vs-railsearch');
+        var cs = getComputedStyle(rail);
+        var probe = rail.cloneNode(false);
+        probe.style.cssText = 'position:fixed;left:0;top:0;width:90px;max-width:90px;';
+        for (var n=0;n<3;n++) {
+          var child = document.createElement('span');
+          child.style.cssText = 'flex:0 0 35px;height:20px;';
+          probe.appendChild(child);
+        }
+        document.getElementById('vs-app').appendChild(probe);
+        var a=probe.children[0].getBoundingClientRect(), b=probe.children[1].getBoundingClientRect(), c=probe.children[2].getBoundingClientRect();
+        var result={width:innerWidth,column:cs.columnGap,row:cs.rowGap,x:b.left-a.right,y:c.top-a.bottom};
+        probe.remove();
+        return result;
+      })()`));
+    }
+  } finally {
+    await unviewport(p, original);
+  }
+  return {ok:rows.every(r => r.x === (r.width > 860 ? 10 : 2) && r.y === (r.width > 860 ? 0 : 2)),
+    detail:rows.map(r => `${r.width}px: measured ${r.x}/${r.y}px horizontal/vertical (computed ${r.column}/${r.row})`).join('; ')};
+});
+
+/* github#109, design/0036 */
+check("review CSS preserves monospace intent and wrapped link distinction", async (p) => {
+  const r = await p.j(`(function(){
+    var root = document.getElementById('vs-app');
+    var host = document.createElement('div');
+    host.className = 'vs-prose';
+    host.style.cssText = 'position:fixed;left:30px;top:100px;width:230px;font:18px/1.65 Georgia;z-index:999';
+    var link = document.createElement('a'), dead = document.createElement('span');
+    link.className='vs-link'; link.href='#'; dead.className='vs-deadlink';
+    link.textContent=dead.textContent='a long link with gyp descenders wrapping across several lines to the end';
+    var liveRow=document.createElement('p'), deadRow=document.createElement('p');
+    liveRow.appendChild(link); deadRow.appendChild(dead); host.append(liveRow,deadRow);
+    var code=document.createElement('code'); code.textContent='0123456789 the quick brown fox';
+    code.style.cssText='font-size:32px;white-space:pre'; host.appendChild(code); root.appendChild(host);
+    try {
+      var cs=getComputedStyle(link), ds=getComputedStyle(dead);
+      var result={line:cs.borderBottomStyle,thickness:cs.borderBottomWidth,dead:ds.borderBottomStyle,
+        colour:cs.color!==ds.color,fragments:link.getClientRects().length,
+        deadFragments:dead.getClientRects().length,height:liveRow.getBoundingClientRect().height,
+        x:link.getClientRects()[0].x+5,y:link.getClientRects()[0].y+5};
+      host.style.setProperty('--font-monospace','initial');
+      result.fallback=getComputedStyle(code).fontFamily;
+      result.fallbackWidth=code.getBoundingClientRect().width;
+      code.style.fontFamily='SFMono-Regular, Menlo, monospace';
+      result.explicitWidth=code.getBoundingClientRect().width;
+      code.style.removeProperty('font-family');
+      host.style.setProperty('--font-monospace','Consolas, monospace');
+      result.host=getComputedStyle(code).fontFamily;
+      result.hostWidth=code.getBoundingClientRect().width;
+      code.style.fontFamily='Consolas, monospace';
+      result.hostExpected=code.getBoundingClientRect().width;
+      code.style.removeProperty('font-family');
+      host.id='vs-css-review-probe';
+      return result;
+    } catch(e) {host.remove();throw e;}
+  })()`);
+  let hover, focus;
+  try {
+    await p.send('Input.dispatchMouseEvent', {type:'mouseMoved',x:r.x,y:r.y});
+    hover = await p.j("(function(){var h=document.getElementById('vs-css-review-probe');var a=h.querySelector('a');return {width:getComputedStyle(a).borderBottomWidth,height:h.querySelector('p').getBoundingClientRect().height,fragments:a.getClientRects().length};})()");
+    await p.send('Input.dispatchKeyEvent', {type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+    await p.send('Input.dispatchKeyEvent', {type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+    focus = await p.j("(function(){var a=document.querySelector('#vs-css-review-probe a');a.focus();return {focused:document.activeElement===a,outline:getComputedStyle(a).outlineWidth,visible:a.matches(':focus-visible')};})()");
+  } finally {
+    await p.j("(function(){document.getElementById('vs-css-review-probe').remove(); return true;})()");
+    await p.send('Input.dispatchMouseEvent', {type:'mouseMoved',x:0,y:0});
+  }
+  return {ok:r.line==='solid' && r.thickness==='1px' && r.dead==='dotted' && r.colour && r.fragments>1 && r.deadFragments>1 &&
+    r.fallbackWidth===r.explicitWidth && r.fallback.includes('SFMono-Regular') && r.host.includes('Consolas') && r.hostWidth===r.hostExpected &&
+    hover.width==='2px' && hover.height===r.height && hover.fragments===r.fragments && focus.focused && focus.visible && focus.outline==='2px',
+    detail:`${r.fragments}/${r.deadFragments} live/dead fragments; ${r.line}/${r.dead} borders, hover ${hover.width}, height ${r.height}->${hover.height}px, focus ${JSON.stringify(focus)}; ` +
+      `fallback ${r.fallbackWidth}/${r.explicitWidth}px, host ${r.hostWidth}/${r.hostExpected}px`};
 });
 
 check("a wide table scrolls inside the page and never widens the book", async (p) => {
@@ -8385,6 +8815,7 @@ check("the contents scroll to the current row after a tab, Previous and a ribbon
 
 /* github#46, design/0026 */
 check("clicking a row in the index moves the mark and leaves the index where it stood", async (p) => {
+  try {
   const opened = await p.j(`(function(){
     var biggest = null;
     __vs.views().forEach(function (v) {
@@ -8440,8 +8871,6 @@ check("clicking a row in the index moves the mark and leaves the index where it 
              kept: rows.filter(function (b, k) { return b.__vs46 === k; }).length,
              index: __vs.reader().index };
   })()`);
-  await p.eval("__vs.closeReader(); void 0");
-
   const held = [pressed, released, after.at].every((v) => Math.abs(v - opened.at) <= 1);
   const sameRows = after.rows === opened.rows && after.kept === opened.rows;
   const ok = held && sameRows && after.markedAt === opened.want && after.index === opened.want;
@@ -8452,6 +8881,11 @@ check("clicking a row in the index moves the mark and leaves the index where it 
                    `(held ${held}); the mark moved ${opened.markedAt} -> ${after.markedAt} and ` +
                    `the reader to note ${after.index}; ${after.kept} of ${opened.rows} rows are ` +
                    `the same nodes (rebuilt ${!sameRows})` };
+  } finally {
+    /* github#110 -- park before closing: later scrolling must not hover a book */
+    try { await p.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 }); }
+    finally { await p.eval("__vs.closeReader(); void 0"); }
+  }
 });
 
 check("previous and next walk the book and stop at its ends", async (p) => {
@@ -8623,7 +9057,7 @@ check("pushing past the end of a page turns it, and one hard flick turns one pag
              turn: __vs.overscroll().turn, index: __vs.reader().index, top: page.scrollTop };
   })()`);
   if (!first) return { ok: false, detail: "no book with four notes in this vault" };
-  await sleep(PUSH_QUIET_WAIT);
+  await waitForPushQuiet(p);
 
   const flick = await p.j(`(function(){
     var book = __push.bookOf(6);
@@ -8641,7 +9075,7 @@ check("pushing past the end of a page turns it, and one hard flick turns one pag
     return { notches: seen.length, turns: turns, index: __vs.reader().index,
              spent: __vs.overscroll().spent };
   })()`);
-  await sleep(PUSH_QUIET_WAIT);
+  await waitForPushQuiet(p);
 
   const again = await p.j(`(function(){
     var page = __push.right();
@@ -8757,7 +9191,7 @@ check("a turn arrives at the top going forward and the bottom going back", async
     return { index: __vs.reader().index, top: page.scrollTop,
              span: page.scrollHeight - page.clientHeight };
   })()`);
-  await sleep(PUSH_QUIET_WAIT);
+  await waitForPushQuiet(p);
 
   const forward = await p.j(`(function(){
     var page = __push.right();
@@ -8779,6 +9213,57 @@ check("a turn arrives at the top going forward and the bottom going back", async
             `again turned ${forward.from} -> ${forward.index} and landed at ${forward.top} ` +
             `(the top). A turn is a reading motion, not a teleport`
   };
+});
+
+/* decisions/0021 */
+check("the push quiet boundary waits for the browser and refuses a stuck latch", async (p) => {
+  await p.eval(PUSH_HELPERS);
+  let timedOut = false, stuckRefused = false, ready;
+  try {
+    await p.eval(`(function(){
+      window.__quietOriginalTimer = window.setTimeout;
+      var book = __push.bookOf(4);
+      __vs.openBook(book.id, null);
+      var quiet = __vs.overscroll().quiet;
+      window.setTimeout = function (fn, ms) {
+        var args = [].slice.call(arguments);
+        if (ms === quiet) args[1] = 800;
+        return window.__quietOriginalTimer.apply(window, args);
+      };
+      var page = __push.right();
+      page.scrollTop = page.scrollHeight - page.clientHeight;
+      __push.wheel(page, 100, 3);
+    })(); void 0`);
+    try { await waitForPushQuiet(p, 80); }
+    catch (e) { if (!e.message.includes("push latch did not clear")) throw e; timedOut = true; }
+    const held = await p.j("({spent:__vs.overscroll().spent,index:__vs.reader().index})");
+    ready = await waitForPushQuiet(p);
+    const advanced = await p.j(`(function(){
+      var page = __push.right();
+      page.scrollTop = page.scrollHeight - page.clientHeight;
+      __push.wheel(page, 100, 3);
+      return __vs.reader().index;
+    })()`);
+    await p.eval(`(function(){
+      window.__quietOriginalRead = __vs.overscroll;
+      __vs.overscroll = function () {
+        var state = window.__quietOriginalRead(); state.spent = true; return state;
+      };
+    })(); void 0`);
+    try { await waitForPushQuiet(p, 80); }
+    catch (e) { if (!e.message.includes("push latch did not clear")) throw e; stuckRefused = true; }
+    return { ok: timedOut && held.spent && held.index === 1 && ready.quiet && advanced === 2 && stuckRefused,
+      detail: `delayed timer refused before readiness (${timedOut}, spent ${held.spent}, note ${held.index}); ` +
+        `browser cleared it after ${Math.round(ready.elapsed)}ms of waiting, next push reached ${advanced}; ` +
+        `stuck latch refused (${stuckRefused})` };
+  } finally {
+    await p.eval(`(function(){
+      if (window.__quietOriginalTimer) window.setTimeout = window.__quietOriginalTimer;
+      if (window.__quietOriginalRead) __vs.overscroll = window.__quietOriginalRead;
+      delete window.__quietOriginalTimer; delete window.__quietOriginalRead;
+      __vs.closeReader();
+    })(); void 0`);
+  }
 });
 
 check("every way to another note starts at the top of it", async (p) => {
@@ -8943,6 +9428,7 @@ check("a wheel on the spread stays smooth in every look", async (p) => {
     var out = {}, idle = null;
     for (var i = 0; i < looks.length; i++) {
       __vs.setLook(looks[i]);
+      await __fr.ready();
       /* the LAST note, so every notch paints the band and none of them turns */
       __vs.openBook(book.id, book.notes[book.notes.length - 1].id);
       await new Promise(function (r) { setTimeout(r, 120); });
@@ -8954,15 +9440,11 @@ check("a wheel on the spread stays smooth in every look", async (p) => {
       /* the period, once, and only now that the discarded pass has frames flowing */
       if (!idle) idle = await __fr.calibrate(page, 500);
       var ts = [];
-      var start = performance.now();
-      await new Promise(function (done) {
-        function step(now) {
-          ts.push(now);
-          /* a steady push, the way a trackpad delivers one */
-          __push.wheel(page, 40, 1);
-          if (now - start < 1200) requestAnimationFrame(step); else done();
-        }
-        requestAnimationFrame(step);
+      await __fr.frames(1200, function (now, start) {
+        ts.push(now);
+        /* a steady push, the way a trackpad delivers one */
+        __push.wheel(page, 40, 1);
+        return now - start >= 1200;
       });
       var turned = __vs.reader().index !== book.notes.length - 1;
       /* and the turn on its own, timed once */
@@ -9449,6 +9931,69 @@ check("the builder previews the shelf it would actually save", async (p) => {
                    `${r.propertyStayed}; cancel left ${r.shelves} shelves` };
 });
 
+/* github#98, design/0021 */
+check("the builder's checkbox row fits a narrow sheet, in every look", async (p) => {
+  const was = await p.j("({width:innerWidth,height:innerHeight})");
+  const saved = await p.j(`(function(){
+    var root = document.getElementById("vs-builder").closest(".vault-shelf");
+    return { width: root.style.getPropertyValue("width"),
+             priority: root.style.getPropertyPriority("width"), look: root.getAttribute("data-look") || "" };
+  })()`);
+  const looks = await p.j("window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })");
+  await p.eval('document.getElementById("vs-newshelf").click(); void 0');
+  const at = async (width, look, pane) => {
+    await p.eval(`document.getElementById("vs-builder").closest(".vault-shelf").style.setProperty(
+      "width", ${JSON.stringify(pane ? width + "px" : saved.width)}, ${JSON.stringify(saved.priority)}); void 0`);
+    await viewport(p, pane ? 1180 : width, 900);
+    await p.eval(`__vs.setLook(${JSON.stringify(look)}); void 0`);
+    return p.j(`(function(){
+      var sheet = document.getElementById("vs-builder");
+      var body = sheet.querySelector(".vs-sheetbody");
+      var row = sheet.querySelector(".vs-field.vs-row");
+      return { width: ${width}, look: ${JSON.stringify(look)}, pane: ${pane}, viewport: innerWidth,
+               sheetOver: sheet.scrollWidth - sheet.clientWidth,
+               bodyOver: body.scrollWidth - body.clientWidth,
+               rowOver: row.scrollWidth - row.clientWidth,
+               rowWidth: Math.round(row.getBoundingClientRect().width),
+               rowHeight: Math.round(row.getBoundingClientRect().height),
+               columns: getComputedStyle(row).gridTemplateColumns.split(" ").length };
+    })()`);
+  };
+  const widths = [1180, 700, 660, 620, 480, 400, 360, 320];
+  const rs = [];
+  try {
+    for (const pane of [false, true]) {
+      for (const w of widths) for (const l of looks) rs.push(await at(w, l, pane));
+    }
+  } finally {
+    await p.eval(`document.getElementById("vs-bcancel").click();
+      document.getElementById("vs-builder").closest(".vault-shelf").style.setProperty(
+        "width", ${JSON.stringify(saved.width)}, ${JSON.stringify(saved.priority)});
+      __vs.setLook(${JSON.stringify(saved.look)}); void 0`);
+    await unviewport(p, was);
+  }
+  const overflowing = rs.filter((r) => r.sheetOver > 1 || r.bodyOver > 1 || r.rowOver > 1);
+  /* design/0021 -- same row height in every look, rule 1. */
+  const uneven = [];
+  for (const pane of [false, true]) widths.forEach((w) => {
+    const atW = rs.filter((r) => r.width === w && r.pane === pane);
+    const h0 = atW[0].rowHeight;
+    atW.forEach((r) => { if (Math.abs(r.rowHeight - h0) > 1) uneven.push(r); });
+  });
+  const wrongColumns = rs.filter((r) => r.columns !== (r.width <= 660 ? 1 : 2));
+  const say = (r) => `${r.width}px ${r.pane ? "pane" : "window"}/${r.look || "modern"}: ${r.rowWidth}x${r.rowHeight}` +
+    (r.sheetOver > 1 || r.bodyOver > 1 || r.rowOver > 1
+      ? ` (OVERFLOW +${Math.max(r.sheetOver, r.bodyOver, r.rowOver)})` : "");
+  return {
+    ok: overflowing.length === 0 && uneven.length === 0 && wrongColumns.length === 0,
+    detail: `${looks.length} look(s) x ${widths.length} width(s) x window/pane; ` +
+      (overflowing.length ? `overflow: ${overflowing.map(say).join(", ")}; ` : "no overflow; ") +
+      (uneven.length ? `uneven row height: ${uneven.map(say).join(", ")}` : "row height agrees across looks at every width") +
+      (wrongColumns.length ? `; wrong column count: ${wrongColumns.map(say).join(", ")}` : "; narrow rows use one column, wide rows two") +
+      ` -- e.g. ${rs.filter((r) => r.width === 480 && r.pane).map(say).join(", ")}`
+  };
+});
+
 check("a saved shelf gets a stable id and joins the library", async (p) => {
   const r = await p.j(`(function(){
     var before = __vs.settings().shelves.length;
@@ -9484,6 +10029,39 @@ check("parent tag inclusion is a setting, and it changes the answer", async (p) 
   return { ok: r.withKids >= r.without,
            detail: `#garden collects ${r.withKids} notes with its children, ${r.without} without ` +
                    `-- a difference of ${r.withKids - r.without}` };
+});
+
+check("only parent tags folds a nested tag into its root", async (p) => {
+  const r = await p.j(`(function(){
+    var core = window.VaultShelfCore;
+    var notes = __vs.data().notes;
+    var base = { id: "t", name: "t", source: { kind: "tag", value: "garden" },
+                 classifier: "tag", direction: "alphabetical", hidden: false, position: 0,
+                 plaques: false, includeSubtags: true };
+    var nested = core.buildShelf(base, notes);
+    var folded = core.buildShelf(Object.assign({}, base, { parentTagsOnly: true }), notes);
+    var want = {};
+    nested.books.forEach(function (b) {
+      if (b.key === "garden" || b.key.indexOf("garden/") === 0) {
+        b.notes.forEach(function (n) { want[n.id] = true; });
+      }
+    });
+    var root = folded.books.filter(function (b) { return b.key === "garden"; })[0];
+    var got = {};
+    (root ? root.notes : []).forEach(function (n) { got[n.id] = true; });
+    var same = Object.keys(want).length === Object.keys(got).length &&
+               Object.keys(want).every(function (id) { return got[id]; });
+    return { nestedBooks: nested.books.length, foldedBooks: folded.books.length,
+             slashed: folded.books.filter(function (b) { return b.key.indexOf("/") >= 0; }).length,
+             nestedCount: nested.noteCount, foldedCount: folded.noteCount,
+             want: Object.keys(want).length, same: same,
+             children: nested.books.filter(function (b) { return b.key.indexOf("garden/") === 0; }).length };
+  })()`);
+  return { ok: r.children > 0 && r.slashed === 0 && r.foldedCount === r.nestedCount && r.same &&
+               r.foldedBooks < r.nestedBooks,
+           detail: `#garden: ${r.nestedBooks} books with ${r.children} child tags, ${r.foldedBooks} ` +
+                   `folded (${r.slashed} still nested); ${r.foldedCount}/${r.nestedCount} notes; ` +
+                   `the #garden book holds all ${r.want} of its family: ${r.same}` };
 });
 
 /* The fixtures name PROSE_ONLY in note bodies and never in a people property. If it ever
@@ -9688,6 +10266,14 @@ check("a hovered spine shows one peek, big enough to read, and short labels stan
 
 /* github#51, design/0021 -- pixels: a clipped spine's rect reads whole. */
 check("a lifted spine is painted whole, in every look", async (p) => {
+  const before = await p.j(`({
+    look: document.getElementById("vs-app").getAttribute("data-look") || "",
+    query: __vs.magic().query,
+    library: document.getElementById("vs-library").scrollTop,
+    room: document.getElementById("vs-shelves").scrollTop,
+    x: window.scrollX, y: window.scrollY
+  })`);
+  try {
   /* github#69 -- idempotent: this check can now run twice on one page */
   await p.j(`(function(){
     var old = document.getElementById("vs-probe-51");
@@ -9707,9 +10293,20 @@ check("a lifted spine is painted whole, in every look", async (p) => {
 
   /* github#51 -- the whole width, never one column down the middle. */
   const band = async (x, y, w, rows) => {
+    /* github#110 */
+    const unobscured = async () => {
+      const visible = await p.j(`(function(){
+        var peek = document.getElementById("vs-peek");
+        return !!(peek && peek.getClientRects().length &&
+                  getComputedStyle(peek).visibility !== "hidden");
+      })()`);
+      if (visible) throw new Error("paint precondition: a hover preview is visible over the library");
+    };
+    await unobscured();
     const shot = await p.send("Page.captureScreenshot",
       { format: "png", captureBeyondViewport: false,
         clip: { x, y, width: w, height: rows, scale: 1 } });
+    await unobscured();
     return p.eval(`(async function(){
       var img = new Image();
       img.src = "data:image/png;base64," + ${JSON.stringify(shot.data)};
@@ -9748,6 +10345,11 @@ check("a lifted spine is painted whole, in every look", async (p) => {
     }
     if (!sp) return null;
     sp.setAttribute("data-probe51", "1");
+    /* github#68 -- a band is read off the screen, so the spine has to be on it */
+    var seen = sp.getBoundingClientRect();
+    if (seen.top < 80 || seen.bottom > innerHeight - 20) {
+      sp.scrollIntoView({ block: "center" });
+    }
     var track = sp.closest(".vs-track");
     var r = sp.getBoundingClientRect(), t = track.getBoundingClientRect();
     var cs = getComputedStyle(track);
@@ -9788,7 +10390,6 @@ check("a lifted spine is painted whole, in every look", async (p) => {
   };
 
   const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
-  const was = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
   const OVER = 40;   /* github#51 -- far past any room, so the answer is the clip's */
   const granted = [];
   const matched = [];
@@ -9843,16 +10444,6 @@ check("a lifted spine is painted whole, in every look", async (p) => {
     await sleep(220);
   }
 
-  await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
-  await sleep(140);
-  await p.j(`(function(){
-    [].slice.call(document.querySelectorAll("#vs-app [data-probe51]"))
-      .forEach(function (el) { el.removeAttribute("data-probe51"); });
-    var s = document.getElementById("vs-probe-51");
-    if (s) s.remove();
-    return 1;
-  })()`);
-
   /* github#51 -- not less, which cuts a head; not more, which drifts. */
   const wrongRoom = granted.filter((x) => x.got !== x.declared);
   const notClipping = granted.filter((x) => x.got >= OVER);   /* github#51 -- 40px of lift paints the room, never 40 */
@@ -9890,6 +10481,23 @@ check("a lifted spine is painted whole, in every look", async (p) => {
                   `(rows moved by ${x.moves})`).join(", ")
               : "")
   };
+  } finally {
+    /* github#110 -- a failed precondition must not leave a probe or query behind */
+    await p.eval(`(function(){
+      document.querySelectorAll("#vs-app [data-probe51]")
+        .forEach(function (el) { el.removeAttribute("data-probe51"); });
+      var s = document.getElementById("vs-probe-51");
+      if (s) s.remove();
+      __vs.setQuery(${JSON.stringify(before.query)});
+      __vs.setLook(${JSON.stringify(before.look)});
+    })(); void 0`);
+    await settled(p);
+    await p.eval(`(function(){
+      document.getElementById("vs-library").scrollTop = ${before.library};
+      document.getElementById("vs-shelves").scrollTop = ${before.room};
+      window.scrollTo(${before.x}, ${before.y});
+    })(); void 0`);
+  }
 });
 
 /* github#51, design/0021 -- the arithmetic: the tallest rung PLUS the look's halo. */
@@ -10445,14 +11053,20 @@ check("a spine lifts on hover and holds its size", async (p) => {
 });
 
 /* github#5 -- the packing as a diff, against a golden per fixture */
-check("the shelves are packed the way the golden snapshot says", async (p, ctx) => {
-  const fixture = (ctx.vault || "").split(/[\\/]/).filter(Boolean).pop() || "";
-  const name = fixture.replace(/-[0-9a-f]{8}$/, "");
+check("the shelves are packed the way the golden snapshot says", async (p) => {
+  const name = "vault";
   const file = join(ROOT, "scripts", "layout-snapshots", `${name}.json`);
-  if (!name || !existsSync(file)) {
-    return { ok: true, detail: `no golden for ${name || "this vault"} -- ` +
-                               `node scripts/update-layout-snapshots.mjs writes it` };
+  const golden = JSON.parse(readFileSync(file, "utf8"));
+  if (JSON.stringify(golden.fixtureArgs) !== JSON.stringify(LAYOUT_ARGS) ||
+      golden.fixtureGenerated !== LAYOUT_GENERATED) {
+    return { ok: false, detail: "golden fixture inputs differ from the declared layout inputs" };
   }
+  /* github#110 */
+  const original = await p.eval("location.href");
+  const wasView = await p.j("({width:innerWidth,height:innerHeight})");
+  const fixture = buildLayoutFixture(ROOT);
+  try {
+  await visitLayoutPage(p, fixture.url);
   // github#35
   const emptied = await p.j(`(function(){
     var s = __vs.settings();
@@ -10464,12 +11078,10 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
     return n;
   })()`);
   /* github#57 -- a golden read mid-repack fails a tree where nothing is wrong */
-  const wasView = await p.j("({width:innerWidth,height:innerHeight})");
   await viewport(p, VIEWPORT.width, VIEWPORT.height);
   /* github#14, design/0021 -- in every look against one golden; it holds a book's width. */
   const looks = await p.j(`window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })`);
   const was = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
-  const golden = JSON.parse(readFileSync(file, "utf8"));
   const problems = [];
   let now = null;
   for (const look of looks) {
@@ -10480,7 +11092,6 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
     for (const bad of diffLayout(golden, seen)) problems.push(`${look || "modern"}: ${bad}`);
   }
   await p.j(`(__vs.setLook(${JSON.stringify(was)}), 1)`);
-  await unviewport(p, wasView);
   const rows = now.shelves.reduce((n, s) => n + s.rows, 0);
   const spines = now.shelves.reduce((n, s) => n + s.books, 0);
   const plaques = now.shelves.reduce((n, s) => n + s.plaques.length, 0);
@@ -10494,6 +11105,12 @@ check("the shelves are packed the way the golden snapshot says", async (p, ctx) 
         `${now.room}px room, all where ${name}.json says at ${VIEWPORT.width}px, in all ` +
         `${looks.length} looks`
   };
+  } finally {
+    try {
+      await visitLayoutPage(p, original);
+      await unviewport(p, wasView);
+    } finally { fixture.cleanup(); }
+  }
 });
 
 /* ------------------------------------------------------ which vault, and why
@@ -10527,25 +11144,12 @@ function resolveVaults() {
   if (arg("url", "")) return [{ path: "", label: "the page passed with --url" }];
 
   const out = [];
-  const GENERATORS = ["make-vault.mjs"];
-  const FIXTURE_FORMAT = 1;
-
-  const storeRoot = (() => {
-    const g = spawnSync("git", ["-C", ROOT, "rev-parse", "--git-common-dir"], { encoding: "utf8" });
-    if (g.status === 0 && g.stdout.trim()) {
-      const common = g.stdout.trim();
-      const abs = /^[A-Za-z]:[\\/]|^\//.test(common) ? common : join(ROOT, common);
-      return join(dirname(abs), ".fixtures");
-    }
-    return join(ROOT, ".fixtures");
-  })();
-
+  // github#102 -- one digest, shared with every reader of the store
+  const storeRoot = fixtureStore(ROOT);
   const digestOf = (args) => {
-    const h = createHash("sha256");
-    h.update("format:" + FIXTURE_FORMAT);
-    for (const g of GENERATORS) h.update(readFileSync(join(HERE, g)));
-    h.update(JSON.stringify(args));
-    return h.digest("hex").slice(0, 8);
+    const d = fixtureDigest(ROOT, args);
+    if (!d) throw new Error("cannot read the fixture generator to digest it");
+    return d;
   };
 
   const todayDay = () => new Date().toISOString().slice(0, 10);
@@ -10625,7 +11229,7 @@ function resolveVaults() {
     out.push({ path: dir, label, fixture: desc ? { name, ...desc } : null });
   };
 
-  gen("make-vault.mjs", [], "vault", "the vault (5,000 notes over eleven years)");
+  gen("make-vault.mjs", FIXTURE_ARGS.vault, "vault", "the vault (5,000 notes over eleven years)");
 
   if (!out.length) throw new Error("no vault to check, and none could be generated");
   return out;
@@ -11254,8 +11858,9 @@ async function main() {
     for (const g of shard(mySteady, lanesFor(mySteady.length))) {
       parallel.push({ vault: v, checks: g, tag: v.label, url });
     }
-    if (myShaky.length) {
-      serial.push({ vault: v, checks: myShaky, tag: v.label + " (layout-reading, serial)", url });
+    for (const batch of serialBatches(myShaky)) {
+      serial.push({ vault: v, checks: batch.checks,
+        tag: v.label + (batch.benchmark ? " (frame benchmark, fresh browser)" : " (layout-reading, serial)"), url });
     }
   }
   /* github#39 -- the split is a number on every run */
@@ -11333,22 +11938,7 @@ async function main() {
     }
   }
   // github#5, decisions/0010
-  // github#27
-  const lost = FIXTURE_NAMES.filter((n) => !vaults.some((v) => v.fixture && v.fixture.name === n));
-  /* github#50, decisions/0010 -- the run shape; any delta suppresses the stamp */
-  /* design/0006 -- what is not shape, and why, is recorded there */
-  const SHAPE = {
-    "--only": [ONLY.join(","), ""],
-    "--vault": [argAll("vault").join(","), ""],
-    "--url": [arg("url", ""), ""],
-    "--look": [LOOK || "", ""],
-    "--headed": [HEADED, false],
-  };
-  const shifted = Object.entries(SHAPE)
-    .filter(([, [is, byDefault]]) => is !== byDefault).map(([flag]) => flag);
-  const partial = shifted.length ? shifted.join(" and ")
-                : vaults.some((v) => !v.fixture) ? "an unstamped fixture"
-                : lost.length ? `a run without ${lost.join(" and ")} (the generator failed)` : "";
+  const partial = runExclusion(argv, vaults.map((v) => v.fixture));
   // github#25 -- the stamp is a measurement, so the hold is checked again
   if (suiteLock && !heldBy("suite", suiteLock.owner)) lostLock("somebody else");
   if (!worst && !partial) {

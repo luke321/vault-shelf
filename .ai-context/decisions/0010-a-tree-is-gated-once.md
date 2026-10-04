@@ -1,5 +1,12 @@
 # 0010 — A tree is gated once
 
+**2026-10-03 amendment, #110:** certification now requires a full **headed** run. Epoch is
+**3**; all partial/custom/look/dirty exclusions, seven-day live-fixture freshness, tree identity
+and the two-green streak remain. Release and push pass `--headed --no-lock` and recheck the
+certificate after the suite exits: one green cannot release or push. The focused self-test
+runs in both CI workflows without Chrome. See
+[0020](0020-repeatable-headed-validation.md) for the evidence and fixed-input geometry contract.
+
 **Date** 2026-09-11 · **Status** accepted · **Issue** [#5](https://github.com/luke321/vault-shelf/issues/5) · Ported from the sister repo's `decisions/0013` ([vault-graph#93](https://github.com/luke321/vault-graph/issues/93))
 
 ## Context

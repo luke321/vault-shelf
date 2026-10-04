@@ -22,6 +22,9 @@ const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[
 // github#37 -- a blocked run names the holder and gives up
 const LOCK_TIMEOUT_MS = Number(arg("lock-timeout-ms", "2700000")) || 2700000;
 const CYCLES = Math.max(2, Number(arg("cycles", "20")) || 20);
+// github#99
+const REFRESHES = Math.max(2, Number(arg("refreshes", "20")) || 20);
+const REFRESH_GROWTH = 5;
 const MARKUP = readFileSync(join(ROOT, "src", "page.html"), "utf8");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -142,6 +145,32 @@ try {
   console.log(row("load", load));
   if (load.roots !== 1) problems.push(`the page loaded with ${load.roots} .vault-shelf roots, expected 1`);
 
+  // github#99 -- a leak within one mount
+  await j(`(function(){
+    var shelf = __vs.views().filter(function (v) { return v.books.length; })[0];
+    __vs.openBook(shelf.books[0].id, null);
+    return true;
+  })()`);
+  const refreshAt = [];
+  for (let r = 1; r <= REFRESHES; r++) {
+    const held = await j(`(function(){ window.vsHandle.refresh(window.VAULT_DATA); return __vs.counts().held; })()`);
+    if (r === 1 || r === REFRESHES) refreshAt.push({ ...(await counters()), held });
+  }
+  const [r1, rN] = refreshAt;
+  console.log(row("refresh 1", r1) + `  held ${r1.held}`);
+  console.log(row("refresh " + REFRESHES, rN) + `  held ${rN.held}`);
+  if (rN.held !== r1.held) problems.push(`refresh: mount-lifetime cleanups grew ${r1.held} -> ${rN.held}`);
+  const perRefresh = (a, b) => (b - a) / (REFRESHES - 1);
+  if (perRefresh(r1.nodes, rN.nodes) > REFRESH_GROWTH) {
+    problems.push(`refresh: DOM nodes grew ${r1.nodes} -> ${rN.nodes} ` +
+                  `(${perRefresh(r1.nodes, rN.nodes).toFixed(1)}/refresh, bound ${REFRESH_GROWTH})`);
+  }
+  if (perRefresh(r1.listeners, rN.listeners) > REFRESH_GROWTH) {
+    problems.push(`refresh: JS listeners grew ${r1.listeners} -> ${rN.listeners} ` +
+                  `(${perRefresh(r1.listeners, rN.listeners).toFixed(1)}/refresh, bound ${REFRESH_GROWTH})`);
+  }
+  await j(`(function(){ __vs.closeReader(); return true; })()`);
+
   const after = [];
   for (let c = 1; c <= CYCLES; c++) {
     // github#5 -- a pending resize repack, torn down before it can fire
@@ -209,8 +238,8 @@ try {
 }
 
 if (!problems.length) {
-  console.log(`\nteardown-check: clean -- ${CYCLES} destroy+mount cycles, no listener, node, timer ` +
-              `or root left behind`);
+  console.log(`\nteardown-check: clean -- ${REFRESHES} refreshes held nothing, ${CYCLES} destroy+mount ` +
+              `cycles, no listener, node, timer or root left behind`);
   process.exit(0);
 }
 console.error(`\nteardown-check: ${problems.length} problem(s)`);

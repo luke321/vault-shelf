@@ -12,6 +12,37 @@ The measurements behind each entry are in
 
 ---
 
+## 1.3.0 — "Parent Tags" — 2026-10-04
+
+**Parent Tags. A busy Tags shelf can fold down to its roots, a packed search row never overflows the room it was given, and the library holds steadier under your hand — a refresh no longer leaves the old shelf behind, and a changed setting takes effect as soon as you stop typing it.**
+
+### Fold busy tags into one shelf
+
+![Fold busy tags into one shelf](https://raw.githubusercontent.com/luke321/vault-shelf/1.3.0/docs/features/parenttags.webp)
+
+- A new `Only parent tags` setting on a Tags shelf reads `a/b/c` as `a`, once per note — `#garden/seeds` and `#garden/compost` now fold into one `garden` book instead of standing as separate, thinner ones. It folds and never drops: the note count under the shelf is unchanged.
+- Off by default, and offered in the builder only when a tag makes the book.
+
+If Vault Shelf is useful to you:
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/luke321)
+
+### For the record
+
+- A long search that packed a row before the query existed no longer overflows it: each row now rations the air a match wants to what it actually has left, closing `github#90` (filed against 1.2.0, not fixed there). Worst overflow on the Encyclopedia dropped from 352px to 0px.
+- The builder's checkbox row no longer overflows a narrow Obsidian pane. Its breakpoint now tracks the pane's own width through a CSS container query instead of the browser window's, so a 480px split inside a wider window gets the same one-column layout a genuinely narrow window does (168px overflow in leather → 0px). `github#98`, `github#105`.
+- Refreshing the open library while it stays open no longer leaks the shelves and listeners it replaced. With a book open, 20 refreshes used to grow to 269,058 DOM nodes and 90,387 listeners; every refresh now releases what it replaced and holds steady at the baseline (13,704 nodes, 4,165 listeners) regardless of how many times it runs. `github#99`.
+- Changing a date, people or file-stamp setting now updates what the open library actually shows, instead of waiting for the next refresh, vault event or reopen. A toggle applies at once; a typed field applies 0.8 seconds after the last keystroke, or when the settings tab closes, so a half-typed property name never reshelves the book you have open, and each update is one redraw rather than two. `Show all` now reaches an open library too, where before the library's next save quietly hid those shelves again. `github#100`.
+- Closing a book now unloads the note it was showing, with everything that note's embeds started — an embedded PDF, a canvas, another plugin's live block. Until now the last note stayed loaded, out of sight, until the next book opened or the tab closed. `github#114`.
+- On a shelf you arrange by hand, the plus that ends the shelf moves to a row of its own when the last row has no room left for it, instead of running up to 13px past the edge of the room and being clipped. `design/0020`.
+- Four CSS warning categories reported by the Obsidian community review are removed while preserving library geometry and hidden controls. Code text follows the host's monospace font, and note links keep solid or dotted underlines. The ribbon clipping remains to preserve its shape and click regions. `github#109`.
+- The mirror-vault generator — used to build this page's own screenshots and clips, never shipped to users — refused to protect its source vault from being deleted when the output path was an ancestor of it, or a differently-cased alias of it on Windows. It now resolves both paths and refuses if either contains the other. `github#97`.
+- Repository tooling only, no effect on the shipped plugin: the local installer's `-Enable` no longer corrupts `community-plugins.json` into a bare string on a fresh vault; the shared test-fixture store now picks the fixture matching the current checkout's own generator instead of whichever sibling worktree wrote its stamp last; the demo recorder's full storyboard walkthrough no longer leaves a book open between acts; and the rung-climb invariant check now measures air within a row rather than across the whole shelf. `github#92`, `github#94`, `github#96`, `github#101`, `github#102`.
+- Repository checks now run the local push hook's static gates in CI for pushes and pull requests to `develop` and `main`, and during release builds. Private identifier rules come from an untracked local list or the CI secret instead of the published checker. `github#89`, `github#106`.
+- Release validation runs visibly in Chrome and requires two consecutive complete passes. The tests now clear a leftover pointer that could open a preview over a sampled spine, and compare shelf geometry against fixed synthetic dates while the rest of the suite keeps its fresh fixture. Repository tooling only. `github#110`.
+- Gesture checks wait for Chrome's actual readiness, and scrolling benchmarks start in fresh browsers after the look's images and fonts decode. Frame timing starts at the first callback and counts later stalls; broken readiness or missing callbacks fail. Performance limits remain strict. Repository tooling only. `decisions/0021`.
+- Demo recordings now run visibly on an available monitor, hold shared recording ownership through encoding, and clean up their own browser and temporary files on failure or interruption. Release self-tests use the candidate's version metadata consistently and return a failing process status when an assertion fails. Repository tooling only. `github#111`, `github#112`.
+
 ## 1.2.0 — "Search Update" — 2026-09-23
 
 **Search Update. The search box now offers the words your vault actually has, a book draws forward by how much of it answers rather than merely whether it does, and a tag book flags exactly where its subject is written.**

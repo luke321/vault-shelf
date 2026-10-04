@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, uti
          writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { overlap } from "./path-guard.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
@@ -21,8 +22,11 @@ if (!VAULT || !existsSync(VAULT)) {
   console.error("no vault: pass --vault <path>, or set VAULT_SHELF_VAULT / OBSIDIAN_VAULT");
   process.exit(1);
 }
-if (OUT === VAULT || OUT.startsWith(VAULT + sep)) {
-  console.error("refusing to write inside the source vault");
+const clash = overlap(VAULT, OUT);
+if (clash.how) {
+  const why = { same: "is the source vault", inside: "is inside the source vault",
+                contains: "contains the source vault" }[clash.how];
+  console.error(`refusing to write the mirror: ${OUT} ${why} (${VAULT})`);
   process.exit(1);
 }
 
@@ -319,7 +323,8 @@ const mapTag = (tag) => String(tag).split("/")
   .map((part) => mapped(tagMap, part, newWord)).join("/");
 
 /** A folder keeps its name if it is structural -- numbered, dated, or a common word. */
-const KEEP_FOLDER = /^[_\d\W]|^(inbox|projects|areas|resources|archive|archives|daily|weekly|monthly|yearly|notes|templates|attachments|meetings?)\b/i;
+// design/0013 -- a folder number needs a separator
+const KEEP_FOLDER = /^(\d{1,3}[\s._-]|_)|^(inbox|projects|areas|resources|archive|archives|daily|weekly|monthly|yearly|notes|templates|attachments|meetings?)\b/i;
 const mapFolder = (dir) => {
   if (!dir) return "";
   if (folderMap.has(dir)) return folderMap.get(dir);

@@ -61,6 +61,7 @@
  *   MarkdownRenderer.render over the file's real text, so a note in the reading spread is
  *   the note: wikilinks, embeds, callouts, tasks, code. Absent, the page falls back to its
  *   own small renderer over whatever `body` the producer supplied.
+ * @property {() => void} [releaseNote]  github#114 -- the reader stopped showing a host-rendered note
  */
 
 /* ================================================================== palette ==
@@ -139,6 +140,8 @@ function mountVaultShelf(root, data, options) {
    */
   function on(target, type, fn, capture) {
     target.addEventListener(type, fn, capture);
+    // github#99 -- a page element's listener dies with it
+    if (target instanceof WIN.Element && !target.contains(root)) return;
     onDestroy.push(function () { target.removeEventListener(type, fn, capture); });
   }
 
@@ -420,6 +423,8 @@ function mountVaultShelf(root, data, options) {
       anyVisible = true;
       box.appendChild(renderShelf(view));
     });
+    /* github#90 */
+    rationAir();
 
     var card = $("endcard");
     card.hidden = anyVisible;
@@ -459,8 +464,11 @@ function mountVaultShelf(root, data, options) {
     /* It packs into rows like any other shelf (design/0014): one ribbon can put a book on it
      * from each of six shelves, so it is not as short as it sounds. */
     /* github#48 -- it draws no plates, so it is not charged for any */
-    rowsOf(books, 0, null, false).forEach(function (row) {
+    /** @type {number[]} */
+    var widths = [];
+    rowsOf(books, 0, null, false, widths).forEach(function (row, i) {
       var track = el("div", "vs-track");
+      slackOf(track, widths[i]);
       /* github#48 -- a line is laid out INSIDE a group, so it gets one */
       var group = el("div", "vs-group");
       var line = el("div", "vs-books");
@@ -511,10 +519,14 @@ function mountVaultShelf(root, data, options) {
     /* design/0020 -- a hand-arranged shelf ends in a plus. */
     var makes = view.shelf.direction === "manual";
     var rail = el("div", "vs-shelfrail");
-    var rows = rowsOf(view.books, makes ? SPINE_MIN + SPINE_GAP : 0, view.shelf, true);
+    /** @type {number[]} */
+    var widths = [];
+    var rows = rowsOf(view.books, makes ? SPINE_MIN + SPINE_GAP : 0, view.shelf, true, widths);
     rows.forEach(function (row, i) {
       var last = i === rows.length - 1;
-      rail.appendChild(renderTrack(row, view.shelf, true, makes && last ? plusOf(view.shelf) : null));
+      var track = renderTrack(row, view.shelf, true, makes && last ? plusOf(view.shelf) : null);
+      slackOf(track, widths[i]);
+      rail.appendChild(track);
     });
     if (isPick(view.shelf)) landingOf(rail, view);
     offersBook(rail, view);
@@ -623,9 +635,9 @@ function mountVaultShelf(root, data, options) {
    * `thicknessOf` is arithmetic on the note count -- so the packing needs no layout pass.
    *
    * @param {Book[]} books @param {number} [tail] @param {Shelf|null} [shelf]
-   * @param {boolean} [plaques] @returns {Book[][]}
+   * @param {boolean} [plaques] @param {number[]} [widths] github#90 @returns {Book[][]}
    */
-  function rowsOf(books, tail, shelf, plaques) {
+  function rowsOf(books, tail, shelf, plaques, widths) {
     var avail = room();
     squeezeIndex(shelf, books, avail - (tail || 0));
     /** @type {Book[][]} */
@@ -650,9 +662,16 @@ function mountVaultShelf(root, data, options) {
       label = null;
       plaque = false;
     }
+    /** @param {number} w */
+    function push(w) {
+      rows.push(row);
+      if (widths) widths.push(w);
+      row = [];
+      used = 0;
+    }
     function flush() {
       closeRun();
-      if (row.length) { rows.push(row); row = []; used = 0; }
+      if (row.length) push(used);
       runStart = 0;
     }
 
@@ -677,8 +696,13 @@ function mountVaultShelf(root, data, options) {
     });
     closeRun();
     /* design/0020 -- the plus at the end needs its own room, or its own row. */
-    if (tail && row.length && used + tail > avail) { rows.push(row); row = []; }
-    if (row.length || !rows.length) rows.push(row);
+    /* github#90 -- the plus is charged where it is drawn */
+    if (tail && row.length && used + tail > avail) {
+      push(used);
+      push(tail);
+      return rows;
+    }
+    if (row.length || !rows.length) push(used + (tail || 0));
     return rows;
   }
 
@@ -2464,8 +2488,41 @@ function mountVaultShelf(root, data, options) {
         (totals.strong ? " (" + totals.strong + " strongly)" : "")
       : "";
 
+    rationAir();
+
     /* github#13, design/0026, design/0027 -- an open book follows a CHANGED query */
     if (reader && reader.lit !== needle) renderReader();
+  }
+
+  /** github#90 -- @param {HTMLElement} track @param {number} used */
+  function slackOf(track, used) {
+    track.setAttribute("data-slack", String(Math.max(0, Math.floor(room() - used))));
+  }
+
+  /* github#90, design/0008 -- a row spends only the air its packing left */
+  function rationAir() {
+    var tracks = root.querySelectorAll("#" + ID + "shelves .vs-track[data-slack]");
+    var live = query.trim().length > 0;
+    var cs = live ? WIN.getComputedStyle(root) : null;
+    /** @param {string} name @returns {number} */
+    var token = function (name) {
+      return cs ? parseFloat(cs.getPropertyValue("--spine-air-match" + name)) || 0 : 0;
+    };
+    var ladder = { 1: token("-1"), 2: token("-2"), 3: token("-3"), 4: token("") };
+    for (var i = 0; i < tracks.length; i++) {
+      var track = /** @type {HTMLElement} */ (tracks[i]);
+      var want = 0;
+      if (live) {
+        var lit = track.querySelectorAll(".vs-spine[data-strength]");
+        for (var j = 0; j < lit.length; j++) {
+          want += 2 * (ladder[/** @type {1|2|3|4} */ (Number(lit[j].getAttribute("data-strength")))] || 0);
+        }
+      }
+      var slack = Number(track.getAttribute("data-slack")) || 0;
+      var k = want > slack ? Math.floor((slack / want) * 100) / 100 : 1;
+      if (k < 1) track.style.setProperty("--air-k", String(k));
+      else track.style.removeProperty("--air-k");
+    }
   }
 
   /* ---- what the vault spells ---------------------------------------------
@@ -2676,6 +2733,7 @@ function mountVaultShelf(root, data, options) {
     clearHere();
     hideStickies();
     reader = null;
+    releaseNote();
     pushStop();   // github#40 -- no band outlives the book it was in
     history.length = 0;
     $("reader").hidden = true;
@@ -3441,6 +3499,11 @@ function mountVaultShelf(root, data, options) {
     box.select();
   }
 
+  /* github#114 -- the host's renderer is let go once nothing shows it */
+  function releaseNote() {
+    if (opts.releaseNote) attempt(opts.releaseNote);
+  }
+
   function renderNote() {
     var box = $("note");
     clear(box);
@@ -3455,6 +3518,7 @@ function mountVaultShelf(root, data, options) {
       field("nextnote").disabled = true;
       /* github#19, design/0037 -- no note, so nothing to point into */
       hideStickies();
+      releaseNote();
       return;
     }
     reader.noteId = note.id;
@@ -4302,6 +4366,7 @@ function mountVaultShelf(root, data, options) {
     field("bplaques").checked = !!d.plaques;
     field("bplaques").disabled = !PLAQUABLE[d.classifier];
     field("bsubtags").checked = d.includeSubtags !== false;
+    field("bparenttags").checked = !!d.parentTagsOnly;
     field("bvary").checked = core.variesColors(d);
     var index = node("bindex");
     clear(index);
@@ -4322,6 +4387,7 @@ function mountVaultShelf(root, data, options) {
     ruled.forEach(function (part) { if (part) part.hidden = pick; });
     field("bplaques").disabled = pick || !PLAQUABLE[d.classifier];
     field("bsubtags").disabled = pick || (d.classifier !== "tag" && d.source.kind !== "tag");
+    field("bparenttags").disabled = pick || d.classifier !== "tag";
     $("pickhint").hidden = !pick;
   }
 
@@ -4359,6 +4425,8 @@ function mountVaultShelf(root, data, options) {
     }
     d.plaques = !isPick(d) && !!PLAQUABLE[d.classifier] && field("bplaques").checked;
     d.includeSubtags = field("bsubtags").checked;
+    if (d.classifier === "tag" && field("bparenttags").checked) d.parentTagsOnly = true;
+    else delete d.parentTagsOnly;
     if (!isPick(d)) d.varyColors = field("bvary").checked;
     else delete d.varyColors;
     writeBuilderFields();
@@ -5465,7 +5533,7 @@ function mountVaultShelf(root, data, options) {
     deleteShelf(id);
   });
   ["bname", "bsource", "bsourceval", "bclassifier", "bproperty", "bdirection",
-   "bplaques", "bsubtags", "bvary"].forEach(function (id) {
+   "bplaques", "bsubtags", "bparenttags", "bvary"].forEach(function (id) {
     on($(id), "change", function () { readBuilderFields(); previewBuilder(); });
     on($(id), "input", function () { readBuilderFields(); previewBuilder(); });
   });
@@ -5962,28 +6030,35 @@ function mountVaultShelf(root, data, options) {
         spines: root.querySelectorAll("#" + ID + "shelves .vs-spine").length,
         plaques: root.querySelectorAll("#" + ID + "shelves .vs-plaque").length,
         newshelf: root.querySelectorAll("#" + ID + "library .vs-newshelf").length,
-        readingShelf: root.querySelectorAll('#' + ID + 'shelves [data-shelf="-reading"]').length
+        readingShelf: root.querySelectorAll('#' + ID + 'shelves [data-shelf="-reading"]').length,
+        // github#99 -- what the mount holds until destroy()
+        held: onDestroy.length
       };
     }
   };
   window.__vs = API;
   /* ---- END: debug api ---- */
 
+  /** @param {ShelfData} next */
+  function takeData(next) {
+    data = next;
+    notes = next.notes.slice();
+    folders = next.folders.slice();
+    slotOf = {};
+    readTheme();
+  }
+
   return {
     /** @param {ShelfData} [next] */
     refresh: function (next) {
-      if (next) {
-        data = next;
-        notes = next.notes.slice();
-        folders = next.folders.slice();
-        slotOf = {};
-        readTheme();
-      }
+      if (next) takeData(next);
       refresh();
     },
-    /** @param {unknown} next */
-    setSettings: function (next) {
+    /* github#100 -- settings and the data they shape, in one redraw */
+    /** @param {unknown} next @param {ShelfData} [nextData] */
+    setSettings: function (next, nextData) {
       settings = core.migrate(next);
+      if (nextData) takeData(nextData);
       refresh();
     },
     /** The host says the theme changed; re-read the twelve slots and repaint. */

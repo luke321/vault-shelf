@@ -5,10 +5,10 @@ import { attach } from "./cdp.mjs";
 // github#50 -- the one copy of it
 import { findChrome } from "./chrome.mjs";
 import { currentFixture } from "./fixture-store.mjs";
-import { spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { checkRecordingScreen, RecordingSession } from "./record-session.mjs";
+import { spawnSync } from "node:child_process";
+import { cpSync, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -79,7 +79,7 @@ function mirrorSource() {
   return explicit ? resolve(explicit) : "";
 }
 
-function sourceVault() {
+async function sourceVault(session) {
   const explicit = arg("vault", "");
   if (explicit) return resolve(explicit);
 
@@ -88,15 +88,9 @@ function sourceVault() {
     if (!existsSync(source)) throw new Error("mirror source does not exist: " + source);
     const out = join(ROOT, "mirror-vault");
     say("mirroring a real vault (its shape only) -> " + out);
-    const made = spawnSync(process.execPath,
-      [join(ROOT, "scripts", "make-mirror-vault.mjs"), "--vault", source, "--out", out],
-      { encoding: "utf8" });
+    const made = await session.run(process.execPath,
+      [join(ROOT, "scripts", "make-mirror-vault.mjs"), "--vault", source, "--out", out]);
     process.stdout.write(made.stdout || "");
-    if (made.status !== 0) {
-      // A failed mirror does NOT fall through to the fixture: the reason it failed is the
-      // reason it exists, and a silent downgrade would hide it behind a film that still works.
-      throw new Error("make-mirror-vault failed:\n" + (made.stderr || made.stdout));
-    }
     return out;
   }
 
@@ -196,6 +190,8 @@ function storyboard(P) {
       f.dispatchEvent(new Event("input", { bubbles: true }));
     })(); void 0`);
   };
+  /* github#94 -- a sheet taller than the stage is scrolled, as a hand would */
+  const sheetTo = (id, k) => go(`var sheet=document.getElementById(${JSON.stringify(id)});sheet.scrollTop=(sheet.scrollHeight-sheet.clientHeight)*${easeInOut(Math.max(0, Math.min(1, k)))};void 0`);
 
   /* github#21 -- the thickest book in shot, so only the book moves. */
   const thickest = (shelfId) => j(`(function(){
@@ -231,6 +227,8 @@ function storyboard(P) {
     return { name: spec.name, seconds: spec.seconds, async at(t, first) {
       const sec = t * spec.seconds;
       if (first) {
+        /* github#92 -- every act opens on the shelf, as --exact-act does */
+        await go(`__vs.closeReader(); void 0`);
         await pointer(neutral);
         if (spec.setup) await spec.setup(state);
       }
@@ -302,7 +300,8 @@ function storyboard(P) {
     state.fav=await favId();
     const folder=await dailiesFolder();
     await go(`__vs.makeBook(${JSON.stringify(state.fav)},{name:'My Journal',source:{kind:'folder',value:${JSON.stringify(folder)}}},null); void 0`);
-    await scrollTo(0);
+    /* github#94 -- Reading and a built shelf can stand above Favourites */
+    await settleOn(state.fav);
   };
   const favouriteSetup = async (state) => {
     state.fav=await favId();
@@ -354,7 +353,9 @@ function storyboard(P) {
         for (var i=0;i<spines.length;i++){
           var k=spines[i].getAttribute('data-strength');
           var cs=getComputedStyle(spines[i]);
-          var air=parseFloat(cs.marginLeft)||0, want=parseFloat(cs.getPropertyValue('--spine-air-match'))||0;
+          /* github#90 -- a rationed row settles below the nominal air, not at it */
+          var ration=parseFloat(cs.getPropertyValue('--air-k')); if (!(ration>=0)) ration=1;
+          var air=parseFloat(cs.marginLeft)||0, want=(parseFloat(cs.getPropertyValue('--spine-air-match'))||0)*ration;
           if (Math.abs(air-want)>0.5) rested=false;
           lift[k]=parseFloat(cs.getPropertyValue('--spine-lift-match'))||0;
         }
@@ -675,12 +676,7 @@ function storyboard(P) {
         await prove(`__vs.settings().wear[${JSON.stringify(s.book)}]===1 && __vs.settings().lastOpened[${JSON.stringify(s.book)}]==='never' && __vs.views().find(function(v){return v.shelf.id==='tags';}).books.find(function(b){return b.id===${JSON.stringify(s.book)};}).notes.length===1 && !document.querySelector(${JSON.stringify(bookTarget(s))}).hasAttribute('data-wear')`,'wear: one-note book must begin with one entry and no visits');
         if(s.notes.length!==1)throw new Error('wear: one-note book has unexpected entry history');
         s.from=await j(`document.getElementById('vs-library').scrollTop`);s.to=await shelfTop('tags');
-        /* github#92 -- poll for the wear write, not right after the press. */
-        s.assertCount=async count=>{
-          const expr=`__vs.settings().wear[${JSON.stringify(s.book)}]===${count} && JSON.stringify(__vs.settings().bookNotes[${JSON.stringify(s.book)}])===${JSON.stringify(JSON.stringify(s.notes))} && __vs.settings().lastOpened[${JSON.stringify(s.book)}]!=='never'`;
-          for (let wait=0; wait<20; wait++) { if (await j(expr)) return; await sleep(50); }
-          await prove(expr,'wear: visits must increment the real counter without inventing notes');
-        };
+        s.assertCount=count=>prove(`__vs.settings().wear[${JSON.stringify(s.book)}]===${count} && JSON.stringify(__vs.settings().bookNotes[${JSON.stringify(s.book)}])===${JSON.stringify(JSON.stringify(s.notes))} && __vs.settings().lastOpened[${JSON.stringify(s.book)}]!=='never'`,'wear: visits must increment the real counter without inventing notes');
       },frame:async(sec,s)=>{if(sec>=3.6 && sec<5.4)await scrollTo(lerp(s.from,s.to,easeInOut((sec-3.6)/1.8)));},steps:[
         {at:2,target:'[data-shelf="years"] .vs-spine[data-book="years/2015"]',action:'hover'},
         {at:3.5,start:2.6,target:neutral,action:'hover'},
@@ -692,37 +688,45 @@ function storyboard(P) {
         {at:17,target:bookTarget,action:'hover',run:async s=>{await prove(`document.getElementById('vs-peek').textContent.includes('3 entries and visits')`,'wear: the peek did not show the real entry and visit total');say('wear counter verified: '+s.book+'; 1 entry -> 2 -> 3 through two real opens; note IDs unchanged');}}
       ] }),
     scene({ name: "build", seconds: 17, title: 'Make a shelf <b>around your own ideas</b>.', sub: 'Choose what belongs, then how the books are made.', setup:async()=>{await scrollTo(0);},
-      frame:async(sec)=>{if(sec>=4 && sec<6)await typeInto('vs-bname','Garden notes',sec,4,5.8);if(sec>=8 && sec<10)await go(`var sheet=document.getElementById('vs-builder');sheet.scrollTop=(sheet.scrollHeight-sheet.clientHeight)*${easeInOut((sec-8)/2)};void 0`);},steps:[
+      frame:async(sec)=>{if(sec>=4 && sec<6)await typeInto('vs-bname','Garden notes',sec,4,5.8);if(sec>=8 && sec<10)await sheetTo('vs-builder',(sec-8)/2);},steps:[
         {at:2,target:'#vs-newshelf'},
         {at:3.5,target:'#vs-bname'},
         {at:7,target:'#vs-bclassifier',action:'hover',run:async()=>{await change('vs-bclassifier','tag');}},
         {at:12,target:'#vs-bsave',run:async()=>{await prove(`__vs.settings().shelves.some(function(s){return s.name==='Garden notes';})`,'build: shelf was not saved');}},
         {at:15,target:neutral}
       ] }),
-    scene({ name: "makebook", seconds: 16, title: 'Make a book for <b>what matters</b>.', sub: 'A name and a source, right on Favourites.', setup:async s=>{s.fav=await favId();await scrollTo(0);},
-      frame:async(sec)=>{if(sec>=6 && sec<8)await typeInto('vs-mbname','My Journal',sec,6,7.8);},steps:[
+    scene({ name: "parenttags", seconds: 16, title: 'Fold busy tags into <b>one shelf</b>.', sub: 'Only parent tags turns every child into its root.', setup:async()=>{await settleOn('tags');},
+      frame:async(sec)=>{if(sec>=8.5 && sec<9.4)await sheetTo('vs-builder',(sec-8.5)/0.9);},steps:[
+        {at:2,target:'#vs-manageopen'},
+        {at:4,target:'#vs-managelist .vs-managerow:has([data-go="tags"]) .vs-edit'},
+        {at:7,target:'label:has(#vs-bparenttags)',run:async()=>{await prove(`document.getElementById('vs-bparenttags').checked`,'parenttags: checkbox did not check');}},
+        {at:11,target:'#vs-bsave',run:async()=>{await prove(`__vs.settings().shelves.find(function(s){return s.id==='tags';}).parentTagsOnly===true`,'parenttags: setting was not saved');await settleOn('tags');}},
+        {at:15,target:neutral}
+      ] }),
+    scene({ name: "makebook", seconds: 16, title: 'Make a book for <b>what matters</b>.', sub: 'A name and a source, right on Favourites.', setup:async s=>{s.fav=await favId();await settleOn(s.fav);},
+      frame:async(sec)=>{if(sec>=6 && sec<8)await typeInto('vs-mbname','My Journal',sec,6,7.8);if(sec>=11.1 && sec<11.8)await sheetTo('vs-madebook',(sec-11.1)/0.6);},steps:[
         {at:2,target:s=>centreOf(`[data-shelf="${s.fav}"] .vs-plusbook`,90,0),action:'right'},
         {at:4,target:'#vs-railmenu button'},
         {at:5.5,target:'#vs-mbname'},
         {at:9,target:'#vs-mbsource',action:'hover',run:async()=>{await change('vs-mbsource','folder');}},
         {at:11,target:'#vs-mbsourceval',action:'hover',run:async()=>{await change('vs-mbsourceval',await dailiesFolder());}},
-        {at:13,target:'#vs-mbsave',run:async s=>{await prove(`!!document.querySelector(${JSON.stringify(madeTarget(s))})`,'makebook: saved book missing');}},
+        {at:13,target:'#vs-mbsave',run:async s=>{await prove(`document.getElementById('vs-madebook').hidden`,'makebook: the sheet did not close on Save');await prove(`!!document.querySelector(${JSON.stringify(madeTarget(s))})`,'makebook: saved book missing');}},
         {at:15,target:neutral}
       ] }),
     scene({ name: "editbook", seconds: 16, title: 'Change a book. <b>Keep its place.</b>', sub: 'Rename it or remove the view; the notes stay in the vault.', setup:madeSetup,
-      frame:async(sec)=>{if(sec>=6 && sec<8)await typeInto('vs-mbname','Daily Journal',sec,6,7.8);},steps:[
+      frame:async(sec)=>{if(sec>=6 && sec<7.5)await typeInto('vs-mbname','Daily Journal',sec,6,7.4);if(sec>=7.5 && sec<8.3)await sheetTo('vs-madebook',(sec-7.5)/0.7);},steps:[
         {at:2,target:madeTarget,action:'right'},{at:4,target:'#vs-dye .vs-dyepick'},
-        {at:5.5,target:'#vs-mbname'},{at:9,target:'#vs-mbsave'},
+        {at:5.5,target:'#vs-mbname'},{at:9,start:8.3,target:'#vs-mbsave',run:async()=>{await prove(`document.getElementById('vs-madebook').hidden`,'editbook: the sheet did not close on Save');}},
         {at:11,target:madeTarget,action:'right'},
         {at:13,target:'#vs-dye .vs-dyepick:nth-last-child(1)',run:async s=>{await prove(`!document.querySelector(${JSON.stringify(madeTarget(s))})`,'editbook: delete did not remove made book');}},
         {at:15,target:neutral}
       ] }),
     scene({ name: "plusbook", seconds: 13, title: 'A quiet <b>plus</b>, wherever you arrange by hand.', sub: 'Create a book at the end of a manual shelf.', setup:async s=>{await go(`var y=__vs.settings().shelves.find(function(s){return s.id==='years';});y.direction='manual';y.order=__vs.sequence('years');__vs.setFilters({folders:[]});void 0`);await settleOn('years');s.fav='years';},
-      frame:async(sec)=>{if(sec>=4 && sec<6)await typeInto('vs-mbname','My Journal',sec,4,5.8);},steps:[
+      frame:async(sec)=>{if(sec>=4 && sec<6)await typeInto('vs-mbname','My Journal',sec,4,5.8);if(sec>=9.1 && sec<9.8)await sheetTo('vs-madebook',(sec-9.1)/0.6);},steps:[
         {at:2,target:'[data-shelf="years"] .vs-plusbook'}, {at:3.5,target:'#vs-mbname'},
         {at:7,target:'#vs-mbsource',action:'hover',run:async()=>{await change('vs-mbsource','folder');}},
         {at:9,target:'#vs-mbsourceval',action:'hover',run:async()=>{await change('vs-mbsourceval',await dailiesFolder());}},
-        {at:11,target:'#vs-mbsave',run:async s=>{await prove(`!!document.querySelector(${JSON.stringify(madeTarget(s))})`,'plusbook: made book missing');}}
+        {at:11,target:'#vs-mbsave',run:async s=>{await prove(`document.getElementById('vs-madebook').hidden`,'plusbook: the sheet did not close on Save');await prove(`!!document.querySelector(${JSON.stringify(madeTarget(s))})`,'plusbook: made book missing');}}
       ] }),
     scene({ name: "looks", seconds: 26, title: 'Choose a <b>binding and colour</b>.', sub: 'Preview one book, or give a whole plaque-run its own character.', setup:onShelf(),steps:[
         {at:2,target:bookTarget,action:'right'},
@@ -764,7 +768,7 @@ function storyboard(P) {
         {at:10,target:'[data-shelf="people"] .vs-spine[data-strength="4"]',action:'hover',run:async()=>{await prove(`document.querySelector('[data-shelf="people"] .vs-spine[data-strength="4"]')!==null`,'matchweight: no rung-4 book on the People shelf for the top person');}},
         {at:12.5,target:'#vs-clearquery',run:async()=>{await prove(`document.getElementById('vs-clearquery').hidden && document.querySelectorAll('#vs-shelves .vs-spine[data-strength]').length===0`,'matchweight: clearing the query did not reset the ladder');}}
       ] }),
-    scene({ name: "rearrange", seconds: 11, title: 'Put books <b>in your own order</b>.', sub: 'Drag into the gap. The book keeps its notes.', setup:async s=>{s.fav=await favId();s.before=await j(`__vs.picks()[0].picks.slice()`);s.book=s.fav+'/'+s.before[s.before.length-1];s.shelf=s.fav;await scrollTo(0);},frame:dragFrame(3,7),steps:[
+    scene({ name: "rearrange", seconds: 11, title: 'Put books <b>in your own order</b>.', sub: 'Drag into the gap. The book keeps its notes.', setup:async s=>{s.fav=await favId();s.before=await j(`__vs.picks()[0].picks.slice()`);s.book=s.fav+'/'+s.before[s.before.length-1];s.shelf=s.fav;await settleOn(s.fav);},frame:dragFrame(3,7),steps:[
         {at:3,target:bookTarget,action:'hover',run:async s=>{s.dragFrom=await lift(bookTarget(s));s.dragTo=await centreOf(`[data-shelf="${s.fav}"] .vs-spine`, -18,0);}},
         {at:7,action:'hover',run:async s=>{await drop(s.dragTo);await prove(`__vs.picks()[0].picks[0]===${JSON.stringify(s.before[s.before.length-1])}`,'rearrange: sequence did not change');}},
         {at:9,target:neutral}
@@ -789,8 +793,20 @@ function storyboard(P) {
 
 /* ------------------------------------------------------------------- run -- */
 
-const vault = sourceVault();
-const scratch = mkdtempSync(join(tmpdir(), "vs-record-"));
+const session = new RecordingSession(say);
+try {
+if (argv.some(a => /^--headless(?:=|$)/.test(a))) throw new Error("record-demo is always headed; headless recording is not supported");
+if (process.env.VAULT_LOCKS_HOME) throw new Error("record-demo refuses isolated VAULT_LOCKS_HOME; real recordings require machine-wide ownership");
+if (![FPS, W, H].every(n => Number.isFinite(n) && n > 0) || !Number.isInteger(W) || !Number.isInteger(H)) {
+  throw new Error("--fps, --width and --height must be positive; dimensions must be integers");
+}
+const screenOptions = { monitor: arg("monitor", ""), allowSingleScreen: argv.includes("--allow-single-screen"), width: W, height: H };
+const lockTimeout = Number(arg("lock-timeout-ms", "0"));
+if (!Number.isFinite(lockTimeout) || lockTimeout < 0) throw new Error("--lock-timeout-ms must be nonnegative and finite");
+checkRecordingScreen(screenOptions);
+await session.claim(lockTimeout);
+const vault = await sourceVault(session);
+const scratch = session.workspace();
 const page = join(scratch, "vault-shelf.html");
 const frames = join(scratch, "frames");
 mkdirSync(frames, { recursive: true });
@@ -802,15 +818,15 @@ const named = join(scratch, arg("vault-name", "Everything"));
 cpSync(vault, named, { recursive: true });
 
 say("fixture: " + vault);
-const build = spawnSync(process.execPath,
-                        [join(ROOT, "src", "build-shelf.mjs"), "--vault", named, "--out", page],
-                        { encoding: "utf8" });
-if (build.status !== 0) throw new Error("build-shelf failed:\n" + (build.stderr || build.stdout));
+const build = await session.run(process.execPath,
+                        [join(ROOT, "src", "build-shelf.mjs"), "--vault", named, "--out", page]);
 say((build.stdout || "").trim().split("\n").pop());
 
 const PORT = await freePort();
-const profile = mkdtempSync(join(tmpdir(), "vs-record-chrome-"));
-const chrome = spawn(findChrome(), [
+const profile = session.browserProfile();
+const approved = checkRecordingScreen(screenOptions);
+say(`headed recording: ${approved.monitor} at ${approved.left},${approved.top} ${approved.width}x${approved.height}; viewport ${W}x${H}`);
+const chrome = session.chrome = session.spawn(findChrome(), [
   "--remote-debugging-port=" + PORT, "--user-data-dir=" + profile,
   "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--disable-sync",
   "--disable-component-update", "--no-service-autorun", "--metrics-recording-only",
@@ -820,14 +836,14 @@ const chrome = spawn(findChrome(), [
   "--disable-background-timer-throttling", "--force-device-scale-factor=1",
   /* design/0007 -- a long capture run is not a browsing session. The first full pass died at
    * frame 948 of 1,992 with nothing but "socket closed"; these are the flags that stop a
-   * headless renderer accumulating its way into that on a two-thousand-frame run. */
+   * renderer accumulating its way into that on a two-thousand-frame run. */
   "--disable-gpu", "--disable-dev-shm-usage", "--disable-software-rasterizer",
   "--js-flags=--max-old-space-size=2048",
-  "--headless=new", "--window-size=" + W + "," + H,
-  pathToFileURL(page).href,
-], { stdio: ["ignore", "ignore", "pipe"] });
+  `--window-position=${approved.left},${approved.top}`, `--window-size=${approved.width},${approved.height}`,
+  "--app=" + pathToFileURL(page).href,
+], { stdio: ["ignore", "ignore", "pipe"], windowsHide: false });
 
-/* design/0007 -- a headless browser that dies mid-capture reports "socket closed" and nothing
+/* design/0007 -- a browser that dies mid-capture reports "socket closed" and nothing
  * else, which is a symptom and never a cause. Its stderr is the cause, and it is worth the
  * ring buffer to have it when the run is 2,000 frames long. */
 const chromeSaid = [];
@@ -843,6 +859,7 @@ if (chrome.stderr) {
   });
 }
 chrome.on("exit", (code, sig) => { chromeGone = "exit " + code + (sig ? " " + sig : ""); });
+chrome.on("error", error => { chromeGone = error.message; });
 
 let cdp = null;
 let shot = 0;
@@ -850,9 +867,20 @@ let heroWindow = HERO_CLIP;
 
 try {
   for (let i = 0; i < 60 && !cdp; i++) {
-    try { cdp = await attach(PORT, "vault-shelf"); } catch { await sleep(300); }
+    if (chromeGone) throw new Error("Chrome failed: " + chromeGone);
+    try { cdp = session.cdp = await attach(PORT, "vault-shelf"); } catch { await sleep(300); }
   }
   if (!cdp) throw new Error("could not attach to Chrome");
+
+  const { windowId } = await cdp.send("Browser.getWindowForTarget");
+  const { monitor: _monitor, ...bounds } = approved;
+  await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
+  await cdp.send("Browser.setWindowBounds", { windowId, bounds });
+  const placed = await cdp.send("Browser.getWindowBounds", { windowId });
+  if (Object.entries(bounds).some(([key, value]) => placed.bounds[key] !== value)) {
+    throw new Error("Chrome did not occupy the approved monitor bounds: " + JSON.stringify(placed.bounds));
+  }
+  say("verified headed window: " + JSON.stringify(placed.bounds));
 
   const go = (expr) => cdp.eval(expr);
   const j = async (expr) => JSON.parse(await cdp.eval("JSON.stringify(" + expr + ")"));
@@ -1198,13 +1226,7 @@ try {
   }
   say(`captured ${shot} frames in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
 } finally {
-  try { if (cdp) cdp.close(); } catch { }
-  try { chrome.kill(); } catch { }
-  if (process.platform === "win32" && chrome.pid) {
-    spawnSync("taskkill", ["/F", "/T", "/PID", String(chrome.pid)], { stdio: "ignore" });
-  }
-  await sleep(400);
-  try { rmSync(profile, { recursive: true, force: true }); } catch { }
+  session.closeBrowser();
 }
 
 if (!shot) throw new Error("no frames captured");
@@ -1212,28 +1234,31 @@ if (!shot) throw new Error("no frames captured");
 /* ---------------------------------------------------------------- encode -- */
 
 const ffmpeg = findFfmpeg();
-const run = (args) => {
-  const r = spawnSync(ffmpeg, args, { encoding: "utf8" });
-  if (r.status !== 0) throw new Error("ffmpeg failed:\n" + (r.stderr || "").split("\n").slice(-12).join("\n"));
-};
+const run = args => session.run(ffmpeg, args, { encode: true });
 
-run(["-y", "-loglevel", "error", "-framerate", String(FPS),
+await run(["-y", "-loglevel", "error", "-framerate", String(FPS),
      "-i", join(frames, "f-%05d.jpg"),
      "-c:v", "libx264", "-preset", "slow", "-crf", "20",
      "-pix_fmt", "yuv420p", "-movflags", "+faststart",
-     "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", OUT]);
+     "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", "-threads", "4", OUT]);
 say("wrote " + OUT + " (" + (statSync(OUT).size / 1024 / 1024).toFixed(1) + " MB)");
 
 if (HERO) {
   const hero = resolve(HERO);
   mkdirSync(dirname(hero), { recursive: true });
-  run(["-y", "-loglevel", "error",
+  await run(["-y", "-loglevel", "error",
        "-ss", String(heroWindow[0]), "-t", String(heroWindow[1]), "-i", OUT,
        "-vf", `fps=${HERO_FPS},scale=${HERO_W}:-2:flags=lanczos`,
        "-c:v", "libwebp_anim", "-lossless", "0", "-q:v", String(HERO_Q), "-compression_level", "6",
-       "-loop", "0", "-an", hero]);
+       "-loop", "0", "-an", "-threads", "4", hero]);
   say("wrote " + hero + " (" + (statSync(hero).size / 1024).toFixed(0) + " KB)");
 }
 
+session.keep = KEEP;
 if (KEEP) say("--keep-frames: " + frames);
-else rmSync(scratch, { recursive: true, force: true });
+} catch (error) {
+  console.error("record-demo: " + error.message);
+  process.exitCode = 1;
+} finally {
+  session.cleanup();
+}

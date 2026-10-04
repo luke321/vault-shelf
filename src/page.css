@@ -135,15 +135,14 @@
   --spine-lift-match-3: 10px;
   --spine-lift-match-2: 6px;
   --spine-lift-match-1: 2px;
-  /* github#42, github#90 -- the air the room opens on both sides, which reduced motion does
-   * NOT take. TOP-HEAVY ON PURPOSE: the air is WIDTH, and the packer packed this row before
-   * the query existed, so every pixel of it is pixels the run can run past the room by. Rung 2
-   * holds 149 of the 188 books a name lights, so the total is nearly all rung 2 -- 4px there
-   * buys 24px at rung 4 and still overflows 141px LESS than develop's flat 9. github#90. */
+  /* github#42, github#90 -- the air, strong half only */
   --spine-air-match: 24px;
   --spine-air-match-3: 14px;
-  --spine-air-match-2: 4px;
-  --spine-air-match-1: 2px;
+  --spine-air-match-2: 0px;
+  --spine-air-match-1: 0px;
+  /* github#90 -- the weak half dims */
+  --spine-dim-match-2: 0.72;
+  --spine-dim-match-1: 0.55;
   /* github#51, design/0021 -- AND HOW FAR ITS PAINT SPILLS PAST ITS OWN BOX, which is the
    * look's: a lift is not the only thing that leaves a spine. The room is the two added up,
    * and it is a BARE LENGTH because the property takes no math -- a literal calc() never
@@ -189,6 +188,8 @@
 
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  /* design/0021 -- the pane supplies the builder's breakpoint */
+  container: vs-pane / inline-size;
   height: 100%;
   min-height: 0;
   color: var(--text-1);
@@ -199,14 +200,6 @@
 }
 
 .vault-shelf * { box-sizing: border-box; }
-
-/* HIDDEN MEANS HIDDEN. The reader and both sheets are laid out with `display: flex` on a
- * class, which is specificity 0-2-0 and beats the user agent's `[hidden] { display: none }`
- * at 0-1-0 -- so every one of them painted over the library at all times while the `hidden`
- * ATTRIBUTE said otherwise and every check that read the attribute passed. It took a
- * screenshot to see. `.vault-shelf [hidden]` matches the attribute at 0-2-0 and the
- * !important settles it for anything added later. */
-.vault-shelf [hidden] { display: none !important; }
 
 .vault-shelf .vs-sr {
   position: absolute;
@@ -322,7 +315,7 @@
 
 /* design/0031 */
 .vault-shelf #vs-rail .vs-inner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
-.vault-shelf .vs-railsearch { display: flex; align-items: center; column-gap: 10px; flex-wrap: wrap; min-width: 0; }
+.vault-shelf .vs-railsearch { display: flex; align-items: center; gap: 0 10px; flex-wrap: wrap; min-width: 0; }
 .vault-shelf .vs-railactions { display: flex; justify-content: flex-end; gap: 8px; }
 .vault-shelf #vs-vname { justify-self: center; text-align: center; max-width: 100%; }
 .vault-shelf #vs-rail #vs-q { width: min(232px, 100%); min-width: 0; }
@@ -1042,9 +1035,10 @@
   filter: saturate(0.2);
 }
 
+/* github#90 -- --air-k is the row's ration, set by rationAir() */
 .vault-shelf[data-query="1"] .vs-spine[data-match="1"] {
-  margin-left: var(--spine-air-match);
-  margin-right: var(--spine-air-match);
+  margin-left: calc(var(--spine-air-match) * var(--air-k, 1));
+  margin-right: calc(var(--spine-air-match) * var(--air-k, 1));
   transform: translateY(calc(-1 * var(--spine-lift-match)));
   border-color: var(--accent);
   box-shadow: 0 2px 0 0 var(--accent);
@@ -1075,16 +1069,19 @@
   box-shadow: 0 2px 0 0 color-mix(in srgb, var(--accent) 44%, transparent);
   border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
 }
-/* A whisper: 2 notes of 2,481 is still a match and still says so, at the volume it earned.
- * NOT AN OPACITY STEP. A ghost is 0.16, a dragged spine 0.35, one on its way off 0.28 and an
- * empty book 0.45 -- all four say something else, and all four are outranked by an attribute
- * this specific, so a rung-1 book mid-drag would have stopped looking dragged. The three
- * carriers above do the work; a fourth channel on one rung only would not have been a ladder. */
+/* github#42 -- a whisper */
 .vault-shelf[data-query="1"] .vs-spine[data-strength="1"] {
   --spine-lift-match: var(--spine-lift-match-1);
   --spine-air-match: var(--spine-air-match-1);
   box-shadow: 0 2px 0 0 color-mix(in srgb, var(--accent) 20%, transparent);
   border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+}
+/* github#90, design/0008 -- a drag still outranks the dim */
+.vault-shelf[data-query="1"] .vs-spine[data-strength="2"]:not([data-dragging="1"]):not([data-leaving="1"]) {
+  opacity: var(--spine-dim-match-2);
+}
+.vault-shelf[data-query="1"] .vs-spine[data-strength="1"]:not([data-dragging="1"]):not([data-leaving="1"]) {
+  opacity: var(--spine-dim-match-1);
 }
 
 .vault-shelf[data-query="1"] .vs-spine[data-match="1"] .vs-n { color: var(--accent); font-weight: 600; }
@@ -1444,14 +1441,14 @@
 .vault-shelf .vs-prose h1 { font-size: 20px; margin: 0 0 12px; }
 .vault-shelf .vs-prose h2 { font-size: 16px; margin: 22px 0 8px; }
 .vault-shelf .vs-prose h3 { font-size: 14px; margin: 18px 0 6px; }
-.vault-shelf .vs-prose code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+.vault-shelf .vs-prose code { font-family: var(--font-monospace, SFMono-Regular, Menlo, monospace); font-size: 0.9em; }
 .vault-shelf .vs-prose ul, .vault-shelf .vs-prose ol { padding-left: 20px; }
 .vault-shelf .vs-prose img { max-width: 100%; height: auto; }
 
 /* A wikilink the library can follow, and one it cannot. */
-.vault-shelf .vs-prose .vs-link { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; cursor: pointer; }
-.vault-shelf .vs-prose .vs-link:hover { text-decoration-thickness: 2px; }
-.vault-shelf .vs-prose .vs-deadlink { color: var(--text-3); text-decoration: underline dotted; }
+.vault-shelf .vs-prose .vs-link { color: var(--accent); text-decoration: none; border-bottom: 1px solid currentColor; cursor: pointer; }
+.vault-shelf .vs-prose .vs-link:hover { border-bottom-width: 2px; }
+.vault-shelf .vs-prose .vs-deadlink { color: var(--text-3); text-decoration: none; border-bottom: 1px dotted currentColor; }
 
 /* A table, for the standalone -- inside Obsidian the host's own `markdown-rendered` rules
  * dress it, and the container now carries that class (design/0010). Wide ones scroll rather
@@ -1712,7 +1709,13 @@
   gap: 6px;
 }
 
-.vault-shelf .vs-field.vs-row { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 14px; }
+/* github#68, design/0021 -- two columns: a face's width never adds a line */
+.vault-shelf .vs-field.vs-row {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  align-items: center;
+  gap: 8px 28px;
+}
 /* github#14, design/0016 -- a form label is a control, and page.css sizes a control: left to
  * inherit it took leather's 17px base and wrapped the row. */
 .vault-shelf .vs-field.vs-row label {
@@ -2232,6 +2235,20 @@
   .vault-shelf .vs-managerules { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr); }
 }
 
+/* github#98, design/0021 -- the pane can be narrower than its window */
+@container vs-pane (max-width: 660px) {
+  .vault-shelf .vs-field.vs-row { grid-template-columns: minmax(0, 1fr); }
+  .vault-shelf .vs-field.vs-row label { min-width: 0; }
+  .vault-shelf .vs-field.vs-row label span {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .vault-shelf .vs-field.vs-row select { min-width: 0; max-width: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vault-shelf .vs-shelf { transition: none; }
   .vault-shelf .vs-spine { transition: none; }
@@ -2385,3 +2402,6 @@
   .vault-shelf .vs-bindingchoice .vs-binding-sample { width: 30px; --spine-w: 30px; }
   .vault-shelf .vs-bindingchoice .vs-bindingname { font-size: 10px; }
 }
+
+/* github#109, design/0036 -- 1-2-0, last: hidden beats class AND rail ID display rules. */
+.vault-shelf:is(#vs-app) [hidden] { display: none; }

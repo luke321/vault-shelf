@@ -5,9 +5,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpath
          rmdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { currentFixture } from "./fixture-store.mjs";
+import { FIXTURE_ARGS, currentFixture, fixtureDigest } from "./fixture-store.mjs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { verifyCertificates } from "./suite-certificate.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
@@ -17,7 +18,17 @@ export const FIXTURE_NAMES = ["vault"];
 /* github#55, decisions/0010 -- how many green runs in a row a stamp is worth */
 export const GREENS_REQUIRED = 2;
 /* github#77, decisions/0010 -- which instrument earned the stamp */
-export const STAMP_EPOCH = 2;
+export const STAMP_EPOCH = 4;
+
+/* github#110, decisions/0010 -- shared by smoke and the eligibility self-test */
+export function runExclusion(argv, fixtures) {
+  const shifted = ["--only", "--vault", "--url", "--look"].filter((flag) => argv.includes(flag));
+  if (!argv.includes("--headed")) shifted.push("headless mode");
+  if (shifted.length) return shifted.join(" and ");
+  if (fixtures.some((f) => !f)) return "an unstamped fixture";
+  const lost = FIXTURE_NAMES.filter((name) => !fixtures.some((f) => f.name === name));
+  return lost.length ? `a run without ${lost.join(" and ")} (the generator failed)` : "";
+}
 
 function git(args, cwd) {
   const r = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" });
@@ -208,6 +219,35 @@ function selftest() {
     if (!cond) fails.push(label);
   };
   try {
+    const fixtures = FIXTURE_NAMES.map((name) => ({ name }));
+    expect("a full headed run is eligible", runExclusion(["--headed"], fixtures) === "");
+    expect("a headless run is ineligible", /headless/.test(runExclusion([], fixtures)));
+    expect("execution and reporting flags do not narrow a headed run",
+           runExclusion(["--headed", "--jobs", "1", "--no-lock", "--port", "9222",
+                         "--chrome", "chrome", "--shot", "shot.png", "--timings", "times.json",
+                         "--lock-timeout-ms", "1000"], fixtures) === "");
+    for (const flag of ["--only", "--vault", "--url", "--look"]) {
+      expect(`${flag} excludes a headed run`, runExclusion(["--headed", flag, "value"], fixtures).includes(flag));
+      expect(`even an empty ${flag} excludes a headed run`, runExclusion(["--headed", flag], fixtures).includes(flag));
+    }
+    expect("a missing generated fixture excludes a headed run",
+           /without vault/.test(runExclusion(["--headed"], [])));
+    expect("an unstamped fixture excludes a headed run",
+           /unstamped/.test(runExclusion(["--headed"], [null])));
+    const passLine = "suite-stamp: tree abcdef0 passed the invariant suite 2 times in a row";
+    for (const [name, status, stdout, ok] of [
+      ["two-green certificate", 0, passLine, true],
+      ["one-green refusal", 1, "tree abcdef0 has 1 green run(s) of the 2", false],
+      ["silent zero exit", 0, "", false],
+      ["noncertificate zero exit", 0, "still running", false],
+      ["pass wording with failure exit", 1, passLine, false],
+    ]) {
+      expect(`consumers enforce ${name}`,
+             verifyCertificates(["HEAD"], () => ({ status, stdout })).ok === ok);
+    }
+    expect("consumers refuse an empty tree list", !verifyCertificates([]).ok);
+    expect("a push needs every named tree certified", !verifyCertificates(["a", "b"],
+      rev => ({ status: rev === "a" ? 0 : 1, stdout: rev === "a" ? passLine : "no stamp" })).ok);
     mkdirSync(repo);
     sh(["init", "-q", "-b", "main"]);
     sh(["config", "user.email", "selftest@example.invalid"]);
@@ -215,6 +255,11 @@ function selftest() {
     writeFileSync(join(repo, "a.txt"), "a\n");
     sh(["add", "a.txt"]);
     sh(["commit", "-q", "-m", "one"]);
+    /* github#102 -- the current fixture is the one this checkout's generator digests to */
+    const gen = join(repo, "scripts", "make-vault.mjs");
+    mkdirSync(dirname(gen), { recursive: true });
+    writeFileSync(gen, "// selftest generator\n");
+    const ours = fixtureDigest(repo, FIXTURE_ARGS.vault);
 
     const store = fixtureStore(repo);
     const today = todayDay();
@@ -227,7 +272,7 @@ function selftest() {
       writeFileSync(join(dir, ".stamp.json"),
                     JSON.stringify({ digest, day, args: pinned ? ["--end", "2026-08-28"] : [] }));
     };
-    seed("vault", "aaaaaaaa", today, false);
+    seed("vault", ours, today, false);
 
     const green = () => record({ fixtures: currentFixtures(repo), checks: 1, cwd: repo });
 
@@ -286,26 +331,39 @@ function selftest() {
     expect("a run naming no fixture refuses to record",
            !none.wrote && /vault did not run/.test(none.why));
 
-    seed("vault", "aaaaaaaa", "2026-01-01", false);
+    seed("vault", ours, "2026-01-01", false);
     const moved = lookup("HEAD~1", repo);
     expect("a regenerated fixture misses", !moved.ok && /not the one that passed/.test(moved.why));
-    seed("vault", "aaaaaaaa", today, false);
+    seed("vault", ours, today, false);
     expect("restoring the fixture hits again", lookup("HEAD~1", repo).ok);
+
+    /* github#102 -- a sibling's newer build is not this checkout's */
+    const foreign = join(store, "vault-ffffffff");
+    mkdirSync(foreign, { recursive: true });
+    writeFileSync(join(foreign, ".stamp.json"),
+                  JSON.stringify({ digest: "ffffffff", day: today, args: [] }));
+    expect("a newer foreign fixture is not the current one",
+           currentFixture(repo, "vault") === join(store, `vault-${ours}`));
+    expect("...and the stamp still hits", lookup("HEAD~1", repo).ok);
+    rmSync(foreign, { recursive: true, force: true });
+    writeFileSync(gen, "// selftest generator, edited\n");
+    expect("an edited generator has no current fixture", currentFixture(repo, "vault") === "");
+    writeFileSync(gen, "// selftest generator\n");
 
     /* github#55 -- driven on the changed tree, so the stamps above stand */
     green(); green();
     expect("the changed tree hits once it has two", lookup("HEAD", repo).ok);
-    seed("vault", "bbbbbbbb", today, false);
+    seed("vault", ours, new Date(Date.now() - 86400000).toISOString().slice(0, 10), false);
     expect("a run against a regenerated fixture starts the count again", green().greens === 1);
-    seed("vault", "aaaaaaaa", today, false);
+    seed("vault", ours, today, false);
 
     const old = new Date(Date.now() - 8 * 86400000).toISOString().slice(0, 10);
-    seed("vault", "aaaaaaaa", old, false);
+    seed("vault", ours, old, false);
     sh(["checkout", "-q", "HEAD~1"]);
     green(); green();
     const aged = lookup("HEAD", repo);
     expect("an aged unpinned fixture misses", !aged.ok && /would regenerate/.test(aged.why));
-    seed("vault", "aaaaaaaa", "2026-08-28", true);
+    seed("vault", ours, "2026-08-28", true);
     green(); green();
     expect("a pinned fixture never ages", lookup("HEAD", repo).ok);
 

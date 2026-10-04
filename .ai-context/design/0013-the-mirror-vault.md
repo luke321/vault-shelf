@@ -47,6 +47,11 @@ or one of a short list of names every PARA-ish vault shares (`Inbox`, `Archive`,
 Notes`). Those carry no information about the person and their absence would make the mirror
 stop looking like a vault. A folder called after a client does not survive.
 
+A leading digit alone does not make a folder structural: a name such as `3D Workshop`
+must still be replaced. The numeric prefix is one to three digits followed by whitespace,
+a dot, an underscore or a hyphen, as in `01 - Projects`. Date-shaped names are checked
+separately. An underscore prefix and the generic folder vocabulary keep their existing rules.
+
 ## One mapping per real name, and that is the whole design
 
 The obvious implementation — replace each name with a fresh random one at each occurrence — is
@@ -82,7 +87,10 @@ If it fires, fix the mapping. Do not relax the check.
 
 `mirror-vault/` at the repo root, `.gitignore`d, wiped and rewritten on each run. It is a
 build artefact, and the thing it was built from is on the user's disk, not in this repository.
-The script refuses to write inside the source vault.
+The script refuses an output that is the source vault, sits inside it, or contains it, judged
+after resolving case, junctions and symlinks (`scripts/path-guard.mjs`, `github#97`). Until
+then it compared the two spellings as strings, so the vault's parent, or the vault in other
+capitals on Windows, passed the guard and the wipe deleted the source.
 
 ## A property key is a name too
 
