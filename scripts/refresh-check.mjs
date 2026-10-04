@@ -17,6 +17,7 @@ import { takeLeftScreen } from "./screen.mjs";
 import { ownerTag } from "./lock.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const MARKUP = readFileSync(join(HERE, "..", "src", "page.html"), "utf8");
 const ROOT = resolve(HERE, "..");
 const argv = process.argv.slice(2);
 const arg = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
@@ -78,7 +79,7 @@ function stubObsidian() {
     addText() { return this; } addToggle() { return this; }
   }
   class TFile { }
-  class Component { }
+  class Component { registerDomEvent() { } }
   return {
     Events, Plugin, ItemView, PluginSettingTab, Setting, TFile, Component,
     addIcon() { }, Notice: class { }, MarkdownRenderer: { render() { return Promise.resolve(); } },
@@ -209,6 +210,29 @@ async function wiringHalf() {
     plugin.adoptViews();
     check(adoptCalls.length === 1, "a toggle redraws at once", `${adoptCalls.length} redraw(s)`);
     app.workspace.getLeavesOfType = () => [];
+
+    // github#114 -- a released note's owner is unloaded
+    const loaded = new Set();
+    view.addChild = (c) => { loaded.add(c); return c; };
+    view.removeChild = (c) => { loaded.delete(c); return c; };
+    const file = new stub.TFile();
+    vault.getAbstractFileByPath = () => file;
+    vault.cachedRead = () => Promise.resolve("body");
+    const into = { addClass() { }, createEl() { } };
+    await view.renderNote(into, { path: "a.md" });
+    await view.renderNote(into, { path: "b.md" });
+    const shown = loaded.size;
+    view.releaseNote();
+    check(shown === 1 && loaded.size === 0 && view.noteComponent === null,
+          "one note holds one renderer, and releasing it unloads it",
+          `${shown} loaded while shown, ${loaded.size} after release`);
+    const slow = view.renderNote(into, { path: "c.md" });
+    view.releaseNote();
+    await slow;
+    check(loaded.size === 0, "a release during a slow read leaves nothing loaded",
+          `${loaded.size} loaded`);
+    check(/releaseNote:\s*\(\)\s*=>\s*this\.releaseNote\(\)/.test(src),
+          "the view hands the page its release", "releaseNote in the mount options");
   } catch (e) {
     check(false, "the plugin's refresh wiring runs headless", e.message);
   } finally {
@@ -335,6 +359,37 @@ async function pageHalf() {
           `${removed.counts.notes} notes, ${removed.inBook} in the book, ${removed.contents} entries`);
     check(!!removed.reader && removed.reader.note === before.reader.note,
           "and the place is still where it was", removed.reader ? removed.reader.note : "the reader closed");
+
+    // github#114 -- the page tells its host when nothing shows the rendered note
+    const released = await p.eval(`(async function(){
+      window.vsHandle.destroy();
+      var old = document.getElementById("vs-app");
+      if (old) old.remove();
+      var t = document.createElement("template");
+      t.innerHTML = ${JSON.stringify(MARKUP)};
+      var fresh = t.content.firstElementChild;
+      document.body.insertBefore(fresh, document.body.firstChild);
+      var calls = [];
+      window.vsHandle = mountVaultShelf(fresh, window.VAULT_DATA, {
+        core: window.VaultShelfCore, settings: null, onSettings: function () { },
+        renderNote: function (into, note) { calls.push("render"); into.textContent = note.title; },
+        releaseNote: function () { calls.push("release"); }
+      });
+      for (var i = 0; i < 100 && !(window.__vs && __vs.counts().spines > 0); i++) {
+        await new Promise(function (r) { setTimeout(r, 100); });
+      }
+      var book = __vs.views().filter(function (v) { return v.books.length; })[0].books[0];
+      __vs.openBook(book.id, book.notes[0].id);
+      var open = calls.slice();
+      __vs.closeReader();
+      return JSON.stringify({ open: open, all: calls });
+    })()`).then((s) => JSON.parse(String(s)));
+    const opened = released.open;
+    const after = released.all.slice(opened.length);
+    check(opened.includes("render") && !opened.includes("release") &&
+          after.length === 1 && after[0] === "release",
+          "closing the reader releases the host's renderer, once",
+          `open: [${opened.join(", ")}], on close: [${after.join(", ")}]`);
 
     const errors = p.errors;
     check(errors.length === 0, "the page said nothing on the console through all of it",
