@@ -1,5 +1,59 @@
 # Changelog detail
 
+## 2026-10-04 — Closing the reader releases the host's renderer (`github#114`)
+
+Before: the plugin unloaded a note's renderer `Component` only when the next note rendered or
+the view closed. Closing the reader did neither, so the last note — its detached subtree, its
+two handlers and every embed's child component — stayed loaded. Bounded at one note.
+
+After: `closeReader()` and the no-note branch of `renderNote()` call the optional host hook
+`releaseNote()`; the plugin's implementation is the two lines `onClose()` already ran.
+`refresh-check` 26/26: in a browser, open a book → `[render]`, close → exactly one `release`,
+and the same check is **red** with the call removed (`on close: []`); in the bundle, two notes
+rendered → **1** owner loaded, released → **0**, a release during a slow read → **0**.
+`teardown-check` clean. The standalone passes no hook, so its behaviour is unchanged.
+
+## 2026-10-04 — Typed settings wait for the last keystroke; the plus gets its own row (`github#100`, `design/0020`)
+
+Before: each keystroke in a text setting ran `adopt()` on every view, which since `github#100`
+rebuilt the data and redrew twice (`setSettings` then `refresh`). Typing `people` -> `peopl`
+removed every person book for one redraw, and the reader's re-resolve moved an open person
+book to another book holding its note, or closed it. `Show all` saved settings no open view
+heard. On a hand-arranged shelf, a plus with no room on the last row was drawn there anyway:
+Months, arranged by hand, swept 1400 -> 1000px in 4px steps, put it **1-13px past the room**
+at 1188-1176px and **never** on a row of its own.
+
+After: typed fields adopt **800ms** after the last keystroke (`ADOPT_MS`), or when the tab
+closes; toggles and `Show all` adopt at once; each adopt is **one** `setSettings(next, data)`.
+The wiring harness counts **0** redraws during six keystrokes and **1** after. The same sweep
+stands the plus alone from **1192px** and keeps it inside the room at all **53** widths. The
+packing golden is unchanged.
+
+## 2026-10-04 — Headed readiness and frame measurement (`decisions/0021`)
+
+Before: the complete candidate `17a65be` failed **163/165**. The forward gesture after a
+backward turn remained on note 1 at scrollTop 242; cyber scrolling missed **121/30** frames.
+A partial predecessor replay reproduced the turn failure at **87/88**, with the spent latch
+still true after Node's 400ms sleep. Fresh-browser isolation alone missed 52 cyber frames;
+explicit image decoding measured 18. A later 91-check replay found a separate one-timestamp
+sample: the measurement clock had started before Chrome's first animation callback.
+
+After: gesture checks run serially and wait on Chrome's actual quiet signal. Frame benchmarks
+own separate browsers, decode the original inline look images, and start timing at their
+first callback. Startup/completion watchdogs and sample validation reject missing frames;
+later gaps count. Product sources, CSS, 2,000px/s descent and 30/14 frame budgets are unchanged.
+
+The focused nine checks passed **9/9** (library leather/modern/cyber **21/0/19**, expensive
+control **119**, reader **0/0/0**). The predecessor replay plus new controls passed **92/92**
+in 119s: library **12/0/18**, expensive control **104**, reader **0/0/5**. A delayed first
+callback retained 11 samples over 167ms; an injected later 817ms gap counted 48 missed frames.
+Broken/stuck images, stuck gesture state and missing first/later callbacks all refused.
+Library and reader screenshots were inspected; no new visual defect was observed.
+
+The final reader sampler also uses the shared first-callback clock; its focused verification
+is recorded in `verification-1.3.0.md`. These are partial, dirty-tree measurements, not release
+certification. Epoch 4 requires two complete clean headed greens, each separately authorized.
+
 ## 2026-10-03 — Guarded headed release recorder (`github#111`)
 
 Before: **1 unconditional headless launch flag, 0 record holds**, no screen check, and cleanup

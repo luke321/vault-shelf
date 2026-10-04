@@ -1,5 +1,21 @@
 # Invariants
 
+### Browser readiness and benchmark isolation (`decisions/0021`)
+
+Gesture checks run serially and observe the actual spent-latch signal before a fresh
+gesture. A delayed quiet timer must remain spent until Chrome services it; a stuck signal
+must fail within a bounded wait without resetting state. Frame benchmarks each own a fresh
+browser, and inline look images and fonts must be ready before sampling. Malformed and
+never-decoding images fail; the decoder is restored after the controls. Every selected
+check runs exactly once. Library/reader limits remain 30/14 missed frames and the expensive
+containment control remains required. Complete headed certification is epoch 4, two greens.
+
+Sampling starts its clock at the first animation callback, bounded by a 3,000ms startup
+watchdog and a duration-plus-3,000ms completion watchdog. A delayed first callback must
+still produce a full sample; later gaps must count against the frame budget. Missing or
+stopped callbacks must fail. Fewer than two timestamps, nonfinite/nonincreasing timestamps
+and invalid calibration are errors, never green measurements.
+
 ### CSS review equivalence (`github#109`, `design/0036`)
 
 Hidden descendants of the real `#vs-app.vault-shelf` root compute `display: none`, including
@@ -2596,6 +2612,11 @@ ends by clearing the root. Until `github#99` every one of the 128 `on()` sites p
 into the mount-lifetime list, so each rebuild's detached nodes stayed reachable until the view
 closed. The plugin's `renderNote` likewise renders into, and registers its two handlers on, one
 `Component` per note, removed when the next note is rendered or the view closes — never the view.
+**And when the reader stops showing it** (`github#114`): `closeReader()`, and a book left with
+no note under the filters, call the host's optional `releaseNote()`, which unloads that
+`Component` and every embed it owns. `refresh-check` counts it: open a book → `render`, no
+release; close it → exactly **one** `release`; in the bundle, two notes rendered → **1** owner
+loaded, released → **0**, and a release during a slow read leaves **0**.
 
 | one mounted library, a book open, after GC | refresh 1 | refresh 20 |
 |---|---|---|
@@ -2623,6 +2644,14 @@ Rebuild command; it now listens for the cache's `changed` and `deleted` and the 
 burst, exactly 1 after it**, a later change → **1** more, and a change caught mid-flight by
 unload → **0**. The coalescing window is `REBUILD_MS` = **400ms**: a sync or a bulk edit fires
 `changed` per file, and every rebuild walks every note and repacks every shelf.
+
+**A typed setting waits for the last keystroke** (`github#100`). A text field in the settings
+tab hands the settings to every open view `ADOPT_MS` = **800ms** after its last keystroke, or
+at once when the tab closes; a toggle and `Show all` hand them over at once. Each hand-over is
+**one** `setSettings(next, data)` — settings and the data they shape, one redraw. Measured:
+six keystrokes → **0** redraws while typing, **1** after; a waiting setting flushed by closing
+the tab → **1** in all. A redraw per keystroke reshelved an open book whenever a half-typed
+property name emptied the shelf it stood on.
 
 **In a browser**, against the standalone: a book is opened, a note is pushed into the data and
 the handle is refreshed. The library counts **one** more note, the open book is **one** thicker
@@ -2828,7 +2857,7 @@ The independent headed sentinel survives recorder failure cleanup with **1 CDP l
 its harness then removes it before releasing the actual machine record hold.
 
 **Current contract (#110):** local release/push run headed; a full headed run is eligible for
-epoch **3**, while headless, `--only`, `--vault`, `--url`, `--look`, missing/unstamped fixtures
+epoch **4** (`decisions/0021`), while headless, `--only`, `--vault`, `--url`, `--look`, missing/unstamped fixtures
 and dirty trees are excluded. Both consumers require the two-green certificate after the
 suite returns; a first green cannot release or push. CI runs the stamp self-test without a
 browser. The table and #50 discussion below are historical, superseded on 2026-10-03.

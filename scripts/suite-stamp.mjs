@@ -18,7 +18,7 @@ export const FIXTURE_NAMES = ["vault"];
 /* github#55, decisions/0010 -- how many green runs in a row a stamp is worth */
 export const GREENS_REQUIRED = 2;
 /* github#77, decisions/0010 -- which instrument earned the stamp */
-export const STAMP_EPOCH = 3;
+export const STAMP_EPOCH = 4;
 
 /* github#110, decisions/0010 -- shared by smoke and the eligibility self-test */
 export function runExclusion(argv, fixtures) {

@@ -338,6 +338,12 @@ EOF
   exit 1
 fi
 
+# decisions/0021 -- browser batch and readiness controls run without Chrome.
+if ! node "$root/scripts/check-smoke-isolation.mjs" </dev/null; then
+  echo "pre-push: browser isolation self-test failed -- push blocked" >&2
+  exit 1
+fi
+
 # github#110 -- eligibility and streak controls use only a throwaway repository.
 if ! node "$root/scripts/suite-stamp.mjs" --selftest </dev/null; then
   echo "pre-push: suite stamp self-test failed -- push blocked" >&2

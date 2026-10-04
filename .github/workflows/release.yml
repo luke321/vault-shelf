@@ -229,6 +229,8 @@ jobs:
         run: node scripts/lock.mjs --selftest
       - name: Headed eligibility and stamp exclusions hold without a browser
         run: node scripts/suite-stamp.mjs --selftest
+      - name: Frame checks own a fresh browser and readiness failures refuse
+        run: node scripts/check-smoke-isolation.mjs
       - name: The generated code map and index are current
         run: node scripts/code-map.mjs --check
 

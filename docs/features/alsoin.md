@@ -2,7 +2,7 @@
 
 Also shelved in opens another book on the same note. Links stay within the library when it contains their destination. Previous collection and Alt+Left return to the collection you came from.
 
-![See another collection](https://raw.githubusercontent.com/luke321/vault-shelf/1.2.0/docs/features/alsoin.webp)
+![See another collection](https://raw.githubusercontent.com/luke321/vault-shelf/1.3.0/docs/features/alsoin.webp)
 
 ## Storyboard
 
@@ -11,7 +11,7 @@ Also shelved in opens another book on the same note. Links stay within the libra
 ## Regenerate the clip
 
 Run from the repository root. The recorder uses the shared generated vault and captures frames
-over CDP in headless Chrome. This act prepares its own starting state.
+over CDP in visibly headed Chrome on a guard-approved monitor under the shared record lock. This act prepares its own starting state.
 
 ```powershell
 node scripts/record-demo.mjs --exact-act --act alsoin --width 1000 --height 1000 --out demo-alsoin.mp4 --hero docs/features/alsoin.webp --hero-acts alsoin --hero-width 1000
@@ -25,8 +25,8 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.2.0 - 2026-09-23` |
-| Review | Approved on 2026-09-13; retained by user instruction after the counter update |
+| Last re-recorded | `1.3.0 - 2026-10-04` |
+| Review | Final-tree re-shoot after the range review: start, middle and end stills inspected; dimensions, frame count and WebP timing read from the file |
 | Duration | 10 seconds |
-| WebP | 60 frames; 496,636 bytes |
+| WebP | 55 animation frames; 418,910 bytes |
 | Frame | 1000 × 1000 |

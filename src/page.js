@@ -61,6 +61,7 @@
  *   MarkdownRenderer.render over the file's real text, so a note in the reading spread is
  *   the note: wikilinks, embeds, callouts, tasks, code. Absent, the page falls back to its
  *   own small renderer over whatever `body` the producer supplied.
+ * @property {() => void} [releaseNote]  github#114 -- the reader stopped showing a host-rendered note
  */
 
 /* ================================================================== palette ==
@@ -696,7 +697,11 @@ function mountVaultShelf(root, data, options) {
     closeRun();
     /* design/0020 -- the plus at the end needs its own room, or its own row. */
     /* github#90 -- the plus is charged where it is drawn */
-    if (tail && row.length && used + tail > avail) push(used + tail);
+    if (tail && row.length && used + tail > avail) {
+      push(used);
+      push(tail);
+      return rows;
+    }
     if (row.length || !rows.length) push(used + (tail || 0));
     return rows;
   }
@@ -2728,6 +2733,7 @@ function mountVaultShelf(root, data, options) {
     clearHere();
     hideStickies();
     reader = null;
+    releaseNote();
     pushStop();   // github#40 -- no band outlives the book it was in
     history.length = 0;
     $("reader").hidden = true;
@@ -3493,6 +3499,11 @@ function mountVaultShelf(root, data, options) {
     box.select();
   }
 
+  /* github#114 -- the host's renderer is let go once nothing shows it */
+  function releaseNote() {
+    if (opts.releaseNote) attempt(opts.releaseNote);
+  }
+
   function renderNote() {
     var box = $("note");
     clear(box);
@@ -3507,6 +3518,7 @@ function mountVaultShelf(root, data, options) {
       field("nextnote").disabled = true;
       /* github#19, design/0037 -- no note, so nothing to point into */
       hideStickies();
+      releaseNote();
       return;
     }
     reader.noteId = note.id;
@@ -6027,21 +6039,26 @@ function mountVaultShelf(root, data, options) {
   window.__vs = API;
   /* ---- END: debug api ---- */
 
+  /** @param {ShelfData} next */
+  function takeData(next) {
+    data = next;
+    notes = next.notes.slice();
+    folders = next.folders.slice();
+    slotOf = {};
+    readTheme();
+  }
+
   return {
     /** @param {ShelfData} [next] */
     refresh: function (next) {
-      if (next) {
-        data = next;
-        notes = next.notes.slice();
-        folders = next.folders.slice();
-        slotOf = {};
-        readTheme();
-      }
+      if (next) takeData(next);
       refresh();
     },
-    /** @param {unknown} next */
-    setSettings: function (next) {
+    /* github#100 -- settings and the data they shape, in one redraw */
+    /** @param {unknown} next @param {ShelfData} [nextData] */
+    setSettings: function (next, nextData) {
       settings = core.migrate(next);
+      if (nextData) takeData(nextData);
       refresh();
     },
     /** The host says the theme changed; re-read the twelve slots and repaint. */

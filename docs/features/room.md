@@ -2,7 +2,7 @@
 
 A centred bookcase keeps shelves within reach. Long shelves continue onto the next board, and the page makes room as the window narrows.
 
-![The reading room](https://raw.githubusercontent.com/luke321/vault-shelf/1.2.0/docs/features/room.webp)
+![The reading room](https://raw.githubusercontent.com/luke321/vault-shelf/1.3.0/docs/features/room.webp)
 
 ## Storyboard
 
@@ -11,7 +11,7 @@ A centred bookcase keeps shelves within reach. Long shelves continue onto the ne
 ## Regenerate the clip
 
 Run from the repository root. The recorder uses the shared generated vault and captures frames
-over CDP in headless Chrome. This act prepares its own starting state.
+over CDP in visibly headed Chrome on a guard-approved monitor under the shared record lock. This act prepares its own starting state.
 
 ```powershell
 node scripts/record-demo.mjs --exact-act --act room --width 1000 --height 1000 --out demo-room.mp4 --hero docs/features/room.webp --hero-acts room --hero-width 1000
@@ -25,8 +25,8 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.2.0 - 2026-09-23` |
-| Review | Approved on 2026-09-13; retained by user instruction after the counter update |
+| Last re-recorded | `1.3.0 - 2026-10-04` |
+| Review | Final-tree re-shoot after the range review: start, middle and end stills inspected; dimensions, frame count and WebP timing read from the file |
 | Duration | 5 seconds |
-| WebP | 2 frames; 45,536 bytes |
+| WebP | 4 animation frames; 42,134 bytes |
 | Frame | 1000 × 1000 |
