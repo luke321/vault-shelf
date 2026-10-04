@@ -9932,6 +9932,51 @@ check("the builder previews the shelf it would actually save", async (p) => {
 });
 
 /* github#98, design/0021 */
+/* github#117 -- the preview packs into rows like the shelf it previews */
+check("the builder's preview packs its shelf into rows: no spine on another, none outside", async (p) => {
+  const was = await p.j("({width:innerWidth,height:innerHeight})");
+  const look = await p.j(`document.getElementById("vs-app").getAttribute("data-look") || ""`);
+  const looks = await p.j("window.VaultShelfCore.LOOKS.map(function (l) { return l.value; })");
+  /** @type {{ width: number, look: string, spines: number, rows: number, overlaps: number, outside: number, over: number, plaques: number }[]} */
+  const rs = [];
+  try {
+    for (const width of [1180, 700, 400]) {
+      await viewport(p, width, 900);
+      for (const l of looks) {
+        rs.push(await p.j(`(function(){
+          __vs.setLook(${JSON.stringify(l)});
+          __vs.editShelf("tags");
+          var box = document.getElementById("vs-preview");
+          var b = box.getBoundingClientRect();
+          var spines = [].slice.call(box.querySelectorAll(".vs-spine")).map(function (s) { return s.getBoundingClientRect(); });
+          var overlaps = 0;
+          for (var i = 0; i < spines.length; i++) for (var k = i + 1; k < spines.length; k++) {
+            var x = Math.min(spines[i].right, spines[k].right) - Math.max(spines[i].left, spines[k].left);
+            var y = Math.min(spines[i].bottom, spines[k].bottom) - Math.max(spines[i].top, spines[k].top);
+            if (x > 1 && y > 1) overlaps++;
+          }
+          var out = { width: ${width}, look: ${JSON.stringify(l)}, spines: spines.length,
+                      rows: box.querySelectorAll(".vs-track").length, overlaps: overlaps,
+                      outside: spines.filter(function (r) { return r.left < b.left - 1 || r.right > b.right + 1; }).length,
+                      over: box.scrollWidth - box.clientWidth,
+                      plaques: box.querySelectorAll(".vs-plaque").length };
+          document.getElementById("vs-bcancel").click();
+          return out;
+        })()`));
+      }
+    }
+  } finally {
+    await p.eval(`__vs.setLook(${JSON.stringify(look)}); void 0`);
+    await unviewport(p, was);
+  }
+  const bad = rs.filter((r) => !r.spines || r.overlaps || r.outside || r.over > 0 || r.plaques < 2 || r.rows < 2);
+  return {
+    ok: bad.length === 0,
+    detail: rs.map((r) => `${r.width}px ${r.look}: ${r.spines} spines in ${r.rows} rows, ${r.plaques} plates, ` +
+                          `${r.overlaps} overlapping, ${r.outside} outside, ${r.over}px over`).join("; ")
+  };
+}, { layout: true });
+
 check("the builder's checkbox row fits a narrow sheet, in every look", async (p) => {
   const was = await p.j("({width:innerWidth,height:innerHeight})");
   const saved = await p.j(`(function(){
