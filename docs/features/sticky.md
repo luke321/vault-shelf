@@ -44,7 +44,7 @@ the feature, not in the take.
 |---|---|
 | Introduced in | `1.2.0` |
 | Last re-recorded | `1.3.0 - 2026-10-04` |
-| Review | Release refresh: start, middle and end stills inspected; source dimensions, frame count and WebP timing verified |
+| Review | Final-tree re-shoot after the range review: start, middle and end stills inspected; dimensions, frame count and WebP timing read from the file |
 | Duration | 13 seconds |
-| WebP | 77 animation frames; 466,086 bytes |
+| WebP | 76 animation frames; 424,254 bytes |
 | Frame | 1000 × 1000 |

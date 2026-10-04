@@ -42,7 +42,7 @@ update `Last re-recorded` below together.
 |---|---|
 | Introduced in | `1.2.0` |
 | Last re-recorded | `1.3.0 - 2026-10-04` |
-| Review | Release refresh: start, middle and end stills inspected; source dimensions, frame count and WebP timing verified |
+| Review | Final-tree re-shoot after the range review: start, middle and end stills inspected; dimensions, frame count and WebP timing read from the file |
 | Duration | 14 seconds |
-| WebP | 97 animation frames; 655,046 bytes |
+| WebP | 81 animation frames; 606,166 bytes |
 | Frame | 1000 × 1000 |

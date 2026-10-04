@@ -25,8 +25,8 @@ The MP4 is ignored; commit the WebP and update this page's metadata together.
 | Field | Value |
 |---|---|
 | Introduced in | `1.0.0` |
-| Last re-recorded | `1.3.0 - 2026-10-03` |
-| Review | Release refresh: start, middle and end stills inspected; source dimensions, frame count and WebP timing verified |
+| Last re-recorded | `1.3.0 - 2026-10-04` |
+| Review | Final-tree re-shoot after the range review: start, middle and end stills inspected; dimensions, frame count and WebP timing read from the file |
 | Duration | 5 seconds |
-| WebP | 4 animation frames; 45,106 bytes |
+| WebP | 4 animation frames; 41,692 bytes |
 | Frame | 1000 × 1000 |

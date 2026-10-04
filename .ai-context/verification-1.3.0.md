@@ -19,9 +19,18 @@ recorded below are superseded and certification restarts at **0/2**.
 Focused headed runs, all green: the new check plus both existing plus checks 3/3, the air
 check 1/1, `row` 14/14, the packing golden 2/2, `settings` 3/3; `refresh-check` 22/22 and
 `teardown-check` clean in a browser. Lint, typecheck, comments (baseline 1531), scope,
-network, PII and `code-map --check` pass. No complete suite has run on this tree. The clips
-that show a hand-arranged shelf (`makebook`, `plusbook`) were not re-shot, and nobody checked
-whether either frames a last row too full for the plus.
+network, PII and `code-map --check` pass.
+
+**Every clip re-shot from the final tree** (`8d0554d`), per the sister repo's re-record-by-
+default rule (`github#115`): all **27 feature clips and the hero**, each from its own page's
+regeneration command, headed on the guard's right display, one take at a time under the
+`record` lock. Source takes are **1000 x 1000 at 24 fps**, **364 s** of features plus the
+hero's **74 s** (**438 s**, the same total as the previous refresh); `room` came out
+byte-identical, a still card. Start, middle and end stills of all 28 (**84 frames**) were
+inspected on five contact sheets: leather throughout, every caption present, no stuck sheet,
+blank frame or stray window. Each page's metadata was rewritten from its WebP's own RIFF
+chunks (frame count, timing, canvas, bytes). The previous 2/2 stamp was on the tree before
+these clips, so certification restarts on the tree that carries them.
 
 ## Headed flake correction on 2026-10-04
 
