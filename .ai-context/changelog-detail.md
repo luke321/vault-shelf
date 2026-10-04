@@ -1,5 +1,22 @@
 # Changelog detail
 
+## 2026-10-04 — The builder's preview packs into rows (`github#117`)
+
+Before: `previewBuilder()` drew one wrapping `renderTrack()`, and `page.css` let every
+`.vs-preview .vs-group` shrink to `min-width: 0` while its books wrapped. With plaques each run
+is a group, so a group narrower than its spines spilled onto the next. Edit on the Tags shelf
+(plaques on, 60 spines): **12** overlapping pairs and **2** spines past the preview at 1180 and
+700px, **34** overlapping at 400px, in all three looks — and pixel-identical in a `1.2.0` build.
+Seen in the 1.3.0 `parenttags` clip after the first 1.3.0 tag; the tag was withdrawn for it.
+
+After: the preview goes through `rowsOf()` against its own measured width (a new optional
+`width` argument), packed as `-preview` so an index shelf's squeeze never writes the real
+shelf's scale; it repacks once when its rows bring the sheet's scrollbar (that was the last
+spine outside at 400px: packed at 322px, drawn at 307px), and on resize. The shrink/wrap CSS is
+gone. The new check measures **0** overlapping, **0** outside, **0px** over at 1180/700/400px in
+every look (5, 5 and 9 rows), and is red on the old code with the numbers above. `build` and
+`parenttags`, the only acts that open the builder, were re-shot.
+
 ## 2026-10-04 — Closing the reader releases the host's renderer (`github#114`)
 
 Before: the plugin unloaded a note's renderer `Component` only when the next note rendered or

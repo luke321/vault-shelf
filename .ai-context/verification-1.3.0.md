@@ -2,6 +2,19 @@
 
 **Date** 2026-10-04 · **Candidate** `release/1.3.0` · **Reference** `1.2.0`
 
+## Withdrawn and re-cut, 2026-10-04
+
+The first `1.3.0` tag (tag object `65f5002` on `1705c9c`) was published and then withdrawn by
+the maintainer before the plugin was submitted to Obsidian: the re-shot `parenttags` clip showed
+the builder's preview piling spines (`github#117`, present since 1.2.0). The GitHub Release was
+deleted, then the tag on origin and locally. This is the one exception to "once the tag exists
+nothing changes", taken because nobody could have installed it through Obsidian yet.
+
+`github#117` was fixed on its own branch and merged into `release/1.3.0` (`0729352`); `build`
+and `parenttags` were re-shot from that tree, their stills inspected (the Edit Tags preview in
+rows, every plaque under its run, nothing piled). The release goes through certification,
+review and the tag again from here.
+
 ## Review fixes on 2026-10-04
 
 A review of the `1.2.0..fcd5695` range for smaller bugs found four, fixed here on the release
