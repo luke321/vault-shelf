@@ -2,6 +2,24 @@
 
 **Date** 2026-10-04 · **Candidate** `release/1.3.0` · **Reference** `1.2.0`
 
+## The tag run, 2026-10-04
+
+The maintainer reviewed the release page, the five release-branch fixes, the re-shot clips
+and the update strip, and gave the go-ahead. The known `css-clip-path` lint warnings
+(`design/0036`) were raised again and kept.
+
+| Step | Result |
+|---|---|
+| Certified tree | `6072bce`, two complete headed greens (169/169), epoch 4, commit `b634ad7` |
+| `release.yml` dry run on `release/1.3.0` | run `37200179823`, green, no Release created; attestation https://github.com/luke321/vault-shelf/attestations/52574319 |
+| `develop` | `release/1.3.0` merged at `8243000`; the pre-push hook trusted the stamp and skipped the suite |
+| `main` | PR #116 (`main accepts develop or hotfix`, both `quality gates`, `close the issues this push fixes`: all green), merged at `1705c9c`, tree `6072bce` |
+| Tag | `release.ps1 1.3.0` on `main`: stamp trusted, tag `1.3.0` created and pushed alone |
+| Publish | run `37202345602`, green: Release "1.3.0 - Parent Tags", not a draft, three assets |
+| SHA-256 (published = dry run = local build) | `main.js` `17f9f58a6fc53eb5df5f0c3e4bf4bd7cf41a96a00a8315ddfdf13c13b6f9dbee` · `manifest.json` `22e577313053cfbfca33cc33c6aab3475ae6542ecf5cd045594a432788c47992` · `styles.css` `e7d83dfd43374d289e015c1d1684d884f622da9bad4cb0faaff6cbeac1d9c1ec` |
+| Attestation | https://github.com/luke321/vault-shelf/attestations/52579123; `gh attestation verify main.js` on the downloaded asset exits 0 |
+| Issues | #90, #97, #98, #99, #100, #101, #102 and #114 closed by the push to `develop` |
+
 ## Review fixes on 2026-10-04
 
 A review of the `1.2.0..fcd5695` range for smaller bugs found four, fixed here on the release
