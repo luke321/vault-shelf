@@ -2,6 +2,44 @@
 
 **Date** 2026-10-04 · **Candidate** `release/1.3.0` · **Reference** `1.2.0`
 
+## Headed flake correction on 2026-10-04
+
+The authorized complete run on `17a65be` exited **1**, passing **163/165**. The next forward
+gesture arrived before Chrome cleared its spent latch; cyber scrolling missed **121** frames
+against the **30** budget. An isolated green rerun was insufficient: a predecessor replay
+reproduced the gesture failure at **87/88**. A later 91-check replay exposed a frame sample
+with only one timestamp, caused by starting the stopwatch before the first callback.
+
+`decisions/0021` records the fixes and evidence. Gesture checks run serially and wait for the
+actual browser signal. Benchmarks start in separate browsers after font/image decoding;
+their measured clock begins on the first callback. Missing/stalled callbacks and unusable
+samples fail explicitly. Later gaps count, thresholds stay unchanged, and no product source
+or CSS was changed. Certificate epoch 4 supersedes earlier instruments.
+
+| Measurement | Result |
+|---|---|
+| Focused gesture/readiness/frame checks | 9/9; library missed frames leather/modern/cyber 21/0/19, reader 0/0/0 |
+| Original predecessor context plus regression controls | 92/92 in 119s; library 12/0/18 against 30, expensive control 104; reader 0/0/5 against 14 |
+| Final shared reader clock and sampler controls | 2/2 in 21s; reader 0/0/0 against 14, turns 4/3/3ms; both scheduler watchdogs refused |
+| Delayed first callback / later stall | 11 samples over 167ms after a 350ms first delay; later 817ms gap counted 48 missed frames |
+| Refusal controls | Stuck gesture state, broken/stuck image decode and missing first/later callbacks refused |
+| Visual sampling | Library and reader screenshots inspected; no new defect observed |
+| Final console gates | 19/19 passed: build, zero-warning lint/typecheck, indexes, CI parity, stamp/isolation/release/fixture controls, comments, PII, scope, network, both determinism checks, escaping, refresh wiring, update-note, path guards and locks |
+
+Both CI workflows and the push hook carry the same **16** static gates. The stamp controls
+pass **59/59**, release guard cases **16/16**, fixture controls **5/5**, refresh wiring
+**10/10**, update-note **51/51**, path guards **21/21** and lock controls **34/34**.
+Rebuilt `main.js`, `manifest.json` and `styles.css` retain the hashes recorded below.
+
+Scratch receipts are under `%TEMP%`: `vault-shelf-release-headed-fix.*`,
+`vault-shelf-release-flake-context.*` and `vault-shelf-release-reader-clock.timings.json`.
+The context replay uses the original lane's selected checks and viewport widths, one Chrome
+at a time; it is not a complete suite. The final reader clock adjustment is measured separately.
+
+**Release status:** no new complete suite has run since these fixes. Certification is **0/2**;
+the next complete headed run needs separate authorization. Push, merge-down, tag and
+publication remain pending. Earlier sections below retain the pre-fix release history.
+
 ## Complete headed clip refresh on 2026-10-03/04
 
 All **27 feature clips and the hero** were re-recorded from `a8c103d`, after the approved

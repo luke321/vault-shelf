@@ -6,9 +6,18 @@ browser window; defer when the intended display is unavailable. Never wrap this 
 outer suite lock. A complete clean headed run earns one green toward the required two.
 The runner rechecks the certificate after smoke exits and refuses a release on only 1/2;
 it does not silently run again. Each further full run requires its own authorization.
-Epoch 3 rejects earlier-instrument stamps. Partial/custom/look/dirty runs cannot certify the
+Epoch 4 rejects earlier-instrument stamps. Partial/custom/look/dirty runs cannot certify the
 candidate. CI remains static-only; it tests eligibility and stamp exclusions without Chrome.
 See [decisions/0020](decisions/0020-repeatable-headed-validation.md).
+
+Gesture checks run serially and wait for Chrome's actual quiet signal, with a bounded refusal
+when it does not arrive. Each frame benchmark owns a fresh browser and decodes the current
+look's inline images and fonts before sampling. Its frame limits and containment regression
+control remain unchanged; readiness failures refuse rather than retrying a benchmark.
+Measured time starts with the first animation callback; bounded startup/completion watchdogs
+and validated multi-frame samples refuse a missing or stalled scheduler. Later stalls count.
+The same console isolation check gates local pushes and both CI workflows.
+See [decisions/0021](decisions/0021-browser-readiness-and-frame-isolation.md).
 
 **Show the status table after every step.** Whoever is driving a release keeps a table of
 every step it still needs — the polish asks, the docs and clips it must carry, the version

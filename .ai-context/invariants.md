@@ -1,5 +1,21 @@
 # Invariants
 
+### Browser readiness and benchmark isolation (`decisions/0021`)
+
+Gesture checks run serially and observe the actual spent-latch signal before a fresh
+gesture. A delayed quiet timer must remain spent until Chrome services it; a stuck signal
+must fail within a bounded wait without resetting state. Frame benchmarks each own a fresh
+browser, and inline look images and fonts must be ready before sampling. Malformed and
+never-decoding images fail; the decoder is restored after the controls. Every selected
+check runs exactly once. Library/reader limits remain 30/14 missed frames and the expensive
+containment control remains required. Complete headed certification is epoch 4, two greens.
+
+Sampling starts its clock at the first animation callback, bounded by a 3,000ms startup
+watchdog and a duration-plus-3,000ms completion watchdog. A delayed first callback must
+still produce a full sample; later gaps must count against the frame budget. Missing or
+stopped callbacks must fail. Fewer than two timestamps, nonfinite/nonincreasing timestamps
+and invalid calibration are errors, never green measurements.
+
 ### CSS review equivalence (`github#109`, `design/0036`)
 
 Hidden descendants of the real `#vs-app.vault-shelf` root compute `display: none`, including
@@ -2828,7 +2844,7 @@ The independent headed sentinel survives recorder failure cleanup with **1 CDP l
 its harness then removes it before releasing the actual machine record hold.
 
 **Current contract (#110):** local release/push run headed; a full headed run is eligible for
-epoch **3**, while headless, `--only`, `--vault`, `--url`, `--look`, missing/unstamped fixtures
+epoch **4** (`decisions/0021`), while headless, `--only`, `--vault`, `--url`, `--look`, missing/unstamped fixtures
 and dirty trees are excluded. Both consumers require the two-green certificate after the
 suite returns; a first green cannot release or push. CI runs the stamp self-test without a
 browser. The table and #50 discussion below are historical, superseded on 2026-10-03.

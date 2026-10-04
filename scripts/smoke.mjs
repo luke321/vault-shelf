@@ -17,6 +17,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { MEASURE, VIEWPORT, diffLayout } from "./layout-snapshots/measure.mjs";
 import { LAYOUT_ARGS, LAYOUT_GENERATED, buildLayoutFixture, visitLayoutPage } from "./layout-snapshots/fixture.mjs";
+import { serialBatches, waitForPushQuiet, framePeriod, frameStats, frameSteady } from "./smoke-isolation.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
@@ -218,6 +219,14 @@ function gridSlot(i, k) {
 /* Checks that click, scroll or read a laid-out box run alone: a contended browser reports a
  * geometry that has more to do with the other three windows than with the code. */
 const POINTER_DRIVEN = [
+  /* decisions/0021 */
+  "pushing past the end",
+  "push made slowly",
+  "a turn arrives",
+  "push resists",
+  "push quiet boundary",
+  "frame asset readiness",
+  "frame sampling",
   /* A frame-time measurement and a viewport resize are as sensitive to three other Chromes
    * on the same GPU as any box-reading check is, and showed it: the scroll check failed one
    * shape in a full run and passed the same shape alone. */
@@ -303,43 +312,95 @@ const holdWear = async (p) => {
 /* github#77, decisions/0017 -- both smoothness checks share this, page side */
 const FRAME_HELPERS = `(function(){
   window.__fr = {
+    /* decisions/0021 */
+    frames: function (ms, tick) {
+      return new Promise(function (resolve, reject) {
+        var start = null, frame, timer, ended = false;
+        function finish(error, result) {
+          if (ended) return;
+          ended = true;
+          clearTimeout(timer); cancelAnimationFrame(frame);
+          if (error) reject(error); else resolve(result);
+        }
+        timer = setTimeout(function () {
+          finish(new Error("frame probe did not start within 3000ms"));
+        }, 3000);
+        function step(now) {
+          if (ended) return;
+          if (start === null) {
+            start = now;
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+              finish(new Error("frame probe stalled after starting"));
+            }, ms + 3000);
+          }
+          try {
+            var result = tick(now, start);
+            if (result) finish(null, result);
+            else frame = requestAnimationFrame(step);
+          } catch (error) { finish(error); }
+        }
+        frame = requestAnimationFrame(step);
+      });
+    },
+    /* decisions/0021 */
+    ready: async function () {
+      var style = getComputedStyle(document.getElementById("vs-app"));
+      var urls = new Set(), images = [], timer;
+      for (var i = 0; i < style.length; i++) {
+        var prop = style[i];
+        if (prop.indexOf("--vs-") !== 0) continue;
+        var value = style.getPropertyValue(prop), match;
+        var pattern = /url\\(\\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\\s*\\)/g;
+        while ((match = pattern.exec(value))) urls.add((match[1] || match[2] || match[3]).trim());
+      }
+      try {
+        await Promise.race([
+          (async function () {
+            await document.fonts.ready;
+            for (var url of urls) {
+              if (url.indexOf("data:image/") !== 0) throw new Error("frame asset is not an inline image");
+              var image = new Image(); image.src = url;
+              await image.decode(); images.push(image);
+            }
+          })(),
+          new Promise(function (_, reject) {
+            timer = setTimeout(function () { reject(new Error("frame assets did not decode within 3000ms")); }, 3000);
+          })
+        ]);
+        window.__fr.assets = images;
+        return images.length;
+      } finally { clearTimeout(timer); }
+    },
     /* A FIXED VELOCITY, turned round at either end, so the pixels crossed per frame never
      * depend on how far the thing being scrolled happens to reach. Covering a whole span in a
      * fixed time does not measure one thing: it made the 1494px room this sees under --only
      * 36% faster than the 1102px one it sees in a full suite. */
     sweep: function (el, ms, pxPerSec) {
-      return new Promise(function (done) {
-        el.scrollTop = 0;
-        var span = Math.max(1, el.scrollHeight - el.clientHeight);
-        var ts = [], start = performance.now();
-        function step(now) {
-          ts.push(now);
-          var gone = (now - start) / 1000 * pxPerSec;
-          var leg = Math.floor(gone / span), into = gone - leg * span;
-          el.scrollTop = (leg % 2) ? span - into : into;
-          if (now - start < ms) requestAnimationFrame(step);
-          else { el.scrollTop = 0; done({ ts: ts, span: Math.round(span) }); }
-        }
-        requestAnimationFrame(step);
+      el.scrollTop = 1;
+      var span = Math.max(1, el.scrollHeight - el.clientHeight);
+      var ts = [];
+      return __fr.frames(ms, function (now, start) {
+        ts.push(now);
+        var gone = (now - start) / 1000 * pxPerSec;
+        var leg = Math.floor(gone / span), into = gone - leg * span;
+        el.scrollTop = (leg % 2) ? span - into : into;
+        if (now - start >= ms) { el.scrollTop = 0; return { ts: ts, span: Math.round(span) }; }
       });
     },
     /* github#20 -- ONE WAY DOWN: a turned-round sweep re-crosses what it rasterised
      * github#20 -- it stops at the FLOOR; a still scroller paints nothing
      * github#20 -- and re-reads the span, which firms up as rows are reached */
     descend: function (el, ms, pxPerSec) {
-      return new Promise(function (done) {
-        el.scrollTop = 0;
-        var span0 = Math.max(1, el.scrollHeight - el.clientHeight);
-        var ts = [], start = performance.now();
-        function step(now) {
-          ts.push(now);
-          var span = Math.max(1, el.scrollHeight - el.clientHeight);
-          var want = (now - start) / 1000 * pxPerSec;
-          el.scrollTop = Math.min(span, want);
-          if (now - start < ms && want < span) requestAnimationFrame(step);
-          else { el.scrollTop = 0; done({ ts: ts, span: Math.round(span0) }); }
-        }
-        requestAnimationFrame(step);
+      el.scrollTop = 1;
+      var span0 = Math.max(1, el.scrollHeight - el.clientHeight);
+      var ts = [];
+      return __fr.frames(ms, function (now, start) {
+        ts.push(now);
+        var span = Math.max(1, el.scrollHeight - el.clientHeight);
+        var want = (now - start) / 1000 * pxPerSec;
+        el.scrollTop = Math.min(span, want);
+        if (now - start >= ms || want >= span) { el.scrollTop = 0; return { ts: ts, span: Math.round(span0) }; }
       });
     },
     /* THIS MACHINE'S VSYNC, which is the one number neither check may read off the measurement
@@ -352,39 +413,17 @@ const FRAME_HELPERS = `(function(){
      * invalidates nothing and the frames stop again. A pixel is a real invalidation and no
      * paint worth the name, so every interval here is one vsync. */
     calibrate: function (el, ms) {
-      return new Promise(function (done) {
-        var was = el.scrollTop, step1 = was > 0 ? -1 : 1;
-        var ts = [], start = performance.now(), n = 0;
-        function step(now) {
-          ts.push(now);
-          el.scrollTop = was + (n++ % 2 ? step1 : 0);
-          if (now - start < ms) requestAnimationFrame(step);
-          else { el.scrollTop = was; done(ts); }
-        }
-        requestAnimationFrame(step);
+      var was = el.scrollTop, step1 = was > 0 ? -1 : 1;
+      el.scrollTop = was + step1;
+      var ts = [], n = 0;
+      return __fr.frames(ms, function (now, start) {
+        ts.push(now);
+        el.scrollTop = was + (n++ % 2 ? step1 : 0);
+        if (now - start >= ms) { el.scrollTop = was; return ts; }
       });
     }
   };
 })(); void 0`;
-
-/* github#77, decisions/0017 -- and node side: missed vsyncs, never a percentile */
-const frameGaps = (ts) => {
-  const iv = [];
-  for (let i = 1; i < ts.length; i++) iv.push(ts[i] - ts[i - 1]);
-  return iv;
-};
-const frameAt = (up, q) => up[Math.min(up.length - 1, Math.floor(up.length * q))];
-const framePeriod = (ts) => frameAt(frameGaps(ts).sort((a, b) => a - b), 0.5);
-const frameStats = (s, vsync) => {
-  const iv = frameGaps(s.ts);
-  const up = iv.slice().sort((a, b) => a - b);
-  const elapsed = s.ts[s.ts.length - 1] - s.ts[0];
-  return { missed: Math.max(0, Math.round(elapsed / vsync) - iv.length), painted: iv.length,
-           p50: frameAt(up, 0.5), p95: frameAt(up, 0.95), worst: up[up.length - 1],
-           span: s.span };
-};
-/* github#77, decisions/0017 -- a period no machine could paint means calibration failed */
-const frameSteady = (vsync) => vsync > 6 && vsync < 26;
 
 /* =========================================================== the invariants ==
  * Every check here prints the number it measured, and every one has a section in
@@ -7122,6 +7161,7 @@ check("scrolling the library stays smooth in every look", async (p) => {
   /* decisions/0017 -- the throwaway pass gets frames flowing before calibrate */
   idle = await run(`
     __vs.setLook("");
+    await __fr.ready();
     await wait(120);
     await __fr.sweep(lib, 240, 800);
     return await __fr.calibrate(lib, 500);
@@ -7137,12 +7177,15 @@ check("scrolling the library stays smooth in every look", async (p) => {
   for (const one of looks) {
     out[one || "modern"] = await run(`
       __vs.setLook(${JSON.stringify(one)});
+      var assets = await __fr.ready();
       await wait(120);
       /* one discarded pass, so the look's stylesheet has painted before anything is timed */
       await __fr.sweep(lib, 240, 800);
       lib.scrollTop = 0;
       await wait(250);
-      return await __fr.descend(lib, ${LEGMS}, ${DOWN});
+      var measured = await __fr.descend(lib, ${LEGMS}, ${DOWN});
+      measured.assets = assets;
+      return measured;
     `);
   }
 
@@ -7152,6 +7195,7 @@ check("scrolling the library stays smooth in every look", async (p) => {
    * design/0017 -- on leather, the one look the selector offers. */
   slowed = await run(`
     __vs.setLook("leather");
+    await __fr.ready();
     await wait(120);
     var probe = document.createElement("style");
     probe.id = "vs-smoothprobe";
@@ -7223,8 +7267,78 @@ check("scrolling the library stays smooth in every look", async (p) => {
             `${probed.painted + probed.missed}` +
             (blind ? `, inside the budget -- the number has stopped seeing cost` : "") +
             `; vsync calibrated at ${VSYNC.toFixed(1)}ms` +
+            `; decoded inline assets ` + names.map((n) => n + " " + r.looks[n].assets).join(", ") +
             (frameSteady(VSYNC) ? "" : ", which is no frame this machine can paint")
   };
+});
+
+/* decisions/0021 */
+check("frame sampling waits for its first callback and counts later stalls", async (p) => {
+  await p.eval(FRAME_HELPERS);
+  const samples = await p.eval(`(async function(){
+    var original = window.requestAnimationFrame, lib = document.getElementById("vs-library");
+    var was = lib.scrollTop;
+    async function measure(at, delay) {
+      var calls = 0;
+      window.requestAnimationFrame = function (callback) {
+        return original(function (now) {
+          if (++calls === at) setTimeout(function () { original(callback); }, delay);
+          else callback(now);
+        });
+      };
+      return await __fr.descend(lib, 160, 2000);
+    }
+    try { return { first: await measure(1, 350), later: await measure(3, 800) }; }
+    finally { window.requestAnimationFrame = original; lib.scrollTop = was; }
+  })()`);
+  const guards = await p.eval(`(async function(){
+    var original = window.requestAnimationFrame, first = false, later = false;
+    try {
+      window.requestAnimationFrame = function () { return 0; };
+      try { await __fr.frames(80, function () {}); }
+      catch (e) { first = e.message.indexOf("did not start") >= 0; }
+      var calls = 0;
+      window.requestAnimationFrame = function (callback) {
+        return ++calls === 1 ? original(callback) : 0;
+      };
+      try { await __fr.frames(80, function () {}); }
+      catch (e) { later = e.message.indexOf("stalled after starting") >= 0; }
+      return { first: first, later: later };
+    } finally { window.requestAnimationFrame = original; }
+  })()`);
+  const duration = samples.first.ts.at(-1) - samples.first.ts[0];
+  const delayed = frameStats(samples.later, 1000 / 60);
+  return { ok: samples.first.ts.length >= 2 && duration >= 160 && delayed.worst >= 750 && delayed.missed > 30 && guards.first && guards.later,
+    detail: `350ms first-callback delay left ${samples.first.ts.length} samples over ${Math.round(duration)}ms; ` +
+      `later stall counted ${delayed.missed} missed frames, worst ${Math.round(delayed.worst)}ms; ` +
+      `missing first/later callbacks refused (${guards.first}/${guards.later})` };
+});
+
+/* decisions/0021 */
+check("frame asset readiness decodes the look and refuses broken or stuck images", async (p) => {
+  await p.eval(FRAME_HELPERS);
+  const r = await p.eval(`(async function(){
+    var host = document.getElementById("vs-app"), original = Image.prototype.decode;
+    var decoded = await __fr.ready(), broken = false, stuck = false, elapsed = 0;
+    try {
+      host.style.setProperty("--vs-readiness-control", 'url("data:image/svg+xml,broken")');
+      try { await __fr.ready(); } catch (e) { broken = true; }
+      host.style.removeProperty("--vs-readiness-control");
+      Image.prototype.decode = function () { return new Promise(function () {}); };
+      var began = performance.now();
+      try { await __fr.ready(); }
+      catch (e) { stuck = e.message.indexOf("did not decode within 3000ms") >= 0; }
+      elapsed = performance.now() - began;
+      return { decoded: decoded, broken: broken, stuck: stuck, elapsed: elapsed };
+    } finally {
+      host.style.removeProperty("--vs-readiness-control");
+      Image.prototype.decode = original;
+    }
+  })()`);
+  const restored = await p.eval("__fr.ready()");
+  return { ok: r.decoded > 0 && r.broken && r.stuck && r.elapsed >= 3000 && restored === r.decoded,
+    detail: `${r.decoded} inline assets decoded; broken image refused (${r.broken}); ` +
+      `stuck decode refused (${r.stuck}) after ${Math.round(r.elapsed)}ms; restored ${restored} assets` };
 });
 
 /* github#57, github#69, decisions/0016 -- the runner's own guarantee, checked both ways */
@@ -8888,7 +9002,7 @@ check("pushing past the end of a page turns it, and one hard flick turns one pag
              turn: __vs.overscroll().turn, index: __vs.reader().index, top: page.scrollTop };
   })()`);
   if (!first) return { ok: false, detail: "no book with four notes in this vault" };
-  await sleep(PUSH_QUIET_WAIT);
+  await waitForPushQuiet(p);
 
   const flick = await p.j(`(function(){
     var book = __push.bookOf(6);
@@ -8906,7 +9020,7 @@ check("pushing past the end of a page turns it, and one hard flick turns one pag
     return { notches: seen.length, turns: turns, index: __vs.reader().index,
              spent: __vs.overscroll().spent };
   })()`);
-  await sleep(PUSH_QUIET_WAIT);
+  await waitForPushQuiet(p);
 
   const again = await p.j(`(function(){
     var page = __push.right();
@@ -9022,7 +9136,7 @@ check("a turn arrives at the top going forward and the bottom going back", async
     return { index: __vs.reader().index, top: page.scrollTop,
              span: page.scrollHeight - page.clientHeight };
   })()`);
-  await sleep(PUSH_QUIET_WAIT);
+  await waitForPushQuiet(p);
 
   const forward = await p.j(`(function(){
     var page = __push.right();
@@ -9044,6 +9158,57 @@ check("a turn arrives at the top going forward and the bottom going back", async
             `again turned ${forward.from} -> ${forward.index} and landed at ${forward.top} ` +
             `(the top). A turn is a reading motion, not a teleport`
   };
+});
+
+/* decisions/0021 */
+check("the push quiet boundary waits for the browser and refuses a stuck latch", async (p) => {
+  await p.eval(PUSH_HELPERS);
+  let timedOut = false, stuckRefused = false, ready;
+  try {
+    await p.eval(`(function(){
+      window.__quietOriginalTimer = window.setTimeout;
+      var book = __push.bookOf(4);
+      __vs.openBook(book.id, null);
+      var quiet = __vs.overscroll().quiet;
+      window.setTimeout = function (fn, ms) {
+        var args = [].slice.call(arguments);
+        if (ms === quiet) args[1] = 800;
+        return window.__quietOriginalTimer.apply(window, args);
+      };
+      var page = __push.right();
+      page.scrollTop = page.scrollHeight - page.clientHeight;
+      __push.wheel(page, 100, 3);
+    })(); void 0`);
+    try { await waitForPushQuiet(p, 80); }
+    catch (e) { if (!e.message.includes("push latch did not clear")) throw e; timedOut = true; }
+    const held = await p.j("({spent:__vs.overscroll().spent,index:__vs.reader().index})");
+    ready = await waitForPushQuiet(p);
+    const advanced = await p.j(`(function(){
+      var page = __push.right();
+      page.scrollTop = page.scrollHeight - page.clientHeight;
+      __push.wheel(page, 100, 3);
+      return __vs.reader().index;
+    })()`);
+    await p.eval(`(function(){
+      window.__quietOriginalRead = __vs.overscroll;
+      __vs.overscroll = function () {
+        var state = window.__quietOriginalRead(); state.spent = true; return state;
+      };
+    })(); void 0`);
+    try { await waitForPushQuiet(p, 80); }
+    catch (e) { if (!e.message.includes("push latch did not clear")) throw e; stuckRefused = true; }
+    return { ok: timedOut && held.spent && held.index === 1 && ready.quiet && advanced === 2 && stuckRefused,
+      detail: `delayed timer refused before readiness (${timedOut}, spent ${held.spent}, note ${held.index}); ` +
+        `browser cleared it after ${Math.round(ready.elapsed)}ms of waiting, next push reached ${advanced}; ` +
+        `stuck latch refused (${stuckRefused})` };
+  } finally {
+    await p.eval(`(function(){
+      if (window.__quietOriginalTimer) window.setTimeout = window.__quietOriginalTimer;
+      if (window.__quietOriginalRead) __vs.overscroll = window.__quietOriginalRead;
+      delete window.__quietOriginalTimer; delete window.__quietOriginalRead;
+      __vs.closeReader();
+    })(); void 0`);
+  }
 });
 
 check("every way to another note starts at the top of it", async (p) => {
@@ -9208,6 +9373,7 @@ check("a wheel on the spread stays smooth in every look", async (p) => {
     var out = {}, idle = null;
     for (var i = 0; i < looks.length; i++) {
       __vs.setLook(looks[i]);
+      await __fr.ready();
       /* the LAST note, so every notch paints the band and none of them turns */
       __vs.openBook(book.id, book.notes[book.notes.length - 1].id);
       await new Promise(function (r) { setTimeout(r, 120); });
@@ -9219,15 +9385,11 @@ check("a wheel on the spread stays smooth in every look", async (p) => {
       /* the period, once, and only now that the discarded pass has frames flowing */
       if (!idle) idle = await __fr.calibrate(page, 500);
       var ts = [];
-      var start = performance.now();
-      await new Promise(function (done) {
-        function step(now) {
-          ts.push(now);
-          /* a steady push, the way a trackpad delivers one */
-          __push.wheel(page, 40, 1);
-          if (now - start < 1200) requestAnimationFrame(step); else done();
-        }
-        requestAnimationFrame(step);
+      await __fr.frames(1200, function (now, start) {
+        ts.push(now);
+        /* a steady push, the way a trackpad delivers one */
+        __push.wheel(page, 40, 1);
+        return now - start >= 1200;
       });
       var turned = __vs.reader().index !== book.notes.length - 1;
       /* and the turn on its own, timed once */
@@ -11641,8 +11803,9 @@ async function main() {
     for (const g of shard(mySteady, lanesFor(mySteady.length))) {
       parallel.push({ vault: v, checks: g, tag: v.label, url });
     }
-    if (myShaky.length) {
-      serial.push({ vault: v, checks: myShaky, tag: v.label + " (layout-reading, serial)", url });
+    for (const batch of serialBatches(myShaky)) {
+      serial.push({ vault: v, checks: batch.checks,
+        tag: v.label + (batch.benchmark ? " (frame benchmark, fresh browser)" : " (layout-reading, serial)"), url });
     }
   }
   /* github#39 -- the split is a number on every run */

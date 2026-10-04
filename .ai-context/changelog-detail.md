@@ -1,5 +1,30 @@
 # Changelog detail
 
+## 2026-10-04 — Headed readiness and frame measurement (`decisions/0021`)
+
+Before: the complete candidate `17a65be` failed **163/165**. The forward gesture after a
+backward turn remained on note 1 at scrollTop 242; cyber scrolling missed **121/30** frames.
+A partial predecessor replay reproduced the turn failure at **87/88**, with the spent latch
+still true after Node's 400ms sleep. Fresh-browser isolation alone missed 52 cyber frames;
+explicit image decoding measured 18. A later 91-check replay found a separate one-timestamp
+sample: the measurement clock had started before Chrome's first animation callback.
+
+After: gesture checks run serially and wait on Chrome's actual quiet signal. Frame benchmarks
+own separate browsers, decode the original inline look images, and start timing at their
+first callback. Startup/completion watchdogs and sample validation reject missing frames;
+later gaps count. Product sources, CSS, 2,000px/s descent and 30/14 frame budgets are unchanged.
+
+The focused nine checks passed **9/9** (library leather/modern/cyber **21/0/19**, expensive
+control **119**, reader **0/0/0**). The predecessor replay plus new controls passed **92/92**
+in 119s: library **12/0/18**, expensive control **104**, reader **0/0/5**. A delayed first
+callback retained 11 samples over 167ms; an injected later 817ms gap counted 48 missed frames.
+Broken/stuck images, stuck gesture state and missing first/later callbacks all refused.
+Library and reader screenshots were inspected; no new visual defect was observed.
+
+The final reader sampler also uses the shared first-callback clock; its focused verification
+is recorded in `verification-1.3.0.md`. These are partial, dirty-tree measurements, not release
+certification. Epoch 4 requires two complete clean headed greens, each separately authorized.
+
 ## 2026-10-03 — Guarded headed release recorder (`github#111`)
 
 Before: **1 unconditional headless launch flag, 0 record holds**, no screen check, and cleanup

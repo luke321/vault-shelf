@@ -40,6 +40,7 @@ changing what a shelf contains or how a book is addressed.
 | `0018-the-tie-break-within-a-date` | What decides the order of notes sharing a date, why the reading order does not reach it, and the three tie-breaks rejected |
 | `0019-a-gate-carries-its-own-negative-controls` | Why the scope gate parses CSS rather than lines, why a construct it cannot judge is refused rather than skipped, and why its planted shapes run on every invocation instead of behind a flag |
 | `0020-repeatable-headed-validation` | Pointer ownership, fixed-input geometry and complete headed certification without weakening stamp exclusions |
+| `0021-browser-readiness-and-frame-isolation` | Renderer gesture readiness, decoded look assets, isolated benchmarks and bounded frame sampling |
 
 ### DDRs — `design/`
 
