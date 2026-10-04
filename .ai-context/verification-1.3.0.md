@@ -2,6 +2,23 @@
 
 **Date** 2026-10-04 · **Candidate** `release/1.3.0` · **Reference** `1.2.0`
 
+## The tag run (re-cut), 2026-10-04
+
+The maintainer reviewed the re-cut (the #117 preview before/after and the re-shot `build` and
+`parenttags` clips) and gave the go-ahead.
+
+| Step | Result |
+|---|---|
+| Certified tree | `9e0a6e6`, two complete headed greens (170/170), epoch 4, commit `5e9f7ef` |
+| `release.yml` dry run on `release/1.3.0` | run `37209186501`, green, no Release created; attestation https://github.com/luke321/vault-shelf/attestations/52593191 |
+| `develop` | the two unpushed rows describing the withdrawn tag reverted (`fb617b2`, `33c4221`), then `release/1.3.0` merged at `c1cec2f`; merge tree `9e0a6e6`, so the hook trusted the stamp |
+| `main` | PR #118 (all checks green), merged at `2913e21`, tree `9e0a6e6` |
+| Tag | `release.ps1 1.3.0` on `main`: stamp trusted, tag `1.3.0` (object `2985d42`) on `2913e21`, pushed alone |
+| Publish | run `37209763746`, green: Release "1.3.0 - Parent Tags", not a draft, three assets |
+| SHA-256 (published = dry run = local build) | `main.js` `5a2360d99bbe0391cdd126fdd61dd4628ef09ae746f07f9fef874a1cd8924f16` · `manifest.json` `22e577313053cfbfca33cc33c6aab3475ae6542ecf5cd045594a432788c47992` · `styles.css` `d04800132ace04a7899e475967a2a127f79d54e388ac91253d110196ee220eb1` |
+| Attestation | https://github.com/luke321/vault-shelf/attestations/52594771; `gh attestation verify main.js` on the downloaded asset exits 0 |
+| Issues | #90, #97–#102, #114 and #117 closed by the pushes to `develop` |
+
 ## Withdrawn and re-cut, 2026-10-04
 
 The first `1.3.0` tag (tag object `65f5002` on `1705c9c`) was published and then withdrawn by
