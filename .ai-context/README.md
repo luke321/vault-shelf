@@ -41,6 +41,7 @@ changing what a shelf contains or how a book is addressed.
 | `0019-a-gate-carries-its-own-negative-controls` | Why the scope gate parses CSS rather than lines, why a construct it cannot judge is refused rather than skipped, and why its planted shapes run on every invocation instead of behind a flag |
 | `0020-repeatable-headed-validation` | Pointer ownership, fixed-input geometry and complete headed certification without weakening stamp exclusions |
 | `0021-browser-readiness-and-frame-isolation` | Renderer gesture readiness, decoded look assets, isolated benchmarks and bounded frame sampling |
+| `0022-the-machine-marker-picks-the-lock-protocol` | `lock.mjs` speaks atomic-lock-v1 (`lock-v1.mjs`) only once the machine's `protocol-v1.ready` says so |
 
 ### DDRs — `design/`
 

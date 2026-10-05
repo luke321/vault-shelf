@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
+import * as v1 from "./lock-v1.mjs";
 
 // github#25 -- the selftest points every root somewhere throwaway
 const LOCK_HOME = process.env.VAULT_LOCKS_HOME || tmpdir();
@@ -27,6 +28,17 @@ const STALE_MS = {
   record: 20 * 60 * 1000, suite: 30 * 60 * 1000,
   "screen-left": 20 * 60 * 1000, "screen-right": 20 * 60 * 1000, "screen-primary": 20 * 60 * 1000
 };
+// decisions/0022 -- the machine's marker picks the protocol, per call
+const MARKER = join(ROOT, "protocol-v1.ready");
+/** @returns {boolean} */
+function onV1() {
+  let text;
+  try { text = readFileSync(MARKER, "utf8"); }
+  catch (e) { if (e.code === "ENOENT") return false; throw e; }
+  if (text === "atomic-lock-v1\n") return true;
+  throw new Error("lock: " + MARKER + " is not the exact activation marker -- refusing every lock");
+}
+
 const DEFAULT_STALE = 20 * 60 * 1000;
 const DEFAULT_TIMEOUT = 45 * 60 * 1000;
 const POLL_MS = 5000;
@@ -147,6 +159,7 @@ function aliasHold(n, asker) {
  * @returns {Promise<Hold>}
  */
 export async function acquire(name, opts) {
+  if (onV1()) return v1.acquire(name, { ...opts, holder: opts.holder === "cli" ? "cli" : "process" });
   const owner = opts.owner;
   const asCli = opts.holder === "cli";
   const say = opts.say || ((l) => console.log(l));
@@ -291,6 +304,7 @@ function hold(name, owner, asCli, onLost, say) {
  * @returns {Hold | null}
  */
 export function adopt(name, opts = {}) {
+  if (onV1()) return v1.adopt(name, opts);
   const meta = readMeta(name);
   if (!meta || !meta.owner) return null;
   // github#25 -- a hold already lost is not one to beat
@@ -318,6 +332,7 @@ export function adopt(name, opts = {}) {
 // github#25 -- a holder can ask whether the lock is still its own
 /** @param {string} name @param {string} owner @returns {boolean} */
 export function heldBy(name, owner) {
+  if (onV1()) return v1.heldBy(name, owner);
   const meta = readMeta(name);
   return !!meta && meta.owner === owner;
 }
@@ -326,6 +341,7 @@ export function heldBy(name, owner) {
 /** @param {string} name @param {string} owner @param {(line: string) => void} [say] @returns {number} */
 export function refreshNamed(name, owner, say) {
   const line = say || ((l) => console.log(l));
+  if (onV1()) return v1.refreshNamed(name, owner, line);
   const meta = readMeta(name);
   if (!meta) { console.error("NOT HELD " + name + " -- nothing to refresh"); return 3; }
   if (meta.owner !== owner) {
@@ -341,6 +357,7 @@ export function refreshNamed(name, owner, say) {
 /** @param {string} name @param {string} owner @param {(line: string) => void} [say] */
 export function releaseNamed(name, owner, say) {
   const line = say || ((l) => console.log(l));
+  if (onV1()) return v1.releaseNamed(name, owner, line);
   if (!existsSync(dirFor(name))) {
     line("NOT HELD " + name + " -- nothing to release");
     return 0;
@@ -597,6 +614,30 @@ async function selftest() {
   check("the beat names who took it", lostTo === "somebody else", lostTo || "nothing reported");
   check("heldBy says so too", !heldBy("screen-right", "a run"));
   clear("screen-right");
+
+  // decisions/0022
+  console.log("with the v1 marker every export takes the common guard");
+  writeFileSync(MARKER, "atomic-lock-v1\n");
+  const v1Hold = await acquire("suite", { owner: "a v1 run", timeoutMs: 0, holder: "cli", say: () => void 0 });
+  check("a v1 hold records its protocol", (readMeta("suite") || {}).protocol === "atomic-lock-v1");
+  check("v1 heldBy sees it", heldBy("suite", "a v1 run"));
+  let busy = "";
+  try { await acquire("suite", { owner: "contender", timeoutMs: 0, holder: "cli", say: () => void 0 }); }
+  catch (e) { busy = e.code || e.message; }
+  check("v1 still refuses a second owner", busy === "BUSY", busy);
+  busy = "";
+  try { await acquire("record", { owner: "a run", timeoutMs: 0, say: () => void 0 }); }
+  catch (e) { busy = e.message; }
+  check("a v1 process hold must say how it stops when lost", /onLost/.test(busy), busy);
+  v1Hold.release();
+  check("v1 release clears it and leaves no guard",
+        !existsSync(dirFor("suite")) && !existsSync(join(ROOT, ".mutation-v1.guard")));
+  writeFileSync(MARKER, "﻿atomic-lock-v1\n");
+  let refused = "";
+  try { await acquire("suite", { owner: "a run", timeoutMs: 0, say: () => void 0 }); }
+  catch (e) { refused = e.message; }
+  check("a malformed marker refuses every lock", /not the exact activation marker/.test(refused), refused);
+  rmSync(MARKER, { force: true });
 
   if (failed) { console.log("lock selftest: " + failed + " FAILED"); return 1; }
   console.log("lock selftest: all passed");
